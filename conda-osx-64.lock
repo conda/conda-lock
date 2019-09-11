@@ -1,7 +1,7 @@
 # platform: osx-64
 @EXPLICIT
-https://conda.anaconda.org/conda-forge/osx-64/bzip2-1.0.8-h01d97ff_0.tar.bz2
-https://conda.anaconda.org/conda-forge/osx-64/ca-certificates-2019.6.16-hecc5488_0.tar.bz2
+https://conda.anaconda.org/conda-forge/osx-64/bzip2-1.0.8-h01d97ff_1.tar.bz2
+https://conda.anaconda.org/conda-forge/osx-64/ca-certificates-2019.9.11-hecc5488_0.tar.bz2
 https://conda.anaconda.org/conda-forge/osx-64/freexl-1.0.5-h1de35cc_1002.tar.bz2
 https://conda.anaconda.org/conda-forge/osx-64/giflib-5.1.7-h01d97ff_1.tar.bz2
 https://conda.anaconda.org/conda-forge/osx-64/jpeg-9c-h1de35cc_1001.tar.bz2
@@ -13,11 +13,11 @@ https://conda.anaconda.org/conda-forge/noarch/poppler-data-0.4.9-1.tar.bz2
 https://conda.anaconda.org/conda-forge/osx-64/tbb-2018.0.5-h2d50403_0.tar.bz2
 https://conda.anaconda.org/conda-forge/osx-64/tzcode-2019a-h01d97ff_1002.tar.bz2
 https://conda.anaconda.org/conda-forge/osx-64/xz-5.2.4-h1de35cc_1001.tar.bz2
-https://conda.anaconda.org/conda-forge/osx-64/zlib-1.2.11-h01d97ff_1005.tar.bz2
+https://conda.anaconda.org/conda-forge/osx-64/zlib-1.2.11-h01d97ff_1006.tar.bz2
 https://conda.anaconda.org/conda-forge/osx-64/libcxx-8.0.1-0.tar.bz2
 https://conda.anaconda.org/conda-forge/osx-64/libpng-1.6.37-h2573ce8_0.tar.bz2
 https://conda.anaconda.org/conda-forge/osx-64/openssl-1.1.1c-h01d97ff_0.tar.bz2
-https://conda.anaconda.org/conda-forge/osx-64/tk-8.6.9-h2573ce8_1002.tar.bz2
+https://conda.anaconda.org/conda-forge/osx-64/tk-8.6.9-h2573ce8_1003.tar.bz2
 https://conda.anaconda.org/conda-forge/osx-64/expat-2.2.5-h6de7cb9_1003.tar.bz2
 https://conda.anaconda.org/conda-forge/osx-64/freetype-2.10.0-h24853df_1.tar.bz2
 https://conda.anaconda.org/conda-forge/osx-64/geos-3.7.2-h6de7cb9_1.tar.bz2
@@ -53,7 +53,7 @@ https://conda.anaconda.org/conda-forge/osx-64/libpq-11.5-h756f0eb_1.tar.bz2
 https://conda.anaconda.org/conda-forge/osx-64/openjpeg-2.3.1-hdc36067_1.tar.bz2
 https://conda.anaconda.org/conda-forge/osx-64/proj4-6.1.1-hca663eb_1.tar.bz2
 https://conda.anaconda.org/conda-forge/osx-64/python-3.7.3-h93065d6_1.tar.bz2
-https://conda.anaconda.org/conda-forge/osx-64/certifi-2019.6.16-py37_1.tar.bz2
+https://conda.anaconda.org/conda-forge/osx-64/certifi-2019.9.11-py37_0.tar.bz2
 https://conda.anaconda.org/conda-forge/osx-64/cfitsio-3.470-h84d2f63_2.tar.bz2
 https://conda.anaconda.org/conda-forge/osx-64/curl-7.65.3-h22ea746_0.tar.bz2
 https://conda.anaconda.org/conda-forge/osx-64/geotiff-1.5.1-h2bcb450_3.tar.bz2
@@ -61,7 +61,7 @@ https://conda.anaconda.org/conda-forge/osx-64/libcblas-3.8.0-12_openblas.tar.bz2
 https://conda.anaconda.org/conda-forge/osx-64/liblapack-3.8.0-12_openblas.tar.bz2
 https://conda.anaconda.org/conda-forge/osx-64/libspatialite-4.3.0a-hd0a3780_1030.tar.bz2
 https://conda.anaconda.org/conda-forge/osx-64/postgresql-11.5-h25afefd_1.tar.bz2
-https://conda.anaconda.org/conda-forge/osx-64/libdap4-3.20.2-hae55d67_1000.tar.bz2
+https://conda.anaconda.org/conda-forge/osx-64/libdap4-3.20.4-habf5908_0.tar.bz2
 https://conda.anaconda.org/conda-forge/osx-64/libnetcdf-4.6.2-h1a02027_1003.tar.bz2
 https://conda.anaconda.org/conda-forge/osx-64/numpy-1.17.2-py37h6b0580a_0.tar.bz2
 https://conda.anaconda.org/conda-forge/osx-64/poppler-0.67.0-hd5eb092_7.tar.bz2
