@@ -4,6 +4,12 @@ Somewhat hacky solution to create conda lock files.
 from __future__ import absolute_import, print_function
 
 import json
+import sys
+
+if sys.version_info.major < 3:
+    print("conda_lock needs to run under python 3")
+    sys.exit(1)
+
 import pathlib
 import subprocess
 import sys
@@ -39,8 +45,8 @@ def solve_specs_for_arch(channels, specs, platform):
 
 def parse_environment_file(environment_file):
     # type: (pathlib.Path) -> list
-    if not environment_file.exists:
-        raise FileNotFoundError("environment.yml not found")
+    if not environment_file.exists():
+        raise FileNotFoundError("{} not found".format(environment_file))
     with environment_file.open("r") as fo:
         env_yaml_data = yaml.safe_load(fo)
     # TODO: we basically ignore most of the fields for now.
