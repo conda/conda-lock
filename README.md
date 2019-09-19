@@ -11,7 +11,7 @@ results in the conda solver *not* being invoked when installing the solve.
 
 ```bash
 # generate the lockfiles
-./conda-lock.py -f environment.yml -p osx-64 -p linux-64
+./conda_lock.py -f environment.yml -p osx-64 -p linux-64
 
 # create an environment from the lockfile
 conda create -n mylockedenv --file conda-linux-64.lock
