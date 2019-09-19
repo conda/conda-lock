@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 """
 Somewhat hacky solution to create conda lock files.
 """
