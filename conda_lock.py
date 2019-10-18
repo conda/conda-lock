@@ -16,10 +16,11 @@ import subprocess
 import sys
 import yaml
 import os
+import requests
 
 DEFAULT_PLATFORMS = ["osx-64", "linux-64", "win-64"]
 FAKE_PREFIX_NAME = "__magicmarker"
-FAKE_PKGS_ROOT = "/something/that/does/not/exist"
+FAKE_PKGS_ROOT = "/tmp/something/that/does/not/exist"
 
 
 def solve_specs_for_arch(channels, specs, platform):
@@ -75,7 +76,10 @@ def make_lock_files(platforms, channels, specs):
                 fn_to_dist_name(pkg['fn']): pkg['url'] for pkg in dry_run_install["actions"]["FETCH"]
             }
             for pkg in dry_run_install["actions"]["LINK"]:
-                fo.write(urls[pkg["dist_name"]])
+                url = urls[pkg["dist_name"]]
+                r = requests.head(url, allow_redirects=True)
+                url = r.url
+                fo.write(url)
                 fo.write("\n")
 
     print("To use the generated lock files create a new environment:", file=sys.stderr)
