@@ -37,7 +37,7 @@ def solve_specs_for_arch(channels, specs, platform):
     args = [
         "conda",
         "create",
-        "-p",
+        "--prefix",
         _safe_fake_prefix_name(),
         "--override-channels",
         "--dry-run",
