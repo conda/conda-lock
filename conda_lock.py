@@ -16,11 +16,21 @@ import sys
 import yaml
 import os
 import requests
+import tempfile
+
 
 DEFAULT_PLATFORMS = ["osx-64", "linux-64", "win-64"]
-FAKE_PREFIX_NAME = "__magicmarker"
 FAKE_PKGS_ROOT = "/tmp/something/that/does/not/exist"
 
+
+def _safe_fake_prefix_name():
+    args = ("conda", "env", "list", "--quiet", "--json")
+    json_output = subprocess.check_output(args)
+    envs = json.loads(json_output)["envs"]
+    PREFIX_NAMES = [pathlib.Path(env).stem for env in envs if "envs" in env]
+
+    while (FAKE_PREFIX_NAME := next(tempfile._get_candidate_names())) not in PREFIX_NAMES:
+        return FAKE_PREFIX_NAME
 
 def solve_specs_for_arch(channels, specs, platform):
     # type: (typing.List[str], typing.List[str], str) -> dict
@@ -28,7 +38,7 @@ def solve_specs_for_arch(channels, specs, platform):
         "conda",
         "create",
         "-p",
-        FAKE_PREFIX_NAME,
+        _safe_fake_prefix_name(),
         "--override-channels",
         "--dry-run",
         "--json",
