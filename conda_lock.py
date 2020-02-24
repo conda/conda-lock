@@ -6,8 +6,8 @@ Somewhat hacky solution to create conda lock files.
 import json
 import sys
 
-if sys.version_info.major < 3:
-    print("conda_lock needs to run under python 3")
+if not (sys.version_info.major >= 3 and sys.version_info.minor >= 6):
+    print("conda_lock needs to run under python >=3.6")
     sys.exit(1)
 
 import pathlib
@@ -39,7 +39,7 @@ def solve_specs_for_arch(channels, specs, platform):
 
     env = dict(os.environ)
     env.update({"CONDA_SUBDIR": platform, "CONDA_PKGS_DIRS": FAKE_PKGS_ROOT})
-    json_output = subprocess.check_output(args, encoding="utf-8", env=env)
+    json_output = subprocess.check_output(args, env=env)
     # print(json_output)
     return json.loads(json_output)
 
