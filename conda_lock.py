@@ -20,7 +20,6 @@ import tempfile
 
 
 DEFAULT_PLATFORMS = ["osx-64", "linux-64", "win-64"]
-FAKE_PKGS_ROOT = "/tmp/something/that/does/not/exist"
 
 
 def _safe_fake_prefix_name():
@@ -48,9 +47,9 @@ def solve_specs_for_arch(channels, specs, platform):
     args.extend(specs)
 
     env = dict(os.environ)
-    env.update({"CONDA_SUBDIR": platform, "CONDA_PKGS_DIRS": FAKE_PKGS_ROOT})
-    json_output = subprocess.check_output(args, env=env)
-    # print(json_output)
+    with tempfile.TemporaryDirectory() as FAKE_PKGS_ROOT:
+        env.update({"CONDA_SUBDIR": platform, "CONDA_PKGS_DIRS": FAKE_PKGS_ROOT})
+        json_output = subprocess.check_output(args, encoding="utf-8", env=env)
     return json.loads(json_output)
 
 
