@@ -33,7 +33,7 @@ def solve_specs_for_arch(channels, specs, platform):
             "conda",
             "create",
             "--prefix",
-            f"{CONDA_PKGS_DIRS}_prefix",
+            pathlib.Path(CONDA_PKGS_DIRS).joinpath("prefix"),
             "--override-channels",
             "--dry-run",
             "--json",
