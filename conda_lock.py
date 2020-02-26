@@ -22,22 +22,13 @@ import tempfile
 DEFAULT_PLATFORMS = ["osx-64", "linux-64", "win-64"]
 
 
-def _safe_fake_prefix_name():
-    args = ("conda", "env", "list", "--quiet", "--json")
-    json_output = subprocess.check_output(args)
-    envs = json.loads(json_output)["envs"]
-    PREFIX_NAMES = [pathlib.Path(env).stem for env in envs if "envs" in env]
-
-    while (FAKE_PREFIX_NAME := next(tempfile._get_candidate_names())) not in PREFIX_NAMES:
-        return FAKE_PREFIX_NAME
-
 def solve_specs_for_arch(channels, specs, platform):
     # type: (typing.List[str], typing.List[str], str) -> dict
     args = [
         "conda",
         "create",
         "--prefix",
-        _safe_fake_prefix_name(),
+        "__magicmarker",  # FAKE_PREFIX_NAME
         "--override-channels",
         "--dry-run",
         "--json",
@@ -49,7 +40,7 @@ def solve_specs_for_arch(channels, specs, platform):
     env = dict(os.environ)
     with tempfile.TemporaryDirectory() as FAKE_PKGS_ROOT:
         env.update({"CONDA_SUBDIR": platform, "CONDA_PKGS_DIRS": FAKE_PKGS_ROOT})
-        json_output = subprocess.check_output(args, encoding="utf-8", env=env)
+        json_output = subprocess.check_output(args, env=env)
     return json.loads(json_output)
 
 
