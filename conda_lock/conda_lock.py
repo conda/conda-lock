@@ -13,13 +13,7 @@ if not (sys.version_info.major >= 3 and sys.version_info.minor >= 6):
 import pathlib
 import subprocess
 import sys
-try:
-    import yaml
-except ImportError:
-    try:
-        import ruamel.yaml as yaml
-    except ImportError:
-        import ruamel_yaml as yaml
+import yaml
 import os
 import requests
 import tempfile

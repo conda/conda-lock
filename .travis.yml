@@ -33,7 +33,7 @@ before_install:
     conda config --add channels conda-forge --force
     conda config --set channel_priority strict
     conda config --set safety_checks disabled
-    conda create --name TEST python=$PY --file requirements-dev.txt
+    conda create --name TEST python=$PY --file requirements.txt --file requirements-dev.txt
     source activate TEST
     conda info --all
 
