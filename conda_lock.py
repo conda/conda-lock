@@ -24,22 +24,24 @@ DEFAULT_PLATFORMS = ["osx-64", "linux-64", "win-64"]
 
 def solve_specs_for_arch(channels, specs, platform):
     # type: (typing.List[str], typing.List[str], str) -> dict
-    args = [
-        "conda",
-        "create",
-        "--prefix",
-        "__magicmarker",  # FAKE_PREFIX_NAME
-        "--override-channels",
-        "--dry-run",
-        "--json",
-    ]
-    for channel in channels:
-        args.extend(["-c", channel])
-    args.extend(specs)
 
     env = dict(os.environ)
-    with tempfile.TemporaryDirectory() as FAKE_PKGS_ROOT:
-        env.update({"CONDA_SUBDIR": platform, "CONDA_PKGS_DIRS": FAKE_PKGS_ROOT})
+    with tempfile.TemporaryDirectory() as CONDA_PKGS_DIRS:
+        env.update({"CONDA_SUBDIR": platform, "CONDA_PKGS_DIRS": CONDA_PKGS_DIRS})
+
+        args = [
+            "conda",
+            "create",
+            "--prefix",
+            f"{CONDA_PKGS_DIRS}_prefix",
+            "--override-channels",
+            "--dry-run",
+            "--json",
+        ]
+        for channel in channels:
+            args.extend(["--channel", channel])
+        args.extend(specs)
+
         json_output = subprocess.check_output(args, env=env)
     return json.loads(json_output)
 
