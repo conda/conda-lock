@@ -13,7 +13,13 @@ if not (sys.version_info.major >= 3 and sys.version_info.minor >= 6):
 import pathlib
 import subprocess
 import sys
-import yaml
+try:
+    import yaml
+except ImportError:
+    try:
+        import ruamel.yaml as yaml
+    except ImportError:
+        import ruamel_yaml as yaml
 import os
 import requests
 import tempfile
@@ -76,11 +82,15 @@ def make_lock_files(platforms, channels, specs):
             urls = {
                 fn_to_dist_name(pkg['fn']): pkg['url'] for pkg in dry_run_install["actions"]["FETCH"]
             }
+            md5s = {
+                fn_to_dist_name(pkg['fn']): pkg['md5'] for pkg in dry_run_install["actions"]["FETCH"]
+            }
             for pkg in dry_run_install["actions"]["LINK"]:
                 url = urls[pkg["dist_name"]]
+                md5 = md5s[pkg["dist_name"]]
                 r = requests.head(url, allow_redirects=True)
                 url = r.url
-                fo.write(url)
+                fo.write(f'{url}#{md5}')
                 fo.write("\n")
 
     print("To use the generated lock files create a new environment:", file=sys.stderr)
