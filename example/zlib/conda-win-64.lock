@@ -1,0 +1,5 @@
+# platform: win-64
+@EXPLICIT
+https://repo.anaconda.com/pkgs/main/win-64/vs2015_runtime-14.16.27012-hf0eaf9b_1.conda#31aebde23e18c92886daf47857fb8990
+https://repo.anaconda.com/pkgs/main/win-64/vc-14.1-h0510ff6_4.conda#dc9507a39ab328597820486c729cd279
+https://conda.anaconda.org/conda-forge/win-64/zlib-1.2.11-h2fa13f4_1006.tar.bz2#2fa915c77ff33dd7048e984123f0b619
