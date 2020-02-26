@@ -16,31 +16,33 @@ import sys
 import yaml
 import os
 import requests
+import tempfile
+
 
 DEFAULT_PLATFORMS = ["osx-64", "linux-64", "win-64"]
-FAKE_PREFIX_NAME = "__magicmarker"
-FAKE_PKGS_ROOT = "/tmp/something/that/does/not/exist"
 
 
 def solve_specs_for_arch(channels, specs, platform):
     # type: (typing.List[str], typing.List[str], str) -> dict
-    args = [
-        "conda",
-        "create",
-        "-p",
-        FAKE_PREFIX_NAME,
-        "--override-channels",
-        "--dry-run",
-        "--json",
-    ]
-    for channel in channels:
-        args.extend(["-c", channel])
-    args.extend(specs)
 
     env = dict(os.environ)
-    env.update({"CONDA_SUBDIR": platform, "CONDA_PKGS_DIRS": FAKE_PKGS_ROOT})
-    json_output = subprocess.check_output(args, env=env)
-    # print(json_output)
+    with tempfile.TemporaryDirectory() as CONDA_PKGS_DIRS:
+        env.update({"CONDA_SUBDIR": platform, "CONDA_PKGS_DIRS": CONDA_PKGS_DIRS})
+
+        args = [
+            "conda",
+            "create",
+            "--prefix",
+            pathlib.Path(CONDA_PKGS_DIRS).joinpath("prefix"),
+            "--override-channels",
+            "--dry-run",
+            "--json",
+        ]
+        for channel in channels:
+            args.extend(["--channel", channel])
+        args.extend(specs)
+
+        json_output = subprocess.check_output(args, env=env)
     return json.loads(json_output)
 
 
@@ -83,7 +85,7 @@ def make_lock_files(platforms, channels, specs):
 
     print("To use the generated lock files create a new environment:", file=sys.stderr)
     print("", file=sys.stderr)
-    print("     conda create -n YOURENV --file conda-linux-64.lock", file=sys.stderr)
+    print("     conda create --name YOURENV --file conda-linux-64.lock", file=sys.stderr)
     print("", file=sys.stderr)
 
 
