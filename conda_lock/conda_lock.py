@@ -99,7 +99,7 @@ def make_lock_files(platforms, channels, specs):
     print("", file=sys.stderr)
 
 
-if __name__ == "__main__":
+def main():
     import argparse
 
     parser = argparse.ArgumentParser()
@@ -126,3 +126,6 @@ if __name__ == "__main__":
         specs=desired_env["specs"],
         platforms=args.platform or DEFAULT_PLATFORMS,
     )
+
+if __name__ == "__main__":
+    main()
