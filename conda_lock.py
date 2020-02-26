@@ -85,7 +85,7 @@ def make_lock_files(platforms, channels, specs):
 
     print("To use the generated lock files create a new environment:", file=sys.stderr)
     print("", file=sys.stderr)
-    print("     conda create -n YOURENV --file conda-linux-64.lock", file=sys.stderr)
+    print("     conda create --name YOURENV --file conda-linux-64.lock", file=sys.stderr)
     print("", file=sys.stderr)
 
 
