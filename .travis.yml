@@ -1,0 +1,90 @@
+language: minimal
+
+sudo: false
+
+env:
+  global:
+    - secure: "TODO"
+
+matrix:
+  fast_finish: true
+  include:
+    - name: "python-3.6"
+      env: PY=3.6
+    - name: "python-3.7"
+      env: PY=3.7
+    - name: "python-3.8"
+      env: PY=3.8
+    - name: "coding_standards"
+      env: PY=3
+    - name: "tarball"
+      env: PY=3
+    - name: "docs"
+      env: PY=3
+
+before_install:
+  # Install miniconda and create TEST env.
+  - |
+    wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh -O miniconda.sh
+    bash miniconda.sh -b -p $HOME/miniconda
+    export PATH="$HOME/miniconda/bin:$PATH"
+    conda config --set always_yes yes --set changeps1 no --set show_channel_urls true
+    conda update --quiet conda
+    conda config --add channels conda-forge --force
+    conda config --set channel_priority strict
+    conda config --set safety_checks disabled
+    conda create --name TEST python=$PY --file requirements-dev.txt
+    source activate TEST
+    conda info --all
+
+install:
+  - pip install -e . --no-deps --force-reinstall
+
+script:
+  - if [[ $TRAVIS_JOB_NAME == python-* ]]; then
+      cp -r tests/ /tmp ;
+      pushd /tmp && pytest -n 2 -rxs --cov=conda-lock tests && popd ;
+    fi
+
+  - if [[ $TRAVIS_JOB_NAME == 'tarball' ]]; then
+      python setup.py --version ;
+      pip wheel . -w dist --no-deps ;
+      check-manifest --verbose ;
+      twine check dist/* ;
+    fi
+
+  - if [[ $TRAVIS_JOB_NAME == 'coding_standards' ]]; then
+      pytest --flake8 -m flake8 ;
+    fi
+
+  - |
+    if [[ $TRAVIS_JOB_NAME == 'docs' ]]; then
+      set -e
+      pushd docs
+      make clean html linkcheck
+      popd
+      if [[ -z "$TRAVIS_TAG" ]]; then 
+        python -m doctr deploy --build-tags --key-path github_deploy_key.enc --built-docs docs/_build/html dev
+      else
+        python -m doctr deploy --build-tags --key-path github_deploy_key.enc --built-docs docs/_build/html "version-$TRAVIS_TAG"
+        python -m doctr deploy --build-tags --key-path github_deploy_key.enc --built-docs docs/_build/html .
+      fi
+    fi
+
+doctr:
+  require-master: true
+  sync: false
+
+deploy:
+  skip_cleanup: true
+  provider: pypi
+  user: "__token__"
+  password:
+    secure: "TODO"
+  distributions: sdist bdist_wheel
+  upload_docs: false
+  on:
+    repo: mariusvniekerk/conda-lock
+    tags: true
+    all_branches: master
+    condition: '$TRAVIS_JOB_NAME == "tarball"'
