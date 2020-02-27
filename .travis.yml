@@ -4,7 +4,9 @@ sudo: false
 
 env:
   global:
-    - secure: "TODO"
+    # Doctr deploy key for mariusvniekerk/conda-lock
+    - secure: "HRFByWj+4ZuMcnU2xQAEfly9rKgSpbbZYGvRr5OtgrPI/5vNOJ4rCw8ntBExDTjbUDjEydp3rjVnrMg264Vvpfu9PptwVGKA1diiN/Dh3+8sfmfdpd/RUQ+B23gQKwZ+FI0v8pXTk4awIcq0digehUKfZi45bg7Rwgfu54tNFqsLqz5RzHkolrSL3TOw4MR5r0kKzlF9TcSPw1VVWjozVHD87jK6EBYXa1XKL6JD22lz3Qic5dX+m0JwiNnXRI4ZuqRi7/7yuBhytauNfUdWzLRUgI/VtNmC/aVurh4axSh3zC90L8ZXgqk5OiwHCR2bO4DcZKS2yPbC8O/1vPtxwCjqp5D5K3zppC1YGFRhjlF9gepz3S1ULQTtpiihCinDFaaHJmez1jrWfCK/V9F4dRbKp9H/UNAFuTTZmAGQJcMIMo50jfM3EdPZdlAl2WpBWuqUYSwrVbBFkcAJtUnb5TCD/kH3V2xTxwG4aXnGLimRc3ewDBGwMWxkH4QIQJmtgEYJaJBU9TRUMBocXLnlZVKfhxYiqeBhAFzHvXgnSQWJcXeylPjyzoaeYLtx9WNq3xSVAfiFeIEKz3yph0n2BClVk7qGAKPJ4Q8f9Xq7AbWpdC5lJKMPcnJGrkAhY51h48n+8TYEKm778brM2tiB6T3cilkLHOjkZsvHPQY+R94="
+
 
 matrix:
   fast_finish: true
