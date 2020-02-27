@@ -4,7 +4,9 @@ sudo: false
 
 env:
   global:
-    - secure: "TODO"
+    # Doctr deploy key for mariusvniekerk/conda-lock
+    - secure: "HRFByWj+4ZuMcnU2xQAEfly9rKgSpbbZYGvRr5OtgrPI/5vNOJ4rCw8ntBExDTjbUDjEydp3rjVnrMg264Vvpfu9PptwVGKA1diiN/Dh3+8sfmfdpd/RUQ+B23gQKwZ+FI0v8pXTk4awIcq0digehUKfZi45bg7Rwgfu54tNFqsLqz5RzHkolrSL3TOw4MR5r0kKzlF9TcSPw1VVWjozVHD87jK6EBYXa1XKL6JD22lz3Qic5dX+m0JwiNnXRI4ZuqRi7/7yuBhytauNfUdWzLRUgI/VtNmC/aVurh4axSh3zC90L8ZXgqk5OiwHCR2bO4DcZKS2yPbC8O/1vPtxwCjqp5D5K3zppC1YGFRhjlF9gepz3S1ULQTtpiihCinDFaaHJmez1jrWfCK/V9F4dRbKp9H/UNAFuTTZmAGQJcMIMo50jfM3EdPZdlAl2WpBWuqUYSwrVbBFkcAJtUnb5TCD/kH3V2xTxwG4aXnGLimRc3ewDBGwMWxkH4QIQJmtgEYJaJBU9TRUMBocXLnlZVKfhxYiqeBhAFzHvXgnSQWJcXeylPjyzoaeYLtx9WNq3xSVAfiFeIEKz3yph0n2BClVk7qGAKPJ4Q8f9Xq7AbWpdC5lJKMPcnJGrkAhY51h48n+8TYEKm778brM2tiB6T3cilkLHOjkZsvHPQY+R94="
+
 
 matrix:
   fast_finish: true
@@ -80,7 +82,7 @@ deploy:
   provider: pypi
   user: "__token__"
   password:
-    secure: "TODO"
+    secure: "xSuoEP1rl9VTNESImn9648GigabBNtYu7xL9uK41wXB0gnUHrsJn2ugSg7k4My+yg4QzQhWpOvWbwIp9RCt9L8VHsOBKdE5KZJ5pOeI+dZ18qrgp+3B+R0IvR6sdGLrD1M+YyU4PnmwHRcCvHi8lotWcg0IyIte3shjDgumd/kDiCj46NrOXt1qSmevtoUY2nl/BHNmYWwTmub32FtkpjkV3n1FTt3MrnarSv6xfysHxoKb071omqWxYfjnkFLCCXx62Vq+YhId/uBoj4OPHuLMFWVCj7DHtVopyq/3TTTnqr6WS3F7O7cJD1HJpc9Tsspaw0JaHta2zxqc82TdtgonQjl4QhWLz1V9QWJC8k1RCILSwSo80A1TgttslLCaFjhbpa24djbAuOYoNxC8lCp5sQR5OVx6tMudvQYyu+Tw8W5oLcDeWjKlmktyarRx9En/yV0A/E++FxHDLXQDEI8uhXd12SrtrkKZGsV9KeDRHVcbFOcLs3Hsj9OEr1PRUvkmE8si6BzlOmywJo9sFgRCAc9bgYO+QCUcOuLrqtyKCUrmZ7T6VhiqjdwwkrkDHJgx7f75SDerPiUnz8FTZyBlF3pLxq4RZndamuzt93KDnS7ubANOYtkWYfWgDeHuCoICogfTfbG0hnHpopQsKyj1xnufd0bNQBsvS2HgSUrc="
   distributions: sdist bdist_wheel
   upload_docs: false
   on:
