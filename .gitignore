@@ -3,3 +3,5 @@
 *.pyc
 .mypy_cache/
 .vscode/
+build/
+dist/
