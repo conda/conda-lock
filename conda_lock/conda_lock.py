@@ -47,7 +47,7 @@ def solve_specs_for_arch(channels: List[str], specs: List[str], platform: str) -
 
 def parse_environment_file(environment_file: pathlib.Path) -> Dict:
     if not environment_file.exists():
-        raise FileNotFoundError("{} not found".format(environment_file))
+        raise FileNotFoundError(f"{environment_file} not found")
     with environment_file.open("r") as fo:
         env_yaml_data = yaml.safe_load(fo)
     # TODO: we basically ignore most of the fields for now.
@@ -65,12 +65,12 @@ def fn_to_dist_name(fn: str) -> str:
 
 def make_lock_files(platforms, channels, specs):
     for platform in platforms:
-        print("generating lockfile for {}".format(platform), file=sys.stderr)
+        print(f"generating lockfile for {platform}", file=sys.stderr)
         dry_run_install = solve_specs_for_arch(
             platform=platform, channels=channels, specs=specs
         )
-        with open("conda-{}.lock".format(platform), "w") as fo:
-            fo.write("# platform: {platform}\n".format(platform=platform))
+        with open(f"conda-{platform}.lock", "w") as fo:
+            fo.write(f"# platform: {platform}\n")
             fo.write("@EXPLICIT\n")
             urls = {
                 fn_to_dist_name(pkg["fn"]): pkg["url"]
