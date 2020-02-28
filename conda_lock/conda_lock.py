@@ -26,7 +26,14 @@ DEFAULT_PLATFORMS = ["osx-64", "linux-64", "win-64"]
 def solve_specs_for_arch(channels: List[str], specs: List[str], platform: str) -> str:
     env = dict(os.environ)
     with tempfile.TemporaryDirectory() as CONDA_PKGS_DIRS:
-        env.update({"CONDA_SUBDIR": platform, "CONDA_PKGS_DIRS": CONDA_PKGS_DIRS})
+        env.update(
+            {
+                "CONDA_SUBDIR": platform,
+                "CONDA_PKGS_DIRS": CONDA_PKGS_DIRS,
+                "CONDA_UNSATISFIABLE_HINTS_CHECK_DEPTH": "0",
+                "CONDA_ADD_PIP_AS_PYTHON_DEPENDENCY": "False",
+            }
+        )
 
         args = [
             "conda",
@@ -41,8 +48,20 @@ def solve_specs_for_arch(channels: List[str], specs: List[str], platform: str) -
             args.extend(["--channel", channel])
         args.extend(specs)
 
-        json_output = subprocess.check_output(args, env=env)
-    return json.loads(json_output)
+        try:
+            proc = subprocess.run(args, env=env, capture_output=True, encoding="utf8")
+            proc.check_returncode()
+        except Exception as e:
+            err_json = json.loads(proc.stdout)
+            import pprint
+
+            pprint.pprint(err_json, indent=140)
+            print(err_json["error"])
+            print("\n")
+            print(f"Could not lock the environment for platform {platform}")
+            sys.exit(1)
+
+        return json.loads(proc.stdout)
 
 
 def parse_environment_file(environment_file: pathlib.Path) -> Dict:
@@ -58,8 +77,12 @@ def parse_environment_file(environment_file: pathlib.Path) -> Dict:
 
 
 def fn_to_dist_name(fn: str) -> str:
-    fn, _, _ = fn.partition(".conda")
-    fn, _, _ = fn.partition(".tar.bz2")
+    if fn.endswith(".conda"):
+        fn, _, _ = fn.partition(".conda")
+    elif fn.endswith(".tar.bz2"):
+        fn, _, _ = fn.partition(".tar.bz2")
+    else:
+        raise RuntimeError(f"unexpected file type {fn}", fn)
     return fn
 
 

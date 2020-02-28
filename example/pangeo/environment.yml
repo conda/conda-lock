@@ -1,0 +1,32 @@
+name: pangeo
+channels:
+  - conda-forge
+dependencies:
+  - python
+  - bokeh
+  - cartopy
+  - cython
+  - dask
+  - dask-cloudprovider
+  - erddapy
+  - numpy
+  - python-blosc
+  - hvplot
+  - h5py
+  - h5netcdf
+  - ipykernel
+  - ipywidgets
+  - geoviews
+  - holoviews
+  - lz4
+  - datashader
+  - panel
+  - metpy
+  - netcdf4
+  - xarray
+  - s3fs
+  - gcsfs
+  - fsspec
+  - utide
+  - zarr
+  - earthsim
