@@ -51,12 +51,9 @@ def solve_specs_for_arch(channels: List[str], specs: List[str], platform: str) -
         try:
             proc = subprocess.run(args, env=env, capture_output=True, encoding="utf8")
             proc.check_returncode()
-        except Exception as e:
+        except subprocess.CalledProcessError:
             err_json = json.loads(proc.stdout)
-            import pprint
-
-            pprint.pprint(err_json, indent=140)
-            print(err_json["error"])
+            print(err_json["message"])
             print("\n")
             print(f"Could not lock the environment for platform {platform}")
             sys.exit(1)
