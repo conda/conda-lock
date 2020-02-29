@@ -130,18 +130,16 @@ def solve_specs_for_arch(
 def search_for_md5s(conda: PathLike, package_specs: List[dict]):
     """Use conda-search to determine the md5 metadata that we need.
 
-    This is only needed if pkgs_dirs is set in condarc.  
+    This is only needed if pkgs_dirs is set in condarc.
     Sadly this is going to be slow since we need to fetch each result individually
     due to the cli of conda search
 
     """
     found: Set[str] = set()
-    packages: List[Tuple[str, str]] = list(
-        [
-            *[(d["name"], f"{d['name']}[url={d['url_conda']}]") for d in package_specs],
-            *[(d["name"], f"{d['name']}[url={d['url']}]") for d in package_specs],
-        ]
-    )
+    packages: List[Tuple[str, str]] = [
+        *[(d["name"], f"{d['name']}[url={d['url_conda']}]") for d in package_specs],
+        *[(d["name"], f"{d['name']}[url={d['url']}]") for d in package_specs],
+    ]
 
     for name, spec in packages:
         if name in found:
@@ -244,7 +242,7 @@ def main_on_docker(env_file, platforms):
     for p in platforms:
         platform_arg.extend(["--platform", p])
 
-    subprocess.run(
+    subprocess.check_output(
         [
             "docker",
             "run",
@@ -255,7 +253,8 @@ def main_on_docker(env_file, platforms):
             "/work",
             "conda-lock:latest",
             "--file",
-            env_path.name * platform_arg,
+            env_path.name,
+            *platform_arg,
         ]
     )
 
@@ -285,8 +284,11 @@ def main():
         "--mode",
         choices=["default", "docker"],
         default="default",
-        help="run this conda-lock in an isolated docker container.  This may be required to account for some issues"
-        "where conda-lock condflicts with existing condarc configurations.",
+        help="""
+            Run this conda-lock in an isolated docker container.  This may be
+            required to account for some issues where conda-lock condflicts with
+            existing condarc configurations.
+            """,
     )
 
     args = parser.parse_args()
