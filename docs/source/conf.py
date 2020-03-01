@@ -58,7 +58,7 @@ author = "Marius van Niekerk"
 # |version| and |release|, also used in various other places throughout the
 # built documents.
 #
-import conda_lock
+import conda_lock  # noqa: E402
 
 
 version = release = conda_lock.__version__

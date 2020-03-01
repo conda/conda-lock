@@ -182,13 +182,13 @@ def fn_to_dist_name(fn: str) -> str:
 def make_lock_files(
     conda: PathLike, platforms: List[str], channels: List[str], specs: List[str]
 ):
-    for platform in platforms:
-        print(f"generating lockfile for {platform}", file=sys.stderr)
+    for plat in platforms:
+        print(f"generating lockfile for {plat}", file=sys.stderr)
         dry_run_install = solve_specs_for_arch(
-            conda=conda, platform=platform, channels=channels, specs=specs
+            conda=conda, platform=plat, channels=channels, specs=specs
         )
-        with open(f"conda-{platform}.lock", "w") as fo:
-            fo.write(f"# platform: {platform}\n")
+        with open(f"conda-{plat}.lock", "w") as fo:
+            fo.write(f"# platform: {plat}\n")
             fo.write("@EXPLICIT\n")
             link_actions = dry_run_install["actions"]["LINK"]
             for link in link_actions:
