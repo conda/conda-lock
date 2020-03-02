@@ -286,7 +286,7 @@ def main():
         default="default",
         help="""
             Run this conda-lock in an isolated docker container.  This may be
-            required to account for some issues where conda-lock condflicts with
+            required to account for some issues where conda-lock conflicts with
             existing condarc configurations.
             """,
     )
