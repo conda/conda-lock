@@ -1,7 +1,11 @@
 import pathlib
 import shutil
 
-from conda_lock.conda_lock import ensure_conda, parse_environment_file
+from conda_lock.conda_lock import (
+    ensure_conda,
+    install_conda_exe,
+    parse_environment_file,
+)
 
 
 def test_ensure_conda_nopath():
@@ -11,6 +15,11 @@ def test_ensure_conda_nopath():
 def test_ensure_conda_path():
     conda_executable = shutil.which("conda") or shutil.which("conda.exe")
     assert conda_executable == ensure_conda(conda_executable)
+
+
+def test_install_conda_exe():
+    target_filename = install_conda_exe()
+    target_filename == ensure_conda(target_filename)
 
 
 def test_parse_environment_file():
