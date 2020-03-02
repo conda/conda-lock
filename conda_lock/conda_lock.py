@@ -31,7 +31,7 @@ if not (sys.version_info.major >= 3 and sys.version_info.minor >= 6):
 DEFAULT_PLATFORMS = ["osx-64", "linux-64", "win-64"]
 
 
-def ensure_conda(conda_executable: Optional[str]):
+def ensure_conda(conda_executable: Optional[str] = None):
     if conda_executable:
         if pathlib.Path(conda_executable).exists():
             return conda_executable
