@@ -29,6 +29,6 @@ Generate the lockfiles,
 
 Create an environment from the lockfile
 
-  .. code-block:: bash     
+  .. code-block:: bash
 
      conda create --name my-locked-env --file conda-linux-64.lock

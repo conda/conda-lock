@@ -17,7 +17,7 @@ various places
 
 ### Dockerfile example
 
-In order to use conda-lock in a docker-style context you want to add the lockfile to the 
+In order to use conda-lock in a docker-style context you want to add the lockfile to the
 docker container.  In order to refresh the lock file just run `conda-lock` again.
 ```
   Dockerfile

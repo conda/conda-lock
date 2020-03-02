@@ -1,7 +1,10 @@
 *.egg-info
 *.eggs
 *.pyc
+*.tar.gz
 .mypy_cache/
 .vscode/
+.idea/
 build/
 dist/
+
