@@ -1,6 +1,10 @@
 import pathlib
 
-from conda_lock.conda_lock import parse_environment_file
+from conda_lock.conda_lock import ensure_conda, parse_environment_file
+
+
+def test_ensure_conda_nopath():
+    assert pathlib.Path(ensure_conda()).is_file()
 
 
 def test_parse_environment_file():
