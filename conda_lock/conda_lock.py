@@ -80,7 +80,7 @@ def conda_pkgs_dir():
     if CONDA_PKGS_DIRS is None:
         CONDA_PKGS_DIRS = tempfile.TemporaryDirectory()
         atexit.register(CONDA_PKGS_DIRS.cleanup)
-        return CONDA_PKGS_DIRS
+        return CONDA_PKGS_DIRS.name
 
 
 def conda_env_override():
