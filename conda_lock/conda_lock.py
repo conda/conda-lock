@@ -238,7 +238,7 @@ def make_lock_files(
 
 def main_on_docker(env_file, platforms):
     env_path = pathlib.Path(env_file)
-    platform_arg = [] 
+    platform_arg = []
     for p in platforms:
         platform_arg.extend(["--platform", p])
 
