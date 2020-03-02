@@ -78,12 +78,15 @@ CONDA_PKGS_DIRS = None
 def conda_pkgs_dir():
     global CONDA_PKGS_DIRS
     if CONDA_PKGS_DIRS is None:
-        CONDA_PKGS_DIRS = tempfile.TemporaryDirectory()
-        atexit.register(CONDA_PKGS_DIRS.cleanup)
-        return CONDA_PKGS_DIRS.name
+        temp_dir = tempfile.TemporaryDirectory()
+        CONDA_PKGS_DIRS = temp_dir.name
+        atexit.register(temp_dir.cleanup)
+        return CONDA_PKGS_DIRS
+    else:
+        return CONDA_PKGS_DIRS
 
 
-def conda_env_override():
+def conda_env_override(platform):
     env = dict(os.environ)
     env.update(
         {
@@ -114,7 +117,10 @@ def solve_specs_for_arch(
 
     try:
         proc = subprocess.run(
-            args, env=conda_env_override(), capture_output=True, encoding="utf8"
+            args,
+            env=conda_env_override(platform),
+            capture_output=True,
+            encoding="utf8",
         )
         proc.check_returncode()
     except subprocess.CalledProcessError:
@@ -127,7 +133,7 @@ def solve_specs_for_arch(
     return json.loads(proc.stdout)
 
 
-def search_for_md5s(conda: PathLike, package_specs: List[dict]):
+def search_for_md5s(conda: PathLike, package_specs: List[dict], platform: str):
     """Use conda-search to determine the md5 metadata that we need.
 
     This is only needed if pkgs_dirs is set in condarc.
@@ -148,7 +154,7 @@ def search_for_md5s(conda: PathLike, package_specs: List[dict]):
             ["conda", "search", "--use-index-cache", "--json", spec],
             encoding="utf8",
             capture_output=True,
-            env=conda_env_override(),
+            env=conda_env_override(platform),
         )
         content = json.loads(out.stdout)
         if name in content:
@@ -214,6 +220,7 @@ def make_lock_files(
                 for search_res in search_for_md5s(
                     conda,
                     [l for l in link_actions if l["dist_name"] in non_fetch_packages],
+                    plat,
                 ):
                     print(search_res)
                     dist_name = fn_to_dist_name(search_res["fn"])
