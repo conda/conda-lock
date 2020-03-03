@@ -119,7 +119,8 @@ def solve_specs_for_arch(
         proc = subprocess.run(
             args,
             env=conda_env_override(platform),
-            capture_output=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
             encoding="utf8",
         )
         proc.check_returncode()
@@ -153,7 +154,8 @@ def search_for_md5s(conda: PathLike, package_specs: List[dict], platform: str):
         out = subprocess.run(
             ["conda", "search", "--use-index-cache", "--json", spec],
             encoding="utf8",
-            capture_output=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
             env=conda_env_override(platform),
         )
         content = json.loads(out.stdout)
