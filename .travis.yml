@@ -46,6 +46,7 @@ script:
   - if [[ $TRAVIS_JOB_NAME == python-* ]]; then
       cp -r tests/ /tmp ;
       pushd /tmp && pytest -n 2 -rxs --cov=conda-lock tests && popd ;
+      pushd /tmp/tests && conda-lock -f environment.yml -p linux-64 && popd;
     fi
 
   - if [[ $TRAVIS_JOB_NAME == 'tarball' ]]; then
