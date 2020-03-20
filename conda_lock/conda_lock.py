@@ -210,23 +210,18 @@ def make_lock_files(
             fetch_actions = dry_run_install["actions"]["FETCH"]
             import pprint
 
-            pprint.pprint(("FETCH", fetch_actions))
-
             fetch_by_dist_name = {
                 fn_to_dist_name(pkg["fn"]): pkg for pkg in fetch_actions
             }
 
             non_fetch_packages = link_dists - set(fetch_by_dist_name)
             if len(non_fetch_packages) > 0:
-                print(link_dists - set(fetch_by_dist_name))
                 for search_res in search_for_md5s(
                     conda,
                     [l for l in link_actions if l["dist_name"] in non_fetch_packages],
                     plat,
                 ):
-                    print(search_res)
                     dist_name = fn_to_dist_name(search_res["fn"])
-                    print(dist_name)
                     fetch_by_dist_name[dist_name] = search_res
 
             for pkg in link_actions:
