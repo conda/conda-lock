@@ -113,6 +113,11 @@ def solve_specs_for_arch(
     ]
     for channel in channels:
         args.extend(["--channel", channel])
+        if channel == "defaults" and platform in {"win-64", "win-32"}:
+            # msys2 is a windows-only channel that conda automatically
+            # injects if the host platform is Windows. If our host
+            # platform is not Windows, we need to add it manually
+            args.extend(["--channel", "msys2"])
     args.extend(specs)
 
     try:
