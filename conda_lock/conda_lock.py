@@ -178,8 +178,31 @@ def parse_environment_file(environment_file: pathlib.Path) -> Dict:
     # TODO: we basically ignore most of the fields for now.
     #       notable pip deps are not supported
     specs = env_yaml_data["dependencies"]
+
+    # Split out any sub spec sections from the dependencies mapping
+    mapping_specs = [x for x in specs if not isinstance(x, str)]
+    specs = [x for x in specs if isinstance(x, str)]
+
+    pip = None
+    for mapping_spec in mapping_specs:
+        if "pip" in mapping_spec:
+            print(
+                (
+                    "Warning, found pip deps! Contents will be placed into *.pip.lock. After "
+                    "creating the conda environment, you'll need to update it with the *.pip.lock "
+                    "contents"
+                ),
+                file=sys.stderr,
+            )
+            pip = mapping_spec["pip"]
+        else:
+            print(
+                "Warning! unknown mapping found {}".format(mapping_spec),
+                file=sys.stderr,
+            )
+
     channels = env_yaml_data.get("channels", [])
-    return {"specs": specs, "channels": channels}
+    return {"specs": specs, "channels": channels, "pip": pip}
 
 
 def fn_to_dist_name(fn: str) -> str:
@@ -193,7 +216,11 @@ def fn_to_dist_name(fn: str) -> str:
 
 
 def make_lock_files(
-    conda: PathLike, platforms: List[str], channels: List[str], specs: List[str]
+    conda: PathLike,
+    platforms: List[str],
+    channels: List[str],
+    specs: List[str],
+    pip: List[str],
 ):
     for plat in platforms:
         print(f"generating lockfile for {plat}", file=sys.stderr)
@@ -237,11 +264,28 @@ def make_lock_files(
                 fo.write(f"{url}#{md5}")
                 fo.write("\n")
 
-    print("To use the generated lock files create a new environment:", file=sys.stderr)
+        # write the pip deps, if any
+        if pip:
+            with open(f"conda-{plat}.lock.pip", "w") as fo:
+                fo.write(
+                    "# Pip dependencies. Note that this is not fully reproducible/dterministic.\n"
+                )
+                pipdeps = {"dependencies": [{"pip": pip}]}
+                yaml.dump(pipdeps, fo)
+
+    print(
+        "To use the generated lock files to create a new environment:", file=sys.stderr
+    )
     print("", file=sys.stderr)
     print(
-        "     conda create --name YOURENV --file conda-linux-64.lock", file=sys.stderr
+        f"     conda create --name YOURENV --file conda-{{{','.join(platforms)}}}.lock",
+        file=sys.stderr,
     )
+    if pip:
+        print(
+            f"     conda env update --name YOURENV --file conda-{{{','.join(platforms)}}}.lock.pip",
+            file=sys.stderr,
+        )
     print("", file=sys.stderr)
 
 
@@ -309,6 +353,7 @@ def main():
         conda=conda_exe,
         channels=desired_env["channels"] or [],
         specs=desired_env["specs"],
+        pip=desired_env["pip"],
         platforms=args.platform or DEFAULT_PLATFORMS,
     )
 
