@@ -223,7 +223,7 @@ def make_lock_files(
             if len(non_fetch_packages) > 0:
                 for search_res in search_for_md5s(
                     conda,
-                    [l for l in link_actions if l["dist_name"] in non_fetch_packages],
+                    [x for x in link_actions if x["dist_name"] in non_fetch_packages],
                     plat,
                 ):
                     dist_name = fn_to_dist_name(search_res["fn"])
