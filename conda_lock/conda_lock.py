@@ -176,9 +176,25 @@ def parse_environment_file(environment_file: pathlib.Path) -> Dict:
     with environment_file.open("r") as fo:
         env_yaml_data = yaml.safe_load(fo)
     # TODO: we basically ignore most of the fields for now.
-    #       notable pip deps are not supported
+    #       notable pip deps are just skipped below
     specs = env_yaml_data["dependencies"]
     channels = env_yaml_data.get("channels", [])
+
+    # Split out any sub spec sections from the dependencies mapping
+    mapping_specs = [x for x in specs if not isinstance(x, str)]
+    specs = [x for x in specs if isinstance(x, str)]
+
+    # Print a warning if there are pip specs in the dependencies
+    for mapping_spec in mapping_specs:
+        if "pip" in mapping_spec:
+            print(
+                (
+                    "Warning, found pip deps not included in the lock file! You'll need to install "
+                    "them separately"
+                ),
+                file=sys.stderr,
+            )
+
     return {"specs": specs, "channels": channels}
 
 
