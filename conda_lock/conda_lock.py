@@ -3,6 +3,7 @@ Somewhat hacky solution to create conda lock files.
 """
 
 import atexit
+import hashlib
 import json
 import logging
 import os
@@ -197,11 +198,18 @@ def make_lock_files(
 ):
     for plat in platforms:
         print(f"generating lockfile for {plat}", file=sys.stderr)
+
         dry_run_install = solve_specs_for_arch(
             conda=conda, platform=plat, channels=channels, specs=specs
         )
+
+        env_spec = json.dumps(
+            {"channels": channels, "platform": plat, "specs": specs}, sort_keys=True
+        )
+        env_hash = hashlib.sha256(env_hash.encode("utf-8"))
         with open(f"conda-{plat}.lock", "w") as fo:
             fo.write(f"# platform: {plat}\n")
+            fo.write(f"# env_hash: {env_hash.hexdigest()}\n")
             fo.write("@EXPLICIT\n")
             link_actions = dry_run_install["actions"]["LINK"]
             for link in link_actions:
