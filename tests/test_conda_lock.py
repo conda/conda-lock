@@ -27,7 +27,7 @@ def test_ensure_conda_nopath():
 
 def test_ensure_conda_path():
     conda_executable = shutil.which("conda") or shutil.which("conda.exe")
-    assert conda_executable == ensure_conda(conda_executable)
+    assert pathlib.Path(conda_executable) == ensure_conda(conda_executable)
 
 
 def test_install_conda_exe():
