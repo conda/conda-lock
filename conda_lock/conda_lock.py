@@ -269,8 +269,6 @@ def make_lock_files(
             for pkg in link_actions:
                 url = fetch_by_dist_name[pkg["dist_name"]]["url"]
                 md5 = fetch_by_dist_name[pkg["dist_name"]]["md5"]
-                # r = requests.head(url, allow_redirects=True)
-                # url = r.url
                 fo.write(f"{url}#{md5}")
                 fo.write("\n")
 
