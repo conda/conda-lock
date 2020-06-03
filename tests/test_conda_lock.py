@@ -6,8 +6,8 @@ import pytest
 from conda_lock.conda_lock import (
     ensure_conda,
     install_conda_exe,
-    main,
     parse_environment_file,
+    run_lock,
 )
 
 
@@ -32,7 +32,7 @@ def test_ensure_conda_path():
 
 def test_install_conda_exe():
     target_filename = install_conda_exe()
-    target_filename == ensure_conda(target_filename)
+    assert target_filename == ensure_conda(target_filename)
 
 
 def test_parse_environment_file(gdal_environment):
@@ -43,11 +43,11 @@ def test_parse_environment_file(gdal_environment):
 
 def test_run_lock_conda(monkeypatch, zlib_environment):
     monkeypatch.chdir(zlib_environment.parent)
-    main(zlib_environment, conda_exe="conda")
+    run_lock(zlib_environment, conda_exe="conda")
 
 
 def test_run_lock_mamba(monkeypatch, zlib_environment):
     if not shutil.which("mamba"):
         raise pytest.skip("mamba is not installed")
     monkeypatch.chdir(zlib_environment.parent)
-    main(zlib_environment, conda_exe="mamba")
+    run_lock(zlib_environment, conda_exe="mamba")

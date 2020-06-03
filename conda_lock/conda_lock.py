@@ -341,7 +341,7 @@ def parser():
     return parser
 
 
-def main(
+def run_lock(
     environment_file: pathlib.Path,
     conda_exe: Optional[str],
     platforms: Optional[List[str]] = None,
@@ -356,6 +356,10 @@ def main(
     )
 
 
-if __name__ == "__main__":
+def main():
     args = parser().parse_args()
-    main(environment_file=args.file, conda_exe=args.conda, platforms=args.platform)
+    run_lock(environment_file=args.file, conda_exe=args.conda, platforms=args.platform)
+
+
+if __name__ == "__main__":
+    main()
