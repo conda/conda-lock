@@ -35,6 +35,7 @@ before_install:
     conda config --add channels conda-forge --force
     conda config --set channel_priority strict
     conda config --set safety_checks disabled
+    conda install mamba
     conda create --name TEST python=$PY --file requirements.txt --file requirements-dev.txt
     source activate TEST
     conda info --all
@@ -45,8 +46,8 @@ install:
 script:
   - if [[ $TRAVIS_JOB_NAME == python-* ]]; then
       cp -r tests/ /tmp ;
-      pushd /tmp && pytest -n 2 -rxs --cov=conda-lock tests && popd ;
-      pushd /tmp/tests && conda-lock -f environment.yml -p linux-64 && popd;
+      pushd /tmp && pytest -vrsx -n 2 -rxs --cov=conda_lock tests && popd ;
+      pushd /tmp/tests/gdal && conda-lock -f environment.yml -p linux-64 && popd;
     fi
 
   - if [[ $TRAVIS_JOB_NAME == 'tarball' ]]; then

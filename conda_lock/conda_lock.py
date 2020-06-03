@@ -2,6 +2,7 @@
 Somewhat hacky solution to create conda lock files.
 """
 
+import argparse
 import atexit
 import hashlib
 import json
@@ -15,7 +16,7 @@ import subprocess
 import sys
 import tempfile
 
-from typing import Dict, List, MutableSequence, Optional, Set, Tuple, Union
+from typing import Dict, Iterable, List, MutableSequence, Optional, Set, Tuple, Union
 
 import requests
 import yaml
@@ -32,26 +33,27 @@ if not (sys.version_info.major >= 3 and sys.version_info.minor >= 6):
 DEFAULT_PLATFORMS = ["osx-64", "linux-64", "win-64"]
 
 
-def ensure_conda(conda_executable: Optional[str] = None):
+def candidate_executables(conda_executable: Optional[str]) -> Iterable[Optional[str]]:
     if conda_executable:
         if pathlib.Path(conda_executable).exists():
-            return conda_executable
-
-    conda_executable = shutil.which("conda")
-    if conda_executable:
-        return conda_executable
-
-    conda_executable = shutil.which("conda.exe")
-    if conda_executable:
-        return conda_executable
-
-    logging.info(
-        "No existing conda installation found.  Installing the standalone conda solver"
-    )
-    return install_conda_exe()
+            yield conda_executable
+        yield shutil.which(conda_executable)
+    yield shutil.which("conda")
+    yield shutil.which("conda.exe")
 
 
-def install_conda_exe():
+def ensure_conda(conda_executable: Optional[str] = None) -> pathlib.Path:
+    for candidate in candidate_executables(conda_executable):
+        if candidate:
+            return pathlib.Path(candidate)
+    else:
+        logging.info(
+            "No existing conda installation found.  Installing the standalone conda solver"
+        )
+        return pathlib.Path(install_conda_exe())
+
+
+def install_conda_exe() -> str:
     conda_exe_prefix = "https://repo.anaconda.com/pkgs/misc/conda-execs"
     if platform.system() == "Linux":
         conda_exe_file = "conda-latest-linux-64.exe"
@@ -87,7 +89,7 @@ def conda_pkgs_dir():
         return CONDA_PKGS_DIRS
 
 
-def conda_env_override(platform):
+def conda_env_override(platform) -> Dict[str, str]:
     env = dict(os.environ)
     env.update(
         {
@@ -121,20 +123,31 @@ def solve_specs_for_arch(
             args.extend(["--channel", "msys2"])
     args.extend(specs)
 
+    proc = subprocess.run(
+        args,
+        env=conda_env_override(platform),
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        encoding="utf8",
+    )
     try:
-        proc = subprocess.run(
-            args,
-            env=conda_env_override(platform),
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            encoding="utf8",
-        )
         proc.check_returncode()
     except subprocess.CalledProcessError:
-        err_json = json.loads(proc.stdout)
-        print(err_json["message"])
-        print("\n")
+        try:
+            err_json = json.loads(proc.stdout)
+            message = err_json["message"]
+        except json.JSONDecodeError as e:
+            print(f"Failed to parse json, {e}")
+            message = ""
+
         print(f"Could not lock the environment for platform {platform}")
+        if message:
+            print(message)
+        print(f"    Command: {proc.args}")
+        if proc.stdout:
+            print(f"    STDOUT:\n{proc.stdout}")
+        if proc.stderr:
+            print(f"    STDOUT:\n{proc.stderr}")
         sys.exit(1)
 
     return json.loads(proc.stdout)
@@ -220,7 +233,8 @@ def make_lock_files(
         )
 
         env_spec = json.dumps(
-            {"channels": channels, "platform": plat, "specs": specs}, sort_keys=True
+            {"channels": channels, "platform": plat, "specs": sorted(specs)},
+            sort_keys=True,
         )
         env_hash: "hashlib._Hash" = hashlib.sha256(env_spec.encode("utf-8"))
         with open(f"conda-{plat}.lock", "w") as fo:
@@ -237,7 +251,6 @@ def make_lock_files(
             link_dists = {link["dist_name"] for link in link_actions}
 
             fetch_actions = dry_run_install["actions"]["FETCH"]
-            import pprint
 
             fetch_by_dist_name = {
                 fn_to_dist_name(pkg["fn"]): pkg for pkg in fetch_actions
@@ -256,8 +269,6 @@ def make_lock_files(
             for pkg in link_actions:
                 url = fetch_by_dist_name[pkg["dist_name"]]["url"]
                 md5 = fetch_by_dist_name[pkg["dist_name"]]["md5"]
-                r = requests.head(url, allow_redirects=True)
-                url = r.url
                 fo.write(f"{url}#{md5}")
                 fo.write("\n")
 
@@ -292,12 +303,13 @@ def main_on_docker(env_file, platforms):
     )
 
 
-def main():
-    import argparse
-
+def parser():
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "-c", "--conda", default=None, help="path to the conda executable to use."
+        "-c",
+        "--conda",
+        default=None,
+        help="path (or name) of the conda executable to use.",
     )
     parser.add_argument(
         "-p",
@@ -311,6 +323,7 @@ def main():
         "--file",
         default="environment.yml",
         help="path to a conda environment specification",
+        type=lambda s: pathlib.Path(s),
     )
     parser.add_argument(
         "-m",
@@ -323,18 +336,27 @@ def main():
             existing condarc configurations.
             """,
     )
+    return parser
 
-    args = parser.parse_args()
 
-    environment_file = pathlib.Path(args.file)
+def run_lock(
+    environment_file: pathlib.Path,
+    conda_exe: Optional[str],
+    platforms: Optional[List[str]] = None,
+) -> None:
     desired_env = parse_environment_file(environment_file)
-    conda_exe = ensure_conda(args.conda)
+    _conda_exe = ensure_conda(conda_exe)
     make_lock_files(
-        conda=conda_exe,
+        conda=_conda_exe,
         channels=desired_env["channels"] or [],
         specs=desired_env["specs"],
-        platforms=args.platform or DEFAULT_PLATFORMS,
+        platforms=platforms or DEFAULT_PLATFORMS,
     )
+
+
+def main():
+    args = parser().parse_args()
+    run_lock(environment_file=args.file, conda_exe=args.conda, platforms=args.platform)
 
 
 if __name__ == "__main__":

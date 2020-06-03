@@ -1,0 +1,6 @@
+# platform: win-64
+# env_hash: 2cb8caf298f1c882e194e4df87387031139a9bab29cf66ffa756ba69b9a5b938
+@EXPLICIT
+https://conda.anaconda.org/conda-forge/win-64/vs2015_runtime-14.16.27012-h30e32a0_2.tar.bz2#37a0bcc72c5e97f5602dca37eb3f8314
+https://conda.anaconda.org/conda-forge/win-64/vc-14.1-h869be7e_1.tar.bz2#4fae57303daa91367eca263374e4a638
+https://conda.anaconda.org/conda-forge/win-64/zlib-1.2.11-h2fa13f4_1006.tar.bz2#2fa915c77ff33dd7048e984123f0b619

@@ -1,0 +1,4 @@
+# platform: osx-64
+# env_hash: a68fc42ac179cc493c4085d11306ada2ec54c5e3a76c179b411c95aa748aabad
+@EXPLICIT
+https://conda.anaconda.org/conda-forge/osx-64/zlib-1.2.11-h0b31af3_1006.tar.bz2#d329eb98038a6be5827714fe15d1631f
