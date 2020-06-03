@@ -206,7 +206,7 @@ def make_lock_files(
         env_spec = json.dumps(
             {"channels": channels, "platform": plat, "specs": specs}, sort_keys=True
         )
-        env_hash: 'hashlib._Hash' = hashlib.sha256(env_hash.encode("utf-8"))
+        env_hash: "hashlib._Hash" = hashlib.sha256(env_hash.encode("utf-8"))
         with open(f"conda-{plat}.lock", "w") as fo:
             fo.write(f"# platform: {plat}\n")
             fo.write(f"# env_hash: {env_hash.hexdigest()}\n")
