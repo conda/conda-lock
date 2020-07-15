@@ -1,0 +1,33 @@
+{% set version = "1.0.5" %}
+
+package:
+  name: foo
+  version: {{ version }}
+
+build:
+  number: 0
+  script:
+    - export PYTHONUNBUFFERED=1  # [ppc64le]
+    - {{ PYTHON }} -m pip install --no-deps --ignore-installed .
+  skip: True  # [py2k]
+
+requirements:
+  build:
+    - {{ compiler('c') }}
+    - {{ compiler('cxx') }}
+  host:
+    - python
+    - pip
+    - cython >=0.28.2
+    - numpy
+  run:
+    - python
+    - {{ pin_compatible('numpy') }}
+    - python-dateutil >=2.6.1
+    - pytz >=2017.2
+    - enum34   # [py27]
+    - zlib     # [unix]
+
+test:
+  requires:
+    - pytest
