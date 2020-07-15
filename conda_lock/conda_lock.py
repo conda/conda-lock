@@ -4,6 +4,7 @@ Somewhat hacky solution to create conda lock files.
 
 import argparse
 import atexit
+import contextlib
 import hashlib
 import json
 import logging
@@ -16,7 +17,18 @@ import subprocess
 import sys
 import tempfile
 
-from typing import Dict, Iterable, List, MutableSequence, Optional, Set, Tuple, Union
+from typing import (
+    IO,
+    Dict,
+    Iterable,
+    Iterator,
+    List,
+    MutableSequence,
+    Optional,
+    Set,
+    Tuple,
+    Union,
+)
 
 import requests
 
@@ -36,17 +48,26 @@ if not (sys.version_info.major >= 3 and sys.version_info.minor >= 6):
 DEFAULT_PLATFORMS = ["osx-64", "linux-64", "win-64"]
 
 
-def candidate_executables(conda_executable: Optional[str]) -> Iterable[Optional[str]]:
+def candidate_executables(
+    conda_executable: Optional[str], no_mamba: bool
+) -> Iterable[Optional[str]]:
     if conda_executable:
         if pathlib.Path(conda_executable).exists():
             yield conda_executable
         yield shutil.which(conda_executable)
+    if not no_mamba:
+        yield shutil.which("mamba")
+        # micromamba doesn't support dry-run yet
+        # yield shutil.which("micromamba")
+        # yield shutil.which("micromamba.exe")
     yield shutil.which("conda")
     yield shutil.which("conda.exe")
 
 
-def ensure_conda(conda_executable: Optional[str] = None) -> pathlib.Path:
-    for candidate in candidate_executables(conda_executable):
+def ensure_conda(
+    conda_executable: Optional[str] = None, no_mamba: bool = False
+) -> pathlib.Path:
+    for candidate in candidate_executables(conda_executable, no_mamba):
         if candidate:
             return pathlib.Path(candidate)
     else:
@@ -54,6 +75,14 @@ def ensure_conda(conda_executable: Optional[str] = None) -> pathlib.Path:
             "No existing conda installation found.  Installing the standalone conda solver"
         )
         return pathlib.Path(install_conda_exe())
+
+
+@contextlib.contextmanager
+def new_executable(target_filename: PathLike) -> Iterator[IO[bytes]]:
+    with open(target_filename, "wb") as fo:
+        yield fo
+    st = os.stat(target_filename)
+    os.chmod(target_filename, st.st_mode | stat.S_IXUSR)
 
 
 def install_conda_exe() -> str:
@@ -71,11 +100,37 @@ def install_conda_exe() -> str:
     resp = requests.get(f"{conda_exe_prefix}/{conda_exe_file}", allow_redirects=True)
     resp.raise_for_status()
     target_filename = os.path.expanduser(pathlib.Path(__file__).parent / "conda.exe")
-    with open(target_filename, "wb") as fo:
+    with new_executable(target_filename) as fo:
         fo.write(resp.content)
-    st = os.stat(target_filename)
-    os.chmod(target_filename, st.st_mode | stat.S_IXUSR)
     return target_filename
+
+
+def install_micromamba_exe() -> str:
+    """Install micromamba into the conda-lock installation"""
+    if platform.system() == "Linux":
+        p = "linux-64"
+    elif platform.system() == "Darwin":
+        p = "osx-64"
+    else:
+        raise ValueError(f"Unsupported platform: {platform.system()}")
+    url = f"https://micromamba.snakepit.net/api/micromamba/{p}/latest"
+    resp = requests.get(url, allow_redirects=True)
+    resp.raise_for_status()
+    import tarfile
+    import io
+
+    tarball = io.BytesIO(resp.content)
+    tarball.seek(0)
+    with tarfile.open(mode="r:bz2", fileobj=tarball) as tf:
+        fo = tf.extractfile("bin/micromamba")
+        if fo is None:
+            raise RuntimeError("Could not extract micromamba executable!")
+        target_filename = os.path.expanduser(
+            pathlib.Path(__file__).parent / "micromamba.exe"
+        )
+        with new_executable(target_filename) as exe_fo:
+            exe_fo.write(fo.read())
+        return target_filename
 
 
 CONDA_PKGS_DIRS = None
@@ -113,10 +168,11 @@ def solve_specs_for_arch(
         "create",
         "--prefix",
         pathlib.Path(conda_pkgs_dir()).joinpath("prefix"),
-        "--override-channels",
         "--dry-run",
         "--json",
     ]
+    if channels:
+        args.append("--override-channels")
     for channel in channels:
         args.extend(["--channel", channel])
         if channel == "defaults" and platform in {"win-64", "win-32"}:
@@ -282,7 +338,12 @@ def parser():
         "-c",
         "--conda",
         default=None,
-        help="path (or name) of the conda executable to use.",
+        help="path (or name) of the conda/mamba executable to use.",
+    )
+    parser.add_argument(
+        "--no-mamba",
+        action="store_true",
+        help="don't attempt to use or install mamba.",
     )
     parser.add_argument(
         "-p",
@@ -324,8 +385,9 @@ def run_lock(
     environment_file: pathlib.Path,
     conda_exe: Optional[str],
     platforms: Optional[List[str]] = None,
+    no_mamba: bool = False,
 ) -> None:
-    _conda_exe = ensure_conda(conda_exe)
+    _conda_exe = ensure_conda(conda_exe, no_mamba=no_mamba)
     make_lock_files(
         conda=_conda_exe,
         src_file=environment_file,
@@ -335,7 +397,12 @@ def run_lock(
 
 def main():
     args = parser().parse_args()
-    run_lock(environment_file=args.file, conda_exe=args.conda, platforms=args.platform)
+    run_lock(
+        environment_file=args.file,
+        conda_exe=args.conda,
+        platforms=args.platform,
+        no_mamba=args.no_mamba,
+    )
 
 
 if __name__ == "__main__":
