@@ -31,7 +31,10 @@ from typing import (
 )
 
 import requests
-import yaml
+
+from conda_lock.src_parser import LockSpecification
+from conda_lock.src_parser.environment_yaml import parse_environment_file
+from conda_lock.src_parser.meta_yaml import parse_meta_yaml_file
 
 
 PathLike = Union[str, pathlib.Path]
@@ -240,34 +243,6 @@ def search_for_md5s(conda: PathLike, package_specs: List[dict], platform: str):
             found.add(name)
 
 
-def parse_environment_file(environment_file: pathlib.Path) -> Dict:
-    if not environment_file.exists():
-        raise FileNotFoundError(f"{environment_file} not found")
-    with environment_file.open("r") as fo:
-        env_yaml_data = yaml.safe_load(fo)
-    # TODO: we basically ignore most of the fields for now.
-    #       notable pip deps are just skipped below
-    specs = env_yaml_data["dependencies"]
-    channels = env_yaml_data.get("channels", [])
-
-    # Split out any sub spec sections from the dependencies mapping
-    mapping_specs = [x for x in specs if not isinstance(x, str)]
-    specs = [x for x in specs if isinstance(x, str)]
-
-    # Print a warning if there are pip specs in the dependencies
-    for mapping_spec in mapping_specs:
-        if "pip" in mapping_spec:
-            print(
-                (
-                    "Warning, found pip deps not included in the lock file! You'll need to install "
-                    "them separately"
-                ),
-                file=sys.stderr,
-            )
-
-    return {"specs": specs, "channels": channels}
-
-
 def fn_to_dist_name(fn: str) -> str:
     if fn.endswith(".conda"):
         fn, _, _ = fn.partition(".conda")
@@ -279,23 +254,21 @@ def fn_to_dist_name(fn: str) -> str:
 
 
 def make_lock_files(
-    conda: PathLike, platforms: List[str], channels: List[str], specs: List[str]
+    conda: PathLike, platforms: List[str], src_file: pathlib.Path,
 ):
     for plat in platforms:
         print(f"generating lockfile for {plat}", file=sys.stderr)
+        lock_spec = parse_source_file(src_file=src_file, platform=plat)
 
         dry_run_install = solve_specs_for_arch(
-            conda=conda, platform=plat, channels=channels, specs=specs
+            conda=conda,
+            platform=lock_spec.platform,
+            channels=lock_spec.channels,
+            specs=lock_spec.specs,
         )
-
-        env_spec = json.dumps(
-            {"channels": channels, "platform": plat, "specs": sorted(specs)},
-            sort_keys=True,
-        )
-        env_hash: "hashlib._Hash" = hashlib.sha256(env_spec.encode("utf-8"))
         with open(f"conda-{plat}.lock", "w") as fo:
             fo.write(f"# platform: {plat}\n")
-            fo.write(f"# env_hash: {env_hash.hexdigest()}\n")
+            fo.write(f"# env_hash: {lock_spec.env_hash()}\n")
             fo.write("@EXPLICIT\n")
             link_actions = dry_run_install["actions"]["LINK"]
             for link in link_actions:
@@ -400,18 +373,24 @@ def parser():
     return parser
 
 
+def parse_source_file(src_file: pathlib.Path, platform: str) -> LockSpecification:
+    if src_file.name == "meta.yaml":
+        desired_env = parse_meta_yaml_file(src_file, platform)
+    else:
+        desired_env = parse_environment_file(src_file, platform)
+    return desired_env
+
+
 def run_lock(
     environment_file: pathlib.Path,
     conda_exe: Optional[str],
     platforms: Optional[List[str]] = None,
     no_mamba: bool = False,
 ) -> None:
-    desired_env = parse_environment_file(environment_file)
     _conda_exe = ensure_conda(conda_exe, no_mamba=no_mamba)
     make_lock_files(
         conda=_conda_exe,
-        channels=desired_env["channels"] or [],
-        specs=desired_env["specs"],
+        src_file=environment_file,
         platforms=platforms or DEFAULT_PLATFORMS,
     )
 

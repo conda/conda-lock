@@ -6,9 +6,10 @@ import pytest
 from conda_lock.conda_lock import (
     ensure_conda,
     install_conda_exe,
-    parse_environment_file,
+    parse_meta_yaml_file,
     run_lock,
 )
+from conda_lock.src_parser.environment_yaml import parse_environment_file
 
 
 @pytest.fixture
@@ -19,6 +20,11 @@ def gdal_environment():
 @pytest.fixture
 def zlib_environment():
     return pathlib.Path(__file__).parent.joinpath("zlib").joinpath("environment.yml")
+
+
+@pytest.fixture
+def meta_yaml_environment():
+    return pathlib.Path(__file__).parent.joinpath("test-recipe").joinpath("meta.yaml")
 
 
 def test_ensure_conda_nopath():
@@ -36,9 +42,18 @@ def test_install_conda_exe():
 
 
 def test_parse_environment_file(gdal_environment):
-    res = parse_environment_file(gdal_environment)
-    assert all(x in res["specs"] for x in ["python >=3.7,<3.8", "gdal"])
-    assert all(x in res["channels"] for x in ["conda-forge", "defaults"])
+    res = parse_environment_file(gdal_environment, "linux-64")
+    assert all(x in res.specs for x in ["python >=3.7,<3.8", "gdal"])
+    assert all(x in res.channels for x in ["conda-forge", "defaults"])
+
+
+def test_parse_meta_yaml_file(meta_yaml_environment):
+    res = parse_meta_yaml_file(meta_yaml_environment, platform="linux-64")
+    assert all(x in res.specs for x in ["python", "numpy"])
+    # Ensure that this dep specified by a python selector is ignored
+    assert "enum34" not in res.specs
+    # Ensure that this platform specific dep is included
+    assert "zlib" in res.specs
 
 
 def test_run_lock_conda(monkeypatch, zlib_environment):
