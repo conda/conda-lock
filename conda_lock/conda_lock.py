@@ -194,7 +194,7 @@ def solve_specs_for_arch(
         if proc.stdout:
             print(f"    STDOUT:\n{proc.stdout}")
         if proc.stderr:
-            print(f"    STDOUT:\n{proc.stderr}")
+            print(f"    STDERR:\n{proc.stderr}")
 
     try:
         proc.check_returncode()
