@@ -116,8 +116,8 @@ def install_micromamba_exe() -> str:
     url = f"https://micromamba.snakepit.net/api/micromamba/{p}/latest"
     resp = requests.get(url, allow_redirects=True)
     resp.raise_for_status()
-    import tarfile
     import io
+    import tarfile
 
     tarball = io.BytesIO(resp.content)
     tarball.seek(0)
@@ -264,7 +264,9 @@ def fn_to_dist_name(fn: str) -> str:
 
 
 def make_lock_files(
-    conda: PathLike, platforms: List[str], src_file: pathlib.Path,
+    conda: PathLike,
+    platforms: List[str],
+    src_file: pathlib.Path,
 ):
     for plat in platforms:
         print(f"generating lockfile for {plat}", file=sys.stderr)
