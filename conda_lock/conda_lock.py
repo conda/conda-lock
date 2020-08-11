@@ -5,7 +5,6 @@ Somewhat hacky solution to create conda lock files.
 import argparse
 import atexit
 import contextlib
-import hashlib
 import json
 import logging
 import os
@@ -189,6 +188,14 @@ def solve_specs_for_arch(
         stderr=subprocess.PIPE,
         encoding="utf8",
     )
+
+    def print_proc(proc):
+        print(f"    Command: {proc.args}")
+        if proc.stdout:
+            print(f"    STDOUT:\n{proc.stdout}")
+        if proc.stderr:
+            print(f"    STDOUT:\n{proc.stderr}")
+
     try:
         proc.check_returncode()
     except subprocess.CalledProcessError:
@@ -202,14 +209,16 @@ def solve_specs_for_arch(
         print(f"Could not lock the environment for platform {platform}")
         if message:
             print(message)
-        print(f"    Command: {proc.args}")
-        if proc.stdout:
-            print(f"    STDOUT:\n{proc.stdout}")
-        if proc.stderr:
-            print(f"    STDOUT:\n{proc.stderr}")
+        print_proc(proc)
+
         sys.exit(1)
 
-    return json.loads(proc.stdout)
+    try:
+        return json.loads(proc.stdout)
+    except json.JSONDecodeError:
+        print("Could not solve for lock")
+        print_proc(proc)
+        sys.exit(1)
 
 
 def search_for_md5s(conda: PathLike, package_specs: List[dict], platform: str):
