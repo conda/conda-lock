@@ -1,0 +1,17 @@
+[tool.poetry]
+name = "conda-lock-test-poetry"
+version = "0.0.1"
+description = ""
+authors = ["conda-lock"]
+
+[tool.poetry.dependencies]
+requests = "^2.13.0"
+toml = ">=0.10"
+
+[tool.poetry.dev-dependencies]
+pytest = "~5.1.0"
+
+[tool.conda-lock]
+channels = [
+    'defaults'
+]

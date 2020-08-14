@@ -10,6 +10,7 @@ from conda_lock.conda_lock import (
     run_lock,
 )
 from conda_lock.src_parser.environment_yaml import parse_environment_file
+from conda_lock.src_parser.poetry import parse_poetry_pyproject_toml
 
 
 @pytest.fixture
@@ -27,6 +28,13 @@ def meta_yaml_environment():
     return pathlib.Path(__file__).parent.joinpath("test-recipe").joinpath("meta.yaml")
 
 
+@pytest.fixture
+def poetry_pyproject_toml():
+    return (
+        pathlib.Path(__file__).parent.joinpath("test-poetry").joinpath("pyproject.toml")
+    )
+
+
 def test_ensure_conda_nopath():
     assert pathlib.Path(ensure_conda()).is_file()
 
@@ -38,7 +46,7 @@ def test_ensure_conda_path():
 
 def test_install_conda_exe():
     target_filename = install_conda_exe()
-    assert target_filename == ensure_conda(target_filename)
+    assert pathlib.Path(target_filename) == ensure_conda(target_filename)
 
 
 def test_parse_environment_file(gdal_environment):
@@ -54,6 +62,15 @@ def test_parse_meta_yaml_file(meta_yaml_environment):
     assert "enum34" not in res.specs
     # Ensure that this platform specific dep is included
     assert "zlib" in res.specs
+
+
+def test_parse_poetry(poetry_pyproject_toml):
+    res = parse_poetry_pyproject_toml(poetry_pyproject_toml, platform="linux-64")
+
+    assert "requests[version>=2.13.0,<3.0.0]" in res.specs
+    assert "toml[version>=0.10]" in res.specs
+    assert "pytest[version>=5.1.0,<5.2.0]" in res.specs
+    assert res.channels == ["defaults"]
 
 
 def test_run_lock_conda(monkeypatch, zlib_environment):
