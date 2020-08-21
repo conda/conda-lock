@@ -13,7 +13,7 @@ from conda_lock.src_parser import LockSpecification
 
 
 # TODO: make this configurable
-PYPI_TO_CONDA_NAME_LOOKUP = "https://raw.githubusercontent.com/marcelotrevisani/grayskull/master/grayskull/pypi/config.yaml"
+PYPI_TO_CONDA_NAME_LOOKUP = "https://raw.githubusercontent.com/regro/cf-graph-countyfair/master/mappings/pypi/grayskull_pypi_mapping.yaml"
 PYPI_LOOKUP: Optional[dict] = None
 
 
