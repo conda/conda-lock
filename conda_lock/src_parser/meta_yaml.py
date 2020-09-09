@@ -5,6 +5,7 @@ from typing import List
 import jinja2
 import yaml
 
+from conda_lock.common import get_in
 from conda_lock.src_parser import LockSpecification
 from conda_lock.src_parser.selectors import filter_platform_selectors
 
@@ -81,7 +82,7 @@ class UndefinedNeverFail(jinja2.Undefined):
 
 
 def parse_meta_yaml_file(
-    meta_yaml_file: pathlib.Path, platform: str
+    meta_yaml_file: pathlib.Path, platform: str, include_dev_dependencies: bool
 ) -> LockSpecification:
     """Parse a simple meta-yaml file for dependencies.
 
@@ -99,7 +100,7 @@ def parse_meta_yaml_file(
 
         meta_yaml_data = yaml.safe_load(rendered)
 
-    channels = meta_yaml_data.get("extra", {}).get("channels", [])
+    channels = get_in(["extra", "channels"], meta_yaml_data, [])
     specs = []
 
     def add_spec(spec):
@@ -107,11 +108,12 @@ def parse_meta_yaml_file(
             return
         specs.append(spec)
 
-    for s in meta_yaml_data.get("requirements", {}).get("host", []):
+    for s in get_in(["requirements", "host"], meta_yaml_data, []):
         add_spec(s)
-    for s in meta_yaml_data.get("requirements", {}).get("run", []):
+    for s in get_in(["requirements", "run"], meta_yaml_data, []):
         add_spec(s)
-    for s in meta_yaml_data.get("test", {}).get("requires", []):
-        add_spec(s)
+    if include_dev_dependencies:
+        for s in get_in(["test", "requires"], meta_yaml_data, []):
+            add_spec(s)
 
     return LockSpecification(specs=specs, channels=channels, platform=platform)
