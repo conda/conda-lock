@@ -1,6 +1,5 @@
 import collections
 import collections.abc
-import copy
 import pathlib
 
 from typing import List, Optional
@@ -9,6 +8,7 @@ import requests
 import toml
 import yaml
 
+from conda_lock.common import get_in
 from conda_lock.src_parser import LockSpecification
 
 
@@ -32,7 +32,8 @@ def join_version_components(pieces):
 
 def normalize_pypi_name(name: str) -> str:
     if name in get_lookup():
-        return get_lookup()[name]["conda_forge"]
+        lookup = get_lookup()[name]
+        return lookup.get("conda_name") or lookup.get("conda_forge")
     else:
         return name
 
@@ -40,7 +41,10 @@ def normalize_pypi_name(name: str) -> str:
 def poetry_version_to_conda_version(version_string):
     components = [c.replace(" ", "").strip() for c in version_string.split(",")]
     output_components = []
+
     for c in components:
+        if len(c) == 0:
+            continue
         version_pieces = c.lstrip("<>=^~!").split(".")
         if c[0] == "^":
             upper_version = version_pieces.copy()
@@ -64,17 +68,21 @@ def poetry_version_to_conda_version(version_string):
 
 
 def parse_poetry_pyproject_toml(
-    pyproject_toml: pathlib.Path, platform: str
+    pyproject_toml: pathlib.Path, platform: str, include_dev_dependencies: bool
 ) -> LockSpecification:
     contents = toml.load(pyproject_toml)
     specs: List[str] = []
-    for key in ["dependencies", "dev-dependencies"]:
-        deps = contents.get("tool", {}).get("poetry", {}).get(key, {})
+    dependency_sections = ["dependencies"]
+    if include_dev_dependencies:
+        dependency_sections += ["dev-dependencies"]
+
+    for key in dependency_sections:
+        deps = get_in(["tool", "poetry", key], contents, {})
         for depname, depattrs in deps.items():
             conda_dep_name = normalize_pypi_name(depname)
             if isinstance(depattrs, collections.Mapping):
                 poetry_version_spec = depattrs["version"]
-                # TODO: support additional features such as markerts for things like sys_platform, platform_system
+                # TODO: support additional features such as markers for things like sys_platform, platform_system
             elif isinstance(depattrs, str):
                 poetry_version_spec = depattrs
             else:
@@ -93,6 +101,6 @@ def parse_poetry_pyproject_toml(
             else:
                 specs.append(spec)
 
-    channels = contents.get("tool", {}).get("conda-lock", {}).get("channels", [])
+    channels = get_in(["tool", "conda-lock", "channels"], contents, [])
 
     return LockSpecification(specs=specs, channels=channels, platform=platform)

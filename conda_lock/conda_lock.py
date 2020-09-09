@@ -267,10 +267,15 @@ def make_lock_files(
     conda: PathLike,
     platforms: List[str],
     src_file: pathlib.Path,
+    include_dev_dependencies: bool = True,
 ):
     for plat in platforms:
         print(f"generating lockfile for {plat}", file=sys.stderr)
-        lock_spec = parse_source_file(src_file=src_file, platform=plat)
+        lock_spec = parse_source_file(
+            src_file=src_file,
+            platform=plat,
+            include_dev_dependencies=include_dev_dependencies,
+        )
 
         dry_run_install = solve_specs_for_arch(
             conda=conda,
@@ -364,6 +369,19 @@ def parser():
         action="append",
         help="generate lock files for the following platforms",
     )
+    group = parser.add_mutually_exclusive_group()
+    group.add_argument(
+        "--dev-dependencies",
+        action="store_true",
+        default=True,
+        help="include dev dependencies in the lockfile (where applicable)",
+    )
+    group.add_argument(
+        "--no-dev-dependencies",
+        action="store_false",
+        dest="dev_dependencies",
+        help="exclude dev dependencies in the lockfile (where applicable)",
+    )
     parser.add_argument(
         "-f",
         "--file",
@@ -385,11 +403,15 @@ def parser():
     return parser
 
 
-def parse_source_file(src_file: pathlib.Path, platform: str) -> LockSpecification:
+def parse_source_file(
+    src_file: pathlib.Path, platform: str, include_dev_dependencies: bool
+) -> LockSpecification:
     if src_file.name == "meta.yaml":
-        desired_env = parse_meta_yaml_file(src_file, platform)
+        desired_env = parse_meta_yaml_file(src_file, platform, include_dev_dependencies)
     elif src_file.name == "pyproject.toml":
-        desired_env = parse_poetry_pyproject_toml(src_file, platform)
+        desired_env = parse_poetry_pyproject_toml(
+            src_file, platform, include_dev_dependencies
+        )
     else:
         desired_env = parse_environment_file(src_file, platform)
     return desired_env
@@ -400,12 +422,14 @@ def run_lock(
     conda_exe: Optional[str],
     platforms: Optional[List[str]] = None,
     no_mamba: bool = False,
+    include_dev_dependencies: bool = True,
 ) -> None:
     _conda_exe = ensure_conda(conda_exe, no_mamba=no_mamba)
     make_lock_files(
         conda=_conda_exe,
         src_file=environment_file,
         platforms=platforms or DEFAULT_PLATFORMS,
+        include_dev_dependencies=include_dev_dependencies,
     )
 
 
@@ -416,6 +440,7 @@ def main():
         conda_exe=args.conda,
         platforms=args.platform,
         no_mamba=args.no_mamba,
+        include_dev_dependencies=args.dev_dependencies,
     )
 
 
