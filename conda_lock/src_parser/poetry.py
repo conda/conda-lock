@@ -74,7 +74,7 @@ def parse_poetry_pyproject_toml(
     specs: List[str] = []
     dependency_sections = ["dependencies"]
     if include_dev_dependencies:
-        dependency_sections += ["dev-dependencies"]
+        dependency_sections.append("dev-dependencies")
 
     for key in dependency_sections:
         deps = get_in(["tool", "poetry", key], contents, {})
