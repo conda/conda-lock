@@ -104,3 +104,65 @@ def parse_poetry_pyproject_toml(
     channels = get_in(["tool", "conda-lock", "channels"], contents, [])
 
     return LockSpecification(specs=specs, channels=channels, platform=platform)
+
+
+def parse_pyproject_toml(
+    pyproject_toml: pathlib.Path, platform: str, include_dev_dependencies: bool
+):
+    contents = toml.load(pyproject_toml)
+    build_system = get_in(["build-system", "build-backend"], contents)
+    parse = parse_poetry_pyproject_toml
+    if build_system.startswith("poetry"):
+        parse = parse_poetry_pyproject_toml
+    elif build_system.startswith("flit"):
+        parse = parse_flit_pyproject_toml
+    else:
+        import warnings
+
+        warnings.warn(
+            "Could not detect build-system in pyproject.toml.  Assuming poetry"
+        )
+
+    return parse(pyproject_toml, platform, include_dev_dependencies)
+
+
+def python_requirement_to_conda_spec(requirement: str):
+    """Parse a requirements.txt like requirement to a conda spec"""
+    requirement_specifier = requirement.split(";")[0].strip()
+    from pkg_resources import Requirement
+
+    parsed_req = Requirement.parse(requirement_specifier)
+    name = parsed_req.unsafe_name
+    collapsed_version = ",".join("".join(spec) for spec in parsed_req.specs)
+    conda_version = poetry_version_to_conda_version(collapsed_version)
+
+    conda_dep_name = normalize_pypi_name(name)
+    if conda_version:
+        return f"{conda_dep_name}[version{conda_version}]"
+    else:
+        return f"{conda_dep_name}"
+
+
+def parse_flit_pyproject_toml(
+    pyproject_toml: pathlib.Path, platform: str, include_dev_dependencies: bool
+):
+    contents = toml.load(pyproject_toml)
+
+    requirements = get_in(["tool", "flit", "metadata", "requires"], contents, [])
+    if include_dev_dependencies:
+        requirements += get_in(
+            ["tool", "flit", "metadata", "requires-extra", "test"], contents, []
+        )
+        requirements += get_in(
+            ["tool", "flit", "metadata", "requires-extra", "dev"], contents, []
+        )
+
+    dependency_sections = ["tool"]
+    if include_dev_dependencies:
+        dependency_sections += ["dev-dependencies"]
+
+    specs = [python_requirement_to_conda_spec(req) for req in requirements]
+
+    channels = get_in(["tool", "conda-lock", "channels"], contents, [])
+
+    return LockSpecification(specs=specs, channels=channels, platform=platform)

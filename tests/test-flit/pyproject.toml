@@ -1,0 +1,23 @@
+[tool.flit.metadata]
+name = "conda-lock-test-poetry"
+version = "0.0.1"
+description = ""
+authors = ["conda-lock"]
+requires = [
+    "requests >=2.13.0",
+    "toml >=0.10",
+    ]
+
+[tool.flit.metadata.requires-extra]
+test = [
+    "pytest >=5.1.0"
+]
+
+[build-system]
+requires = ["flit_core >=2,<4"]
+build-backend = "flit_core.buildapi"
+
+[tool.conda-lock]
+channels = [
+    'defaults'
+]
