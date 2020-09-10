@@ -24,6 +24,7 @@ from typing import (
     List,
     MutableSequence,
     Optional,
+    Sequence,
     Set,
     Tuple,
     Union,
@@ -34,10 +35,7 @@ import requests
 from conda_lock.src_parser import LockSpecification
 from conda_lock.src_parser.environment_yaml import parse_environment_file
 from conda_lock.src_parser.meta_yaml import parse_meta_yaml_file
-from conda_lock.src_parser.pyproject_toml import (
-    parse_poetry_pyproject_toml,
-    parse_pyproject_toml,
-)
+from conda_lock.src_parser.pyproject_toml import parse_pyproject_toml
 
 
 PathLike = Union[str, pathlib.Path]
@@ -164,7 +162,7 @@ def conda_env_override(platform) -> Dict[str, str]:
 
 
 def solve_specs_for_arch(
-    conda: PathLike, channels: List[str], specs: List[str], platform: str
+    conda: PathLike, channels: Sequence[str], specs: List[str], platform: str
 ) -> dict:
     args: MutableSequence[PathLike] = [
         conda,
@@ -271,6 +269,8 @@ def make_lock_files(
     platforms: List[str],
     src_file: pathlib.Path,
     include_dev_dependencies: bool = True,
+    channels: Sequence[str] = (),
+    override_channels=False,
 ):
     for plat in platforms:
         print(f"generating lockfile for {plat}", file=sys.stderr)
@@ -280,10 +280,13 @@ def make_lock_files(
             include_dev_dependencies=include_dev_dependencies,
         )
 
+        if not override_channels:
+            channels = lock_spec.channels
+
         dry_run_install = solve_specs_for_arch(
             conda=conda,
             platform=lock_spec.platform,
-            channels=lock_spec.channels,
+            channels=channels,
             specs=lock_spec.specs,
         )
         with open(f"conda-{plat}.lock", "w") as fo:
@@ -372,6 +375,23 @@ def parser():
         action="append",
         help="generate lock files for the following platforms",
     )
+    parser.add_argument(
+        "--override-channels",
+        action="store_true",
+        help="""
+            Do not use channel information from source files.  This should be used in
+            conjunction with the -c/--channel flag to specify the channels desired
+        """,
+        default=False,
+    )
+    parser.add_argument(
+        "-c",
+        "--channel",
+        nargs="?",
+        action="append",
+        help="Additional channels to include in the solve.  Requires the --override-channels flag",
+    )
+
     group = parser.add_mutually_exclusive_group()
     group.add_argument(
         "--dev-dependencies",
@@ -424,6 +444,8 @@ def run_lock(
     platforms: Optional[List[str]] = None,
     no_mamba: bool = False,
     include_dev_dependencies: bool = True,
+    channels=(),
+    override_channels=False,
 ) -> None:
     _conda_exe = ensure_conda(conda_exe, no_mamba=no_mamba)
     make_lock_files(
@@ -431,6 +453,8 @@ def run_lock(
         src_file=environment_file,
         platforms=platforms or DEFAULT_PLATFORMS,
         include_dev_dependencies=include_dev_dependencies,
+        channels=channels,
+        override_channels=override_channels,
     )
 
 
@@ -442,6 +466,8 @@ def main():
         platforms=args.platform,
         no_mamba=args.no_mamba,
         include_dev_dependencies=args.dev_dependencies,
+        channels=args.channels,
+        override_channels=args.override_channels,
     )
 
 
