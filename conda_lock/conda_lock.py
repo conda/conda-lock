@@ -241,7 +241,7 @@ def search_for_md5s(conda: PathLike, package_specs: List[dict], platform: str):
         if name in found:
             continue
         out = subprocess.run(
-            ["conda", "search", "--use-index-cache", "--json", spec],
+            [conda, "search", "--use-index-cache", "--json", spec],
             encoding="utf8",
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
@@ -269,9 +269,24 @@ def make_lock_files(
     platforms: List[str],
     src_file: pathlib.Path,
     include_dev_dependencies: bool = True,
-    channels: Sequence[str] = (),
-    override_channels=False,
+    channel_overrides: Optional[Sequence[str]] = None,
 ):
+    """Generate the lock files for the given platforms from the src file provided
+
+    Parameters
+    ----------
+    conda :
+        The path to a conda or mamba executable
+    platforms :
+        List of platforms to generate the lock for
+    src_file :
+        Path to a supported source file type
+    include_dev_dependencies :
+        For source types that separate out dev dependencies from regular ones,include those, default True
+    channel_overrides :
+        Forced list of channels to use.
+
+    """
     for plat in platforms:
         print(f"generating lockfile for {plat}", file=sys.stderr)
         lock_spec = parse_source_file(
@@ -280,7 +295,9 @@ def make_lock_files(
             include_dev_dependencies=include_dev_dependencies,
         )
 
-        if not override_channels:
+        if channel_overrides is not None:
+            channels = channel_overrides
+        else:
             channels = lock_spec.channels
 
         dry_run_install = solve_specs_for_arch(
@@ -444,7 +461,7 @@ def run_lock(
     platforms: Optional[List[str]] = None,
     no_mamba: bool = False,
     include_dev_dependencies: bool = True,
-    channels=(),
+    channels: Sequence[str] = (),
     override_channels=False,
 ) -> None:
     _conda_exe = ensure_conda(conda_exe, no_mamba=no_mamba)
@@ -453,8 +470,7 @@ def run_lock(
         src_file=environment_file,
         platforms=platforms or DEFAULT_PLATFORMS,
         include_dev_dependencies=include_dev_dependencies,
-        channels=channels,
-        override_channels=override_channels,
+        channel_overrides=channels if override_channels else None,
     )
 
 
