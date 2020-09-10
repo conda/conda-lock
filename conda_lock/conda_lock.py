@@ -24,6 +24,7 @@ from typing import (
     List,
     MutableSequence,
     Optional,
+    Sequence,
     Set,
     Tuple,
     Union,
@@ -34,10 +35,7 @@ import requests
 from conda_lock.src_parser import LockSpecification
 from conda_lock.src_parser.environment_yaml import parse_environment_file
 from conda_lock.src_parser.meta_yaml import parse_meta_yaml_file
-from conda_lock.src_parser.pyproject_toml import (
-    parse_poetry_pyproject_toml,
-    parse_pyproject_toml,
-)
+from conda_lock.src_parser.pyproject_toml import parse_pyproject_toml
 
 
 PathLike = Union[str, pathlib.Path]
@@ -164,7 +162,7 @@ def conda_env_override(platform) -> Dict[str, str]:
 
 
 def solve_specs_for_arch(
-    conda: PathLike, channels: List[str], specs: List[str], platform: str
+    conda: PathLike, channels: Sequence[str], specs: List[str], platform: str
 ) -> dict:
     args: MutableSequence[PathLike] = [
         conda,
@@ -243,7 +241,7 @@ def search_for_md5s(conda: PathLike, package_specs: List[dict], platform: str):
         if name in found:
             continue
         out = subprocess.run(
-            ["conda", "search", "--use-index-cache", "--json", spec],
+            [conda, "search", "--use-index-cache", "--json", spec],
             encoding="utf8",
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
@@ -271,7 +269,24 @@ def make_lock_files(
     platforms: List[str],
     src_file: pathlib.Path,
     include_dev_dependencies: bool = True,
+    channel_overrides: Optional[Sequence[str]] = None,
 ):
+    """Generate the lock files for the given platforms from the src file provided
+
+    Parameters
+    ----------
+    conda :
+        The path to a conda or mamba executable
+    platforms :
+        List of platforms to generate the lock for
+    src_file :
+        Path to a supported source file type
+    include_dev_dependencies :
+        For source types that separate out dev dependencies from regular ones,include those, default True
+    channel_overrides :
+        Forced list of channels to use.
+
+    """
     for plat in platforms:
         print(f"generating lockfile for {plat}", file=sys.stderr)
         lock_spec = parse_source_file(
@@ -280,10 +295,15 @@ def make_lock_files(
             include_dev_dependencies=include_dev_dependencies,
         )
 
+        if channel_overrides is not None:
+            channels = channel_overrides
+        else:
+            channels = lock_spec.channels
+
         dry_run_install = solve_specs_for_arch(
             conda=conda,
             platform=lock_spec.platform,
-            channels=lock_spec.channels,
+            channels=channels,
             specs=lock_spec.specs,
         )
         with open(f"conda-{plat}.lock", "w") as fo:
@@ -355,7 +375,6 @@ def main_on_docker(env_file, platforms):
 def parser():
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "-c",
         "--conda",
         default=None,
         help="path (or name) of the conda/mamba executable to use.",
@@ -372,6 +391,18 @@ def parser():
         action="append",
         help="generate lock files for the following platforms",
     )
+    parser.add_argument(
+        "-c",
+        "--channel",
+        dest="channel_overrides",
+        nargs="?",
+        action="append",
+        help="""
+            Override the channels to use when solving the environment.  These will
+            replace the channels as listed in the various source files.
+        """,
+    )
+
     group = parser.add_mutually_exclusive_group()
     group.add_argument(
         "--dev-dependencies",
@@ -424,6 +455,7 @@ def run_lock(
     platforms: Optional[List[str]] = None,
     no_mamba: bool = False,
     include_dev_dependencies: bool = True,
+    channel_overrides: Optional[Sequence[str]] = None,
 ) -> None:
     _conda_exe = ensure_conda(conda_exe, no_mamba=no_mamba)
     make_lock_files(
@@ -431,6 +463,7 @@ def run_lock(
         src_file=environment_file,
         platforms=platforms or DEFAULT_PLATFORMS,
         include_dev_dependencies=include_dev_dependencies,
+        channel_overrides=channel_overrides,
     )
 
 
@@ -442,6 +475,7 @@ def main():
         platforms=args.platform,
         no_mamba=args.no_mamba,
         include_dev_dependencies=args.dev_dependencies,
+        channel_overrides=args.channel_overrides,
     )
 
 
