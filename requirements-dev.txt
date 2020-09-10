@@ -15,5 +15,6 @@ pytest-flake8
 pytest-xdist
 setuptools_scm
 sphinx
+toml
 twine
 wheel
