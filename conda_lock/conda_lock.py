@@ -375,7 +375,6 @@ def main_on_docker(env_file, platforms):
 def parser():
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "-c",
         "--conda",
         default=None,
         help="path (or name) of the conda/mamba executable to use.",
