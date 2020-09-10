@@ -392,20 +392,15 @@ def parser():
         help="generate lock files for the following platforms",
     )
     parser.add_argument(
-        "--override-channels",
-        action="store_true",
-        help="""
-            Do not use channel information from source files.  This should be used in
-            conjunction with the -c/--channel flag to specify the channels desired
-        """,
-        default=False,
-    )
-    parser.add_argument(
         "-c",
         "--channel",
+        dest="channel_overrides",
         nargs="?",
         action="append",
-        help="Additional channels to include in the solve.  Requires the --override-channels flag",
+        help="""
+            Override the channels to use when solving the environment.  These will
+            replace the channels as listed in the various source files.
+        """,
     )
 
     group = parser.add_mutually_exclusive_group()
@@ -460,8 +455,7 @@ def run_lock(
     platforms: Optional[List[str]] = None,
     no_mamba: bool = False,
     include_dev_dependencies: bool = True,
-    channels: Optional[Sequence[str]] = None,
-    override_channels=False,
+    channel_overrides: Optional[Sequence[str]] = None,
 ) -> None:
     _conda_exe = ensure_conda(conda_exe, no_mamba=no_mamba)
     make_lock_files(
@@ -469,7 +463,7 @@ def run_lock(
         src_file=environment_file,
         platforms=platforms or DEFAULT_PLATFORMS,
         include_dev_dependencies=include_dev_dependencies,
-        channel_overrides=channels if override_channels else None,
+        channel_overrides=channel_overrides,
     )
 
 
@@ -481,8 +475,7 @@ def main():
         platforms=args.platform,
         no_mamba=args.no_mamba,
         include_dev_dependencies=args.dev_dependencies,
-        channels=args.channels,
-        override_channels=args.override_channels,
+        channel_overrides=args.channel_overrides,
     )
 
 
