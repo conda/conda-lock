@@ -460,7 +460,7 @@ def run_lock(
     platforms: Optional[List[str]] = None,
     no_mamba: bool = False,
     include_dev_dependencies: bool = True,
-    channels: Sequence[str] = (),
+    channels: Optional[Sequence[str]] = None,
     override_channels=False,
 ) -> None:
     _conda_exe = ensure_conda(conda_exe, no_mamba=no_mamba)
