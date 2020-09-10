@@ -34,7 +34,10 @@ import requests
 from conda_lock.src_parser import LockSpecification
 from conda_lock.src_parser.environment_yaml import parse_environment_file
 from conda_lock.src_parser.meta_yaml import parse_meta_yaml_file
-from conda_lock.src_parser.poetry import parse_poetry_pyproject_toml
+from conda_lock.src_parser.pyproject_toml import (
+    parse_poetry_pyproject_toml,
+    parse_pyproject_toml,
+)
 
 
 PathLike = Union[str, pathlib.Path]
@@ -409,9 +412,7 @@ def parse_source_file(
     if src_file.name == "meta.yaml":
         desired_env = parse_meta_yaml_file(src_file, platform, include_dev_dependencies)
     elif src_file.name == "pyproject.toml":
-        desired_env = parse_poetry_pyproject_toml(
-            src_file, platform, include_dev_dependencies
-        )
+        desired_env = parse_pyproject_toml(src_file, platform, include_dev_dependencies)
     else:
         desired_env = parse_environment_file(src_file, platform)
     return desired_env

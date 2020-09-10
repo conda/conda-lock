@@ -1,6 +1,8 @@
 import pathlib
 import shutil
 
+from typing import Any
+
 import pytest
 
 from conda_lock.conda_lock import (
@@ -10,7 +12,10 @@ from conda_lock.conda_lock import (
     run_lock,
 )
 from conda_lock.src_parser.environment_yaml import parse_environment_file
-from conda_lock.src_parser.poetry import parse_poetry_pyproject_toml
+from conda_lock.src_parser.pyproject_toml import (
+    parse_flit_pyproject_toml,
+    parse_poetry_pyproject_toml,
+)
 
 
 @pytest.fixture
@@ -35,6 +40,24 @@ def poetry_pyproject_toml():
     )
 
 
+@pytest.fixture
+def flit_pyproject_toml():
+    return (
+        pathlib.Path(__file__).parent.joinpath("test-flit").joinpath("pyproject.toml")
+    )
+
+
+@pytest.fixture(
+    scope="function",
+    params=[
+        pytest.param(True, id="--dev-dependencies"),
+        pytest.param(False, id="--no-dev-dependencies"),
+    ],
+)
+def include_dev_dependencies(request: Any) -> bool:
+    return request.param
+
+
 def test_ensure_conda_nopath():
     assert pathlib.Path(ensure_conda()).is_file()
 
@@ -55,21 +78,44 @@ def test_parse_environment_file(gdal_environment):
     assert all(x in res.channels for x in ["conda-forge", "defaults"])
 
 
-def test_parse_meta_yaml_file(meta_yaml_environment):
-    res = parse_meta_yaml_file(meta_yaml_environment, platform="linux-64")
+def test_parse_meta_yaml_file(meta_yaml_environment, include_dev_dependencies):
+    res = parse_meta_yaml_file(
+        meta_yaml_environment,
+        platform="linux-64",
+        include_dev_dependencies=include_dev_dependencies,
+    )
     assert all(x in res.specs for x in ["python", "numpy"])
     # Ensure that this dep specified by a python selector is ignored
     assert "enum34" not in res.specs
     # Ensure that this platform specific dep is included
     assert "zlib" in res.specs
+    assert ("pytest" in res.specs) == include_dev_dependencies
 
 
-def test_parse_poetry(poetry_pyproject_toml):
-    res = parse_poetry_pyproject_toml(poetry_pyproject_toml, platform="linux-64")
+def test_parse_poetry(poetry_pyproject_toml, include_dev_dependencies):
+    res = parse_poetry_pyproject_toml(
+        poetry_pyproject_toml,
+        platform="linux-64",
+        include_dev_dependencies=include_dev_dependencies,
+    )
 
     assert "requests[version>=2.13.0,<3.0.0]" in res.specs
     assert "toml[version>=0.10]" in res.specs
-    assert "pytest[version>=5.1.0,<5.2.0]" in res.specs
+    assert ("pytest[version>=5.1.0,<5.2.0]" in res.specs) == include_dev_dependencies
+    assert res.channels == ["defaults"]
+
+
+def test_parse_flit(flit_pyproject_toml, include_dev_dependencies):
+    res = parse_flit_pyproject_toml(
+        flit_pyproject_toml,
+        platform="linux-64",
+        include_dev_dependencies=include_dev_dependencies,
+    )
+
+    assert "requests[version>=2.13.0]" in res.specs
+    assert "toml[version>=0.10]" in res.specs
+    # test deps
+    assert ("pytest[version>=5.1.0]" in res.specs) == include_dev_dependencies
     assert res.channels == ["defaults"]
 
 
