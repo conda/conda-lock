@@ -168,7 +168,7 @@ def solve_specs_for_arch(
         conda,
         "create",
         "--prefix",
-        pathlib.Path(conda_pkgs_dir()).joinpath("prefix"),
+        os.path.join(conda_pkgs_dir(), "prefix"),
         "--dry-run",
         "--json",
     ]
