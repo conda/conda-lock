@@ -165,7 +165,7 @@ def solve_specs_for_arch(
     conda: PathLike, channels: Sequence[str], specs: List[str], platform: str
 ) -> dict:
     args: MutableSequence[PathLike] = [
-        conda,
+        str(conda),
         "create",
         "--prefix",
         os.path.join(conda_pkgs_dir(), "prefix"),
@@ -241,7 +241,7 @@ def search_for_md5s(conda: PathLike, package_specs: List[dict], platform: str):
         if name in found:
             continue
         out = subprocess.run(
-            [conda, "search", "--use-index-cache", "--json", spec],
+            [str(conda), "search", "--use-index-cache", "--json", spec],
             encoding="utf8",
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
