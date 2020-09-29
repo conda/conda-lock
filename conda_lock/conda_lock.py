@@ -352,7 +352,11 @@ def _determine_conda_executable(conda_executable: Optional[str], no_mamba: bool)
             yield conda_executable
         yield shutil.which(conda_executable)
     _conda_exe = ensureconda.ensureconda(
-        mamba=not no_mamba, micromamba=not no_mamba, conda=True, conda_exe=True
+        mamba=not no_mamba,
+        # micromamba doesn't support --override-channels
+        micromamba=False,
+        conda=True,
+        conda_exe=True,
     )
     yield _conda_exe
 
