@@ -197,46 +197,11 @@ def make_lock_files(
         else:
             channels = lock_spec.channels
 
-        dry_run_install = solve_specs_for_arch(
-            conda=conda,
-            platform=lock_spec.platform,
-            channels=channels,
-            specs=lock_spec.specs,
+        lockfile_contents = create_lockfile_from_spec(
+            channels=channels, conda=conda, spec=lock_spec
         )
-        with open(f"conda-{plat}.lock", "w") as fo:
-            fo.write(f"# platform: {plat}\n")
-            fo.write(f"# env_hash: {lock_spec.env_hash()}\n")
-            fo.write("@EXPLICIT\n")
-            link_actions = dry_run_install["actions"]["LINK"]
-            for link in link_actions:
-                link[
-                    "url_base"
-                ] = f"{link['base_url']}/{link['platform']}/{link['dist_name']}"
-                link["url"] = f"{link['url_base']}.tar.bz2"
-                link["url_conda"] = f"{link['url_base']}.conda"
-            link_dists = {link["dist_name"] for link in link_actions}
-
-            fetch_actions = dry_run_install["actions"]["FETCH"]
-
-            fetch_by_dist_name = {
-                fn_to_dist_name(pkg["fn"]): pkg for pkg in fetch_actions
-            }
-
-            non_fetch_packages = link_dists - set(fetch_by_dist_name)
-            if len(non_fetch_packages) > 0:
-                for search_res in search_for_md5s(
-                    conda,
-                    [x for x in link_actions if x["dist_name"] in non_fetch_packages],
-                    plat,
-                ):
-                    dist_name = fn_to_dist_name(search_res["fn"])
-                    fetch_by_dist_name[dist_name] = search_res
-
-            for pkg in link_actions:
-                url = fetch_by_dist_name[pkg["dist_name"]]["url"]
-                md5 = fetch_by_dist_name[pkg["dist_name"]]["md5"]
-                fo.write(f"{url}#{md5}")
-                fo.write("\n")
+        with open(f"conda-{lock_spec.platform}.lock", "w") as fo:
+            fo.write("\n".join(lockfile_contents) + "\n")
 
     print("To use the generated lock files create a new environment:", file=sys.stderr)
     print("", file=sys.stderr)
@@ -244,6 +209,50 @@ def make_lock_files(
         "     conda create --name YOURENV --file conda-linux-64.lock", file=sys.stderr
     )
     print("", file=sys.stderr)
+
+
+def create_lockfile_from_spec(
+    *, channels: Sequence[str], conda: PathLike, spec: LockSpecification
+) -> List[str]:
+    dry_run_install = solve_specs_for_arch(
+        conda=conda,
+        platform=spec.platform,
+        channels=channels,
+        specs=spec.specs,
+    )
+    lockfile_contents = [
+        f"# platform: {spec.platform}",
+        f"# env_hash: {spec.env_hash()}\n",
+        "@EXPLICIT\n",
+    ]
+
+    link_actions = dry_run_install["actions"]["LINK"]
+    for link in link_actions:
+        link["url_base"] = f"{link['base_url']}/{link['platform']}/{link['dist_name']}"
+        link["url"] = f"{link['url_base']}.tar.bz2"
+        link["url_conda"] = f"{link['url_base']}.conda"
+    link_dists = {link["dist_name"] for link in link_actions}
+
+    fetch_actions = dry_run_install["actions"]["FETCH"]
+
+    fetch_by_dist_name = {fn_to_dist_name(pkg["fn"]): pkg for pkg in fetch_actions}
+
+    non_fetch_packages = link_dists - set(fetch_by_dist_name)
+    if len(non_fetch_packages) > 0:
+        for search_res in search_for_md5s(
+            conda,
+            [x for x in link_actions if x["dist_name"] in non_fetch_packages],
+            spec.platform,
+        ):
+            dist_name = fn_to_dist_name(search_res["fn"])
+            fetch_by_dist_name[dist_name] = search_res
+
+    for pkg in link_actions:
+        url = fetch_by_dist_name[pkg["dist_name"]]["url"]
+        md5 = fetch_by_dist_name[pkg["dist_name"]]["md5"]
+        lockfile_contents.append(f"{url}#{md5}")
+
+    return lockfile_contents
 
 
 def main_on_docker(env_file, platforms):
