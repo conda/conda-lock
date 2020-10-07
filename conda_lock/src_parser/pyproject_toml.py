@@ -90,11 +90,7 @@ def parse_poetry_pyproject_toml(
                     f"Unsupported type for dependency: {depname}: {depattrs:r}"
                 )
             conda_version = poetry_version_to_conda_version(poetry_version_spec)
-
-            if conda_version:
-                spec = f"{conda_dep_name}[version{conda_version}]"
-            else:
-                spec = f"{conda_dep_name}"
+            spec = to_match_spec(conda_dep_name, conda_version)
 
             if conda_dep_name == "python":
                 specs.insert(0, spec)
@@ -104,6 +100,14 @@ def parse_poetry_pyproject_toml(
     channels = get_in(["tool", "conda-lock", "channels"], contents, [])
 
     return LockSpecification(specs=specs, channels=channels, platform=platform)
+
+
+def to_match_spec(conda_dep_name, conda_version):
+    if conda_version:
+        spec = f"{conda_dep_name}[version='{conda_version}']"
+    else:
+        spec = f"{conda_dep_name}"
+    return spec
 
 
 def parse_pyproject_toml(
@@ -137,10 +141,7 @@ def python_requirement_to_conda_spec(requirement: str):
     conda_version = poetry_version_to_conda_version(collapsed_version)
 
     conda_dep_name = normalize_pypi_name(name)
-    if conda_version:
-        return f"{conda_dep_name}[version{conda_version}]"
-    else:
-        return f"{conda_dep_name}"
+    return to_match_spec(conda_dep_name, conda_version)
 
 
 def parse_flit_pyproject_toml(

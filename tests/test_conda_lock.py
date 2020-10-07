@@ -5,11 +5,19 @@ from typing import Any
 
 import pytest
 
-from conda_lock.conda_lock import parse_meta_yaml_file, run_lock
+from conda_lock.conda_lock import (
+    create_lockfile_from_spec,
+    determine_conda_executable,
+    parse_meta_yaml_file,
+    run_lock,
+)
+from conda_lock.src_parser import LockSpecification
 from conda_lock.src_parser.environment_yaml import parse_environment_file
 from conda_lock.src_parser.pyproject_toml import (
     parse_flit_pyproject_toml,
     parse_poetry_pyproject_toml,
+    poetry_version_to_conda_version,
+    to_match_spec,
 )
 
 
@@ -110,3 +118,29 @@ def test_run_lock_mamba(monkeypatch, zlib_environment):
         raise pytest.skip("mamba is not installed")
     monkeypatch.chdir(zlib_environment.parent)
     run_lock(zlib_environment, conda_exe="mamba")
+
+
+@pytest.mark.parametrize(
+    "package,version,url_pattern",
+    [
+        ("python", ">=3.6,<3.7", "/python-3.6"),
+        ("python", "~3.6", "/python-3.6"),
+        ("python", "^2.7", "/python-2.7"),
+    ],
+)
+def test_poetry_version_parsing_constraints(package, version, url_pattern):
+    _conda_exe = determine_conda_executable("conda", no_mamba=True)
+    spec = LockSpecification(
+        specs=[to_match_spec(package, poetry_version_to_conda_version(version))],
+        channels=["conda-forge"],
+        platform="linux-64",
+    )
+    lockfile_contents = create_lockfile_from_spec(
+        conda=_conda_exe, channels=spec.channels, spec=spec
+    )
+
+    for line in lockfile_contents:
+        if url_pattern in line:
+            break
+    else:
+        raise ValueError(f"could not find {package} {version}")
