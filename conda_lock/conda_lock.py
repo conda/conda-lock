@@ -354,9 +354,13 @@ def parse_source_files(
     desired_envs = []
     for src_file in src_files:
         if src_file.name == "meta.yaml":
-            desired_envs.append(parse_meta_yaml_file(src_file, platform, include_dev_dependencies))
+            desired_envs.append(
+                parse_meta_yaml_file(src_file, platform, include_dev_dependencies)
+            )
         elif src_file.name == "pyproject.toml":
-            desired_envs.append(parse_pyproject_toml(src_file, platform, include_dev_dependencies))
+            desired_envs.append(
+                parse_pyproject_toml(src_file, platform, include_dev_dependencies)
+            )
         else:
             desired_envs.append(parse_environment_file(src_file, platform))
     return desired_envs
@@ -364,13 +368,19 @@ def parse_source_files(
 
 def aggregate_lock_specs(lock_specs: List[LockSpecification]) -> LockSpecification:
     # union the dependencies
-    specs = list(set(chain.from_iterable([lock_spec.specs for lock_spec in lock_specs])))
+    specs = list(
+        set(chain.from_iterable([lock_spec.specs for lock_spec in lock_specs]))
+    )
 
     # pick the first non-empty channel
-    channels = next((lock_spec.channels for lock_spec in lock_specs if lock_spec.channels), [])
+    channels: List[str] = next(
+        (lock_spec.channels for lock_spec in lock_specs if lock_spec.channels), []
+    )
 
     # pick the first non-empty platform
-    platform = next((lock_spec.platform for lock_spec in lock_specs if lock_spec.platform), "")
+    platform = next(
+        (lock_spec.platform for lock_spec in lock_specs if lock_spec.platform), ""
+    )
 
     return LockSpecification(specs=specs, channels=channels, platform=platform)
 
@@ -421,7 +431,7 @@ def main():
     # argparse: append action with default list adds to list instead of overriding
     # https://bugs.python.org/issue16399
     if args.files is None:
-        args.files = [pathlib.Path('environment.yml')]
+        args.files = [pathlib.Path("environment.yml")]
 
     run_lock(
         environment_files=args.files,
