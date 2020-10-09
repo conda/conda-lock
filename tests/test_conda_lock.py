@@ -110,14 +110,14 @@ def test_parse_flit(flit_pyproject_toml, include_dev_dependencies):
 
 def test_run_lock_conda(monkeypatch, zlib_environment):
     monkeypatch.chdir(zlib_environment.parent)
-    run_lock(zlib_environment, conda_exe="conda")
+    run_lock([zlib_environment], conda_exe="conda")
 
 
 def test_run_lock_mamba(monkeypatch, zlib_environment):
     if not shutil.which("mamba"):
         raise pytest.skip("mamba is not installed")
     monkeypatch.chdir(zlib_environment.parent)
-    run_lock(zlib_environment, conda_exe="mamba")
+    run_lock([zlib_environment], conda_exe="mamba")
 
 
 @pytest.mark.parametrize(
