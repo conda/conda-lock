@@ -12,6 +12,7 @@ import subprocess
 import sys
 import tempfile
 
+from itertools import chain
 from typing import Dict, List, MutableSequence, Optional, Sequence, Set, Tuple, Union
 
 import ensureconda
@@ -164,7 +165,7 @@ def fn_to_dist_name(fn: str) -> str:
 def make_lock_files(
     conda: PathLike,
     platforms: List[str],
-    src_file: pathlib.Path,
+    src_files: List[pathlib.Path],
     include_dev_dependencies: bool = True,
     channel_overrides: Optional[Sequence[str]] = None,
 ):
@@ -176,8 +177,8 @@ def make_lock_files(
         The path to a conda or mamba executable
     platforms :
         List of platforms to generate the lock for
-    src_file :
-        Path to a supported source file type
+    src_files :
+        Paths to a supported source file types
     include_dev_dependencies :
         For source types that separate out dev dependencies from regular ones,include those, default True
     channel_overrides :
@@ -186,12 +187,13 @@ def make_lock_files(
     """
     for plat in platforms:
         print(f"generating lockfile for {plat}", file=sys.stderr)
-        lock_spec = parse_source_file(
-            src_file=src_file,
+        lock_specs = parse_source_files(
+            src_files=src_files,
             platform=plat,
             include_dev_dependencies=include_dev_dependencies,
         )
 
+        lock_spec = aggregate_lock_specs(lock_specs)
         if channel_overrides is not None:
             channels = channel_overrides
         else:
@@ -325,8 +327,10 @@ def parser():
     parser.add_argument(
         "-f",
         "--file",
-        default="environment.yml",
-        help="path to a conda environment specification",
+        dest="files",
+        nargs="?",
+        action="append",
+        help="path to a conda environment specification(s)",
         type=lambda s: pathlib.Path(s),
     )
     parser.add_argument(
@@ -343,16 +347,41 @@ def parser():
     return parser
 
 
-def parse_source_file(
-    src_file: pathlib.Path, platform: str, include_dev_dependencies: bool
-) -> LockSpecification:
-    if src_file.name == "meta.yaml":
-        desired_env = parse_meta_yaml_file(src_file, platform, include_dev_dependencies)
-    elif src_file.name == "pyproject.toml":
-        desired_env = parse_pyproject_toml(src_file, platform, include_dev_dependencies)
-    else:
-        desired_env = parse_environment_file(src_file, platform)
-    return desired_env
+def parse_source_files(
+    src_files: List[pathlib.Path], platform: str, include_dev_dependencies: bool
+) -> List[LockSpecification]:
+    desired_envs = []
+    for src_file in src_files:
+        if src_file.name == "meta.yaml":
+            desired_envs.append(
+                parse_meta_yaml_file(src_file, platform, include_dev_dependencies)
+            )
+        elif src_file.name == "pyproject.toml":
+            desired_envs.append(
+                parse_pyproject_toml(src_file, platform, include_dev_dependencies)
+            )
+        else:
+            desired_envs.append(parse_environment_file(src_file, platform))
+    return desired_envs
+
+
+def aggregate_lock_specs(lock_specs: List[LockSpecification]) -> LockSpecification:
+    # union the dependencies
+    specs = list(
+        set(chain.from_iterable([lock_spec.specs for lock_spec in lock_specs]))
+    )
+
+    # pick the first non-empty channel
+    channels: List[str] = next(
+        (lock_spec.channels for lock_spec in lock_specs if lock_spec.channels), []
+    )
+
+    # pick the first non-empty platform
+    platform = next(
+        (lock_spec.platform for lock_spec in lock_specs if lock_spec.platform), ""
+    )
+
+    return LockSpecification(specs=specs, channels=channels, platform=platform)
 
 
 def _determine_conda_executable(conda_executable: Optional[str], no_mamba: bool):
@@ -378,7 +407,7 @@ def determine_conda_executable(conda_executable: Optional[str], no_mamba: bool):
 
 
 def run_lock(
-    environment_file: pathlib.Path,
+    environment_files: List[pathlib.Path],
     conda_exe: Optional[str],
     platforms: Optional[List[str]] = None,
     no_mamba: bool = False,
@@ -388,7 +417,7 @@ def run_lock(
     _conda_exe = determine_conda_executable(conda_exe, no_mamba=no_mamba)
     make_lock_files(
         conda=_conda_exe,
-        src_file=environment_file,
+        src_files=environment_files,
         platforms=platforms or DEFAULT_PLATFORMS,
         include_dev_dependencies=include_dev_dependencies,
         channel_overrides=channel_overrides,
@@ -397,8 +426,14 @@ def run_lock(
 
 def main():
     args = parser().parse_args()
+
+    # argparse: append action with default list adds to list instead of overriding
+    # https://bugs.python.org/issue16399
+    if args.files is None:
+        args.files = [pathlib.Path("environment.yml")]
+
     run_lock(
-        environment_file=args.file,
+        environment_files=args.files,
         conda_exe=args.conda,
         platforms=args.platform,
         no_mamba=args.no_mamba,
