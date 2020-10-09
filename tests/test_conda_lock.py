@@ -6,6 +6,7 @@ from typing import Any
 import pytest
 
 from conda_lock.conda_lock import (
+    aggregate_lock_specs,
     create_lockfile_from_spec,
     determine_conda_executable,
     parse_meta_yaml_file,
@@ -144,3 +145,35 @@ def test_poetry_version_parsing_constraints(package, version, url_pattern):
             break
     else:
         raise ValueError(f"could not find {package} {version}")
+
+
+def test_aggregate_lock_specs():
+    gpu_spec = LockSpecification(
+        specs=["pytorch"],
+        channels=["pytorch", "conda-forge"],
+        platform="linux-64",
+    )
+
+    base_spec = LockSpecification(
+        specs=["python =3.7"],
+        channels=["conda-forge"],
+        platform="linux-64",
+    )
+
+    assert (
+        aggregate_lock_specs([gpu_spec, base_spec]).env_hash()
+        == LockSpecification(
+            specs=["pytorch", "python =3.7"],
+            channels=["pytorch", "conda-forge"],
+            platform="linux-64",
+        ).env_hash()
+    )
+
+    assert (
+        aggregate_lock_specs([base_spec, gpu_spec]).env_hash()
+        == LockSpecification(
+            specs=["pytorch", "python =3.7"],
+            channels=["conda-forge"],
+            platform="linux-64",
+        ).env_hash()
+    )

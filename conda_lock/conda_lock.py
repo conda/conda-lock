@@ -350,7 +350,6 @@ def parser():
 def parse_source_files(
     src_files: List[pathlib.Path], platform: str, include_dev_dependencies: bool
 ) -> List[LockSpecification]:
-    # todo: any problem if src_files are a mixture of meta, toml or enviroment files?
     desired_envs = []
     for src_file in src_files:
         if src_file.name == "meta.yaml":
