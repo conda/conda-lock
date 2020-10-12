@@ -15,6 +15,7 @@ import tempfile
 from itertools import chain
 from typing import Dict, List, MutableSequence, Optional, Sequence, Set, Tuple, Union
 
+import click
 import ensureconda
 
 from conda_lock.src_parser import LockSpecification
@@ -424,21 +425,50 @@ def run_lock(
     )
 
 
-def main():
-    args = parser().parse_args()
-
-    # argparse: append action with default list adds to list instead of overriding
-    # https://bugs.python.org/issue16399
-    if args.files is None:
-        args.files = [pathlib.Path("environment.yml")]
+@click.command()
+@click.option(
+    "--conda", default=None, help="path (or name) of the conda/mamba executable to use."
+)
+@click.option("--no-mamba", is_flag=True, help="don't attempt to use or install mamba.")
+@click.option(
+    "-p", "--platform", default="generate lock files for the following platforms"
+)
+@click.option(
+    "-c",
+    "--channel",
+    "channel_overrides",
+    help="""
+                                    Override the channels to use when solving the environment.  These will
+                                    replace the channels as listed in the various source files.
+                                    """,
+)
+@click.option(
+    "--dev-dependencies/--no-dev-dependencies",
+    is_flag=True,
+    default=True,
+    help="include dev dependencies in the lockfile (where applicable)",
+)
+@click.option("-", "--file", default=["environment.yml"], multiple=True)
+@click.option(
+    "-m",
+    "--mode",
+    type=click.Choice(["default", "docker"], case_sensitive=True),
+    default="default",
+    help="""
+            Run this conda-lock in an isolated docker container.  This may be
+            required to account for some issues where conda-lock conflicts with
+            existing condarc configurations.""",
+)
+def main(conda, no_mamba, platform, channel_overrides, dev_dependencies, file, mode):
+    """Generate fully reproducible lock files for conda environments."""
 
     run_lock(
-        environment_files=args.files,
-        conda_exe=args.conda,
-        platforms=args.platform,
-        no_mamba=args.no_mamba,
-        include_dev_dependencies=args.dev_dependencies,
-        channel_overrides=args.channel_overrides,
+        environment_files=file,
+        conda_exe=conda,
+        platforms=platform,
+        no_mamba=no_mamba,
+        include_dev_dependencies=dev_dependencies,
+        channel_overrides=channel_overrides,
     )
 
 
