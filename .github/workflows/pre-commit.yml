@@ -17,4 +17,10 @@ jobs:
       with:
         path: ~/.cache/pre-commit
         key: pre-commit|${{ env.PY }}|${{ hashFiles('.pre-commit-config.yaml') }}
-    - uses: pre-commit/action@v1.0.0
+    - id: file_changes
+      uses: trilom/file-changes-action@v1.2.3
+      with:
+        output: ' '
+    - uses: pre-commit/action@v2.0.0
+      with:
+        extra_args: --files ${{ steps.file_changes.outputs.files}}
