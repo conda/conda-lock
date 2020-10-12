@@ -2,7 +2,6 @@
 Somewhat hacky solution to create conda lock files.
 """
 
-import argparse
 import atexit
 import json
 import os
@@ -279,73 +278,6 @@ def main_on_docker(env_file, platforms):
             *platform_arg,
         ]
     )
-
-
-def parser():
-    parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "--conda",
-        default=None,
-        help="path (or name) of the conda/mamba executable to use.",
-    )
-    parser.add_argument(
-        "--no-mamba",
-        action="store_true",
-        help="don't attempt to use or install mamba.",
-    )
-    parser.add_argument(
-        "-p",
-        "--platform",
-        nargs="?",
-        action="append",
-        help="generate lock files for the following platforms",
-    )
-    parser.add_argument(
-        "-c",
-        "--channel",
-        dest="channel_overrides",
-        nargs="?",
-        action="append",
-        help="""
-            Override the channels to use when solving the environment.  These will
-            replace the channels as listed in the various source files.
-        """,
-    )
-
-    group = parser.add_mutually_exclusive_group()
-    group.add_argument(
-        "--dev-dependencies",
-        action="store_true",
-        default=True,
-        help="include dev dependencies in the lockfile (where applicable)",
-    )
-    group.add_argument(
-        "--no-dev-dependencies",
-        action="store_false",
-        dest="dev_dependencies",
-        help="exclude dev dependencies in the lockfile (where applicable)",
-    )
-    parser.add_argument(
-        "-f",
-        "--file",
-        dest="files",
-        nargs="?",
-        action="append",
-        help="path to a conda environment specification(s)",
-        type=lambda s: pathlib.Path(s),
-    )
-    parser.add_argument(
-        "-m",
-        "--mode",
-        choices=["default", "docker"],
-        default="default",
-        help="""
-            Run this conda-lock in an isolated docker container.  This may be
-            required to account for some issues where conda-lock conflicts with
-            existing condarc configurations.
-            """,
-    )
-    return parser
 
 
 def parse_source_files(
