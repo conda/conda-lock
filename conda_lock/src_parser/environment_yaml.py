@@ -11,7 +11,7 @@ def parse_environment_file(
     environment_file: pathlib.Path, platform: str
 ) -> LockSpecification:
 
-    with open(environment_file, "r") as fo:
+    with environment_file.open("r") as fo:
         filtered_content = "\n".join(
             filter_platform_selectors(fo.read(), platform=platform)
         )

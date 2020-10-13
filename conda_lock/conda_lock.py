@@ -17,6 +17,8 @@ from typing import Dict, List, MutableSequence, Optional, Sequence, Set, Tuple, 
 import click
 import ensureconda
 
+from click_default_group import DefaultGroup
+
 from conda_lock.src_parser import LockSpecification
 from conda_lock.src_parser.environment_yaml import parse_environment_file
 from conda_lock.src_parser.meta_yaml import parse_meta_yaml_file
@@ -117,6 +119,64 @@ def solve_specs_for_arch(
         return json.loads(proc.stdout)
     except json.JSONDecodeError:
         print("Could not solve for lock")
+        print_proc(proc)
+        sys.exit(1)
+
+
+def do_conda_install(conda: PathLike, prefix: str, name: str, file: str) -> dict:
+
+    if prefix and name:
+        raise ValueError("Provide either prefix, or name, but not both.")
+
+    args: MutableSequence[PathLike] = [
+        str(conda),
+        "install",
+        "--file",
+        file,
+    ]
+
+    if prefix:
+        args.append("--prefix")
+        args.append(prefix)
+    if name:
+        args.append("--name")
+        args.append(name)
+
+    proc = subprocess.run(
+        args,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        encoding="utf8",
+    )
+
+    def print_proc(proc):
+        print(f"    Command: {proc.args}")
+        if proc.stdout:
+            print(f"    STDOUT:\n{proc.stdout}")
+        if proc.stderr:
+            print(f"    STDERR:\n{proc.stderr}")
+
+    try:
+        proc.check_returncode()
+    except subprocess.CalledProcessError:
+        try:
+            err_json = json.loads(proc.stdout)
+            message = err_json["message"]
+        except json.JSONDecodeError as e:
+            print(f"Failed to parse json, {e}")
+            message = ""
+
+        print(f"Could not perform conda install using {file} lock file into {prefix}")
+        if message:
+            print(message)
+        print_proc(proc)
+
+        sys.exit(1)
+
+    try:
+        return json.loads(proc.stdout)
+    except json.JSONDecodeError:
+        print("Could not install")
         print_proc(proc)
         sys.exit(1)
 
@@ -357,19 +417,29 @@ def run_lock(
     )
 
 
-@click.group(invoke_without_command=True)
+@click.group(cls=DefaultGroup, default="lock", default_if_no_args=True)
+def main():
+    """To get help for subcommands, use the conda-lock <SUBCOMMAND> --help"""
+    pass
+
+
+@main.command("lock")
 @click.option(
     "--conda", default=None, help="path (or name) of the conda/mamba executable to use."
 )
 @click.option("--no-mamba", is_flag=True, help="don't attempt to use or install mamba.")
 @click.option(
-    "-p", "--platform", help="generate lock files for the following platforms"
+    "-p",
+    "--platform",
+    multiple=True,
+    help="generate lock files for the following platforms",
 )
 @click.option(
     "-c",
     "--channel",
     "channel_overrides",
-    help="""Override the channels to use when solving the environment.  These will replace the channels as listed in the various source files.""",
+    multiple=True,
+    help="""Override the channels to use when solving the environment. These will replace the channels as listed in the various source files.""",
 )
 @click.option(
     "--dev-dependencies/--no-dev-dependencies",
@@ -382,7 +452,7 @@ def run_lock(
     "--file",
     "files",
     default=["environment.yml"],
-    type=click.Path(exists=True),
+    type=click.Path(),
     multiple=True,
     help="path to a conda environment specification(s)",
 )
@@ -396,30 +466,31 @@ def run_lock(
 #             required to account for some issues where conda-lock conflicts with
 #             existing condarc configurations.""",
 # )
-@click.pass_context
-def main(ctx, conda, no_mamba, platform, channel_overrides, dev_dependencies, files):
+def lock(conda, no_mamba, platform, channel_overrides, dev_dependencies, files):
     """Generate fully reproducible lock files for conda environments."""
     files = [pathlib.Path(file) for file in files]
-    if ctx.invoked_subcommand is None:
-        run_lock(
-            environment_files=files,
-            conda_exe=conda,
-            platforms=platform,
-            no_mamba=no_mamba,
-            include_dev_dependencies=dev_dependencies,
-            channel_overrides=channel_overrides,
-        )
+    run_lock(
+        environment_files=files,
+        conda_exe=conda,
+        platforms=platform,
+        no_mamba=no_mamba,
+        include_dev_dependencies=dev_dependencies,
+        channel_overrides=channel_overrides,
+    )
 
 
-@main.command()
+@main.command("install")
 @click.option(
     "--conda", default=None, help="path (or name) of the conda/mamba executable to use."
 )
 @click.option("--no-mamba", is_flag=True, help="don't attempt to use or install mamba.")
 @click.option("-p", "--prefix", help="Full path to environment location (i.e. prefix).")
-def install(conda, no_mamba, prefix):
+@click.option("-n", "--name", help="Name of environment.")
+@click.argument("lock-file")
+def install(conda, no_mamba, prefix, name, lock_file):
     """Perform a conda install"""
     _conda_exe = determine_conda_executable(conda, no_mamba=no_mamba)
+    do_conda_install(conda=_conda_exe, prefix=prefix, name=name, file=lock_file)
     click.echo(f"The subcommand install {str(_conda_exe)}")
 
 
