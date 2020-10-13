@@ -380,10 +380,11 @@ def run_lock(
 @click.option(
     "-f",
     "--file",
-    default=[pathlib.Path("environment.yml")],
-    type=lambda s: pathlib.Path(s),
+    "files",
+    default=["environment.yml"],
+    type=click.Path(exists=True),
     multiple=True,
-    help="environment file(s)",
+    help="path to a conda environment specification(s)",
 )
 # @click.option(
 #     "-m",
@@ -396,12 +397,12 @@ def run_lock(
 #             existing condarc configurations.""",
 # )
 @click.pass_context
-def main(ctx, conda, no_mamba, platform, channel_overrides, dev_dependencies, file):
+def main(ctx, conda, no_mamba, platform, channel_overrides, dev_dependencies, files):
     """Generate fully reproducible lock files for conda environments."""
-
+    files = [pathlib.Path(file) for file in files]
     if ctx.invoked_subcommand is None:
         run_lock(
-            environment_files=file,
+            environment_files=files,
             conda_exe=conda,
             platforms=platform,
             no_mamba=no_mamba,
