@@ -41,8 +41,8 @@ install:
 
 script:
   - if [[ $TRAVIS_JOB_NAME == python-* ]]; then
-      set -e
       cp -r tests/ /tmp ;
+      set -e ;
       pushd /tmp && pytest -vrsx -n 2 -rxs --cov=conda_lock tests && popd ;
       pushd /tmp/tests/gdal && conda-lock -f environment.yml -p linux-64 && popd;
     fi
