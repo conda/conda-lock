@@ -3,3 +3,4 @@ requests
 jinja2
 toml
 ensureconda >=1.1
+click

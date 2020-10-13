@@ -357,22 +357,19 @@ def run_lock(
     )
 
 
-@click.command()
+@click.group(invoke_without_command=True)
 @click.option(
     "--conda", default=None, help="path (or name) of the conda/mamba executable to use."
 )
 @click.option("--no-mamba", is_flag=True, help="don't attempt to use or install mamba.")
 @click.option(
-    "-p", "--platform", default="generate lock files for the following platforms"
+    "-p", "--platform", help="generate lock files for the following platforms"
 )
 @click.option(
     "-c",
     "--channel",
     "channel_overrides",
-    help="""
-                                    Override the channels to use when solving the environment.  These will
-                                    replace the channels as listed in the various source files.
-                                    """,
+    help="""Override the channels to use when solving the environment.  These will replace the channels as listed in the various source files.""",
 )
 @click.option(
     "--dev-dependencies/--no-dev-dependencies",
@@ -380,29 +377,51 @@ def run_lock(
     default=True,
     help="include dev dependencies in the lockfile (where applicable)",
 )
-@click.option("-", "--file", default=["environment.yml"], multiple=True)
 @click.option(
-    "-m",
-    "--mode",
-    type=click.Choice(["default", "docker"], case_sensitive=True),
-    default="default",
-    help="""
-            Run this conda-lock in an isolated docker container.  This may be
-            required to account for some issues where conda-lock conflicts with
-            existing condarc configurations.""",
+    "-",
+    "--file",
+    default=[pathlib.Path("environment.yml")],
+    type=lambda s: pathlib.Path(s),
+    multiple=True,
 )
-def main(conda, no_mamba, platform, channel_overrides, dev_dependencies, file, mode):
+# @click.option(
+#     "-m",
+#     "--mode",
+#     type=click.Choice(["default", "docker"], case_sensitive=True),
+#     default="default",
+#     help="""
+#             Run this conda-lock in an isolated docker container.  This may be
+#             required to account for some issues where conda-lock conflicts with
+#             existing condarc configurations.""",
+# )
+@click.pass_context
+def main(ctx, conda, no_mamba, platform, channel_overrides, dev_dependencies, file):
     """Generate fully reproducible lock files for conda environments."""
 
-    run_lock(
-        environment_files=file,
-        conda_exe=conda,
-        platforms=platform,
-        no_mamba=no_mamba,
-        include_dev_dependencies=dev_dependencies,
-        channel_overrides=channel_overrides,
+    if ctx.invoked_subcommand is None:
+        run_lock(
+            environment_files=file,
+            conda_exe=conda,
+            platforms=platform,
+            no_mamba=no_mamba,
+            include_dev_dependencies=dev_dependencies,
+            channel_overrides=channel_overrides,
+        )
+    else:
+        ctx.ensure_object(dict)
+        ctx.obj["CONDA"] = conda
+        ctx.obj["NO_MAMBA"] = no_mamba
+
+
+@main.command()
+@click.option("-p", "--prefix", help="Full path to environment location (i.e. prefix).")
+@click.pass_context
+def install(ctx, prefix):
+    _conda_exe = determine_conda_executable(
+        ctx.obj["CONDA"], no_mamba=ctx.obj["NO_MAMBA"]
     )
+    click.echo(f"The subcommand install {str(_conda_exe)}")
 
 
 if __name__ == "__main__":
-    main()
+    main(obj={})
