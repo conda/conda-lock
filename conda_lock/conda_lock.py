@@ -407,19 +407,17 @@ def main(ctx, conda, no_mamba, platform, channel_overrides, dev_dependencies, fi
             include_dev_dependencies=dev_dependencies,
             channel_overrides=channel_overrides,
         )
-    else:
-        ctx.ensure_object(dict)
-        ctx.obj["CONDA"] = conda
-        ctx.obj["NO_MAMBA"] = no_mamba
 
 
 @main.command()
+@click.option(
+    "--conda", default=None, help="path (or name) of the conda/mamba executable to use."
+)
+@click.option("--no-mamba", is_flag=True, help="don't attempt to use or install mamba.")
 @click.option("-p", "--prefix", help="Full path to environment location (i.e. prefix).")
-@click.pass_context
-def install(ctx, prefix):
-    _conda_exe = determine_conda_executable(
-        ctx.obj["CONDA"], no_mamba=ctx.obj["NO_MAMBA"]
-    )
+def install(conda, no_mamba, prefix):
+    """Perform a conda install"""
+    _conda_exe = determine_conda_executable(conda, no_mamba=no_mamba)
     click.echo(f"The subcommand install {str(_conda_exe)}")
 
 
