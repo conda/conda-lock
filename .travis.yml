@@ -17,10 +17,6 @@ matrix:
       env: PY=3.7
     - name: "python-3.8"
       env: PY=3.8
-    - name: "coding_standards"
-      env: PY=3
-    - name: "tarball"
-      env: PY=3
     - name: "docs"
       env: PY=3
 
@@ -45,20 +41,10 @@ install:
 
 script:
   - if [[ $TRAVIS_JOB_NAME == python-* ]]; then
+      set -e
       cp -r tests/ /tmp ;
       pushd /tmp && pytest -vrsx -n 2 -rxs --cov=conda_lock tests && popd ;
       pushd /tmp/tests/gdal && conda-lock -f environment.yml -p linux-64 && popd;
-    fi
-
-  - if [[ $TRAVIS_JOB_NAME == 'tarball' ]]; then
-      python setup.py --version ;
-      pip wheel . -w dist --no-deps ;
-      check-manifest --verbose ;
-      twine check dist/* ;
-    fi
-
-  - if [[ $TRAVIS_JOB_NAME == 'coding_standards' ]]; then
-      pytest --flake8 -m flake8 ;
     fi
 
   - |
