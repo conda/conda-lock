@@ -378,11 +378,12 @@ def run_lock(
     help="include dev dependencies in the lockfile (where applicable)",
 )
 @click.option(
-    "-",
+    "-f",
     "--file",
     default=[pathlib.Path("environment.yml")],
     type=lambda s: pathlib.Path(s),
     multiple=True,
+    help="environment file(s)",
 )
 # @click.option(
 #     "-m",
