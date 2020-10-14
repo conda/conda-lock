@@ -10,6 +10,8 @@ from conda_lock.src_parser.selectors import filter_platform_selectors
 def parse_environment_file(
     environment_file: pathlib.Path, platform: str
 ) -> LockSpecification:
+    if not environment_file.exists():
+        raise FileNotFoundError(f"{environment_file} not found")
 
     with environment_file.open("r") as fo:
         filtered_content = "\n".join(
