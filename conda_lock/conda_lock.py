@@ -123,7 +123,7 @@ def solve_specs_for_arch(
         sys.exit(1)
 
 
-def do_conda_install(conda: PathLike, prefix: str, name: str, file: str) -> dict:
+def do_conda_install(conda: PathLike, prefix: str, name: str, file: str) -> None:
 
     if prefix and name:
         raise ValueError("Provide either prefix, or name, but not both.")
@@ -171,13 +171,6 @@ def do_conda_install(conda: PathLike, prefix: str, name: str, file: str) -> dict
             print(message)
         print_proc(proc)
 
-        sys.exit(1)
-
-    try:
-        return json.loads(proc.stdout)
-    except json.JSONDecodeError:
-        print("Could not install")
-        print_proc(proc)
         sys.exit(1)
 
 
@@ -491,7 +484,6 @@ def install(conda, no_mamba, prefix, name, lock_file):
     """Perform a conda install"""
     _conda_exe = determine_conda_executable(conda, no_mamba=no_mamba)
     do_conda_install(conda=_conda_exe, prefix=prefix, name=name, file=lock_file)
-    click.echo(f"The subcommand install {str(_conda_exe)}")
 
 
 if __name__ == "__main__":
