@@ -487,4 +487,4 @@ def install(conda, no_mamba, prefix, name, lock_file):
 
 
 if __name__ == "__main__":
-    main(obj={})
+    main()
