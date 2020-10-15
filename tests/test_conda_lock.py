@@ -315,7 +315,7 @@ def test_install(create_conda_env, tmp_path, conda_exe):
     assert create_conda_env, "Could not create conda environment"
     environment_file = tmp_path / "environment.yml"
     package = "click"
-    platform = "osx-64"
+    platform = "linux-64"
     environment_file.write_text(
         f"""
     channels:
