@@ -190,7 +190,7 @@ def _create_conda_env(conda: PathLike, name: str) -> bool:
         str(conda),
         "create",
         "--name",
-        "test",
+        name,
     ]
 
     proc = subprocess.run(
@@ -227,7 +227,7 @@ def _create_conda_env(conda: PathLike, name: str) -> bool:
 
 
 def _destroy_conda_env(conda: PathLike, name: str) -> bool:
-    args: MutableSequence[PathLike] = [str(conda), "remove", "--name", "test", "--all"]
+    args: MutableSequence[PathLike] = [str(conda), "remove", "--name", name, "--all"]
 
     proc = subprocess.run(
         args,
@@ -268,13 +268,15 @@ def conda_exe():
 
 
 @pytest.fixture
-def create_conda_env(conda_exe):
-    yield _create_conda_env(conda_exe, name="test")
-    _destroy_conda_env(conda_exe, name="test")
+def conda_env(conda_exe):
+    env_name = "test"
+    _create_conda_env(conda_exe, name=env_name)
+    yield env_name
+    _destroy_conda_env(conda_exe, name=env_name)
 
 
-def _check_package_installed(conda: PathLike, package: str, platform: str):
-    args: MutableSequence[PathLike] = [str(conda), "list", "--name", "test", package]
+def _check_package_installed(conda: PathLike, package: str, platform: str, name: str):
+    args: MutableSequence[PathLike] = [str(conda), "list", "--name", name, package]
 
     proc = subprocess.run(
         args,
@@ -311,8 +313,7 @@ def _check_package_installed(conda: PathLike, package: str, platform: str):
     return package in proc.stdout
 
 
-def test_install(create_conda_env, tmp_path, conda_exe):
-    assert create_conda_env, "Could not create conda environment"
+def test_install(conda_env, tmp_path, conda_exe):
     environment_file = tmp_path / "environment.yml"
     package = "click"
     platform = "linux-64"
@@ -331,7 +332,9 @@ def test_install(create_conda_env, tmp_path, conda_exe):
     result = runner.invoke(main, ["lock", "-p", platform, "-f", environment_file])
     assert result.exit_code == 0
 
-    result = runner.invoke(main, ["install", "--name", "test", "conda-osx-64.lock"])
+    result = runner.invoke(main, ["install", "--name", conda_env, "conda-osx-64.lock"])
     assert result.exit_code == 0
 
-    _check_package_installed(conda_exe, package, platform)
+    _check_package_installed(
+        conda=conda_exe, package=package, platform=platform, name=conda_env
+    )
