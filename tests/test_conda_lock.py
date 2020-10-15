@@ -1,4 +1,5 @@
 import json
+import os
 import pathlib
 import shutil
 import subprocess
@@ -326,13 +327,19 @@ def test_install(conda_env, tmp_path, conda_exe):
       - {package}"""
     )
 
+    lock_filename = f"conda-{platform}.lock"
+    try:
+        os.remove(lock_filename)
+    except OSError:
+        pass
+
     from click.testing import CliRunner
 
     runner = CliRunner()
     result = runner.invoke(main, ["lock", "-p", platform, "-f", environment_file])
     assert result.exit_code == 0
 
-    result = runner.invoke(main, ["install", "--name", conda_env, "conda-osx-64.lock"])
+    result = runner.invoke(main, ["install", "--name", conda_env, lock_filename])
     assert result.exit_code == 0
 
     _check_package_installed(
