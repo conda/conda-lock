@@ -306,7 +306,7 @@ def _check_package_installed(conda: PathLike, package: str, platform: str, name:
     return package in proc.stdout
 
 
-def test_install(conda_env, tmp_path, conda_exe):
+def test_install(tmp_path, conda_exe):
     environment_file = tmp_path / "environment.yml"
     package = "click"
     platform = "linux-64"
@@ -336,10 +336,10 @@ def test_install(conda_env, tmp_path, conda_exe):
         assert _create_conda_env(
             conda_exe, name=env_name
         ), f"Could not create {env_name} environment"
-        result = runner.invoke(main, ["install", "--name", conda_env, lock_filename])
+        result = runner.invoke(main, ["install", "--name", env_name, lock_filename])
         assert result.exit_code == 0
         assert _check_package_installed(
-            conda=conda_exe, package=package, platform=platform, name=conda_env
+            conda=conda_exe, package=package, platform=platform, name=env_name
         ), f"Package {package} does not exist in {env_name} environment"
     finally:
         assert _destroy_conda_env(
