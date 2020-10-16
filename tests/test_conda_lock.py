@@ -268,14 +268,6 @@ def conda_exe():
     return determine_conda_executable("conda", no_mamba=True)
 
 
-@pytest.fixture
-def conda_env(conda_exe):
-    env_name = "test"
-    _create_conda_env(conda_exe, name=env_name)
-    yield env_name
-    _destroy_conda_env(conda_exe, name=env_name)
-
-
 def _check_package_installed(conda: PathLike, package: str, platform: str, name: str):
     args: MutableSequence[PathLike] = [str(conda), "list", "--name", name, package]
 
@@ -339,9 +331,17 @@ def test_install(conda_env, tmp_path, conda_exe):
     result = runner.invoke(main, ["lock", "-p", platform, "-f", environment_file])
     assert result.exit_code == 0
 
-    result = runner.invoke(main, ["install", "--name", conda_env, lock_filename])
-    assert result.exit_code == 0
-
-    _check_package_installed(
-        conda=conda_exe, package=package, platform=platform, name=conda_env
-    )
+    env_name = "test"
+    try:
+        assert _create_conda_env(
+            conda_exe, name=env_name
+        ), f"Could not create {env_name} environment"
+        result = runner.invoke(main, ["install", "--name", conda_env, lock_filename])
+        assert result.exit_code == 0
+        assert _check_package_installed(
+            conda=conda_exe, package=package, platform=platform, name=conda_env
+        ), f"Package {package} does not exist in {env_name} environment"
+    finally:
+        assert _destroy_conda_env(
+            conda_exe, name=env_name
+        ), f"Could not destroy {env_name} environment"
