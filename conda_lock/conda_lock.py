@@ -130,9 +130,10 @@ def do_conda_install(conda: PathLike, prefix: str, name: str, file: str) -> None
 
     args: MutableSequence[PathLike] = [
         str(conda),
-        "install",
+        "create",
         "--file",
         file,
+        "--yes",
     ]
 
     if prefix:

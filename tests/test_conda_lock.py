@@ -186,90 +186,13 @@ def test_aggregate_lock_specs():
     )
 
 
-def _create_conda_env(conda: PathLike, name: str) -> bool:
-    args: MutableSequence[PathLike] = [
-        str(conda),
-        "create",
-        "--name",
-        name,
-    ]
-
-    proc = subprocess.run(
-        args,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        encoding="utf8",
-    )
-
-    def print_proc(proc):
-        print(f"    Command: {proc.args}")
-        if proc.stdout:
-            print(f"    STDOUT:\n{proc.stdout}")
-        if proc.stderr:
-            print(f"    STDERR:\n{proc.stderr}")
-
-    try:
-        proc.check_returncode()
-    except subprocess.CalledProcessError:
-        try:
-            err_json = json.loads(proc.stdout)
-            message = err_json["message"]
-        except json.JSONDecodeError as e:
-            print(f"Failed to parse json, {e}")
-            message = ""
-
-        print("Could not perform conda create")
-        if message:
-            print(message)
-        print_proc(proc)
-
-        return False
-    return True
-
-
-def _destroy_conda_env(conda: PathLike, name: str) -> bool:
-    args: MutableSequence[PathLike] = [str(conda), "remove", "--name", name, "--all"]
-
-    proc = subprocess.run(
-        args,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        encoding="utf8",
-    )
-
-    def print_proc(proc):
-        print(f"    Command: {proc.args}")
-        if proc.stdout:
-            print(f"    STDOUT:\n{proc.stdout}")
-        if proc.stderr:
-            print(f"    STDERR:\n{proc.stderr}")
-
-    try:
-        proc.check_returncode()
-    except subprocess.CalledProcessError:
-        try:
-            err_json = json.loads(proc.stdout)
-            message = err_json["message"]
-        except json.JSONDecodeError as e:
-            print(f"Failed to parse json, {e}")
-            message = ""
-
-        print("Could not perform conda remove")
-        if message:
-            print(message)
-        print_proc(proc)
-
-        return False
-    return True
-
-
 @pytest.fixture
 def conda_exe():
     return determine_conda_executable("conda", no_mamba=True)
 
 
-def _check_package_installed(conda: PathLike, package: str, platform: str, name: str):
-    args: MutableSequence[PathLike] = [str(conda), "list", "--name", name, package]
+def _check_package_installed(conda: PathLike, package: str, platform: str, prefix: str):
+    args: MutableSequence[PathLike] = [str(conda), "list", "--prefix", prefix, package]
 
     proc = subprocess.run(
         args,
@@ -331,17 +254,11 @@ def test_install(tmp_path, conda_exe):
     result = runner.invoke(main, ["lock", "-p", platform, "-f", environment_file])
     assert result.exit_code == 0
 
-    env_name = "test"
-    try:
-        assert _create_conda_env(
-            conda_exe, name=env_name
-        ), f"Could not create {env_name} environment"
-        result = runner.invoke(main, ["install", "--name", env_name, lock_filename])
-        assert result.exit_code == 0
-        assert _check_package_installed(
-            conda=conda_exe, package=package, platform=platform, name=env_name
-        ), f"Package {package} does not exist in {env_name} environment"
-    finally:
-        assert _destroy_conda_env(
-            conda_exe, name=env_name
-        ), f"Could not destroy {env_name} environment"
+    env_name = "test_env"
+    result = runner.invoke(
+        main, ["install", "--prefix", tmp_path / env_name, lock_filename]
+    )
+    assert result.exit_code == 0
+    assert _check_package_installed(
+        conda=conda_exe, package=package, platform=platform, prefix=tmp_path / env_name
+    ), f"Package {package} does not exist in {tmp_path} environment"
