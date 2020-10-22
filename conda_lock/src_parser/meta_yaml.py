@@ -108,12 +108,17 @@ def parse_meta_yaml_file(
             return
         specs.append(spec)
 
-    for s in get_in(["requirements", "host"], meta_yaml_data, []):
-        add_spec(s)
-    for s in get_in(["requirements", "run"], meta_yaml_data, []):
-        add_spec(s)
-    if include_dev_dependencies:
-        for s in get_in(["test", "requires"], meta_yaml_data, []):
+    def add_requirements_from_recipe_or_output(yaml_data):
+        for s in get_in(["requirements", "host"], yaml_data, []):
             add_spec(s)
+        for s in get_in(["requirements", "run"], yaml_data, []):
+            add_spec(s)
+        if include_dev_dependencies:
+            for s in get_in(["test", "requires"], yaml_data, []):
+                add_spec(s)
+
+    add_requirements_from_recipe_or_output(meta_yaml_data)
+    for output in get_in(["outputs"], meta_yaml_data, []):
+        add_requirements_from_recipe_or_output(output)
 
     return LockSpecification(specs=specs, channels=channels, platform=platform)
