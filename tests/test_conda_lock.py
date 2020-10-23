@@ -1,14 +1,21 @@
+import json
+import os
 import pathlib
 import shutil
+import subprocess
+import sys
 
-from typing import Any
+from typing import Any, MutableSequence
 
 import pytest
 
 from conda_lock.conda_lock import (
+    PathLike,
     aggregate_lock_specs,
+    conda_env_override,
     create_lockfile_from_spec,
     determine_conda_executable,
+    main,
     parse_meta_yaml_file,
     run_lock,
 )
@@ -177,3 +184,81 @@ def test_aggregate_lock_specs():
             platform="linux-64",
         ).env_hash()
     )
+
+
+@pytest.fixture
+def conda_exe():
+    return determine_conda_executable("conda", no_mamba=True)
+
+
+def _check_package_installed(conda: PathLike, package: str, platform: str, prefix: str):
+    args: MutableSequence[PathLike] = [str(conda), "list", "--prefix", prefix, package]
+
+    proc = subprocess.run(
+        args,
+        env=conda_env_override(platform),
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        encoding="utf8",
+    )
+
+    def print_proc(proc):
+        print(f"    Command: {proc.args}")
+        if proc.stdout:
+            print(f"    STDOUT:\n{proc.stdout}")
+        if proc.stderr:
+            print(f"    STDERR:\n{proc.stderr}")
+
+    try:
+        proc.check_returncode()
+    except subprocess.CalledProcessError:
+        try:
+            err_json = json.loads(proc.stdout)
+            message = err_json["message"]
+        except json.JSONDecodeError as e:
+            print(f"Failed to parse json, {e}")
+            message = ""
+
+        print(f"Could not lock the environment for platform {platform}")
+        if message:
+            print(message)
+        print_proc(proc)
+
+        sys.exit(1)
+
+    return package in proc.stdout
+
+
+def test_install(tmp_path, conda_exe):
+    environment_file = tmp_path / "environment.yml"
+    package = "click"
+    platform = "linux-64"
+    environment_file.write_text(
+        f"""
+    channels:
+      - conda-forge
+    dependencies:
+      - python=3.8.5
+      - {package}"""
+    )
+
+    lock_filename = f"conda-{platform}.lock"
+    try:
+        os.remove(lock_filename)
+    except OSError:
+        pass
+
+    from click.testing import CliRunner
+
+    runner = CliRunner()
+    result = runner.invoke(main, ["lock", "-p", platform, "-f", environment_file])
+    assert result.exit_code == 0
+
+    env_name = "test_env"
+    result = runner.invoke(
+        main, ["install", "--prefix", tmp_path / env_name, lock_filename]
+    )
+    assert result.exit_code == 0
+    assert _check_package_installed(
+        conda=conda_exe, package=package, platform=platform, prefix=tmp_path / env_name
+    ), f"Package {package} does not exist in {tmp_path} environment"

@@ -2,7 +2,6 @@
 Somewhat hacky solution to create conda lock files.
 """
 
-import argparse
 import atexit
 import json
 import os
@@ -15,7 +14,10 @@ import tempfile
 from itertools import chain
 from typing import Dict, List, MutableSequence, Optional, Sequence, Set, Tuple, Union
 
+import click
 import ensureconda
+
+from click_default_group import DefaultGroup
 
 from conda_lock.src_parser import LockSpecification
 from conda_lock.src_parser.environment_yaml import parse_environment_file
@@ -118,6 +120,59 @@ def solve_specs_for_arch(
     except json.JSONDecodeError:
         print("Could not solve for lock")
         print_proc(proc)
+        sys.exit(1)
+
+
+def do_conda_install(conda: PathLike, prefix: str, name: str, file: str) -> None:
+
+    if prefix and name:
+        raise ValueError("Provide either prefix, or name, but not both.")
+
+    args: MutableSequence[PathLike] = [
+        str(conda),
+        "create",
+        "--file",
+        file,
+        "--yes",
+        "--json",
+    ]
+
+    if prefix:
+        args.append("--prefix")
+        args.append(prefix)
+    if name:
+        args.append("--name")
+        args.append(name)
+
+    proc = subprocess.run(
+        args,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        encoding="utf8",
+    )
+
+    def print_proc(proc):
+        print(f"    Command: {proc.args}")
+        if proc.stdout:
+            print(f"    STDOUT:\n{proc.stdout}")
+        if proc.stderr:
+            print(f"    STDERR:\n{proc.stderr}")
+
+    try:
+        proc.check_returncode()
+    except subprocess.CalledProcessError:
+        try:
+            err_json = json.loads(proc.stdout)
+            message = err_json["message"]
+        except json.JSONDecodeError as e:
+            print(f"Failed to parse json, {e}")
+            message = ""
+
+        print(f"Could not perform conda install using {file} lock file into {prefix}")
+        if message:
+            print(message)
+        print_proc(proc)
+
         sys.exit(1)
 
 
@@ -280,73 +335,6 @@ def main_on_docker(env_file, platforms):
     )
 
 
-def parser():
-    parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "--conda",
-        default=None,
-        help="path (or name) of the conda/mamba executable to use.",
-    )
-    parser.add_argument(
-        "--no-mamba",
-        action="store_true",
-        help="don't attempt to use or install mamba.",
-    )
-    parser.add_argument(
-        "-p",
-        "--platform",
-        nargs="?",
-        action="append",
-        help="generate lock files for the following platforms",
-    )
-    parser.add_argument(
-        "-c",
-        "--channel",
-        dest="channel_overrides",
-        nargs="?",
-        action="append",
-        help="""
-            Override the channels to use when solving the environment.  These will
-            replace the channels as listed in the various source files.
-        """,
-    )
-
-    group = parser.add_mutually_exclusive_group()
-    group.add_argument(
-        "--dev-dependencies",
-        action="store_true",
-        default=True,
-        help="include dev dependencies in the lockfile (where applicable)",
-    )
-    group.add_argument(
-        "--no-dev-dependencies",
-        action="store_false",
-        dest="dev_dependencies",
-        help="exclude dev dependencies in the lockfile (where applicable)",
-    )
-    parser.add_argument(
-        "-f",
-        "--file",
-        dest="files",
-        nargs="?",
-        action="append",
-        help="path to a conda environment specification(s)",
-        type=lambda s: pathlib.Path(s),
-    )
-    parser.add_argument(
-        "-m",
-        "--mode",
-        choices=["default", "docker"],
-        default="default",
-        help="""
-            Run this conda-lock in an isolated docker container.  This may be
-            required to account for some issues where conda-lock conflicts with
-            existing condarc configurations.
-            """,
-    )
-    return parser
-
-
 def parse_source_files(
     src_files: List[pathlib.Path], platform: str, include_dev_dependencies: bool
 ) -> List[LockSpecification]:
@@ -424,22 +412,80 @@ def run_lock(
     )
 
 
+@click.group(cls=DefaultGroup, default="lock", default_if_no_args=True)
 def main():
-    args = parser().parse_args()
+    """To get help for subcommands, use the conda-lock <SUBCOMMAND> --help"""
+    pass
 
-    # argparse: append action with default list adds to list instead of overriding
-    # https://bugs.python.org/issue16399
-    if args.files is None:
-        args.files = [pathlib.Path("environment.yml")]
 
+@main.command("lock")
+@click.option(
+    "--conda", default=None, help="path (or name) of the conda/mamba executable to use."
+)
+@click.option("--no-mamba", is_flag=True, help="don't attempt to use or install mamba.")
+@click.option(
+    "-p",
+    "--platform",
+    multiple=True,
+    help="generate lock files for the following platforms",
+)
+@click.option(
+    "-c",
+    "--channel",
+    "channel_overrides",
+    multiple=True,
+    help="""Override the channels to use when solving the environment. These will replace the channels as listed in the various source files.""",
+)
+@click.option(
+    "--dev-dependencies/--no-dev-dependencies",
+    is_flag=True,
+    default=True,
+    help="include dev dependencies in the lockfile (where applicable)",
+)
+@click.option(
+    "-f",
+    "--file",
+    "files",
+    default=["environment.yml"],
+    type=click.Path(),
+    multiple=True,
+    help="path to a conda environment specification(s)",
+)
+# @click.option(
+#     "-m",
+#     "--mode",
+#     type=click.Choice(["default", "docker"], case_sensitive=True),
+#     default="default",
+#     help="""
+#             Run this conda-lock in an isolated docker container.  This may be
+#             required to account for some issues where conda-lock conflicts with
+#             existing condarc configurations.""",
+# )
+def lock(conda, no_mamba, platform, channel_overrides, dev_dependencies, files):
+    """Generate fully reproducible lock files for conda environments."""
+    files = [pathlib.Path(file) for file in files]
     run_lock(
-        environment_files=args.files,
-        conda_exe=args.conda,
-        platforms=args.platform,
-        no_mamba=args.no_mamba,
-        include_dev_dependencies=args.dev_dependencies,
-        channel_overrides=args.channel_overrides,
+        environment_files=files,
+        conda_exe=conda,
+        platforms=platform,
+        no_mamba=no_mamba,
+        include_dev_dependencies=dev_dependencies,
+        channel_overrides=channel_overrides,
     )
+
+
+@main.command("install")
+@click.option(
+    "--conda", default=None, help="path (or name) of the conda/mamba executable to use."
+)
+@click.option("--no-mamba", is_flag=True, help="don't attempt to use or install mamba.")
+@click.option("-p", "--prefix", help="Full path to environment location (i.e. prefix).")
+@click.option("-n", "--name", help="Name of environment.")
+@click.argument("lock-file")
+def install(conda, no_mamba, prefix, name, lock_file):
+    """Perform a conda install"""
+    _conda_exe = determine_conda_executable(conda, no_mamba=no_mamba)
+    do_conda_install(conda=_conda_exe, prefix=prefix, name=name, file=lock_file)
 
 
 if __name__ == "__main__":
