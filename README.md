@@ -54,6 +54,9 @@ pip install conda-lock
 conda-lock -f environment.yml -p osx-64 -p linux-64
 
 # create an environment from the lockfile
+conda-lock install [-p {prefix}|-n {name}] conda-linux-64.lock
+
+# alternatively, use conda command directly
 conda create -n my-locked-env --file conda-linux-64.lock
 ```
 
