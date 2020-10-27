@@ -372,23 +372,31 @@ def aggregate_lock_specs(lock_specs: List[LockSpecification]) -> LockSpecificati
     return LockSpecification(specs=specs, channels=channels, platform=platform)
 
 
-def _determine_conda_executable(conda_executable: Optional[str], no_mamba: bool):
+def _determine_conda_executable(
+    conda_executable: Optional[str], mamba: bool, micromamba: bool
+):
     if conda_executable:
         if pathlib.Path(conda_executable).exists():
             yield conda_executable
         yield shutil.which(conda_executable)
+
     _conda_exe = ensureconda.ensureconda(
-        mamba=not no_mamba,
-        # micromamba doesn't support --override-channels
-        micromamba=False,
+        mamba=mamba,
+        micromamba=micromamba,
         conda=True,
         conda_exe=True,
     )
+
+    if micromamba and "MAMBA_ROOT_PREFIX" not in os.environ:
+        os.environ["MAMBA_ROOT_PREFIX"] = str(pathlib.Path(_conda_exe) / "mamba_root")
+
     yield _conda_exe
 
 
-def determine_conda_executable(conda_executable: Optional[str], no_mamba: bool):
-    for candidate in _determine_conda_executable(conda_executable, no_mamba):
+def determine_conda_executable(
+    conda_executable: Optional[str], mamba: bool, micromamba: bool
+):
+    for candidate in _determine_conda_executable(conda_executable, mamba, micromamba):
         if candidate is not None:
             return candidate
     raise RuntimeError("Could not find conda (or compatible) executable")
@@ -398,11 +406,14 @@ def run_lock(
     environment_files: List[pathlib.Path],
     conda_exe: Optional[str],
     platforms: Optional[List[str]] = None,
-    no_mamba: bool = False,
+    mamba: bool = False,
+    micromamba: bool = False,
     include_dev_dependencies: bool = True,
     channel_overrides: Optional[Sequence[str]] = None,
 ) -> None:
-    _conda_exe = determine_conda_executable(conda_exe, no_mamba=no_mamba)
+    _conda_exe = determine_conda_executable(
+        conda_exe, mamba=mamba, micromamba=micromamba
+    )
     make_lock_files(
         conda=_conda_exe,
         src_files=environment_files,
@@ -422,7 +433,14 @@ def main():
 @click.option(
     "--conda", default=None, help="path (or name) of the conda/mamba executable to use."
 )
-@click.option("--no-mamba", is_flag=True, help="don't attempt to use or install mamba.")
+@click.option(
+    "--mamba/--no-mamba", default=False, help="don't attempt to use or install mamba."
+)
+@click.option(
+    "--micromamba/--no-micromamba",
+    default=False,
+    help="don't attempt to use or install micromamba.",
+)
 @click.option(
     "-p",
     "--platform",
@@ -461,14 +479,17 @@ def main():
 #             required to account for some issues where conda-lock conflicts with
 #             existing condarc configurations.""",
 # )
-def lock(conda, no_mamba, platform, channel_overrides, dev_dependencies, files):
+def lock(
+    conda, mamba, micromamba, platform, channel_overrides, dev_dependencies, files
+):
     """Generate fully reproducible lock files for conda environments."""
     files = [pathlib.Path(file) for file in files]
     run_lock(
         environment_files=files,
         conda_exe=conda,
         platforms=platform,
-        no_mamba=no_mamba,
+        mamba=mamba,
+        micromamba=micromamba,
         include_dev_dependencies=dev_dependencies,
         channel_overrides=channel_overrides,
     )
@@ -478,13 +499,20 @@ def lock(conda, no_mamba, platform, channel_overrides, dev_dependencies, files):
 @click.option(
     "--conda", default=None, help="path (or name) of the conda/mamba executable to use."
 )
-@click.option("--no-mamba", is_flag=True, help="don't attempt to use or install mamba.")
+@click.option(
+    "--mamba/--no-mamba", default=False, help="don't attempt to use or install mamba."
+)
+@click.option(
+    "--micromamba/--no-micromamba",
+    default=False,
+    help="don't attempt to use or install micromamba.",
+)
 @click.option("-p", "--prefix", help="Full path to environment location (i.e. prefix).")
 @click.option("-n", "--name", help="Name of environment.")
 @click.argument("lock-file")
-def install(conda, no_mamba, prefix, name, lock_file):
+def install(conda, mamba, micromamba, prefix, name, lock_file):
     """Perform a conda install"""
-    _conda_exe = determine_conda_executable(conda, no_mamba=no_mamba)
+    _conda_exe = determine_conda_executable(conda, mamba=mamba, micromamba=micromamba)
     do_conda_install(conda=_conda_exe, prefix=prefix, name=name, file=lock_file)
 
 

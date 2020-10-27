@@ -137,7 +137,7 @@ def test_run_lock_mamba(monkeypatch, zlib_environment):
     ],
 )
 def test_poetry_version_parsing_constraints(package, version, url_pattern):
-    _conda_exe = determine_conda_executable("conda", no_mamba=True)
+    _conda_exe = determine_conda_executable("conda", mamba=False, micromamba=False)
     spec = LockSpecification(
         specs=[to_match_spec(package, poetry_version_to_conda_version(version))],
         channels=["conda-forge"],
@@ -188,7 +188,7 @@ def test_aggregate_lock_specs():
 
 @pytest.fixture
 def conda_exe():
-    return determine_conda_executable("conda", no_mamba=True)
+    return determine_conda_executable("conda", mamba=False, micromamba=False)
 
 
 def _check_package_installed(conda: PathLike, package: str, platform: str, prefix: str):
