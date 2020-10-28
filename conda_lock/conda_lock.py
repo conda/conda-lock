@@ -377,7 +377,7 @@ def _ensureconda(
     mamba: bool = False,
     micromamba: bool = False,
     conda: bool = False,
-    conda_exe: bool = True,
+    conda_exe: bool = False,
 ):
     _conda_exe = ensureconda.ensureconda(
         mamba=mamba,
