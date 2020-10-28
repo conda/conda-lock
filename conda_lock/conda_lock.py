@@ -249,7 +249,7 @@ def make_lock_files(
         )
 
         lock_spec = aggregate_lock_specs(lock_specs)
-        if channel_overrides is not None:
+        if channel_overrides:
             channels = channel_overrides
         else:
             channels = lock_spec.channels
@@ -268,10 +268,13 @@ def make_lock_files(
     print("", file=sys.stderr)
 
 
+def is_micromamba(conda: PathLike) -> bool:
+    return str(conda).endswith("micromamba")
+
+
 def create_lockfile_from_spec(
     *, channels: Sequence[str], conda: PathLike, spec: LockSpecification
 ) -> List[str]:
-
     dry_run_install = solve_specs_for_arch(
         conda=conda,
         platform=spec.platform,
@@ -285,11 +288,20 @@ def create_lockfile_from_spec(
     ]
 
     link_actions = dry_run_install["actions"]["LINK"]
-    for link in link_actions:
-        link["url_base"] = f"{link['base_url']}/{link['platform']}/{link['dist_name']}"
-        link["url"] = f"{link['url_base']}.tar.bz2"
-        link["url_conda"] = f"{link['url_base']}.conda"
-    link_dists = {link["dist_name"] for link in link_actions}
+    if is_micromamba(conda):
+        for link in link_actions:
+            link["url_base"] = fn_to_dist_name(link["url"])
+            link["url"] = f"{link['url_base']}.tar.bz2"
+            link["url_conda"] = f"{link['url_base']}.conda"
+        link_dists = {fn_to_dist_name(link["fn"]) for link in link_actions}
+    else:
+        for link in link_actions:
+            link[
+                "url_base"
+            ] = f"{link['base_url']}/{link['platform']}/{link['dist_name']}"
+            link["url"] = f"{link['url_base']}.tar.bz2"
+            link["url_conda"] = f"{link['url_base']}.conda"
+        link_dists = {link["dist_name"] for link in link_actions}
 
     fetch_actions = dry_run_install["actions"]["FETCH"]
 
@@ -306,8 +318,11 @@ def create_lockfile_from_spec(
             fetch_by_dist_name[dist_name] = search_res
 
     for pkg in link_actions:
-        url = fetch_by_dist_name[pkg["dist_name"]]["url"]
-        md5 = fetch_by_dist_name[pkg["dist_name"]]["md5"]
+        dist_name = (
+            fn_to_dist_name(pkg["fn"]) if is_micromamba(conda) else pkg["dist_name"]
+        )
+        url = fetch_by_dist_name[dist_name]["url"]
+        md5 = fetch_by_dist_name[dist_name]["md5"]
         lockfile_contents.append(f"{url}#{md5}")
 
     return lockfile_contents
@@ -496,6 +511,7 @@ def lock(
 ):
     """Generate fully reproducible lock files for conda environments."""
     files = [pathlib.Path(file) for file in files]
+
     run_lock(
         environment_files=files,
         conda_exe=conda,

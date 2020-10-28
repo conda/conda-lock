@@ -117,16 +117,9 @@ def test_parse_flit(flit_pyproject_toml, include_dev_dependencies):
     assert res.channels == ["defaults"]
 
 
-def test_run_lock_conda(monkeypatch, zlib_environment):
+def test_run_lock(monkeypatch, zlib_environment, conda_exe):
     monkeypatch.chdir(zlib_environment.parent)
-    run_lock([zlib_environment], conda_exe="conda")
-
-
-def test_run_lock_mamba(monkeypatch, zlib_environment):
-    if not shutil.which("mamba"):
-        raise pytest.skip("mamba is not installed")
-    monkeypatch.chdir(zlib_environment.parent)
-    run_lock([zlib_environment], conda_exe="mamba")
+    run_lock([zlib_environment], conda_exe=conda_exe)
 
 
 @pytest.mark.parametrize(
@@ -190,9 +183,9 @@ def test_aggregate_lock_specs():
 @pytest.fixture(
     scope="session",
     params=[
-        pytest.param("micromamba"),
-        pytest.param("mamba"),
         pytest.param("conda"),
+        pytest.param("mamba"),
+        pytest.param("micromamba"),
         pytest.param("conda_exe"),
     ],
 )
@@ -204,7 +197,11 @@ def conda_exe(request):
         conda_exe=False,
     )
     kwargs[request.param] = True
-    return _ensureconda(**kwargs)
+    _conda_exe = _ensureconda(**kwargs)
+
+    if _conda_exe is not None:
+        return _conda_exe
+    raise pytest.skip(f"{request.param} is not installed")
 
 
 def _check_package_installed(conda: PathLike, package: str, platform: str, prefix: str):
@@ -257,7 +254,9 @@ def test_install(tmp_path, conda_exe):
       - python=3.8.5
       - {package}"""
     )
-
+    environment_file = str(
+        pathlib.Path(__file__).parent.joinpath("zlib").joinpath("environment.yml")
+    )
     lock_filename = f"conda-{platform}.lock"
     try:
         os.remove(lock_filename)
