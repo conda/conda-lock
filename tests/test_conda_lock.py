@@ -11,6 +11,7 @@ import pytest
 
 from conda_lock.conda_lock import (
     PathLike,
+    _ensureconda,
     aggregate_lock_specs,
     conda_env_override,
     create_lockfile_from_spec,
@@ -186,9 +187,24 @@ def test_aggregate_lock_specs():
     )
 
 
-@pytest.fixture
-def conda_exe():
-    return determine_conda_executable("conda", mamba=False, micromamba=False)
+@pytest.fixture(
+    scope="session",
+    params=[
+        pytest.param("micromamba"),
+        pytest.param("mamba"),
+        pytest.param("conda"),
+        pytest.param("conda_exe"),
+    ],
+)
+def conda_exe(request):
+    kwargs = dict(
+        mamba=False,
+        micromamba=False,
+        conda=False,
+        conda_exe=False,
+    )
+    kwargs[request.param] = True
+    return _ensureconda(**kwargs)
 
 
 def _check_package_installed(conda: PathLike, package: str, platform: str, prefix: str):
@@ -251,12 +267,22 @@ def test_install(tmp_path, conda_exe):
     from click.testing import CliRunner
 
     runner = CliRunner()
-    result = runner.invoke(main, ["lock", "-p", platform, "-f", environment_file])
+    result = runner.invoke(
+        main, ["lock", "--conda", conda_exe, "-p", platform, "-f", environment_file]
+    )
     assert result.exit_code == 0
 
     env_name = "test_env"
     result = runner.invoke(
-        main, ["install", "--prefix", tmp_path / env_name, lock_filename]
+        main,
+        [
+            "install",
+            "--conda",
+            conda_exe,
+            "--prefix",
+            tmp_path / env_name,
+            lock_filename,
+        ],
     )
     assert result.exit_code == 0
     assert _check_package_installed(

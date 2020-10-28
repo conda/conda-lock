@@ -271,6 +271,7 @@ def make_lock_files(
 def create_lockfile_from_spec(
     *, channels: Sequence[str], conda: PathLike, spec: LockSpecification
 ) -> List[str]:
+
     dry_run_install = solve_specs_for_arch(
         conda=conda,
         platform=spec.platform,
@@ -372,6 +373,27 @@ def aggregate_lock_specs(lock_specs: List[LockSpecification]) -> LockSpecificati
     return LockSpecification(specs=specs, channels=channels, platform=platform)
 
 
+def _ensureconda(
+    mamba: bool = False,
+    micromamba: bool = False,
+    conda: bool = False,
+    conda_exe: bool = True,
+):
+    _conda_exe = ensureconda.ensureconda(
+        mamba=mamba,
+        micromamba=micromamba,
+        conda=conda,
+        conda_exe=conda_exe,
+    )
+
+    if micromamba and "MAMBA_ROOT_PREFIX" not in os.environ:
+        os.environ["MAMBA_ROOT_PREFIX"] = str(
+            pathlib.Path(_conda_exe).parent / "mamba_root"
+        )
+
+    return _conda_exe
+
+
 def _determine_conda_executable(
     conda_executable: Optional[str], mamba: bool, micromamba: bool
 ):
@@ -380,17 +402,7 @@ def _determine_conda_executable(
             yield conda_executable
         yield shutil.which(conda_executable)
 
-    _conda_exe = ensureconda.ensureconda(
-        mamba=mamba,
-        micromamba=micromamba,
-        conda=True,
-        conda_exe=True,
-    )
-
-    if micromamba and "MAMBA_ROOT_PREFIX" not in os.environ:
-        os.environ["MAMBA_ROOT_PREFIX"] = str(pathlib.Path(_conda_exe) / "mamba_root")
-
-    yield _conda_exe
+    yield _ensureconda(mamba=mamba, micromamba=micromamba, conda=True, conda_exe=True)
 
 
 def determine_conda_executable(
