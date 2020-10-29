@@ -11,6 +11,7 @@ import pytest
 
 from conda_lock.conda_lock import (
     PathLike,
+    _ensureconda,
     aggregate_lock_specs,
     conda_env_override,
     create_lockfile_from_spec,
@@ -96,9 +97,9 @@ def test_parse_poetry(poetry_pyproject_toml, include_dev_dependencies):
         include_dev_dependencies=include_dev_dependencies,
     )
 
-    assert "requests[version>=2.13.0,<3.0.0]" in res.specs
-    assert "toml[version>=0.10]" in res.specs
-    assert ("pytest[version>=5.1.0,<5.2.0]" in res.specs) == include_dev_dependencies
+    assert "requests[version='>=2.13.0,<3.0.0']" in res.specs
+    assert "toml[version='>=0.10']" in res.specs
+    assert ("pytest[version='>=5.1.0,<5.2.0']" in res.specs) == include_dev_dependencies
     assert res.channels == ["defaults"]
 
 
@@ -109,23 +110,16 @@ def test_parse_flit(flit_pyproject_toml, include_dev_dependencies):
         include_dev_dependencies=include_dev_dependencies,
     )
 
-    assert "requests[version>=2.13.0]" in res.specs
-    assert "toml[version>=0.10]" in res.specs
+    assert "requests[version='>=2.13.0']" in res.specs
+    assert "toml[version='>=0.10']" in res.specs
     # test deps
-    assert ("pytest[version>=5.1.0]" in res.specs) == include_dev_dependencies
+    assert ("pytest[version='>=5.1.0']" in res.specs) == include_dev_dependencies
     assert res.channels == ["defaults"]
 
 
-def test_run_lock_conda(monkeypatch, zlib_environment):
+def test_run_lock(monkeypatch, zlib_environment, conda_exe):
     monkeypatch.chdir(zlib_environment.parent)
-    run_lock([zlib_environment], conda_exe="conda")
-
-
-def test_run_lock_mamba(monkeypatch, zlib_environment):
-    if not shutil.which("mamba"):
-        raise pytest.skip("mamba is not installed")
-    monkeypatch.chdir(zlib_environment.parent)
-    run_lock([zlib_environment], conda_exe="mamba")
+    run_lock([zlib_environment], conda_exe=conda_exe)
 
 
 @pytest.mark.parametrize(
@@ -137,7 +131,7 @@ def test_run_lock_mamba(monkeypatch, zlib_environment):
     ],
 )
 def test_poetry_version_parsing_constraints(package, version, url_pattern):
-    _conda_exe = determine_conda_executable("conda", no_mamba=True)
+    _conda_exe = determine_conda_executable("conda", mamba=False, micromamba=False)
     spec = LockSpecification(
         specs=[to_match_spec(package, poetry_version_to_conda_version(version))],
         channels=["conda-forge"],
@@ -186,9 +180,30 @@ def test_aggregate_lock_specs():
     )
 
 
-@pytest.fixture
-def conda_exe():
-    return determine_conda_executable("conda", no_mamba=True)
+@pytest.fixture(
+    scope="session",
+    params=[
+        pytest.param("conda"),
+        pytest.param("mamba"),
+        pytest.param(
+            "micromamba", marks=pytest.mark.xfail(reason="lock does not work")
+        ),
+        pytest.param("conda_exe"),
+    ],
+)
+def conda_exe(request):
+    kwargs = dict(
+        mamba=False,
+        micromamba=False,
+        conda=False,
+        conda_exe=False,
+    )
+    kwargs[request.param] = True
+    _conda_exe = _ensureconda(**kwargs)
+
+    if _conda_exe is not None:
+        return _conda_exe
+    raise pytest.skip(f"{request.param} is not installed")
 
 
 def _check_package_installed(conda: PathLike, package: str, platform: str, prefix: str):
@@ -229,18 +244,9 @@ def _check_package_installed(conda: PathLike, package: str, platform: str, prefi
     return package in proc.stdout
 
 
-def test_install(tmp_path, conda_exe):
-    environment_file = tmp_path / "environment.yml"
-    package = "click"
+def test_install(tmp_path, conda_exe, zlib_environment):
+    package = "zlib"
     platform = "linux-64"
-    environment_file.write_text(
-        f"""
-    channels:
-      - conda-forge
-    dependencies:
-      - python=3.8.5
-      - {package}"""
-    )
 
     lock_filename = f"conda-{platform}.lock"
     try:
@@ -251,12 +257,22 @@ def test_install(tmp_path, conda_exe):
     from click.testing import CliRunner
 
     runner = CliRunner()
-    result = runner.invoke(main, ["lock", "-p", platform, "-f", environment_file])
+    result = runner.invoke(
+        main, ["lock", "--conda", conda_exe, "-p", platform, "-f", zlib_environment]
+    )
     assert result.exit_code == 0
 
     env_name = "test_env"
     result = runner.invoke(
-        main, ["install", "--prefix", tmp_path / env_name, lock_filename]
+        main,
+        [
+            "install",
+            "--conda",
+            conda_exe,
+            "--prefix",
+            tmp_path / env_name,
+            lock_filename,
+        ],
     )
     assert result.exit_code == 0
     assert _check_package_installed(

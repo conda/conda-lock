@@ -82,7 +82,6 @@ def solve_specs_for_arch(
             # platform is not Windows, we need to add it manually
             args.extend(["--channel", "msys2"])
     args.extend(specs)
-
     proc = subprocess.run(
         args,
         env=conda_env_override(platform),
@@ -249,7 +248,7 @@ def make_lock_files(
         )
 
         lock_spec = aggregate_lock_specs(lock_specs)
-        if channel_overrides is not None:
+        if channel_overrides:
             channels = channel_overrides
         else:
             channels = lock_spec.channels
@@ -268,6 +267,10 @@ def make_lock_files(
     print("", file=sys.stderr)
 
 
+def is_micromamba(conda: PathLike) -> bool:
+    return str(conda).endswith("micromamba")
+
+
 def create_lockfile_from_spec(
     *, channels: Sequence[str], conda: PathLike, spec: LockSpecification
 ) -> List[str]:
@@ -284,11 +287,22 @@ def create_lockfile_from_spec(
     ]
 
     link_actions = dry_run_install["actions"]["LINK"]
-    for link in link_actions:
-        link["url_base"] = f"{link['base_url']}/{link['platform']}/{link['dist_name']}"
-        link["url"] = f"{link['url_base']}.tar.bz2"
-        link["url_conda"] = f"{link['url_base']}.conda"
-    link_dists = {link["dist_name"] for link in link_actions}
+    if is_micromamba(conda):
+        for link in link_actions:
+            link["url_base"] = fn_to_dist_name(
+                link["url"]
+            )  # todo(psengupta): this url's platform is whatever the current platform is, not platform specified
+            link["url"] = f"{link['url_base']}.tar.bz2"
+            link["url_conda"] = f"{link['url_base']}.conda"
+        link_dists = {fn_to_dist_name(link["fn"]) for link in link_actions}
+    else:
+        for link in link_actions:
+            link[
+                "url_base"
+            ] = f"{link['base_url']}/{link['platform']}/{link['dist_name']}"
+            link["url"] = f"{link['url_base']}.tar.bz2"
+            link["url_conda"] = f"{link['url_base']}.conda"
+        link_dists = {link["dist_name"] for link in link_actions}
 
     fetch_actions = dry_run_install["actions"]["FETCH"]
 
@@ -305,8 +319,11 @@ def create_lockfile_from_spec(
             fetch_by_dist_name[dist_name] = search_res
 
     for pkg in link_actions:
-        url = fetch_by_dist_name[pkg["dist_name"]]["url"]
-        md5 = fetch_by_dist_name[pkg["dist_name"]]["md5"]
+        dist_name = (
+            fn_to_dist_name(pkg["fn"]) if is_micromamba(conda) else pkg["dist_name"]
+        )
+        url = fetch_by_dist_name[dist_name]["url"]
+        md5 = fetch_by_dist_name[dist_name]["md5"]
         lockfile_contents.append(f"{url}#{md5}")
 
     return lockfile_contents
@@ -372,23 +389,42 @@ def aggregate_lock_specs(lock_specs: List[LockSpecification]) -> LockSpecificati
     return LockSpecification(specs=specs, channels=channels, platform=platform)
 
 
-def _determine_conda_executable(conda_executable: Optional[str], no_mamba: bool):
+def _ensureconda(
+    mamba: bool = False,
+    micromamba: bool = False,
+    conda: bool = False,
+    conda_exe: bool = False,
+):
+    _conda_exe = ensureconda.ensureconda(
+        mamba=mamba,
+        micromamba=micromamba,
+        conda=conda,
+        conda_exe=conda_exe,
+    )
+
+    if micromamba and "MAMBA_ROOT_PREFIX" not in os.environ:
+        os.environ["MAMBA_ROOT_PREFIX"] = str(
+            pathlib.Path(_conda_exe).parent / "mamba_root"
+        )
+
+    return _conda_exe
+
+
+def _determine_conda_executable(
+    conda_executable: Optional[str], mamba: bool, micromamba: bool
+):
     if conda_executable:
         if pathlib.Path(conda_executable).exists():
             yield conda_executable
         yield shutil.which(conda_executable)
-    _conda_exe = ensureconda.ensureconda(
-        mamba=not no_mamba,
-        # micromamba doesn't support --override-channels
-        micromamba=False,
-        conda=True,
-        conda_exe=True,
-    )
-    yield _conda_exe
+
+    yield _ensureconda(mamba=mamba, micromamba=micromamba, conda=True, conda_exe=True)
 
 
-def determine_conda_executable(conda_executable: Optional[str], no_mamba: bool):
-    for candidate in _determine_conda_executable(conda_executable, no_mamba):
+def determine_conda_executable(
+    conda_executable: Optional[str], mamba: bool, micromamba: bool
+):
+    for candidate in _determine_conda_executable(conda_executable, mamba, micromamba):
         if candidate is not None:
             return candidate
     raise RuntimeError("Could not find conda (or compatible) executable")
@@ -398,11 +434,14 @@ def run_lock(
     environment_files: List[pathlib.Path],
     conda_exe: Optional[str],
     platforms: Optional[List[str]] = None,
-    no_mamba: bool = False,
+    mamba: bool = False,
+    micromamba: bool = False,
     include_dev_dependencies: bool = True,
     channel_overrides: Optional[Sequence[str]] = None,
 ) -> None:
-    _conda_exe = determine_conda_executable(conda_exe, no_mamba=no_mamba)
+    _conda_exe = determine_conda_executable(
+        conda_exe, mamba=mamba, micromamba=micromamba
+    )
     make_lock_files(
         conda=_conda_exe,
         src_files=environment_files,
@@ -422,7 +461,14 @@ def main():
 @click.option(
     "--conda", default=None, help="path (or name) of the conda/mamba executable to use."
 )
-@click.option("--no-mamba", is_flag=True, help="don't attempt to use or install mamba.")
+@click.option(
+    "--mamba/--no-mamba", default=False, help="don't attempt to use or install mamba."
+)
+@click.option(
+    "--micromamba/--no-micromamba",
+    default=False,
+    help="don't attempt to use or install micromamba.",
+)
 @click.option(
     "-p",
     "--platform",
@@ -461,14 +507,17 @@ def main():
 #             required to account for some issues where conda-lock conflicts with
 #             existing condarc configurations.""",
 # )
-def lock(conda, no_mamba, platform, channel_overrides, dev_dependencies, files):
+def lock(
+    conda, mamba, micromamba, platform, channel_overrides, dev_dependencies, files
+):
     """Generate fully reproducible lock files for conda environments."""
     files = [pathlib.Path(file) for file in files]
     run_lock(
         environment_files=files,
         conda_exe=conda,
         platforms=platform,
-        no_mamba=no_mamba,
+        mamba=mamba,
+        micromamba=micromamba,
         include_dev_dependencies=dev_dependencies,
         channel_overrides=channel_overrides,
     )
@@ -478,13 +527,20 @@ def lock(conda, no_mamba, platform, channel_overrides, dev_dependencies, files):
 @click.option(
     "--conda", default=None, help="path (or name) of the conda/mamba executable to use."
 )
-@click.option("--no-mamba", is_flag=True, help="don't attempt to use or install mamba.")
+@click.option(
+    "--mamba/--no-mamba", default=False, help="don't attempt to use or install mamba."
+)
+@click.option(
+    "--micromamba/--no-micromamba",
+    default=False,
+    help="don't attempt to use or install micromamba.",
+)
 @click.option("-p", "--prefix", help="Full path to environment location (i.e. prefix).")
 @click.option("-n", "--name", help="Name of environment.")
 @click.argument("lock-file")
-def install(conda, no_mamba, prefix, name, lock_file):
+def install(conda, mamba, micromamba, prefix, name, lock_file):
     """Perform a conda install"""
-    _conda_exe = determine_conda_executable(conda, no_mamba=no_mamba)
+    _conda_exe = determine_conda_executable(conda, mamba=mamba, micromamba=micromamba)
     do_conda_install(conda=_conda_exe, prefix=prefix, name=name, file=lock_file)
 
 
