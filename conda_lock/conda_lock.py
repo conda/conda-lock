@@ -511,7 +511,9 @@ def lock(
 ):
     """Generate fully reproducible lock files for conda environments."""
     files = [pathlib.Path(file) for file in files]
+    import pdb
 
+    pdb.set_trace()
     run_lock(
         environment_files=files,
         conda_exe=conda,
@@ -541,6 +543,9 @@ def lock(
 def install(conda, mamba, micromamba, prefix, name, lock_file):
     """Perform a conda install"""
     _conda_exe = determine_conda_executable(conda, mamba=mamba, micromamba=micromamba)
+    import pdb
+
+    pdb.set_trace()
     do_conda_install(conda=_conda_exe, prefix=prefix, name=name, file=lock_file)
 
 

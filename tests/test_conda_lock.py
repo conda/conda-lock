@@ -97,9 +97,9 @@ def test_parse_poetry(poetry_pyproject_toml, include_dev_dependencies):
         include_dev_dependencies=include_dev_dependencies,
     )
 
-    assert "requests[version>=2.13.0,<3.0.0]" in res.specs
-    assert "toml[version>=0.10]" in res.specs
-    assert ("pytest[version>=5.1.0,<5.2.0]" in res.specs) == include_dev_dependencies
+    assert "requests[version='>=2.13.0,<3.0.0']" in res.specs
+    assert "toml[version='>=0.10']" in res.specs
+    assert ("pytest[version='>=5.1.0,<5.2.0']" in res.specs) == include_dev_dependencies
     assert res.channels == ["defaults"]
 
 
@@ -183,10 +183,10 @@ def test_aggregate_lock_specs():
 @pytest.fixture(
     scope="session",
     params=[
-        pytest.param("conda"),
-        pytest.param("mamba"),
+        # pytest.param("conda"),
+        # pytest.param("mamba"),
         pytest.param("micromamba"),
-        pytest.param("conda_exe"),
+        # pytest.param("conda_exe"),
     ],
 )
 def conda_exe(request):
@@ -242,18 +242,9 @@ def _check_package_installed(conda: PathLike, package: str, platform: str, prefi
     return package in proc.stdout
 
 
-def test_install(tmp_path, conda_exe):
-    environment_file = tmp_path / "environment.yml"
-    package = "click"
+def test_install(tmp_path, conda_exe, zlib_environment):
+    package = "zlib"
     platform = "linux-64"
-    environment_file.write_text(
-        f"""
-    channels:
-      - conda-forge
-    dependencies:
-      - python=3.8.5
-      - {package}"""
-    )
 
     lock_filename = f"conda-{platform}.lock"
     try:
@@ -265,7 +256,7 @@ def test_install(tmp_path, conda_exe):
 
     runner = CliRunner()
     result = runner.invoke(
-        main, ["lock", "--conda", conda_exe, "-p", platform, "-f", environment_file]
+        main, ["lock", "--conda", conda_exe, "-p", platform, "-f", zlib_environment]
     )
     assert result.exit_code == 0
 
