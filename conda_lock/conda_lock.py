@@ -82,7 +82,6 @@ def solve_specs_for_arch(
             # platform is not Windows, we need to add it manually
             args.extend(["--channel", "msys2"])
     args.extend(specs)
-
     proc = subprocess.run(
         args,
         env=conda_env_override(platform),
@@ -290,7 +289,9 @@ def create_lockfile_from_spec(
     link_actions = dry_run_install["actions"]["LINK"]
     if is_micromamba(conda):
         for link in link_actions:
-            link["url_base"] = fn_to_dist_name(link["url"])
+            link["url_base"] = fn_to_dist_name(
+                link["url"]
+            )  # todo(psengupta): this url's platform is whatever the current platform is, not platform specified
             link["url"] = f"{link['url_base']}.tar.bz2"
             link["url_conda"] = f"{link['url_base']}.conda"
         link_dists = {fn_to_dist_name(link["fn"]) for link in link_actions}
@@ -511,9 +512,6 @@ def lock(
 ):
     """Generate fully reproducible lock files for conda environments."""
     files = [pathlib.Path(file) for file in files]
-    import pdb
-
-    pdb.set_trace()
     run_lock(
         environment_files=files,
         conda_exe=conda,
@@ -543,9 +541,6 @@ def lock(
 def install(conda, mamba, micromamba, prefix, name, lock_file):
     """Perform a conda install"""
     _conda_exe = determine_conda_executable(conda, mamba=mamba, micromamba=micromamba)
-    import pdb
-
-    pdb.set_trace()
     do_conda_install(conda=_conda_exe, prefix=prefix, name=name, file=lock_file)
 
 

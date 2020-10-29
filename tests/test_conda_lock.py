@@ -183,10 +183,10 @@ def test_aggregate_lock_specs():
 @pytest.fixture(
     scope="session",
     params=[
-        # pytest.param("conda"),
-        # pytest.param("mamba"),
+        pytest.param("conda"),
+        pytest.param("mamba"),
         pytest.param("micromamba"),
-        # pytest.param("conda_exe"),
+        pytest.param("conda_exe"),
     ],
 )
 def conda_exe(request):
