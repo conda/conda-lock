@@ -254,9 +254,7 @@ def test_install(tmp_path, conda_exe):
       - python=3.8.5
       - {package}"""
     )
-    environment_file = str(
-        pathlib.Path(__file__).parent.joinpath("zlib").joinpath("environment.yml")
-    )
+
     lock_filename = f"conda-{platform}.lock"
     try:
         os.remove(lock_filename)
