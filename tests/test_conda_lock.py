@@ -110,10 +110,10 @@ def test_parse_flit(flit_pyproject_toml, include_dev_dependencies):
         include_dev_dependencies=include_dev_dependencies,
     )
 
-    assert "requests[version>=2.13.0]" in res.specs
-    assert "toml[version>=0.10]" in res.specs
+    assert "requests[version='>=2.13.0']" in res.specs
+    assert "toml[version='>=0.10']" in res.specs
     # test deps
-    assert ("pytest[version>=5.1.0]" in res.specs) == include_dev_dependencies
+    assert ("pytest[version='>=5.1.0']" in res.specs) == include_dev_dependencies
     assert res.channels == ["defaults"]
 
 
