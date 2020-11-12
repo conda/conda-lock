@@ -2,6 +2,6 @@ pyyaml
 requests
 jinja2
 toml
-ensureconda >=1.1
+ensureconda>=1.1.0
 click
 click-default-group
