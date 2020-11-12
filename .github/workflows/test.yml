@@ -45,7 +45,7 @@ jobs:
           conda activate base
           cp -r tests/ "${RUNNER_TEMP}/"
           pushd "${RUNNER_TEMP}"
-          pytest -vrsx -n 2 -rxs --cov=conda_lock tests
+          pytest --showlocals -vrsx -n 2 -rxs --cov=conda_lock tests
 
       - name: test-gdal
         shell: bash -l {0}
