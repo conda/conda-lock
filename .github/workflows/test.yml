@@ -21,6 +21,7 @@ jobs:
           auto-update-conda: true
           python-version: ${{ matrix.python-version }}
           auto-activate-base: true
+          channels: conda-forge
 
       - name: Install deps
         run: |
