@@ -26,10 +26,13 @@ jobs:
       - name: Install deps
         run: |
           conda install mamba
-          pip install -r requirements.txt requirements-dev.txt
+          which pip
+          pip install -r requirements.txt
+          pip install -r requirements-dev.txt
 
       - name: install lib
         run: |
+          which pip
           pip install -e . --no-deps --force-reinstall
 
       - name: run-test
