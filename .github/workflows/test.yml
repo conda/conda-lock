@@ -24,6 +24,7 @@ jobs:
           channels: conda-forge
 
       - name: Install deps
+        shell: bash -l {0}
         run: |
           conda install mamba pip
           conda activate base
@@ -32,12 +33,14 @@ jobs:
           pip install -r requirements-dev.txt
 
       - name: install lib
+        shell: bash -l {0}
         run: |
           conda activate base
           which pip
           pip install -e . --no-deps --force-reinstall
 
       - name: run-test
+        shell: bash -l {0}
         run:
           conda activate base
           cp -r tests/ "${RUNNER_TEMP}/"
@@ -45,6 +48,7 @@ jobs:
           pytest -vrsx -n 2 -rxs --cov=conda_lock tests
 
       - name: test-gdal
+        shell: bash -l {0}
         run: |
           conda activate base
           pushd "${RUNNER_TEMP}/tests/gdal"
