@@ -41,7 +41,7 @@ jobs:
 
       - name: run-test
         shell: bash -l {0}
-        run:
+        run: |
           conda activate base
           cp -r tests/ "${RUNNER_TEMP}/"
           pushd "${RUNNER_TEMP}"
