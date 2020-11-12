@@ -24,3 +24,40 @@ jobs:
     - uses: pre-commit/action@v2.0.0
       with:
         extra_args: --files ${{ steps.file_changes.outputs.files}}
+  test:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ ubuntu-latest, macos-latest ]
+        python-version: [ 3.8 ]
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - uses: conda-incubator/setup-miniconda@v2
+        with:
+          auto-update-conda: true
+          python-version: ${{ matrix.python-version }}
+          auto-activate-base: true
+
+      - name: Install deps
+        run: |
+          conda install mamba
+          pip install -r requirements.txt requirements-dev.txt
+
+      - name: install lib
+        run: |
+          pip install -e . --no-deps --force-reinstall
+
+      - name: run-test
+        run:
+          cp -r tests/ "${RUNNER_TEMP}/"
+          pushd "${RUNNER_TEMP}"
+          pytest -vrsx -n 2 -rxs --cov=conda_lock tests
+
+      - name: test-gdal
+          pushd "${RUNNER_TEMP}/tests/gdal"
+          conda-lock -f environment.yml -p linux-64
+
+

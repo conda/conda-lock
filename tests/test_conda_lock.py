@@ -185,9 +185,7 @@ def test_aggregate_lock_specs():
     params=[
         pytest.param("conda"),
         pytest.param("mamba"),
-        pytest.param(
-            "micromamba", marks=pytest.mark.xfail(reason="lock does not work")
-        ),
+        pytest.param("micromamba"),
         pytest.param("conda_exe"),
     ],
 )
