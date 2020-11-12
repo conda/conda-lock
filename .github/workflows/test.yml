@@ -26,23 +26,27 @@ jobs:
       - name: Install deps
         run: |
           conda install mamba pip
+          conda activate base
           which pip
           pip install -r requirements.txt
           pip install -r requirements-dev.txt
 
       - name: install lib
         run: |
+          conda activate base
           which pip
           pip install -e . --no-deps --force-reinstall
 
       - name: run-test
         run:
+          conda activate base
           cp -r tests/ "${RUNNER_TEMP}/"
           pushd "${RUNNER_TEMP}"
           pytest -vrsx -n 2 -rxs --cov=conda_lock tests
 
       - name: test-gdal
         run: |
+          conda activate base
           pushd "${RUNNER_TEMP}/tests/gdal"
           conda-lock -f environment.yml -p linux-64
 
