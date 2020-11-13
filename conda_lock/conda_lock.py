@@ -213,8 +213,10 @@ def search_for_md5s(
         channel_args = []
         for c in channels:
             channel_args += ["-c", c]
+        cmd = [str(conda), "search", *channel_args, "--use-index-cache", "--json", spec]
+        logging.debug("seaching: %s", cmd)
         out = subprocess.run(
-            [str(conda), "search", *channel_args, "--use-index-cache", "--json", spec],
+            cmd,
             encoding="utf8",
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
@@ -309,7 +311,6 @@ def create_lockfile_from_spec(
         f"# env_hash: {spec.env_hash()}\n",
         "@EXPLICIT\n",
     ]
-    logging.debug("lockfile_contents:\n%s", lockfile_contents)
 
     link_actions = dry_run_install["actions"]["LINK"]
     if is_micromamba(conda):
@@ -353,6 +354,8 @@ def create_lockfile_from_spec(
         url = fetch_by_dist_name[dist_name]["url"]
         md5 = fetch_by_dist_name[dist_name]["md5"]
         lockfile_contents.append(f"{url}#{md5}")
+
+    logging.debug("lockfile_contents:\n%s\n", lockfile_contents)
 
     return lockfile_contents
 
