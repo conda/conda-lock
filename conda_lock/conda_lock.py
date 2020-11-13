@@ -280,8 +280,18 @@ def make_lock_files(
         lockfile_contents = create_lockfile_from_spec(
             channels=channels, conda=conda, spec=lock_spec
         )
+
+        def sanitize_lockfile_line(line):
+            line = line.strip()
+            if line == "":
+                yield "#"
+            else:
+                yield line
+
         with open(f"conda-{lock_spec.platform}.lock", "w") as fo:
-            fo.write("\n".join(lockfile_contents) + "\n")
+            fo.write(
+                "\n".join(sanitize_lockfile_line(ln) for ln in lockfile_contents) + "\n"
+            )
 
     print("To use the generated lock files create a new environment:", file=sys.stderr)
     print("", file=sys.stderr)
