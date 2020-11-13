@@ -1,4 +1,5 @@
 import json
+import logging
 import os
 import pathlib
 import shutil
@@ -28,6 +29,11 @@ from conda_lock.src_parser.pyproject_toml import (
     poetry_version_to_conda_version,
     to_match_spec,
 )
+
+
+@pytest.fixture(autouse=True)
+def logging_setup(caplog):
+    caplog.set_level(logging.DEBUG)
 
 
 @pytest.fixture
