@@ -280,6 +280,10 @@ def test_install(tmp_path, conda_exe, zlib_environment):
     )
     print(result.stdout, file=sys.stdout)
     print(result.stderr, file=sys.stderr)
+    logging.debug(
+        "lockfile contents: \n\n=======\n%s\n\n==========",
+        pathlib.Path(lock_filename).read_text(),
+    )
     assert result.exit_code == 0
     assert _check_package_installed(
         conda=conda_exe, package=package, platform=platform, prefix=tmp_path / env_name
