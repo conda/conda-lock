@@ -176,7 +176,9 @@ def do_conda_install(conda: PathLike, prefix: str, name: str, file: str) -> None
         sys.exit(1)
 
 
-def search_for_md5s(conda: PathLike, package_specs: List[dict], platform: str):
+def search_for_md5s(
+    conda: PathLike, package_specs: List[dict], platform: str, channels: Sequence[str]
+):
     """Use conda-search to determine the md5 metadata that we need.
 
     This is only needed if pkgs_dirs is set in condarc.
@@ -184,11 +186,23 @@ def search_for_md5s(conda: PathLike, package_specs: List[dict], platform: str):
     due to the cli of conda search
 
     """
+
+    def matchspec(spec):
+        return (
+            f"{spec['name']}["
+            f"version={spec['version']},"
+            f"subdir={spec['platform']},"
+            f"channel={spec['channel']},"
+            f"build={spec['build_string']}"
+            "]"
+        )
+
     found: Set[str] = set()
     logging.debug("Searching for package specs: \n%s", package_specs)
     packages: List[Tuple[str, str]] = [
-        *[(d["name"], d["url"]) for d in package_specs],
-        *[(d["name"], d["url_conda"]) for d in package_specs],
+        *[(d["name"], matchspec(d)) for d in package_specs],
+        # *[(d["name"], d["url_conda"]) for d in package_specs],
+        # *[(d["name"], f"{d['name']}[version='{d['url_conda']}',build ]" for d in package_specs],
         *[(d["name"], f"{d['name']}[url='{d['url_conda']}']") for d in package_specs],
         *[(d["name"], f"{d['name']}[url='{d['url']}']") for d in package_specs],
     ]
@@ -196,8 +210,11 @@ def search_for_md5s(conda: PathLike, package_specs: List[dict], platform: str):
     for name, spec in packages:
         if name in found:
             continue
+        channel_args = []
+        for c in channels:
+            channel_args += ["-c", c]
         out = subprocess.run(
-            [str(conda), "search", "--use-index-cache", "--json", spec],
+            [str(conda), "search", *channel_args, "--use-index-cache", "--json", spec],
             encoding="utf8",
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
@@ -207,6 +224,7 @@ def search_for_md5s(conda: PathLike, package_specs: List[dict], platform: str):
         logging.debug("search output for %s\n%s", spec, content)
         if name in content:
             assert len(content[name]) == 1
+            logging.debug("Found %s", name)
             yield content[name][0]
             found.add(name)
 
@@ -318,9 +336,12 @@ def create_lockfile_from_spec(
     non_fetch_packages = link_dists - set(fetch_by_dist_name)
     if len(non_fetch_packages) > 0:
         for search_res in search_for_md5s(
-            conda,
-            [x for x in link_actions if x["dist_name"] in non_fetch_packages],
-            spec.platform,
+            conda=conda,
+            package_specs=[
+                x for x in link_actions if x["dist_name"] in non_fetch_packages
+            ],
+            platform=spec.platform,
+            channels=channels,
         ):
             dist_name = fn_to_dist_name(search_res["fn"])
             fetch_by_dist_name[dist_name] = search_res
