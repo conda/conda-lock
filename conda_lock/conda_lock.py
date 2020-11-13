@@ -213,7 +213,7 @@ def search_for_md5s(
         channel_args = []
         for c in channels:
             channel_args += ["-c", c]
-        cmd = [str(conda), "search", *channel_args, "--use-index-cache", "--json", spec]
+        cmd = [str(conda), "search", *channel_args, "--json", spec]
         logging.debug("seaching: %s", cmd)
         out = subprocess.run(
             cmd,
