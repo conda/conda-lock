@@ -150,6 +150,7 @@ def do_conda_install(conda: PathLike, prefix: str, name: str, file: str) -> None
         stderr=subprocess.PIPE,
         encoding="utf8",
     )
+    logging.debug("install process: %s", proc)
 
     def print_proc(proc):
         print(f"    Command: {proc.args}")
@@ -201,8 +202,6 @@ def search_for_md5s(
     logging.debug("Searching for package specs: \n%s", package_specs)
     packages: List[Tuple[str, str]] = [
         *[(d["name"], matchspec(d)) for d in package_specs],
-        # *[(d["name"], d["url_conda"]) for d in package_specs],
-        # *[(d["name"], f"{d['name']}[version='{d['url_conda']}',build ]" for d in package_specs],
         *[(d["name"], f"{d['name']}[url='{d['url_conda']}']") for d in package_specs],
         *[(d["name"], f"{d['name']}[url='{d['url']}']") for d in package_specs],
     ]
