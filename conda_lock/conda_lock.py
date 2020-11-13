@@ -185,6 +185,7 @@ def search_for_md5s(conda: PathLike, package_specs: List[dict], platform: str):
 
     """
     found: Set[str] = set()
+    logging.debug("Searching for package specs: \n%s", package_specs)
     packages: List[Tuple[str, str]] = [
         *[(d["name"], f"{d['name']}[url={d['url_conda']}]") for d in package_specs],
         *[(d["name"], f"{d['name']}[url={d['url']}]") for d in package_specs],
