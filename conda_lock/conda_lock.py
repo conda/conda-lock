@@ -201,6 +201,7 @@ def search_for_md5s(conda: PathLike, package_specs: List[dict], platform: str):
             env=conda_env_override(platform),
         )
         content = json.loads(out.stdout)
+        logging.debug("search output for %s\n%s", spec, content)
         if name in content:
             assert len(content[name]) == 1
             yield content[name][0]
