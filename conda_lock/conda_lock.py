@@ -4,6 +4,7 @@ Somewhat hacky solution to create conda lock files.
 
 import atexit
 import json
+import logging
 import os
 import pathlib
 import shutil
@@ -280,11 +281,13 @@ def create_lockfile_from_spec(
         channels=channels,
         specs=spec.specs,
     )
+    logging.debug("dry_run_install:\n%s", dry_run_install)
     lockfile_contents = [
         f"# platform: {spec.platform}",
         f"# env_hash: {spec.env_hash()}\n",
         "@EXPLICIT\n",
     ]
+    logging.debug("lockfile_contents:\n%s", lockfile_contents)
 
     link_actions = dry_run_install["actions"]["LINK"]
     if is_micromamba(conda):
