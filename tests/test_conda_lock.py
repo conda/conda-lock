@@ -278,6 +278,8 @@ def test_install(tmp_path, conda_exe, zlib_environment):
             lock_filename,
         ],
     )
+    print(result.stdout, file=sys.stdout)
+    print(result.stderr, file=sys.stderr)
     assert result.exit_code == 0
     assert _check_package_installed(
         conda=conda_exe, package=package, platform=platform, prefix=tmp_path / env_name
