@@ -260,7 +260,7 @@ def test_install(tmp_path, conda_exe, zlib_environment):
 
     from click.testing import CliRunner
 
-    runner = CliRunner()
+    runner = CliRunner(mix_stderr=False)
     result = runner.invoke(
         main, ["lock", "--conda", conda_exe, "-p", platform, "-f", zlib_environment]
     )
