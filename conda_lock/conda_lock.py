@@ -284,9 +284,9 @@ def make_lock_files(
         def sanitize_lockfile_line(line):
             line = line.strip()
             if line == "":
-                yield "#"
+                return "#"
             else:
-                yield line
+                return line
 
         with open(f"conda-{lock_spec.platform}.lock", "w") as fo:
             fo.write(
