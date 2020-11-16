@@ -46,6 +46,7 @@ jobs:
           cp -r tests/ "${RUNNER_TEMP}/"
           pushd "${RUNNER_TEMP}"
           export TMPDIR="${RUNNER_TEMP}"
+          ls -lah
           pytest --showlocals -vrsx -n 2 -rxs --cov=conda_lock tests
 
       - name: test-gdal
@@ -54,6 +55,7 @@ jobs:
           conda activate base
           pushd "${RUNNER_TEMP}/tests/gdal"
           export TMPDIR="${RUNNER_TEMP}"
+          ls -lah
           conda-lock -f environment.yml -p linux-64
 
 
