@@ -322,20 +322,17 @@ def create_lockfile_from_spec(
     ]
 
     link_actions = dry_run_install["actions"]["LINK"]
-    # if is_micromamba(conda):
-    #     for link in link_actions:
-    #         link["url_base"] = fn_to_dist_name(
-    #             link["url"]
-    #         )  # todo(psengupta): this url's platform is whatever the current platform is, not platform specified
-    #         link["url"] = f"{link['url_base']}.tar.bz2"
-    #         link["url_conda"] = f"{link['url_base']}.conda"
-    #     link_dists = {fn_to_dist_name(link["fn"]) for link in link_actions}
-    # else:
     for link in link_actions:
-        link["url_base"] = f"{link['base_url']}/{link['platform']}/{link['dist_name']}"
+        if is_micromamba(conda):
+            link["url_base"] = fn_to_dist_name(link["url"])
+        else:
+            link[
+                "url_base"
+            ] = f"{link['base_url']}/{link['platform']}/{link['dist_name']}"
+
         link["url"] = f"{link['url_base']}.tar.bz2"
         link["url_conda"] = f"{link['url_base']}.conda"
-    link_dists = {link["dist_name"] for link in link_actions}
+    link_dists = {fn_to_dist_name(link["fn"]) for link in link_actions}
 
     fetch_actions = dry_run_install["actions"]["FETCH"]
 
