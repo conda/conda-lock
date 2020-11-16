@@ -144,6 +144,7 @@ def do_conda_install(conda: PathLike, prefix: str, name: str, file: str) -> None
         args.append("--name")
         args.append(name)
 
+    logging.debug("$MAMBA_ROOT_PREFIX: %s", os.environ.get("MAMBA_ROOT_PREFIX"))
     proc = subprocess.run(
         args,
         stdout=subprocess.PIPE,
