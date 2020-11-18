@@ -27,6 +27,7 @@ jobs:
         shell: bash -l {0}
         run: |
           conda install mamba pip pytest-cov pytest-xdist
+          conda config --set ssl_verify False
           conda activate base
           which pip
           pip install -r requirements.txt
