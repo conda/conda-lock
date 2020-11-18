@@ -460,8 +460,8 @@ def determine_conda_executable(
         if candidate is not None:
             if is_micromamba(candidate) and "MAMBA_ROOT_PREFIX" not in os.environ:
                 mamba_root_prefix = pathlib.Path(candidate).parent / "mamba_root"
-                mamba_root_prefix.mkdir(exist_ok=True, parents=True)
-                os.makedirs(mamba_root_prefix / "pkgs")
+                mamba_pkgs = mamba_root_prefix / "pkgs"
+                mamba_pkgs.mkdir(exist_ok=True, parents=True)
                 os.environ["MAMBA_ROOT_PREFIX"] = str(mamba_root_prefix)
             return candidate
     raise RuntimeError("Could not find conda (or compatible) executable")
