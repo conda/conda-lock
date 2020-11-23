@@ -144,12 +144,14 @@ def do_conda_install(conda: PathLike, prefix: str, name: str, file: str) -> None
         args.append("--name")
         args.append(name)
 
+    logging.debug("$MAMBA_ROOT_PREFIX: %s", os.environ.get("MAMBA_ROOT_PREFIX"))
     proc = subprocess.run(
         args,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         encoding="utf8",
     )
+    logging.debug("install process: %s", proc)
 
     def print_proc(proc):
         print(f"    Command: {proc.args}")
@@ -176,7 +178,9 @@ def do_conda_install(conda: PathLike, prefix: str, name: str, file: str) -> None
         sys.exit(1)
 
 
-def search_for_md5s(conda: PathLike, package_specs: List[dict], platform: str):
+def search_for_md5s(
+    conda: PathLike, package_specs: List[dict], platform: str, channels: Sequence[str]
+):
     """Use conda-search to determine the md5 metadata that we need.
 
     This is only needed if pkgs_dirs is set in condarc.
@@ -184,17 +188,35 @@ def search_for_md5s(conda: PathLike, package_specs: List[dict], platform: str):
     due to the cli of conda search
 
     """
+
+    def matchspec(spec):
+        return (
+            f"{spec['name']}["
+            f"version={spec['version']},"
+            f"subdir={spec['platform']},"
+            f"channel={spec['channel']},"
+            f"build={spec['build_string']}"
+            "]"
+        )
+
     found: Set[str] = set()
+    logging.debug("Searching for package specs: \n%s", package_specs)
     packages: List[Tuple[str, str]] = [
-        *[(d["name"], f"{d['name']}[url={d['url_conda']}]") for d in package_specs],
-        *[(d["name"], f"{d['name']}[url={d['url']}]") for d in package_specs],
+        *[(d["name"], matchspec(d)) for d in package_specs],
+        *[(d["name"], f"{d['name']}[url='{d['url_conda']}']") for d in package_specs],
+        *[(d["name"], f"{d['name']}[url='{d['url']}']") for d in package_specs],
     ]
 
     for name, spec in packages:
         if name in found:
             continue
+        channel_args = []
+        for c in channels:
+            channel_args += ["-c", c]
+        cmd = [str(conda), "search", *channel_args, "--json", spec]
+        logging.debug("seaching: %s", cmd)
         out = subprocess.run(
-            [str(conda), "search", "--use-index-cache", "--json", spec],
+            cmd,
             encoding="utf8",
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
@@ -204,6 +226,7 @@ def search_for_md5s(conda: PathLike, package_specs: List[dict], platform: str):
         logging.debug("search output for %s\n%s", spec, content)
         if name in content:
             assert len(content[name]) == 1
+            logging.debug("Found %s", name)
             yield content[name][0]
             found.add(name)
 
@@ -258,8 +281,18 @@ def make_lock_files(
         lockfile_contents = create_lockfile_from_spec(
             channels=channels, conda=conda, spec=lock_spec
         )
+
+        def sanitize_lockfile_line(line):
+            line = line.strip()
+            if line == "":
+                return "#"
+            else:
+                return line
+
         with open(f"conda-{lock_spec.platform}.lock", "w") as fo:
-            fo.write("\n".join(lockfile_contents) + "\n")
+            fo.write(
+                "\n".join(sanitize_lockfile_line(ln) for ln in lockfile_contents) + "\n"
+            )
 
     print("To use the generated lock files create a new environment:", file=sys.stderr)
     print("", file=sys.stderr)
@@ -270,7 +303,7 @@ def make_lock_files(
 
 
 def is_micromamba(conda: PathLike) -> bool:
-    return str(conda).endswith("micromamba")
+    return str(conda).endswith("micromamba") or str(conda).endswith("micromamba.exe")
 
 
 def create_lockfile_from_spec(
@@ -288,25 +321,20 @@ def create_lockfile_from_spec(
         f"# env_hash: {spec.env_hash()}\n",
         "@EXPLICIT\n",
     ]
-    logging.debug("lockfile_contents:\n%s", lockfile_contents)
 
     link_actions = dry_run_install["actions"]["LINK"]
-    if is_micromamba(conda):
-        for link in link_actions:
-            link["url_base"] = fn_to_dist_name(
-                link["url"]
-            )  # todo(psengupta): this url's platform is whatever the current platform is, not platform specified
-            link["url"] = f"{link['url_base']}.tar.bz2"
-            link["url_conda"] = f"{link['url_base']}.conda"
-        link_dists = {fn_to_dist_name(link["fn"]) for link in link_actions}
-    else:
-        for link in link_actions:
+    for link in link_actions:
+        if is_micromamba(conda):
+            link["url_base"] = fn_to_dist_name(link["url"])
+            link["dist_name"] = fn_to_dist_name(link["fn"])
+        else:
             link[
                 "url_base"
             ] = f"{link['base_url']}/{link['platform']}/{link['dist_name']}"
-            link["url"] = f"{link['url_base']}.tar.bz2"
-            link["url_conda"] = f"{link['url_base']}.conda"
-        link_dists = {link["dist_name"] for link in link_actions}
+
+        link["url"] = f"{link['url_base']}.tar.bz2"
+        link["url_conda"] = f"{link['url_base']}.conda"
+    link_dists = {link["dist_name"] for link in link_actions}
 
     fetch_actions = dry_run_install["actions"]["FETCH"]
 
@@ -315,9 +343,12 @@ def create_lockfile_from_spec(
     non_fetch_packages = link_dists - set(fetch_by_dist_name)
     if len(non_fetch_packages) > 0:
         for search_res in search_for_md5s(
-            conda,
-            [x for x in link_actions if x["dist_name"] in non_fetch_packages],
-            spec.platform,
+            conda=conda,
+            package_specs=[
+                x for x in link_actions if x["dist_name"] in non_fetch_packages
+            ],
+            platform=spec.platform,
+            channels=channels,
         ):
             dist_name = fn_to_dist_name(search_res["fn"])
             fetch_by_dist_name[dist_name] = search_res
@@ -329,6 +360,8 @@ def create_lockfile_from_spec(
         url = fetch_by_dist_name[dist_name]["url"]
         md5 = fetch_by_dist_name[dist_name]["md5"]
         lockfile_contents.append(f"{url}#{md5}")
+
+    logging.debug("lockfile_contents:\n%s\n", lockfile_contents)
 
     return lockfile_contents
 
@@ -406,11 +439,6 @@ def _ensureconda(
         conda_exe=conda_exe,
     )
 
-    if micromamba and "MAMBA_ROOT_PREFIX" not in os.environ:
-        os.environ["MAMBA_ROOT_PREFIX"] = str(
-            pathlib.Path(_conda_exe).parent / "mamba_root"
-        )
-
     return _conda_exe
 
 
@@ -430,6 +458,11 @@ def determine_conda_executable(
 ):
     for candidate in _determine_conda_executable(conda_executable, mamba, micromamba):
         if candidate is not None:
+            if is_micromamba(candidate) and "MAMBA_ROOT_PREFIX" not in os.environ:
+                mamba_root_prefix = pathlib.Path(candidate).parent / "mamba_root"
+                mamba_root_prefix.mkdir(exist_ok=True, parents=True)
+                os.environ["MAMBA_ROOT_PREFIX"] = str(mamba_root_prefix)
+
             return candidate
     raise RuntimeError("Could not find conda (or compatible) executable")
 
