@@ -210,42 +210,16 @@ def conda_exe(request):
     raise pytest.skip(f"{request.param} is not installed")
 
 
-def _check_package_installed(conda: PathLike, package: str, platform: str, prefix: str):
-    args: MutableSequence[PathLike] = [str(conda), "list", "--prefix", prefix, package]
+def _check_package_installed(package: str, prefix: str):
+    import glob
 
-    proc = subprocess.run(
-        args,
-        env=conda_env_override(platform),
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        encoding="utf8",
-    )
-
-    def print_proc(proc):
-        print(f"    Command: {proc.args}")
-        if proc.stdout:
-            print(f"    STDOUT:\n{proc.stdout}")
-        if proc.stderr:
-            print(f"    STDERR:\n{proc.stderr}")
-
-    try:
-        proc.check_returncode()
-    except subprocess.CalledProcessError:
-        try:
-            err_json = json.loads(proc.stdout)
-            message = err_json["message"]
-        except json.JSONDecodeError as e:
-            print(f"Failed to parse json, {e}")
-            message = ""
-
-        print(f"Could not lock the environment for platform {platform}")
-        if message:
-            print(message)
-        print_proc(proc)
-
-        sys.exit(1)
-
-    return package in proc.stdout
+    files = list(glob.glob(f"{prefix}/conda-meta/{package}-*.json"))
+    assert len(files) >= 1
+    # TODO: validate that all the files are in there
+    for fn in files:
+        data = json.load(open(fn))
+        for expected_file in data["files"]:
+            assert (pathlib.Path(prefix) / pathlib.Path(expected_file)).exists()
 
 
 def test_install(tmp_path, conda_exe, zlib_environment):
@@ -286,5 +260,8 @@ def test_install(tmp_path, conda_exe, zlib_environment):
     )
     assert result.exit_code == 0
     assert _check_package_installed(
-        conda=conda_exe, package=package, platform=platform, prefix=tmp_path / env_name
+        conda=conda_exe,
+        package=package,
+        platform=platform,
+        prefix=str(tmp_path / env_name),
     ), f"Package {package} does not exist in {tmp_path} environment"
