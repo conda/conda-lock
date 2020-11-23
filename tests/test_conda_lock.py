@@ -260,8 +260,6 @@ def test_install(tmp_path, conda_exe, zlib_environment):
     )
     assert result.exit_code == 0
     assert _check_package_installed(
-        conda=conda_exe,
         package=package,
-        platform=platform,
         prefix=str(tmp_path / env_name),
     ), f"Package {package} does not exist in {tmp_path} environment"
