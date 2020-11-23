@@ -12,7 +12,9 @@ jobs:
       matrix:
         os: [ ubuntu-latest, macos-latest ]
         python-version: [ 3.8 ]
-
+    defaults:
+      run:
+        shell: bash -l {0}
     steps:
       - uses: actions/checkout@v2
 
@@ -20,40 +22,43 @@ jobs:
         with:
           auto-update-conda: true
           python-version: ${{ matrix.python-version }}
-          auto-activate-base: true
           channels: conda-forge
 
       - name: Install deps
-        shell: bash -l {0}
         run: |
+          conda activate test
           conda install mamba pip pytest-cov pytest-xdist
-          conda config --set ssl_verify False
-          conda activate base
+          set -x
+          echo "${PATH}"
           which pip
-          pip install -r requirements.txt
-          pip install -r requirements-dev.txt
+          which python
+          python -m pip install ensureconda==1.2.1
+          python -m pip install -r requirements.txt
+          python -m pip install -r requirements-dev.txt
 
       - name: install lib
         shell: bash -l {0}
         run: |
-          conda activate base
+          conda activate test
           which pip
           pip install -e . --no-deps --force-reinstall
 
       - name: run-test
         shell: bash -l {0}
         run: |
-          conda activate base
-          cp -r tests/ "${RUNNER_TEMP}/"
+          conda activate test
+          cp -a tests "${RUNNER_TEMP}/"
           pushd "${RUNNER_TEMP}"
           export TMPDIR="${RUNNER_TEMP}"
           ls -lah
-          pytest --showlocals -vrsx -n 2 -rxs --cov=conda_lock tests
+          set -x
+          which pytest
+          pytest --showlocals -vrsx --cov=conda_lock tests
 
       - name: test-gdal
         shell: bash -l {0}
         run: |
-          conda activate base
+          conda activate test
           pushd "${RUNNER_TEMP}/tests/gdal"
           export TMPDIR="${RUNNER_TEMP}"
           ls -lah
