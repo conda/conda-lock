@@ -47,7 +47,7 @@ jobs:
         shell: bash -l {0}
         run: |
           conda activate test
-          cp -ar tests "${RUNNER_TEMP}/"
+          cp -a tests "${RUNNER_TEMP}/"
           pushd "${RUNNER_TEMP}"
           export TMPDIR="${RUNNER_TEMP}"
           ls -lah
