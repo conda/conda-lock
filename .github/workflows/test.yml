@@ -30,6 +30,7 @@ jobs:
           conda install mamba pip pytest-cov pytest-xdist
           set -x
           conda activate base
+          echo "${PATH}"
           which pip
           which python
           pip install ensureconda==1.2.1
