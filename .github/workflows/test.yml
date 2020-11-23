@@ -12,7 +12,9 @@ jobs:
       matrix:
         os: [ ubuntu-latest, macos-latest ]
         python-version: [ 3.8 ]
-
+    defaults:
+      run:
+        shell: bash -l {0}
     steps:
       - uses: actions/checkout@v2
 
@@ -20,15 +22,16 @@ jobs:
         with:
           auto-update-conda: true
           python-version: ${{ matrix.python-version }}
-          auto-activate-base: true
+          activate-environment: base
           channels: conda-forge
 
       - name: Install deps
-        shell: bash -l {0}
         run: |
           conda install mamba pip pytest-cov pytest-xdist
+          set -x
           conda activate base
           which pip
+          which python
           pip install ensureconda==1.2.1
           pip install -r requirements.txt
           pip install -r requirements-dev.txt
