@@ -29,6 +29,7 @@ jobs:
           conda install mamba pip pytest-cov pytest-xdist
           conda activate base
           which pip
+          pip install ensureconda==1.2.1
           pip install -r requirements.txt
           pip install -r requirements-dev.txt
 
