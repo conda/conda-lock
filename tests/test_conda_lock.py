@@ -220,6 +220,7 @@ def _check_package_installed(package: str, prefix: str):
         data = json.load(open(fn))
         for expected_file in data["files"]:
             assert (pathlib.Path(prefix) / pathlib.Path(expected_file)).exists()
+    return True
 
 
 def test_install(tmp_path, conda_exe, zlib_environment):
