@@ -51,7 +51,9 @@ jobs:
           pushd "${RUNNER_TEMP}"
           export TMPDIR="${RUNNER_TEMP}"
           ls -lah
-          pytest --showlocals -vrsx -n 2 -rxs --cov=conda_lock tests
+          set -x
+          which pytest
+          pytest --showlocals -vrsx --cov=conda_lock tests
 
       - name: test-gdal
         shell: bash -l {0}
