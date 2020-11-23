@@ -33,9 +33,9 @@ jobs:
           echo "${PATH}"
           which pip
           which python
-          pip install ensureconda==1.2.1
-          pip install -r requirements.txt
-          pip install -r requirements-dev.txt
+          python -m pip install ensureconda==1.2.1
+          python -m pip install -r requirements.txt
+          python -m pip install -r requirements-dev.txt
 
       - name: install lib
         shell: bash -l {0}
