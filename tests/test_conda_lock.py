@@ -105,6 +105,8 @@ def test_parse_poetry(poetry_pyproject_toml, include_dev_dependencies):
 
     assert "requests[version='>=2.13.0,<3.0.0']" in res.specs
     assert "toml[version='>=0.10']" in res.specs
+    assert "sqlite[version='<3.34']" in res.specs
+    assert "certifi[version='>=2019.11.28']" in res.specs
     assert ("pytest[version='>=5.1.0,<5.2.0']" in res.specs) == include_dev_dependencies
     assert res.channels == ["defaults"]
 
@@ -118,6 +120,8 @@ def test_parse_flit(flit_pyproject_toml, include_dev_dependencies):
 
     assert "requests[version='>=2.13.0']" in res.specs
     assert "toml[version='>=0.10']" in res.specs
+    assert "sqlite[version='<3.34']" in res.specs
+    assert "certifi[version='>=2019.11.28']" in res.specs
     # test deps
     assert ("pytest[version='>=5.1.0']" in res.specs) == include_dev_dependencies
     assert res.channels == ["defaults"]

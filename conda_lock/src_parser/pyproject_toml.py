@@ -2,7 +2,7 @@ import collections
 import collections.abc
 import pathlib
 
-from typing import List, Optional
+from typing import List, Mapping, Optional
 
 import requests
 import toml
@@ -97,6 +97,9 @@ def parse_poetry_pyproject_toml(
             else:
                 specs.append(spec)
 
+    conda_deps = get_in(["tool", "conda-lock", "dependencies"], contents, {})
+    specs.extend(parse_conda_dependencies(conda_deps))
+
     channels = get_in(["tool", "conda-lock", "channels"], contents, [])
 
     return LockSpecification(specs=specs, channels=channels, platform=platform)
@@ -164,6 +167,20 @@ def parse_flit_pyproject_toml(
 
     specs = [python_requirement_to_conda_spec(req) for req in requirements]
 
+    conda_deps = get_in(["tool", "conda-lock", "dependencies"], contents, {})
+    specs.extend(parse_conda_dependencies(conda_deps))
+
     channels = get_in(["tool", "conda-lock", "channels"], contents, [])
 
     return LockSpecification(specs=specs, channels=channels, platform=platform)
+
+
+def parse_conda_dependencies(conda_deps: Mapping) -> List[str]:
+    specs = []
+    for depname, depattrs in conda_deps.items():
+        if isinstance(depattrs, str):
+            conda_version = depattrs
+        else:
+            raise TypeError(f"Unsupported type for dependency: {depname}: {depattrs:r}")
+        specs.append(to_match_spec(depname, conda_version))
+    return specs
