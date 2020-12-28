@@ -21,3 +21,7 @@ build-backend = "flit_core.buildapi"
 channels = [
     'defaults'
 ]
+
+[tool.conda-lock.dependencies]
+sqlite = "<3.34"
+certifi = ">=2019.11.28"

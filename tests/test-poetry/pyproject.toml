@@ -19,3 +19,7 @@ build-backend = "poetry.masonry.api"
 channels = [
     'defaults'
 ]
+
+[tool.conda-lock.dependencies]
+sqlite = "<3.34"
+certifi = ">=2019.11.28"
