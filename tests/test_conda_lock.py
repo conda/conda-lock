@@ -227,7 +227,8 @@ def test_install(tmp_path, conda_exe, zlib_environment):
     package = "zlib"
     platform = "linux-64"
 
-    lock_filename = f"conda-{platform}.lock"
+    lock_filename_format = "conda-{platform}-{dev-dependencies}.lock"
+    lock_filename = "conda-linux-64-True.lock"
     try:
         os.remove(lock_filename)
     except OSError:
@@ -237,7 +238,18 @@ def test_install(tmp_path, conda_exe, zlib_environment):
 
     runner = CliRunner(mix_stderr=False)
     result = runner.invoke(
-        main, ["lock", "--conda", conda_exe, "-p", platform, "-f", zlib_environment]
+        main,
+        [
+            "lock",
+            "--conda",
+            conda_exe,
+            "-p",
+            platform,
+            "-f",
+            zlib_environment,
+            "--filename-format",
+            lock_filename_format,
+        ],
     )
     assert result.exit_code == 0
 
