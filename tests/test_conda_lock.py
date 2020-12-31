@@ -227,7 +227,7 @@ def test_install(tmp_path, conda_exe, zlib_environment):
     package = "zlib"
     platform = "linux-64"
 
-    lock_filename_format = "conda-{platform}-{dev-dependencies}.lock"
+    lock_filename_template = "conda-{platform}-{dev-dependencies}.lock"
     lock_filename = "conda-linux-64-True.lock"
     try:
         os.remove(lock_filename)
@@ -247,8 +247,8 @@ def test_install(tmp_path, conda_exe, zlib_environment):
             platform,
             "-f",
             zlib_environment,
-            "--filename-format",
-            lock_filename_format,
+            "--filename-template",
+            lock_filename_template,
         ],
     )
     assert result.exit_code == 0
