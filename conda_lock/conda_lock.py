@@ -36,7 +36,7 @@ if not (sys.version_info.major >= 3 and sys.version_info.minor >= 6):
 
 CONDA_PKGS_DIRS = None
 DEFAULT_PLATFORMS = ["osx-64", "linux-64", "win-64"]
-FILENAME_TOKENS = frozenset(["platform", "dev-dependencies"])
+FILENAME_TOKENS = frozenset(["platform", "dev-dependencies", "spec-hash"])
 
 
 def conda_pkgs_dir():
@@ -248,7 +248,7 @@ def make_lock_files(
     src_files: List[pathlib.Path],
     include_dev_dependencies: bool = True,
     channel_overrides: Optional[Sequence[str]] = None,
-    filename_format: Optional[str] = None,
+    filename_template: Optional[str] = None,
 ):
     """Generate the lock files for the given platforms from the src file provided
 
@@ -264,8 +264,8 @@ def make_lock_files(
         For source types that separate out dev dependencies from regular ones,include those, default True
     channel_overrides :
         Forced list of channels to use.
-    filename_format :
-        Format for the lock file names. Must include {platform}
+    filename_template :
+        Format for the lock file names. Must include {platform}.
 
     """
     for plat in platforms:
@@ -293,18 +293,19 @@ def make_lock_files(
             else:
                 return line
 
-        if filename_format:
-            if "{platform}" not in filename_format:
+        if filename_template:
+            if "{platform}" not in filename_template:
                 print("{platform} must be in filename format")
                 sys.exit(1)
 
             context = {
                 "platform": lock_spec.platform,
                 "dev-dependencies": include_dev_dependencies,
+                "spec-hash": lock_spec.env_hash(),
             }
             assert all(t in context for t in FILENAME_TOKENS)
 
-            filename = filename_format.format(**context)
+            filename = filename_template.format(**context)
         else:
             filename = f"conda-{lock_spec.platform}.lock"
         with open(filename, "w") as fo:
@@ -493,7 +494,7 @@ def run_lock(
     micromamba: bool = False,
     include_dev_dependencies: bool = True,
     channel_overrides: Optional[Sequence[str]] = None,
-    filename_format: Optional[str] = None,
+    filename_template: Optional[str] = None,
 ) -> None:
     _conda_exe = determine_conda_executable(
         conda_exe, mamba=mamba, micromamba=micromamba
@@ -504,7 +505,7 @@ def run_lock(
         platforms=platforms or DEFAULT_PLATFORMS,
         include_dev_dependencies=include_dev_dependencies,
         channel_overrides=channel_overrides,
-        filename_format=filename_format,
+        filename_template=filename_template,
     )
 
 
@@ -555,9 +556,9 @@ def main():
     help="path to a conda environment specification(s)",
 )
 @click.option(
-    "--filename-format",
+    "--filename-template",
     default="conda-{platform}.lock",
-    help=f"Format for the lock file names. Must include {{platform}} token. Available tokens: {', '.join(str(t) for t in FILENAME_TOKENS)}",
+    help=f"Template for the lock file names. Must include {{platform}} token. Available tokens: {', '.join(str(t) for t in FILENAME_TOKENS)}",
 )
 # @click.option(
 #     "-m",
@@ -577,7 +578,7 @@ def lock(
     channel_overrides,
     dev_dependencies,
     files,
-    filename_format,
+    filename_template,
 ):
     """Generate fully reproducible lock files for conda environments."""
     files = [pathlib.Path(file) for file in files]
@@ -589,7 +590,7 @@ def lock(
         micromamba=micromamba,
         include_dev_dependencies=dev_dependencies,
         channel_overrides=channel_overrides,
-        filename_format=filename_format,
+        filename_template=filename_template,
     )
 
 
