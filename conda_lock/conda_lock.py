@@ -3,6 +3,7 @@ Somewhat hacky solution to create conda lock files.
 """
 
 import atexit
+import datetime
 import json
 import logging
 import os
@@ -17,6 +18,7 @@ from typing import Dict, List, MutableSequence, Optional, Sequence, Set, Tuple, 
 
 import click
 import ensureconda
+import pkg_resources
 
 from click_default_group import DefaultGroup
 
@@ -36,7 +38,6 @@ if not (sys.version_info.major >= 3 and sys.version_info.minor >= 6):
 
 CONDA_PKGS_DIRS = None
 DEFAULT_PLATFORMS = ["osx-64", "linux-64", "win-64"]
-FILENAME_TOKENS = frozenset(["platform", "dev-dependencies", "spec-hash"])
 
 
 def conda_pkgs_dir():
@@ -300,10 +301,11 @@ def make_lock_files(
 
             context = {
                 "platform": lock_spec.platform,
-                "dev-dependencies": include_dev_dependencies,
+                "dev-dependencies": str(include_dev_dependencies).lower(),
                 "spec-hash": lock_spec.env_hash(),
+                "version": pkg_resources.get_distribution("conda_lock").version,
+                "timestamp": datetime.datetime.utcnow().strftime("%Y%m%dT%H%M%SZ"),
             }
-            assert all(t in context for t in FILENAME_TOKENS)
 
             filename = filename_template.format(**context)
         else:
@@ -558,7 +560,7 @@ def main():
 @click.option(
     "--filename-template",
     default="conda-{platform}.lock",
-    help=f"Template for the lock file names. Must include {{platform}} token. Available tokens: {', '.join(str(t) for t in FILENAME_TOKENS)}",
+    help="Template for the lock file names. Must include {platform} token. For a full list and description of available tokens, see the command help text.",
 )
 # @click.option(
 #     "-m",
@@ -580,7 +582,18 @@ def lock(
     files,
     filename_template,
 ):
-    """Generate fully reproducible lock files for conda environments."""
+    """Generate fully reproducible lock files for conda environments.
+
+    By default, the lock files are written to conda-{platform}.lock. These filenames can be customized using the
+    --filename-template argument. The following tokens are available:
+
+    \b
+        platform: The platform this lock file was generated for (conda subdir).
+        dev-dependencies: Whether or not dev dependencies are included in this lock file.
+        spec-hash: A sha256 hash of the lock file spec.
+        version: The version of conda-lock used to generate this lock file.
+        timestamp: The approximate timestamp of the output file in ISO8601 basic format.
+    """
     files = [pathlib.Path(file) for file in files]
     run_lock(
         environment_files=files,

@@ -228,7 +228,7 @@ def test_install(tmp_path, conda_exe, zlib_environment):
     platform = "linux-64"
 
     lock_filename_template = "conda-{platform}-{dev-dependencies}.lock"
-    lock_filename = "conda-linux-64-True.lock"
+    lock_filename = "conda-linux-64-true.lock"
     try:
         os.remove(lock_filename)
     except OSError:
