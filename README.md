@@ -3,7 +3,7 @@
 Conda lock is a lightweight library that can be used to generate fully reproducible lock files for [conda][conda]
 environments.
 
-It does this by performing multiple solves for conda targeting a set of platforms you desire lockfiles for.
+It does this by performing a conda solve for each platform you desire a lockfile for.
 
 This also has the added benefit of acting as an external pre-solve for conda as the lockfiles it generates
 results in the conda solver *not* being invoked when installing the packages from the generated lockfile.
@@ -14,7 +14,7 @@ Conda [`environment.yml`][envyaml] files are very useful for defining desired en
 be able to EXACTLY reproduce an environment by just installing and downloading the packages needed.
 
 This is particularly handy in the context of a gitops style setup where you use conda to provision environments in
-various places
+various places.
 
 ## installation
 
@@ -97,6 +97,7 @@ as an [environment.yml][envyaml]
 Since a meta.yaml doesn't contain channel information we make use of the following extra key to retrieve channels
 
 ```yaml
+# meta.yaml
 
 extra:
   channels:
@@ -108,13 +109,15 @@ extra:
 
 Since pyproject.toml files are commonly used by python packages it can be desirable to create a lock
 file directly from those dependencies to single-source a package's dependencies.  This makes use of some
-conda-forge infrastructure ([pypi-mapping][mapping]) to do a lookup of the pypi package name to a corresponding
+conda-forge infrastructure ([pypi-mapping][mapping]) to do a lookup of the PyPI package name to a corresponding
 conda package name (e.g. `docker` -> `docker-py`).  In cases where there exists no lookup for the package it assumes that
-the pypi name, and the conda name are the same.
+the PyPI name, and the conda name are the same.
 
 #### channels
 
 ```toml
+# pyproject.toml
+
 [tool.conda-lock]
 channels = [
     'conda-forge', 'defaults'
@@ -127,7 +130,9 @@ Since in a `pyproject.toml` all the definitions are python dependencies if you n
 to specify some non-python dependencies as well this can be accomplished by adding
 the following sections to the `pyproject.toml`
 
-```
+```toml
+# pyproject.toml
+
 [tool.conda-lock.dependencies]
 sqlite = ">=3.34"
 ```
@@ -137,11 +142,15 @@ sqlite = ">=3.34"
 
 In order to use conda-lock in a docker-style context you want to add the lockfile to the
 docker container.  In order to refresh the lock file just run `conda-lock` again.
+
+Given aa file tree like
 ```
   Dockerfile
   environment.yaml
 * conda-linux-64.lock
 ```
+
+You want a dockerfile that is structured something similar to this
 
 ```Dockerfile
 # Dockerfile
