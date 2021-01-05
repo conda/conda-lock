@@ -3,6 +3,7 @@ Somewhat hacky solution to create conda lock files.
 """
 
 import atexit
+import datetime
 import json
 import logging
 import os
@@ -17,6 +18,7 @@ from typing import Dict, List, MutableSequence, Optional, Sequence, Set, Tuple, 
 
 import click
 import ensureconda
+import pkg_resources
 
 from click_default_group import DefaultGroup
 
@@ -247,6 +249,7 @@ def make_lock_files(
     src_files: List[pathlib.Path],
     include_dev_dependencies: bool = True,
     channel_overrides: Optional[Sequence[str]] = None,
+    filename_template: Optional[str] = None,
 ):
     """Generate the lock files for the given platforms from the src file provided
 
@@ -262,6 +265,8 @@ def make_lock_files(
         For source types that separate out dev dependencies from regular ones,include those, default True
     channel_overrides :
         Forced list of channels to use.
+    filename_template :
+        Format for the lock file names. Must include {platform}.
 
     """
     for plat in platforms:
@@ -289,7 +294,23 @@ def make_lock_files(
             else:
                 return line
 
-        with open(f"conda-{lock_spec.platform}.lock", "w") as fo:
+        if filename_template:
+            if "{platform}" not in filename_template:
+                print("{platform} must be in filename format")
+                sys.exit(1)
+
+            context = {
+                "platform": lock_spec.platform,
+                "dev-dependencies": str(include_dev_dependencies).lower(),
+                "spec-hash": lock_spec.env_hash(),
+                "version": pkg_resources.get_distribution("conda_lock").version,
+                "timestamp": datetime.datetime.utcnow().strftime("%Y%m%dT%H%M%SZ"),
+            }
+
+            filename = filename_template.format(**context)
+        else:
+            filename = f"conda-{lock_spec.platform}.lock"
+        with open(filename, "w") as fo:
             fo.write(
                 "\n".join(sanitize_lockfile_line(ln) for ln in lockfile_contents) + "\n"
             )
@@ -475,6 +496,7 @@ def run_lock(
     micromamba: bool = False,
     include_dev_dependencies: bool = True,
     channel_overrides: Optional[Sequence[str]] = None,
+    filename_template: Optional[str] = None,
 ) -> None:
     _conda_exe = determine_conda_executable(
         conda_exe, mamba=mamba, micromamba=micromamba
@@ -485,6 +507,7 @@ def run_lock(
         platforms=platforms or DEFAULT_PLATFORMS,
         include_dev_dependencies=include_dev_dependencies,
         channel_overrides=channel_overrides,
+        filename_template=filename_template,
     )
 
 
@@ -534,6 +557,11 @@ def main():
     multiple=True,
     help="path to a conda environment specification(s)",
 )
+@click.option(
+    "--filename-template",
+    default="conda-{platform}.lock",
+    help="Template for the lock file names. Must include {platform} token. For a full list and description of available tokens, see the command help text.",
+)
 # @click.option(
 #     "-m",
 #     "--mode",
@@ -545,9 +573,27 @@ def main():
 #             existing condarc configurations.""",
 # )
 def lock(
-    conda, mamba, micromamba, platform, channel_overrides, dev_dependencies, files
+    conda,
+    mamba,
+    micromamba,
+    platform,
+    channel_overrides,
+    dev_dependencies,
+    files,
+    filename_template,
 ):
-    """Generate fully reproducible lock files for conda environments."""
+    """Generate fully reproducible lock files for conda environments.
+
+    By default, the lock files are written to conda-{platform}.lock. These filenames can be customized using the
+    --filename-template argument. The following tokens are available:
+
+    \b
+        platform: The platform this lock file was generated for (conda subdir).
+        dev-dependencies: Whether or not dev dependencies are included in this lock file.
+        spec-hash: A sha256 hash of the lock file spec.
+        version: The version of conda-lock used to generate this lock file.
+        timestamp: The approximate timestamp of the output file in ISO8601 basic format.
+    """
     files = [pathlib.Path(file) for file in files]
     run_lock(
         environment_files=files,
@@ -557,6 +603,7 @@ def lock(
         micromamba=micromamba,
         include_dev_dependencies=dev_dependencies,
         channel_overrides=channel_overrides,
+        filename_template=filename_template,
     )
 
 
