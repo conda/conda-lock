@@ -269,6 +269,15 @@ def make_lock_files(
         Format for the lock file names. Must include {platform}.
 
     """
+    if filename_template:
+        if "{platform}" not in filename_template and len(platforms) > 1:
+            print(
+                "{platform} must be in filename template when locking"
+                f" more than one platform: {', '.join(platforms)}",
+                file=sys.stderr,
+            )
+            sys.exit(1)
+
     for plat in platforms:
         print(f"generating lockfile for {plat}", file=sys.stderr)
         lock_specs = parse_source_files(
@@ -295,10 +304,6 @@ def make_lock_files(
                 return line
 
         if filename_template:
-            if "{platform}" not in filename_template:
-                print("{platform} must be in filename format")
-                sys.exit(1)
-
             context = {
                 "platform": lock_spec.platform,
                 "dev-dependencies": str(include_dev_dependencies).lower(),
