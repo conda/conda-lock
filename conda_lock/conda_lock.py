@@ -165,19 +165,20 @@ def do_conda_install(conda: PathLike, prefix: str, name: str, file: str) -> None
     try:
         proc.check_returncode()
     except subprocess.CalledProcessError:
-        message = _handle_subprocess_stdout(proc.stdout)
         print(f"Could not perform conda install using {file} lock file into {prefix}")
+        message = _handle_subprocess_stdout(proc.stdout)
         if message:
             print(message)
         print_proc(proc)
         sys.exit(1)
 
-def _handle_subprocess_stdout(stdout):
+def _handle_subprocess_stdout(stdout, retry=True):
     try:
         err_json = json.loads(stdout)
-        return err_json["message"]
+        return "\n\n".join(error["message"] for error in err_json["errors"])
     except json.JSONDecodeError as e:
-        print(f"Failed to parse json, {e}")
+        if retry:
+            return _handle_subprocess_stdout("\n".join(stdout.split("\n")[1:])[1:], retry=False)
 
 
 def search_for_md5s(
