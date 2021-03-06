@@ -173,19 +173,14 @@ def do_conda_install(conda: PathLike, prefix: str, name: str, file: str) -> None
         sys.exit(1)
 
 
-def _handle_subprocess_stdout(stdout, retry=True):
+def _handle_subprocess_stdout(stdout):
     try:
-        err_json = json.loads(stdout)
+        err_json = json.loads(stdout.split("\x00")[-1])
         if err_json.get("exception_name") == "CondaMultiError":
             return "\n\n".join(error["message"] for error in err_json["errors"])
         return err_json["message"]
     except json.JSONDecodeError as e:
-        if retry:
-            return _handle_subprocess_stdout(
-                "\n".join(stdout.split("\n")[1:])[1:], retry=False
-            )
-        else:
-            return f"Failed to parse json, {e}"
+        return f"Failed to parse json, {e}"
 
 
 def search_for_md5s(
