@@ -14,16 +14,7 @@ import sys
 import tempfile
 
 from itertools import chain
-from typing import (
-    Dict,
-    List,
-    MutableSequence,
-    Optional,
-    Sequence,
-    Set,
-    Tuple,
-    Union,
-)
+from typing import Dict, List, MutableSequence, Optional, Sequence, Set, Tuple, Union
 
 import click
 import ensureconda
