@@ -174,7 +174,9 @@ def do_conda_install(conda: PathLike, prefix: str, name: str, file: str) -> None
 def _handle_subprocess_stdout(stdout, retry=True):
     try:
         err_json = json.loads(stdout)
-        return "\n\n".join(error["message"] for error in err_json["errors"])
+        if err_json.get("exception_name") == "CondaMultiError":
+            return "\n\n".join(error["message"] for error in err_json["errors"])
+        return err_json["message"]
     except json.JSONDecodeError as e:
         if retry:
             return _handle_subprocess_stdout(
