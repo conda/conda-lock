@@ -14,7 +14,16 @@ import sys
 import tempfile
 
 from itertools import chain
-from typing import Dict, List, MutableSequence, Optional, Sequence, Set, Tuple, Union
+from typing import (
+    Dict,
+    List,
+    MutableSequence,
+    Optional,
+    Sequence,
+    Set,
+    Tuple,
+    Union,
+)
 
 import click
 import ensureconda
@@ -172,13 +181,18 @@ def do_conda_install(conda: PathLike, prefix: str, name: str, file: str) -> None
         print_proc(proc)
         sys.exit(1)
 
+
 def _handle_subprocess_stdout(stdout, retry=True):
     try:
         err_json = json.loads(stdout)
         return "\n\n".join(error["message"] for error in err_json["errors"])
     except json.JSONDecodeError as e:
         if retry:
-            return _handle_subprocess_stdout("\n".join(stdout.split("\n")[1:])[1:], retry=False)
+            return _handle_subprocess_stdout(
+                "\n".join(stdout.split("\n")[1:])[1:], retry=False
+            )
+        else:
+            print(f"Failed to parse json, {e}")
 
 
 def search_for_md5s(

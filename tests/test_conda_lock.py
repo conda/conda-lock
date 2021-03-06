@@ -54,12 +54,16 @@ def meta_yaml_environment():
 
 @pytest.fixture
 def poetry_pyproject_toml():
-    return pathlib.Path(__file__).parent.joinpath("test-poetry").joinpath("pyproject.toml")
+    return (
+        pathlib.Path(__file__).parent.joinpath("test-poetry").joinpath("pyproject.toml")
+    )
 
 
 @pytest.fixture
 def flit_pyproject_toml():
-    return pathlib.Path(__file__).parent.joinpath("test-flit").joinpath("pyproject.toml")
+    return (
+        pathlib.Path(__file__).parent.joinpath("test-flit").joinpath("pyproject.toml")
+    )
 
 
 @pytest.fixture(
@@ -283,15 +287,24 @@ def _read_file(filepath):
     with open(filepath, mode="r") as file_pointer:
         return file_pointer.read()
 
+
 @pytest.mark.parametrize(
     "stdout,message",
     tuple(
         (
-            _read_file(pathlib.Path(__file__).parent.joinpath("test-stdout").joinpath(f"{filename}.txt")),
-            _read_file(pathlib.Path(__file__).parent.joinpath("test-message").joinpath(f"{filename}.txt")),
+            _read_file(
+                pathlib.Path(__file__)
+                .parent.joinpath("test-stdout")
+                .joinpath(f"{filename}.txt")
+            ),
+            _read_file(
+                pathlib.Path(__file__)
+                .parent.joinpath("test-message")
+                .joinpath(f"{filename}.txt")
+            ),
         )
         for filename in ("conda", "mamba")
-    )
+    ),
 )
 def test__handle_subprocess_stdout(stdout, message):
     assert _handle_subprocess_stdout(stdout) == message
