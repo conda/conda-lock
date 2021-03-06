@@ -165,7 +165,9 @@ def do_conda_install(conda: PathLike, prefix: str, name: str, file: str) -> None
     try:
         proc.check_returncode()
     except subprocess.CalledProcessError:
-        print(f"Could not perform conda install using {file} lock file into {prefix}")
+        print(
+            f"Could not perform conda install using {file} lock file into {name or prefix}"
+        )
         print(_handle_subprocess_stdout(proc.stdout))
         print_proc(proc)
         sys.exit(1)
