@@ -21,6 +21,7 @@ from conda_lock.conda_lock import (
     parse_meta_yaml_file,
     run_lock,
     _strip_auth_from_line,
+    _extract_domain,
 )
 from conda_lock.src_parser import LockSpecification
 from conda_lock.src_parser.environment_yaml import parse_environment_file
@@ -306,3 +307,20 @@ def test_install(tmp_path, conda_exe, zlib_environment):
 )
 def test__strip_auth_from_line(line, stripped):
     assert _strip_auth_from_line(line) == stripped
+
+
+@pytest.mark.parametrize(
+    "line,stripped",
+    (
+        (
+            "https://conda.mychannel.cloud/mypackage",
+            "conda.mychannel.cloud"
+        ),
+        (
+            "http://conda.mychannel.cloud/mypackage",
+            "conda.mychannel.cloud"
+        ),
+    )
+)
+def test__extract_domain(line, stripped):
+    assert _extract_domain(line) == stripped

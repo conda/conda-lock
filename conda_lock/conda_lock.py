@@ -34,6 +34,9 @@ PathLike = Union[str, pathlib.Path]
 # Captures basic auth credentials, if they exists, in the second capture group.
 AUTH_PATTERN = re.compile(r"^(https?:\/\/)(.*:.*@)?(.*)")
 
+# Captures the domain in the second group.
+DOMAIN_PATTERN = re.compile(r"^(https?:\/\/)?([^\/]+)(.*)")
+
 if not (sys.version_info.major >= 3 and sys.version_info.minor >= 6):
     print("conda_lock needs to run under python >=3.6")
     sys.exit(1)
@@ -498,6 +501,10 @@ def determine_conda_executable(
 
 def _strip_auth_from_line(line: str) -> str:
     return AUTH_PATTERN.sub(r"\1\3", line)
+
+
+def _extract_domain(line: str) -> str:
+    return DOMAIN_PATTERN.sub(r"\2", line)
 
 
 def run_lock(
