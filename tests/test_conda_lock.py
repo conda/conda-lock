@@ -20,6 +20,7 @@ from conda_lock.conda_lock import (
     main,
     parse_meta_yaml_file,
     run_lock,
+    _strip_auth_from_line,
 )
 from conda_lock.src_parser import LockSpecification
 from conda_lock.src_parser.environment_yaml import parse_environment_file
@@ -280,3 +281,28 @@ def test_install(tmp_path, conda_exe, zlib_environment):
         package=package,
         prefix=str(tmp_path / env_name),
     ), f"Package {package} does not exist in {tmp_path} environment"
+
+
+@pytest.mark.parametrize(
+    "line,stripped",
+    (
+        (
+            "https://conda.mychannel.cloud/mypackage",
+            "https://conda.mychannel.cloud/mypackage"
+        ),
+        (
+            "https://user:password@conda.mychannel.cloud/mypackage",
+            "https://conda.mychannel.cloud/mypackage"
+        ),
+        (
+            "http://conda.mychannel.cloud/mypackage",
+            "http://conda.mychannel.cloud/mypackage"
+        ),
+        (
+            "http://user:password@conda.mychannel.cloud/mypackage",
+            "http://conda.mychannel.cloud/mypackage"
+        ),
+    )
+)
+def test__strip_auth_from_line(line, stripped):
+    assert _strip_auth_from_line(line) == stripped

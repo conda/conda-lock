@@ -12,6 +12,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import re
 
 from itertools import chain
 from typing import Dict, List, MutableSequence, Optional, Sequence, Set, Tuple, Union
@@ -30,6 +31,8 @@ from conda_lock.src_parser.pyproject_toml import parse_pyproject_toml
 
 PathLike = Union[str, pathlib.Path]
 
+# Captures basic auth credentials, if they exists, in the second capture group.
+AUTH_PATTERN = re.compile(r"^(https?:\/\/)(.*:.*@)?(.*)")
 
 if not (sys.version_info.major >= 3 and sys.version_info.minor >= 6):
     print("conda_lock needs to run under python >=3.6")
@@ -491,6 +494,10 @@ def determine_conda_executable(
 
             return candidate
     raise RuntimeError("Could not find conda (or compatible) executable")
+
+
+def _strip_auth_from_line(line: str) -> str:
+    return AUTH_PATTERN.sub(r"\1\3", line)
 
 
 def run_lock(
