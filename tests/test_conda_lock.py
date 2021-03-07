@@ -22,6 +22,7 @@ from conda_lock.conda_lock import (
     run_lock,
     _strip_auth_from_line,
     _extract_domain,
+    _strip_lockfile,
 )
 from conda_lock.src_parser import LockSpecification
 from conda_lock.src_parser.environment_yaml import parse_environment_file
@@ -324,3 +325,30 @@ def test__strip_auth_from_line(line, stripped):
 )
 def test__extract_domain(line, stripped):
     assert _extract_domain(line) == stripped
+
+
+def _read_file(filepath):
+    with open(filepath, mode="r") as file_pointer:
+        return file_pointer.read()
+
+
+@pytest.mark.parametrize(
+    "lockfile,stripped_lockfile",
+    tuple(
+        (
+            _read_file(
+                pathlib.Path(__file__)
+                .parent.joinpath("test-lockfile")
+                .joinpath(f"{filename}.lock")
+            ),
+            _read_file(
+                pathlib.Path(__file__)
+                .parent.joinpath("test-stripped-lockfile")
+                .joinpath(f"{filename}.lock")
+            ),
+        )
+        for filename in ("test",)
+    ),
+)
+def test__strip_lockfile(lockfile, stripped_lockfile):
+    assert _strip_lockfile(lockfile) == stripped_lockfile
