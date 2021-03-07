@@ -8,11 +8,11 @@ import json
 import logging
 import os
 import pathlib
+import re
 import shutil
 import subprocess
 import sys
 import tempfile
-import re
 
 from itertools import chain
 from typing import Dict, List, MutableSequence, Optional, Sequence, Set, Tuple, Union
@@ -510,9 +510,16 @@ def _extract_domain(line: str) -> str:
 def _strip_lockfile(lockfile: str) -> str:
     lockfile_lines = lockfile.strip().split("\n")
     stripped_lockfile_lines = tuple(
-        _strip_auth_from_line(line) if line[0] not in ("#", "@") else line for line in lockfile_lines
+        _strip_auth_from_line(line) if line[0] not in ("#", "@") else line
+        for line in lockfile_lines
     )
-    stripped_domains = list(sorted(set(_extract_domain(stripped_line) for line, stripped_line in zip(lockfile_lines, stripped_lockfile_lines) if line != stripped_line)))
+    stripped_domains = sorted(
+        {
+            _extract_domain(stripped_line)
+            for line, stripped_line in zip(lockfile_lines, stripped_lockfile_lines)
+            if line != stripped_line
+        }
+    )
     stripped_domains_doc = "\n".join(f"# - {domain}" for domain in stripped_domains)
     stripped_lockfile = "\n".join(stripped_lockfile_lines)
     return f"# The following domains require authentication:\n{stripped_domains_doc}\n{stripped_lockfile}\n"

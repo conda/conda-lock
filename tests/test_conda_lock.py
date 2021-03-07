@@ -13,6 +13,9 @@ import pytest
 from conda_lock.conda_lock import (
     PathLike,
     _ensureconda,
+    _extract_domain,
+    _strip_auth_from_line,
+    _strip_lockfile,
     aggregate_lock_specs,
     conda_env_override,
     create_lockfile_from_spec,
@@ -20,9 +23,6 @@ from conda_lock.conda_lock import (
     main,
     parse_meta_yaml_file,
     run_lock,
-    _strip_auth_from_line,
-    _extract_domain,
-    _strip_lockfile,
 )
 from conda_lock.src_parser import LockSpecification
 from conda_lock.src_parser.environment_yaml import parse_environment_file
@@ -290,21 +290,21 @@ def test_install(tmp_path, conda_exe, zlib_environment):
     (
         (
             "https://conda.mychannel.cloud/mypackage",
-            "https://conda.mychannel.cloud/mypackage"
+            "https://conda.mychannel.cloud/mypackage",
         ),
         (
             "https://user:password@conda.mychannel.cloud/mypackage",
-            "https://conda.mychannel.cloud/mypackage"
+            "https://conda.mychannel.cloud/mypackage",
         ),
         (
             "http://conda.mychannel.cloud/mypackage",
-            "http://conda.mychannel.cloud/mypackage"
+            "http://conda.mychannel.cloud/mypackage",
         ),
         (
             "http://user:password@conda.mychannel.cloud/mypackage",
-            "http://conda.mychannel.cloud/mypackage"
+            "http://conda.mychannel.cloud/mypackage",
         ),
-    )
+    ),
 )
 def test__strip_auth_from_line(line, stripped):
     assert _strip_auth_from_line(line) == stripped
@@ -313,15 +313,9 @@ def test__strip_auth_from_line(line, stripped):
 @pytest.mark.parametrize(
     "line,stripped",
     (
-        (
-            "https://conda.mychannel.cloud/mypackage",
-            "conda.mychannel.cloud"
-        ),
-        (
-            "http://conda.mychannel.cloud/mypackage",
-            "conda.mychannel.cloud"
-        ),
-    )
+        ("https://conda.mychannel.cloud/mypackage", "conda.mychannel.cloud"),
+        ("http://conda.mychannel.cloud/mypackage", "conda.mychannel.cloud"),
+    ),
 )
 def test__extract_domain(line, stripped):
     assert _extract_domain(line) == stripped
