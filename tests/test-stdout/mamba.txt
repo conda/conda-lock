@@ -1,0 +1,19 @@
+{
+  "error": "Multiple Errors Encountered.",
+  "errors": [
+    {
+      "caused_by": "HTTPError('401 Client Error: Unauthorized for url: https://conda.org/channel/package.tar.bz2')",
+      "elapsed_time": "00:00.092086",
+      "error": "CondaHTTPError: HTTP 401 UNAUTHORIZED for url <https://conda.org/channel/package.tar.bz2>\nElapsed: 00:00.092086\n\nAn HTTP error occurred when trying to retrieve this URL.\nHTTP errors are often intermittent, and a simple retry will get you on your way.\n",
+      "exception_name": "CondaHTTPError",
+      "exception_type": "<class 'conda.exceptions.CondaHTTPError'>",
+      "message": "HTTP 401 UNAUTHORIZED for url <https://conda.org/channel/package.tar.bz2>\nElapsed: 00:00.092086\n\nAn HTTP error occurred when trying to retrieve this URL.\nHTTP errors are often intermittent, and a simple retry will get you on your way.\n",
+      "reason": "UNAUTHORIZED",
+      "response_details": "",
+      "status_code": 401,
+      "url": "https://conda.org/channel/package.tar.bz2"
+    }
+  ],
+  "exception_name": "CondaMultiError",
+  "exception_type": "<class 'conda.CondaMultiError'>"
+}

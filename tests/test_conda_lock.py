@@ -13,6 +13,7 @@ import pytest
 from conda_lock.conda_lock import (
     PathLike,
     _ensureconda,
+    _handle_subprocess_stdout,
     aggregate_lock_specs,
     conda_env_override,
     create_lockfile_from_spec,
@@ -280,3 +281,30 @@ def test_install(tmp_path, conda_exe, zlib_environment):
         package=package,
         prefix=str(tmp_path / env_name),
     ), f"Package {package} does not exist in {tmp_path} environment"
+
+
+def _read_file(filepath):
+    with open(filepath, mode="r") as file_pointer:
+        return file_pointer.read()
+
+
+@pytest.mark.parametrize(
+    "stdout,message",
+    tuple(
+        (
+            _read_file(
+                pathlib.Path(__file__)
+                .parent.joinpath("test-stdout")
+                .joinpath(f"{filename}.txt")
+            ),
+            _read_file(
+                pathlib.Path(__file__)
+                .parent.joinpath("test-message")
+                .joinpath(f"{filename}.txt")
+            ),
+        )
+        for filename in ("conda", "mamba")
+    ),
+)
+def test__handle_subprocess_stdout(stdout, message):
+    assert _handle_subprocess_stdout(stdout) == message
