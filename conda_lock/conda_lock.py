@@ -24,6 +24,7 @@ import pkg_resources
 
 from click_default_group import DefaultGroup
 
+from conda_lock.common import read_file, write_file
 from conda_lock.src_parser import LockSpecification
 from conda_lock.src_parser.environment_yaml import parse_environment_file
 from conda_lock.src_parser.meta_yaml import parse_meta_yaml_file
@@ -600,6 +601,12 @@ def main():
     default="conda-{platform}.lock",
     help="Template for the lock file names. Must include {platform} token. For a full list and description of available tokens, see the command help text.",
 )
+@click.option(
+    "--strip-auth",
+    is_flag=True,
+    default=False,
+    help="Strip the basic auth credentials from the lockfile.",
+)
 # @click.option(
 #     "-m",
 #     "--mode",
@@ -619,6 +626,7 @@ def lock(
     dev_dependencies,
     files,
     filename_template,
+    strip_auth,
 ):
     """Generate fully reproducible lock files for conda environments.
 
@@ -643,7 +651,17 @@ def lock(
         include_dev_dependencies=dev_dependencies,
         channel_overrides=channel_overrides,
     )
-    lock_func(filename_template=filename_template)
+    if strip_auth:
+        with tempfile.TemporaryDirectory() as tempdir:
+            filename_template_temp = f"{tempdir}/{filename_template.split('/')[-1]}"
+            lock_func(filename_template=filename_template_temp)
+            filename_template_dir = "/".join(filename_template.split("/")[:-1])
+            for file in os.listdir(tempdir):
+                lockfile = read_file(os.path.join(tempdir, file))
+                lockfile = _strip_lockfile(lockfile)
+                write_file(lockfile, os.path.join(filename_template_dir, file))
+    else:
+        lock_func(filename_template=filename_template)
 
 
 @main.command("install")

@@ -13,3 +13,13 @@ def get_in(keys, nested_dict, default=None):
         return reduce(operator.getitem, keys, nested_dict)
     except (KeyError, IndexError, TypeError):
         return default
+
+
+def read_file(filepath: str) -> str:
+    with open(filepath, mode="r") as fp:
+        return fp.read()
+
+
+def write_file(obj: str, filepath: str) -> None:
+    with open(filepath, mode="w") as fp:
+        fp.write(obj)
