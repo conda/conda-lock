@@ -12,6 +12,7 @@ import pytest
 
 from conda_lock.conda_lock import (
     _add_auth_to_line,
+    _add_auth_to_lockfile,
     _ensureconda,
     _extract_domain,
     _strip_auth_from_line,
@@ -366,3 +367,33 @@ def test__strip_auth_from_lockfile(lockfile, stripped_lockfile):
 )
 def test__add_auth_to_line(line, auth, line_with_auth):
     assert _add_auth_to_line(line, auth) == line_with_auth
+
+
+@pytest.fixture(name="auth")
+def auth_():
+    return {
+        "a.mychannel.cloud": "username_a:password_a",
+        "c.mychannel.cloud": "username_c:password_c",
+    }
+
+
+@pytest.mark.parametrize(
+    "stripped_lockfile,lockfile_with_auth",
+    tuple(
+        (
+            _read_file(
+                pathlib.Path(__file__)
+                .parent.joinpath("test-stripped-lockfile")
+                .joinpath(f"{filename}.lock")
+            ),
+            _read_file(
+                pathlib.Path(__file__)
+                .parent.joinpath("test-lockfile-with-auth")
+                .joinpath(f"{filename}.lock")
+            ),
+        )
+        for filename in ("test",)
+    ),
+)
+def test__add_auth_to_lockfile(stripped_lockfile, lockfile_with_auth, auth):
+    assert _add_auth_to_lockfile(stripped_lockfile, auth) == lockfile_with_auth

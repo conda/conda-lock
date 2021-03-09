@@ -508,6 +508,13 @@ def _add_auth_to_line(line: str, auth: Dict[str, str]):
     return line
 
 
+def _add_auth_to_lockfile(lockfile: str, auth: Dict[str, str]) -> str:
+    lockfile_with_auth = "\n".join(_add_auth_to_line(line, auth) if line[0] not in ("#", "@") else line for line in lockfile.strip().split("\n"))
+    if lockfile.endswith("\n"):
+        return lockfile_with_auth + "\n"
+    return lockfile_with_auth
+
+
 def _strip_auth_from_line(line: str) -> str:
     return AUTH_PATTERN.sub(r"\1\3", line)
 
