@@ -1,3 +1,7 @@
+from typing import Dict
+import json
+
+
 def get_in(keys, nested_dict, default=None):
     """
     >>> foo = {'a': {'b': {'c': 1}}}
@@ -23,3 +27,8 @@ def read_file(filepath: str) -> str:
 def write_file(obj: str, filepath: str) -> None:
     with open(filepath, mode="w") as fp:
         fp.write(obj)
+
+
+def read_json(filepath: str) -> Dict:
+    with open(filepath, mode="r") as fp:
+        return json.load(fp)

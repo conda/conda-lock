@@ -14,9 +14,10 @@ import subprocess
 import sys
 import tempfile
 
+from contextlib import contextmanager
 from functools import partial
 from itertools import chain
-from typing import Dict, List, MutableSequence, Optional, Sequence, Set, Tuple, Union
+from typing import Dict, Iterator, List, MutableSequence, Optional, Sequence, Set, Tuple, Union
 
 import click
 import ensureconda
@@ -24,7 +25,7 @@ import pkg_resources
 
 from click_default_group import DefaultGroup
 
-from conda_lock.common import read_file, write_file
+from conda_lock.common import read_file, write_file, read_json
 from conda_lock.src_parser import LockSpecification
 from conda_lock.src_parser.environment_yaml import parse_environment_file
 from conda_lock.src_parser.meta_yaml import parse_meta_yaml_file
@@ -515,6 +516,14 @@ def _add_auth_to_lockfile(lockfile: str, auth: Dict[str, str]) -> str:
     return lockfile_with_auth
 
 
+@contextmanager
+def _add_auth(lockfile: str, auth: Dict[str, str]) -> Iterator[str]:
+    with tempfile.NamedTemporaryFile() as tf:
+        lockfile_with_auth = _add_auth_to_lockfile(lockfile, auth)
+        write_file(lockfile_with_auth, tf.name)
+        yield tf.name
+
+
 def _strip_auth_from_line(line: str) -> str:
     return AUTH_PATTERN.sub(r"\1\3", line)
 
@@ -692,11 +701,19 @@ def lock(
 )
 @click.option("-p", "--prefix", help="Full path to environment location (i.e. prefix).")
 @click.option("-n", "--name", help="Name of environment.")
+@click.option("--auth-file", help="Path to the authentication file.", default="")
 @click.argument("lock-file")
-def install(conda, mamba, micromamba, prefix, name, lock_file):
+def install(conda, mamba, micromamba, prefix, name, lock_file, auth_file):
     """Perform a conda install"""
+    auth = read_json(auth_file) if auth_file else None
     _conda_exe = determine_conda_executable(conda, mamba=mamba, micromamba=micromamba)
-    do_conda_install(conda=_conda_exe, prefix=prefix, name=name, file=lock_file)
+    install_func = partial(do_conda_install, conda=_conda_exe, prefix=prefix, name=name)
+    if auth:
+        lockfile = read_file(lock_file)
+        with _add_auth(lockfile, auth) as lockfile_with_auth:
+            install_func(file=lockfile_with_auth)
+    else:
+        install_func(file=lock_file)
 
 
 if __name__ == "__main__":
