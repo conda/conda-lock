@@ -509,7 +509,7 @@ def _extract_domain(line: str) -> str:
     return DOMAIN_PATTERN.sub(r"\2", line)
 
 
-def _strip_lockfile(lockfile: str) -> str:
+def _strip_auth_from_lockfile(lockfile: str) -> str:
     lockfile_lines = lockfile.strip().split("\n")
     stripped_lockfile_lines = tuple(
         _strip_auth_from_line(line) if line[0] not in ("#", "@") else line
@@ -658,7 +658,7 @@ def lock(
             filename_template_dir = "/".join(filename_template.split("/")[:-1])
             for file in os.listdir(tempdir):
                 lockfile = read_file(os.path.join(tempdir, file))
-                lockfile = _strip_lockfile(lockfile)
+                lockfile = _strip_auth_from_lockfile(lockfile)
                 write_file(lockfile, os.path.join(filename_template_dir, file))
     else:
         lock_func(filename_template=filename_template)

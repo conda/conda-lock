@@ -11,17 +11,17 @@ from typing import Any, MutableSequence
 import pytest
 
 from conda_lock.conda_lock import (
-    PathLike,
     _ensureconda,
     _extract_domain,
     _strip_auth_from_line,
-    _strip_lockfile,
+    _strip_auth_from_lockfile,
     aggregate_lock_specs,
     conda_env_override,
     create_lockfile_from_spec,
     determine_conda_executable,
     main,
     parse_meta_yaml_file,
+    PathLike,
     run_lock,
 )
 from conda_lock.src_parser import LockSpecification
@@ -344,5 +344,5 @@ def _read_file(filepath):
         for filename in ("test",)
     ),
 )
-def test__strip_lockfile(lockfile, stripped_lockfile):
-    assert _strip_lockfile(lockfile) == stripped_lockfile
+def test__strip_auth_from_lockfile(lockfile, stripped_lockfile):
+    assert _strip_auth_from_lockfile(lockfile) == stripped_lockfile
