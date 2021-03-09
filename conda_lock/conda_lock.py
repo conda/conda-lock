@@ -14,6 +14,7 @@ import subprocess
 import sys
 import tempfile
 
+from functools import partial
 from itertools import chain
 from typing import Dict, List, MutableSequence, Optional, Sequence, Set, Tuple, Union
 
@@ -632,7 +633,8 @@ def lock(
         timestamp: The approximate timestamp of the output file in ISO8601 basic format.
     """
     files = [pathlib.Path(file) for file in files]
-    run_lock(
+    lock_func = partial(
+        run_lock,
         environment_files=files,
         conda_exe=conda,
         platforms=platform,
@@ -640,8 +642,8 @@ def lock(
         micromamba=micromamba,
         include_dev_dependencies=dev_dependencies,
         channel_overrides=channel_overrides,
-        filename_template=filename_template,
     )
+    lock_func(filename_template=filename_template)
 
 
 @main.command("install")
