@@ -17,7 +17,17 @@ import tempfile
 from contextlib import contextmanager
 from functools import partial
 from itertools import chain
-from typing import Dict, Iterator, List, MutableSequence, Optional, Sequence, Set, Tuple, Union
+from typing import (
+    Dict,
+    Iterator,
+    List,
+    MutableSequence,
+    Optional,
+    Sequence,
+    Set,
+    Tuple,
+    Union,
+)
 
 import click
 import ensureconda
@@ -25,7 +35,7 @@ import pkg_resources
 
 from click_default_group import DefaultGroup
 
-from conda_lock.common import read_file, write_file, read_json
+from conda_lock.common import read_file, read_json, write_file
 from conda_lock.src_parser import LockSpecification
 from conda_lock.src_parser.environment_yaml import parse_environment_file
 from conda_lock.src_parser.meta_yaml import parse_meta_yaml_file
@@ -507,7 +517,7 @@ def determine_conda_executable(
 
 def _add_auth_to_line(line: str, auth: Dict[str, str]):
     search = DOMAIN_PATTERN.search(line)
-    if search.group(2) in auth:
+    if search and search.group(2) in auth:
         return f"{search.group(1)}{auth[search.group(2)]}@{search.group(2)}{search.group(3)}"
     return line
 

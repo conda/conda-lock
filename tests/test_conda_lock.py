@@ -11,20 +11,20 @@ from typing import Any, MutableSequence
 import pytest
 
 from conda_lock.conda_lock import (
+    PathLike,
     _add_auth_to_line,
     _add_auth_to_lockfile,
     _ensureconda,
     _extract_domain,
+    _handle_subprocess_stdout,
     _strip_auth_from_line,
     _strip_auth_from_lockfile,
-    _handle_subprocess_stdout,
     aggregate_lock_specs,
     conda_env_override,
     create_lockfile_from_spec,
     determine_conda_executable,
     main,
     parse_meta_yaml_file,
-    PathLike,
     run_lock,
 )
 from conda_lock.src_parser import LockSpecification
