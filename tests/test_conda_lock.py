@@ -11,6 +11,7 @@ from typing import Any, MutableSequence
 import pytest
 
 from conda_lock.conda_lock import (
+    _add_auth_to_line,
     _ensureconda,
     _extract_domain,
     _strip_auth_from_line,
@@ -346,3 +347,22 @@ def _read_file(filepath):
 )
 def test__strip_auth_from_lockfile(lockfile, stripped_lockfile):
     assert _strip_auth_from_lockfile(lockfile) == stripped_lockfile
+
+
+@pytest.mark.parametrize(
+    "line,auth,line_with_auth",
+    (
+        (
+            "https://conda.mychannel.cloud/mypackage",
+            {"conda.mychannel.cloud": "username:password"},
+            "https://username:password@conda.mychannel.cloud/mypackage",
+        ),
+        (
+            "https://conda.mychannel.cloud/mypackage",
+            {},
+            "https://conda.mychannel.cloud/mypackage",
+        ),
+    ),
+)
+def test__add_auth_to_line(line, auth, line_with_auth):
+    assert _add_auth_to_line(line, auth) == line_with_auth

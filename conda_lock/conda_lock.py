@@ -501,6 +501,13 @@ def determine_conda_executable(
     raise RuntimeError("Could not find conda (or compatible) executable")
 
 
+def _add_auth_to_line(line: str, auth: Dict[str, str]):
+    search = DOMAIN_PATTERN.search(line)
+    if search.group(2) in auth:
+        return f"{search.group(1)}{auth[search.group(2)]}@{search.group(2)}{search.group(3)}"
+    return line
+
+
 def _strip_auth_from_line(line: str) -> str:
     return AUTH_PATTERN.sub(r"\1\3", line)
 
