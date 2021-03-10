@@ -18,6 +18,7 @@ from conda_lock.conda_lock import (
     conda_env_override,
     create_lockfile_from_spec,
     determine_conda_executable,
+    is_micromamba,
     main,
     parse_meta_yaml_file,
     run_lock,
@@ -130,6 +131,8 @@ def test_parse_flit(flit_pyproject_toml, include_dev_dependencies):
 
 def test_run_lock(monkeypatch, zlib_environment, conda_exe):
     monkeypatch.chdir(zlib_environment.parent)
+    if is_micromamba(conda_exe):
+        monkeypatch.setenv("CONDA_FLAGS", "-vvv")
     run_lock([zlib_environment], conda_exe=conda_exe)
 
 
@@ -228,7 +231,10 @@ def _check_package_installed(package: str, prefix: str):
     return True
 
 
-def test_install(tmp_path, conda_exe, zlib_environment):
+def test_install(tmp_path, conda_exe, zlib_environment, monkeypatch):
+    if is_micromamba(conda_exe):
+        monkeypatch.setenv("CONDA_FLAGS", "-vvv")
+
     package = "zlib"
     platform = "linux-64"
 
