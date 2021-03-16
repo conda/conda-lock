@@ -12,8 +12,13 @@ import pytest
 
 from conda_lock.conda_lock import (
     PathLike,
+    _add_auth_to_line,
+    _add_auth_to_lockfile,
     _ensureconda,
+    _extract_domain,
     _handle_subprocess_stdout,
+    _strip_auth_from_line,
+    _strip_auth_from_lockfile,
     aggregate_lock_specs,
     conda_env_override,
     create_lockfile_from_spec,
@@ -289,9 +294,116 @@ def test_install(tmp_path, conda_exe, zlib_environment, monkeypatch):
     ), f"Package {package} does not exist in {tmp_path} environment"
 
 
+@pytest.mark.parametrize(
+    "line,stripped",
+    (
+        (
+            "https://conda.mychannel.cloud/mypackage",
+            "https://conda.mychannel.cloud/mypackage",
+        ),
+        (
+            "https://user:password@conda.mychannel.cloud/mypackage",
+            "https://conda.mychannel.cloud/mypackage",
+        ),
+        (
+            "http://conda.mychannel.cloud/mypackage",
+            "http://conda.mychannel.cloud/mypackage",
+        ),
+        (
+            "http://user:password@conda.mychannel.cloud/mypackage",
+            "http://conda.mychannel.cloud/mypackage",
+        ),
+    ),
+)
+def test__strip_auth_from_line(line, stripped):
+    assert _strip_auth_from_line(line) == stripped
+
+
+@pytest.mark.parametrize(
+    "line,stripped",
+    (
+        ("https://conda.mychannel.cloud/mypackage", "conda.mychannel.cloud"),
+        ("http://conda.mychannel.cloud/mypackage", "conda.mychannel.cloud"),
+    ),
+)
+def test__extract_domain(line, stripped):
+    assert _extract_domain(line) == stripped
+
+
 def _read_file(filepath):
     with open(filepath, mode="r") as file_pointer:
         return file_pointer.read()
+
+
+@pytest.mark.parametrize(
+    "lockfile,stripped_lockfile",
+    tuple(
+        (
+            _read_file(
+                pathlib.Path(__file__)
+                .parent.joinpath("test-lockfile")
+                .joinpath(f"{filename}.lock")
+            ),
+            _read_file(
+                pathlib.Path(__file__)
+                .parent.joinpath("test-stripped-lockfile")
+                .joinpath(f"{filename}.lock")
+            ),
+        )
+        for filename in ("test",)
+    ),
+)
+def test__strip_auth_from_lockfile(lockfile, stripped_lockfile):
+    assert _strip_auth_from_lockfile(lockfile) == stripped_lockfile
+
+
+@pytest.mark.parametrize(
+    "line,auth,line_with_auth",
+    (
+        (
+            "https://conda.mychannel.cloud/mypackage",
+            {"conda.mychannel.cloud": "username:password"},
+            "https://username:password@conda.mychannel.cloud/mypackage",
+        ),
+        (
+            "https://conda.mychannel.cloud/mypackage",
+            {},
+            "https://conda.mychannel.cloud/mypackage",
+        ),
+    ),
+)
+def test__add_auth_to_line(line, auth, line_with_auth):
+    assert _add_auth_to_line(line, auth) == line_with_auth
+
+
+@pytest.fixture(name="auth")
+def auth_():
+    return {
+        "a.mychannel.cloud": "username_a:password_a",
+        "c.mychannel.cloud": "username_c:password_c",
+    }
+
+
+@pytest.mark.parametrize(
+    "stripped_lockfile,lockfile_with_auth",
+    tuple(
+        (
+            _read_file(
+                pathlib.Path(__file__)
+                .parent.joinpath("test-stripped-lockfile")
+                .joinpath(f"{filename}.lock")
+            ),
+            _read_file(
+                pathlib.Path(__file__)
+                .parent.joinpath("test-lockfile-with-auth")
+                .joinpath(f"{filename}.lock")
+            ),
+        )
+        for filename in ("test",)
+    ),
+)
+def test__add_auth_to_lockfile(stripped_lockfile, lockfile_with_auth, auth):
+    assert _add_auth_to_lockfile(stripped_lockfile, auth) == lockfile_with_auth
 
 
 @pytest.mark.parametrize(

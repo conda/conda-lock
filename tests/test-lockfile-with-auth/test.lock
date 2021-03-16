@@ -1,0 +1,6 @@
+# The following domains require authentication:
+# - a.mychannel.cloud
+# - c.mychannel.cloud
+http://username_a:password_a@a.mychannel.cloud/mypackage
+http://b.mychannel.cloud/mypackage
+http://username_c:password_c@c.mychannel.cloud/mypackage

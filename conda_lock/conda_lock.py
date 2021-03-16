@@ -8,14 +8,27 @@ import json
 import logging
 import os
 import pathlib
+import re
 import shlex
 import shutil
 import subprocess
 import sys
 import tempfile
 
+from contextlib import contextmanager
+from functools import partial
 from itertools import chain
-from typing import Dict, List, MutableSequence, Optional, Sequence, Set, Tuple, Union
+from typing import (
+    Dict,
+    Iterator,
+    List,
+    MutableSequence,
+    Optional,
+    Sequence,
+    Set,
+    Tuple,
+    Union,
+)
 
 import click
 import ensureconda
@@ -23,6 +36,7 @@ import pkg_resources
 
 from click_default_group import DefaultGroup
 
+from conda_lock.common import read_file, read_json, write_file
 from conda_lock.src_parser import LockSpecification
 from conda_lock.src_parser.environment_yaml import parse_environment_file
 from conda_lock.src_parser.meta_yaml import parse_meta_yaml_file
@@ -31,6 +45,11 @@ from conda_lock.src_parser.pyproject_toml import parse_pyproject_toml
 
 PathLike = Union[str, pathlib.Path]
 
+# Captures basic auth credentials, if they exists, in the second capture group.
+AUTH_PATTERN = re.compile(r"^(https?:\/\/)(.*:.*@)?(.*)")
+
+# Captures the domain in the second group.
+DOMAIN_PATTERN = re.compile(r"^(https?:\/\/)?([^\/]+)(.*)")
 
 if not (sys.version_info.major >= 3 and sys.version_info.minor >= 6):
     print("conda_lock needs to run under python >=3.6")
@@ -503,6 +522,57 @@ def determine_conda_executable(
     raise RuntimeError("Could not find conda (or compatible) executable")
 
 
+def _add_auth_to_line(line: str, auth: Dict[str, str]):
+    search = DOMAIN_PATTERN.search(line)
+    if search and search.group(2) in auth:
+        return f"{search.group(1)}{auth[search.group(2)]}@{search.group(2)}{search.group(3)}"
+    return line
+
+
+def _add_auth_to_lockfile(lockfile: str, auth: Dict[str, str]) -> str:
+    lockfile_with_auth = "\n".join(
+        _add_auth_to_line(line, auth) if line[0] not in ("#", "@") else line
+        for line in lockfile.strip().split("\n")
+    )
+    if lockfile.endswith("\n"):
+        return lockfile_with_auth + "\n"
+    return lockfile_with_auth
+
+
+@contextmanager
+def _add_auth(lockfile: str, auth: Dict[str, str]) -> Iterator[str]:
+    with tempfile.NamedTemporaryFile() as tf:
+        lockfile_with_auth = _add_auth_to_lockfile(lockfile, auth)
+        write_file(lockfile_with_auth, tf.name)
+        yield tf.name
+
+
+def _strip_auth_from_line(line: str) -> str:
+    return AUTH_PATTERN.sub(r"\1\3", line)
+
+
+def _extract_domain(line: str) -> str:
+    return DOMAIN_PATTERN.sub(r"\2", line)
+
+
+def _strip_auth_from_lockfile(lockfile: str) -> str:
+    lockfile_lines = lockfile.strip().split("\n")
+    stripped_lockfile_lines = tuple(
+        _strip_auth_from_line(line) if line[0] not in ("#", "@") else line
+        for line in lockfile_lines
+    )
+    stripped_domains = sorted(
+        {
+            _extract_domain(stripped_line)
+            for line, stripped_line in zip(lockfile_lines, stripped_lockfile_lines)
+            if line != stripped_line
+        }
+    )
+    stripped_domains_doc = "\n".join(f"# - {domain}" for domain in stripped_domains)
+    stripped_lockfile = "\n".join(stripped_lockfile_lines)
+    return f"# The following domains require authentication:\n{stripped_domains_doc}\n{stripped_lockfile}\n"
+
+
 def run_lock(
     environment_files: List[pathlib.Path],
     conda_exe: Optional[str],
@@ -577,6 +647,12 @@ def main():
     default="conda-{platform}.lock",
     help="Template for the lock file names. Must include {platform} token. For a full list and description of available tokens, see the command help text.",
 )
+@click.option(
+    "--strip-auth",
+    is_flag=True,
+    default=False,
+    help="Strip the basic auth credentials from the lockfile.",
+)
 # @click.option(
 #     "-m",
 #     "--mode",
@@ -596,6 +672,7 @@ def lock(
     dev_dependencies,
     files,
     filename_template,
+    strip_auth,
 ):
     """Generate fully reproducible lock files for conda environments.
 
@@ -610,7 +687,8 @@ def lock(
         timestamp: The approximate timestamp of the output file in ISO8601 basic format.
     """
     files = [pathlib.Path(file) for file in files]
-    run_lock(
+    lock_func = partial(
+        run_lock,
         environment_files=files,
         conda_exe=conda,
         platforms=platform,
@@ -618,8 +696,18 @@ def lock(
         micromamba=micromamba,
         include_dev_dependencies=dev_dependencies,
         channel_overrides=channel_overrides,
-        filename_template=filename_template,
     )
+    if strip_auth:
+        with tempfile.TemporaryDirectory() as tempdir:
+            filename_template_temp = f"{tempdir}/{filename_template.split('/')[-1]}"
+            lock_func(filename_template=filename_template_temp)
+            filename_template_dir = "/".join(filename_template.split("/")[:-1])
+            for file in os.listdir(tempdir):
+                lockfile = read_file(os.path.join(tempdir, file))
+                lockfile = _strip_auth_from_lockfile(lockfile)
+                write_file(lockfile, os.path.join(filename_template_dir, file))
+    else:
+        lock_func(filename_template=filename_template)
 
 
 @main.command("install")
@@ -636,11 +724,19 @@ def lock(
 )
 @click.option("-p", "--prefix", help="Full path to environment location (i.e. prefix).")
 @click.option("-n", "--name", help="Name of environment.")
+@click.option("--auth-file", help="Path to the authentication file.", default="")
 @click.argument("lock-file")
-def install(conda, mamba, micromamba, prefix, name, lock_file):
+def install(conda, mamba, micromamba, prefix, name, lock_file, auth_file):
     """Perform a conda install"""
+    auth = read_json(auth_file) if auth_file else None
     _conda_exe = determine_conda_executable(conda, mamba=mamba, micromamba=micromamba)
-    do_conda_install(conda=_conda_exe, prefix=prefix, name=name, file=lock_file)
+    install_func = partial(do_conda_install, conda=_conda_exe, prefix=prefix, name=name)
+    if auth:
+        lockfile = read_file(lock_file)
+        with _add_auth(lockfile, auth) as lockfile_with_auth:
+            install_func(file=lockfile_with_auth)
+    else:
+        install_func(file=lock_file)
 
 
 if __name__ == "__main__":

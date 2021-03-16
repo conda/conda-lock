@@ -78,6 +78,29 @@ is being built from support them).  This can be disabled easily
 conda-lock --no-dev-dependencies -f ./recipe/meta.yaml
 ```
 
+#### --strip-auth and --auth-file
+
+By default `conda-lock` will leave basic auth credentials for private conda channels in the lock file. If you wish to strip authentication from the file, provide the `--strip-auth` argument.
+
+```
+conda-lock --strip-auth -f environment.yml
+```
+
+In order to `conda-lock install` a lock file with its basic auth credentials stripped, you will need to create an authentication file in `.json` format like this:
+
+```json
+{
+  "domain": "username:password",
+  // ...
+}
+```
+
+Then, you need to provide the path to the authentication file through the `--auth-file` argument.
+
+```
+conda-lock install --auth-file auth.json conda-linux-64.lock
+```
+
 ## Supported file sources
 
 Conda lock supports more than just [environment.yml][envyaml] specifications!
