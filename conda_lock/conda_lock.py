@@ -9,6 +9,7 @@ import logging
 import os
 import pathlib
 import re
+import shlex
 import shutil
 import subprocess
 import sys
@@ -94,6 +95,9 @@ def solve_specs_for_arch(
         "--dry-run",
         "--json",
     ]
+    conda_flags = os.environ.get("CONDA_FLAGS")
+    if conda_flags:
+        args.extend(shlex.split(conda_flags))
     if channels:
         args.append("--override-channels")
     for channel in channels:
@@ -164,6 +168,9 @@ def do_conda_install(conda: PathLike, prefix: str, name: str, file: str) -> None
     if name:
         args.append("--name")
         args.append(name)
+    conda_flags = os.environ.get("CONDA_FLAGS")
+    if conda_flags:
+        args.extend(shlex.split(conda_flags))
 
     logging.debug("$MAMBA_ROOT_PREFIX: %s", os.environ.get("MAMBA_ROOT_PREFIX"))
     proc = subprocess.run(
