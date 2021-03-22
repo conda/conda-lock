@@ -568,9 +568,13 @@ def _strip_auth_from_lockfile(lockfile: str) -> str:
             if line != stripped_line
         }
     )
-    stripped_domains_doc = "\n".join(f"# - {domain}" for domain in stripped_domains)
     stripped_lockfile = "\n".join(stripped_lockfile_lines)
-    return f"# The following domains require authentication:\n{stripped_domains_doc}\n{stripped_lockfile}\n"
+    if lockfile.endswith("\n"):
+        stripped_lockfile += "\n"
+    if stripped_domains:
+        stripped_domains_doc = "\n".join(f"# - {domain}" for domain in stripped_domains)
+        return f"# The following domains require authentication:\n{stripped_domains_doc}\n{stripped_lockfile}"
+    return stripped_lockfile
 
 
 def run_lock(

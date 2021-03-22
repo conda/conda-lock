@@ -350,7 +350,7 @@ def _read_file(filepath):
                 .joinpath(f"{filename}.lock")
             ),
         )
-        for filename in ("test",)
+        for filename in ("test", "no-auth")
     ),
 )
 def test__strip_auth_from_lockfile(lockfile, stripped_lockfile):
