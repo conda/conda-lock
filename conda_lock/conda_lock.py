@@ -159,7 +159,6 @@ def do_conda_install(conda: PathLike, prefix: str, name: str, file: str) -> None
         "--file",
         file,
         "--yes",
-        "--json",
     ]
 
     if prefix:
@@ -173,40 +172,26 @@ def do_conda_install(conda: PathLike, prefix: str, name: str, file: str) -> None
         args.extend(shlex.split(conda_flags))
 
     logging.debug("$MAMBA_ROOT_PREFIX: %s", os.environ.get("MAMBA_ROOT_PREFIX"))
-    proc = subprocess.run(
+
+    with subprocess.Popen(
         args,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
-        encoding="utf8",
-    )
-    logging.debug("install process: %s", proc)
+        bufsize=1,
+        universal_newlines=True,
+    ) as p:
+        if p.stdout:
+            for line in p.stdout:
+                logging.info(line if not line.endswith("\n") else line[:-1])
 
-    def print_proc(proc):
-        print(f"    Command: {proc.args}")
-        if proc.stdout:
-            print(f"    STDOUT:\n{proc.stdout}")
-        if proc.stderr:
-            print(f"    STDERR:\n{proc.stderr}")
-
-    try:
-        proc.check_returncode()
-    except subprocess.CalledProcessError:
-        print(
-            f"Could not perform conda install using {file} lock file into {name or prefix}"
-        )
-        print(_handle_subprocess_stdout(proc.stdout))
-        print_proc(proc)
-        sys.exit(1)
-
-
-def _handle_subprocess_stdout(stdout):
-    try:
-        err_json = json.loads(stdout.split("\x00")[-1])
-        if err_json.get("exception_name") == "CondaMultiError":
-            return "\n\n".join(error["message"] for error in err_json["errors"])
-        return err_json["message"]
-    except json.JSONDecodeError as e:
-        return f"Failed to parse json, {e}"
+        if p.returncode != 0:
+            if p.stderr:
+                for line in p.stderr:
+                    logging.error(line if not line.endswith("\n") else line[:-1])
+            print(
+                f"Could not perform conda install using {file} lock file into {name or prefix}"
+            )
+            sys.exit(1)
 
 
 def search_for_md5s(
@@ -568,9 +553,13 @@ def _strip_auth_from_lockfile(lockfile: str) -> str:
             if line != stripped_line
         }
     )
-    stripped_domains_doc = "\n".join(f"# - {domain}" for domain in stripped_domains)
     stripped_lockfile = "\n".join(stripped_lockfile_lines)
-    return f"# The following domains require authentication:\n{stripped_domains_doc}\n{stripped_lockfile}\n"
+    if lockfile.endswith("\n"):
+        stripped_lockfile += "\n"
+    if stripped_domains:
+        stripped_domains_doc = "\n".join(f"# - {domain}" for domain in stripped_domains)
+        return f"# The following domains require authentication:\n{stripped_domains_doc}\n{stripped_lockfile}"
+    return stripped_lockfile
 
 
 def run_lock(
@@ -653,6 +642,12 @@ def main():
     default=False,
     help="Strip the basic auth credentials from the lockfile.",
 )
+@click.option(
+    "--log-level",
+    help="Log level.",
+    default="INFO",
+    type=click.Choice(["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]),
+)
 # @click.option(
 #     "-m",
 #     "--mode",
@@ -673,6 +668,7 @@ def lock(
     files,
     filename_template,
     strip_auth,
+    log_level,
 ):
     """Generate fully reproducible lock files for conda environments.
 
@@ -686,6 +682,7 @@ def lock(
         version: The version of conda-lock used to generate this lock file.
         timestamp: The approximate timestamp of the output file in ISO8601 basic format.
     """
+    logging.basicConfig(level=log_level)
     files = [pathlib.Path(file) for file in files]
     lock_func = partial(
         run_lock,
@@ -725,9 +722,16 @@ def lock(
 @click.option("-p", "--prefix", help="Full path to environment location (i.e. prefix).")
 @click.option("-n", "--name", help="Name of environment.")
 @click.option("--auth-file", help="Path to the authentication file.", default="")
+@click.option(
+    "--log-level",
+    help="Log level.",
+    default="INFO",
+    type=click.Choice(["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]),
+)
 @click.argument("lock-file")
-def install(conda, mamba, micromamba, prefix, name, lock_file, auth_file):
+def install(conda, mamba, micromamba, prefix, name, lock_file, auth_file, log_level):
     """Perform a conda install"""
+    logging.basicConfig(level=log_level)
     auth = read_json(auth_file) if auth_file else None
     _conda_exe = determine_conda_executable(conda, mamba=mamba, micromamba=micromamba)
     install_func = partial(do_conda_install, conda=_conda_exe, prefix=prefix, name=name)
