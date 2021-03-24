@@ -728,11 +728,16 @@ def lock(
 )
 @click.option("-p", "--prefix", help="Full path to environment location (i.e. prefix).")
 @click.option("-n", "--name", help="Name of environment.")
+@click.option(
+    "--auth",
+    help="The auth file provided as string. Has precedence over `--auth-file`.",
+    default="",
+)
 @click.option("--auth-file", help="Path to the authentication file.", default="")
 @click.argument("lock-file")
-def install(conda, mamba, micromamba, prefix, name, lock_file, auth_file):
+def install(conda, mamba, micromamba, prefix, name, lock_file, auth, auth_file):
     """Perform a conda install"""
-    auth = read_json(auth_file) if auth_file else None
+    auth = json.loads(auth) if auth else read_json(auth_file) if auth_file else None
     _conda_exe = determine_conda_executable(conda, mamba=mamba, micromamba=micromamba)
     install_func = partial(do_conda_install, conda=_conda_exe, prefix=prefix, name=name)
     if auth:

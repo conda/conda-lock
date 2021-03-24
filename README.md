@@ -78,7 +78,7 @@ is being built from support them).  This can be disabled easily
 conda-lock --no-dev-dependencies -f ./recipe/meta.yaml
 ```
 
-#### --strip-auth and --auth-file
+#### --strip-auth, --auth and --auth-file
 
 By default `conda-lock` will leave basic auth credentials for private conda channels in the lock file. If you wish to strip authentication from the file, provide the `--strip-auth` argument.
 
@@ -95,7 +95,7 @@ In order to `conda-lock install` a lock file with its basic auth credentials str
 }
 ```
 
-Then, you need to provide the path to the authentication file through the `--auth-file` argument.
+You can provide the authentication either as string through `--auth` or as a filepath through `--auth-file`.
 
 ```
 conda-lock install --auth-file auth.json conda-linux-64.lock
