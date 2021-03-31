@@ -184,14 +184,15 @@ def do_conda_install(conda: PathLike, prefix: str, name: str, file: str) -> None
             for line in p.stdout:
                 logging.info(line if not line.endswith("\n") else line[:-1])
 
-        if p.returncode != 0:
-            if p.stderr:
-                for line in p.stderr:
-                    logging.error(line if not line.endswith("\n") else line[:-1])
-            print(
-                f"Could not perform conda install using {file} lock file into {name or prefix}"
-            )
-            sys.exit(1)
+        if p.stderr:
+            for line in p.stderr:
+                logging.error(line if not line.endswith("\n") else line[:-1])
+
+    if p.returncode != 0:
+        print(
+            f"Could not perform conda install using {file} lock file into {name or prefix}"
+        )
+        sys.exit(1)
 
 
 def search_for_md5s(
@@ -721,6 +722,11 @@ def lock(
 )
 @click.option("-p", "--prefix", help="Full path to environment location (i.e. prefix).")
 @click.option("-n", "--name", help="Name of environment.")
+@click.option(
+    "--auth",
+    help="The auth file provided as string. Has precedence over `--auth-file`.",
+    default="",
+)
 @click.option("--auth-file", help="Path to the authentication file.", default="")
 @click.option(
     "--log-level",
@@ -729,10 +735,12 @@ def lock(
     type=click.Choice(["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]),
 )
 @click.argument("lock-file")
-def install(conda, mamba, micromamba, prefix, name, lock_file, auth_file, log_level):
+def install(
+    conda, mamba, micromamba, prefix, name, lock_file, auth, auth_file, log_level
+):
     """Perform a conda install"""
     logging.basicConfig(level=log_level)
-    auth = read_json(auth_file) if auth_file else None
+    auth = json.loads(auth) if auth else read_json(auth_file) if auth_file else None
     _conda_exe = determine_conda_executable(conda, mamba=mamba, micromamba=micromamba)
     install_func = partial(do_conda_install, conda=_conda_exe, prefix=prefix, name=name)
     if auth:
