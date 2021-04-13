@@ -148,6 +148,20 @@ def solve_specs_for_arch(
         sys.exit(1)
 
 
+def _process_stdout(stdout):
+    cache = set()
+    for logline in stdout:
+        if logline.endswith("\n"):
+            logline = logline[:-1]
+        if "%" in logline:
+            logline = logline.split()[0]
+            if logline not in cache:
+                yield logline
+                cache.add(logline)
+        else:
+            yield logline
+
+
 def do_conda_install(conda: PathLike, prefix: str, name: str, file: str) -> None:
 
     if prefix and name:
@@ -181,8 +195,8 @@ def do_conda_install(conda: PathLike, prefix: str, name: str, file: str) -> None
         universal_newlines=True,
     ) as p:
         if p.stdout:
-            for line in p.stdout:
-                logging.info(line if not line.endswith("\n") else line[:-1])
+            for line in _process_stdout(p.stdout):
+                logging.info(line)
 
         if p.stderr:
             for line in p.stderr:
