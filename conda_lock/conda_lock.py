@@ -201,7 +201,7 @@ def do_conda_install(conda: PathLike, prefix: str, name: str, file: str) -> None
 
         if p.stderr:
             for line in p.stderr:
-                logging.error(line if not line.endswith("\n") else line[:-1])
+                logging.error(line.rstrip())
 
     if p.returncode != 0:
         print(
