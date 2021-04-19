@@ -16,7 +16,6 @@ from conda_lock.conda_lock import (
     _add_auth_to_lockfile,
     _ensureconda,
     _extract_domain,
-    _handle_subprocess_stdout,
     _strip_auth_from_line,
     _strip_auth_from_lockfile,
     aggregate_lock_specs,
@@ -404,25 +403,3 @@ def auth_():
 )
 def test__add_auth_to_lockfile(stripped_lockfile, lockfile_with_auth, auth):
     assert _add_auth_to_lockfile(stripped_lockfile, auth) == lockfile_with_auth
-
-
-@pytest.mark.parametrize(
-    "stdout,message",
-    tuple(
-        (
-            _read_file(
-                pathlib.Path(__file__)
-                .parent.joinpath("test-stdout")
-                .joinpath(f"{filename}.txt")
-            ),
-            _read_file(
-                pathlib.Path(__file__)
-                .parent.joinpath("test-message")
-                .joinpath(f"{filename}.txt")
-            ),
-        )
-        for filename in ("conda", "mamba")
-    ),
-)
-def test__handle_subprocess_stdout(stdout, message):
-    assert _handle_subprocess_stdout(stdout) == message
