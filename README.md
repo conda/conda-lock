@@ -18,9 +18,9 @@ various places.
 
 ## installation
 
-```
+```bash
 pip install conda-lock
-conda install conda-lock
+conda install -c conda-forge conda-lock
 ```
 
 ## Basic usage
