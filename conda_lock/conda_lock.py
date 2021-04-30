@@ -173,7 +173,6 @@ def do_conda_install(conda: PathLike, prefix: str, name: str, file: str) -> None
         "--file",
         file,
         "--yes",
-        "--quiet",
     ]
 
     if prefix:
