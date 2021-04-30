@@ -150,9 +150,13 @@ def solve_specs_for_arch(
 
 def _process_stdout(stdout):
     cache = set()
+    extracting_packages = False
     for logline in stdout:
-        if logline.endswith("\n"):
-            logline = logline[:-1]
+        logline = logline.rstrip()
+        if logline == "Downloading and Extracting Packages":
+            extracting_packages = True
+        if not logline and extracting_packages:
+            continue
         if "%" in logline:
             logline = logline.split()[0]
             if logline not in cache:
