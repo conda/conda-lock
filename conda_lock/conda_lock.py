@@ -151,11 +151,14 @@ def solve_specs_for_arch(
 def _process_stdout(stdout):
     cache = set()
     extracting_packages = False
+    leading_empty = True
     for logline in stdout:
         logline = logline.rstrip()
+        if logline:
+            leading_empty = False
         if logline == "Downloading and Extracting Packages":
             extracting_packages = True
-        if not logline and extracting_packages:
+        if not logline and (extracting_packages or leading_empty):
             continue
         if "%" in logline:
             logline = logline.split()[0]
