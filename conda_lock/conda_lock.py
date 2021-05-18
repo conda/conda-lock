@@ -184,6 +184,27 @@ def solve_specs_for_arch(
         sys.exit(1)
 
 
+def _process_stdout(stdout):
+    cache = set()
+    extracting_packages = False
+    leading_empty = True
+    for logline in stdout:
+        logline = logline.rstrip()
+        if logline:
+            leading_empty = False
+        if logline == "Downloading and Extracting Packages":
+            extracting_packages = True
+        if not logline and (extracting_packages or leading_empty):
+            continue
+        if "%" in logline:
+            logline = logline.split()[0]
+            if logline not in cache:
+                yield logline
+                cache.add(logline)
+        else:
+            yield logline
+
+
 def do_conda_install(conda: PathLike, prefix: str, name: str, file: str) -> None:
 
     if prefix and name:
@@ -195,7 +216,6 @@ def do_conda_install(conda: PathLike, prefix: str, name: str, file: str) -> None
         "--file",
         file,
         "--yes",
-        "--json",
     ]
 
     if prefix:
@@ -209,40 +229,27 @@ def do_conda_install(conda: PathLike, prefix: str, name: str, file: str) -> None
         args.extend(shlex.split(conda_flags))
 
     logging.debug("$MAMBA_ROOT_PREFIX: %s", os.environ.get("MAMBA_ROOT_PREFIX"))
-    proc = subprocess.run(
+
+    with subprocess.Popen(
         args,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
-        encoding="utf8",
-    )
-    logging.debug("install process: %s", proc)
+        bufsize=1,
+        universal_newlines=True,
+    ) as p:
+        if p.stdout:
+            for line in _process_stdout(p.stdout):
+                logging.info(line)
 
-    def print_proc(proc):
-        print(f"    Command: {proc.args}")
-        if proc.stdout:
-            print(f"    STDOUT:\n{proc.stdout}")
-        if proc.stderr:
-            print(f"    STDERR:\n{proc.stderr}")
+        if p.stderr:
+            for line in p.stderr:
+                logging.error(line.rstrip())
 
-    try:
-        proc.check_returncode()
-    except subprocess.CalledProcessError:
+    if p.returncode != 0:
         print(
             f"Could not perform conda install using {file} lock file into {name or prefix}"
         )
-        print(_handle_subprocess_stdout(proc.stdout))
-        print_proc(proc)
         sys.exit(1)
-
-
-def _handle_subprocess_stdout(stdout):
-    try:
-        err_json = json.loads(stdout.split("\x00")[-1])
-        if err_json.get("exception_name") == "CondaMultiError":
-            return "\n\n".join(error["message"] for error in err_json["errors"])
-        return err_json["message"]
-    except json.JSONDecodeError as e:
-        return f"Failed to parse json, {e}"
 
 
 def search_for_md5s(
@@ -693,6 +700,12 @@ def main():
     default=False,
     help="Strip the basic auth credentials from the lockfile.",
 )
+@click.option(
+    "--log-level",
+    help="Log level.",
+    default="INFO",
+    type=click.Choice(["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]),
+)
 # @click.option(
 #     "-m",
 #     "--mode",
@@ -713,6 +726,7 @@ def lock(
     files,
     filename_template,
     strip_auth,
+    log_level,
 ):
     """Generate fully reproducible lock files for conda environments.
 
@@ -726,6 +740,7 @@ def lock(
         version: The version of conda-lock used to generate this lock file.
         timestamp: The approximate timestamp of the output file in ISO8601 basic format.
     """
+    logging.basicConfig(level=log_level)
     files = [pathlib.Path(file) for file in files]
     lock_func = partial(
         run_lock,
@@ -776,6 +791,12 @@ def lock(
     default=True,
     help="Whether the platform compatibility between your lockfile and the host system should be validated.",
 )
+@click.option(
+    "--log-level",
+    help="Log level.",
+    default="INFO",
+    type=click.Choice(["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]),
+)
 @click.argument("lock-file")
 def install(
     conda,
@@ -787,8 +808,10 @@ def install(
     auth,
     auth_file,
     validate_platform,
+    log_level
 ):
     """Perform a conda install"""
+    logging.basicConfig(level=log_level)
     auth = json.loads(auth) if auth else read_json(auth_file) if auth_file else None
     _conda_exe = determine_conda_executable(conda, mamba=mamba, micromamba=micromamba)
     install_func = partial(do_conda_install, conda=_conda_exe, prefix=prefix, name=name)
