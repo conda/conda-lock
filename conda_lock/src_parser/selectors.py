@@ -11,6 +11,7 @@ def filter_platform_selectors(content: str, platform) -> Iterator[str]:
         "linux-aarch64": {"aarch64", "unix", "linux"},
         "linux-ppc64le": {"ppc64le", "unix", "linux"},
         "osx-64": {"osx", "osx64", "unix"},
+        "osx-arm64": {"arm64", "osx", "unix"},
         "win-64": {"win", "win64"},
     }
 
