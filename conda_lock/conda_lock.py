@@ -808,7 +808,7 @@ def install(
     auth,
     auth_file,
     validate_platform,
-    log_level
+    log_level,
 ):
     """Perform a conda install"""
     logging.basicConfig(level=log_level)
