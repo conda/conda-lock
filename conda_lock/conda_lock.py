@@ -37,6 +37,7 @@ import pkg_resources
 from click_default_group import DefaultGroup
 
 from conda_lock.common import read_file, read_json, write_file
+from conda_lock.errors import PlatformValidationError
 from conda_lock.src_parser import LockSpecification
 from conda_lock.src_parser.environment_yaml import parse_environment_file
 from conda_lock.src_parser.meta_yaml import parse_meta_yaml_file
@@ -91,7 +92,7 @@ def do_validate_platform(lockfile: str):
     except KeyError:
         raise RuntimeError(f"Unknown platform type in lockfile '{platform_lockfile}'.")
     if not success:
-        raise RuntimeError(
+        raise PlatformValidationError(
             f"Platform in lockfile '{platform_lockfile}' is not compatible with system platform '{platform_sys}'."
         )
 
@@ -796,8 +797,8 @@ def install(
         lockfile = read_file(lock_file)
         try:
             do_validate_platform(lockfile)
-        except RuntimeError as error:
-            raise RuntimeError(
+        except PlatformValidationError as error:
+            raise PlatformValidationError(
                 error.args[0] + " Disable validation with `--validate-platform=False`."
             )
     if auth:
