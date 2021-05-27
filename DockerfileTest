@@ -1,0 +1,11 @@
+FROM condaforge/mambaforge
+
+COPY . conda-lock/
+
+RUN mamba install pip -y
+RUN pip install conda-lock/.
+
+CMD conda-lock install \
+    --name test \
+    --mamba \
+    conda-lock/test.lock
