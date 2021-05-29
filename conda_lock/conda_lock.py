@@ -63,8 +63,6 @@ if not (sys.version_info.major >= 3 and sys.version_info.minor >= 6):
 CONDA_PKGS_DIRS = None
 DEFAULT_PLATFORMS = ["osx-64", "linux-64", "win-64"]
 
-_PLATFORM_MAP = {"osx-64": "darwin", "linux-64": "linux", "win-64": "win"}
-
 
 def _extract_platform(line: str) -> Optional[str]:
     search = PLATFORM_PATTERN.search(line)
@@ -82,7 +80,10 @@ def extract_platform(lockfile: str) -> str:
 
 
 def _do_validate_platform(platform: str) -> Tuple[bool, str]:
-    return sys.platform.startswith(_PLATFORM_MAP[platform]), sys.platform
+    from ensureconda.resolve import platform_subdir
+
+    determined_subdir = platform_subdir()
+    return platform == determined_subdir, platform
 
 
 def do_validate_platform(lockfile: str):
