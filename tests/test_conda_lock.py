@@ -266,6 +266,9 @@ def test_install(tmp_path, conda_exe, zlib_environment, monkeypatch):
             lock_filename_template,
         ],
     )
+    if result.exit_code != 0:
+        print(result.stdout, file=sys.stdout)
+        print(result.stderr, file=sys.stderr)
     assert result.exit_code == 0
 
     env_name = "test_env"
@@ -291,7 +294,7 @@ def test_install(tmp_path, conda_exe, zlib_environment, monkeypatch):
         "lockfile contents: \n\n=======\n%s\n\n==========",
         pathlib.Path(lock_filename).read_text(),
     )
-    if sys.platform.lower().startswith('linux'):
+    if sys.platform.lower().startswith("linux"):
         assert result.exit_code == 0
         assert _check_package_installed(
             package=package,

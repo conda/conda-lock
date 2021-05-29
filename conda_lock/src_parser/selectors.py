@@ -4,7 +4,7 @@ from typing import Iterator
 
 
 def filter_platform_selectors(content: str, platform) -> Iterator[str]:
-    """"""
+    """ """
     # we support a very limited set of selectors that adhere to platform only
     platform_sel = {
         "linux-64": {"linux64", "unix", "linux"},
