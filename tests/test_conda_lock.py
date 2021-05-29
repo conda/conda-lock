@@ -300,9 +300,6 @@ def test_install(tmp_path, conda_exe, zlib_environment, monkeypatch):
     else:
         # since by default we do platform validation we would expect this to fail
         assert result.exit_code != 0
-        # validate that forcibly installing works
-        result = invoke_install("--no-validate-platform")
-        assert result.exit_code == 0
 
 
 @pytest.mark.parametrize(
