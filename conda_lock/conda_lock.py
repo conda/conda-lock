@@ -37,6 +37,7 @@ import pkg_resources
 from click_default_group import DefaultGroup
 
 from conda_lock.common import read_file, read_json, write_file
+from conda_lock.errors import PlatformValidationError
 from conda_lock.src_parser import LockSpecification
 from conda_lock.src_parser.environment_yaml import parse_environment_file
 from conda_lock.src_parser.meta_yaml import parse_meta_yaml_file
@@ -51,6 +52,9 @@ AUTH_PATTERN = re.compile(r"^(https?:\/\/)(.*:.*@)?(.*)")
 # Captures the domain in the second group.
 DOMAIN_PATTERN = re.compile(r"^(https?:\/\/)?([^\/]+)(.*)")
 
+# Captures the platform in the first group.
+PLATFORM_PATTERN = re.compile(r"^# platform: (.*)$")
+
 if not (sys.version_info.major >= 3 and sys.version_info.minor >= 6):
     print("conda_lock needs to run under python >=3.6")
     sys.exit(1)
@@ -58,6 +62,40 @@ if not (sys.version_info.major >= 3 and sys.version_info.minor >= 6):
 
 CONDA_PKGS_DIRS = None
 DEFAULT_PLATFORMS = ["osx-64", "linux-64", "win-64"]
+
+
+def _extract_platform(line: str) -> Optional[str]:
+    search = PLATFORM_PATTERN.search(line)
+    if search:
+        return search.group(1)
+    return None
+
+
+def extract_platform(lockfile: str) -> str:
+    for line in lockfile.strip().split("\n"):
+        platform = _extract_platform(line)
+        if platform:
+            return platform
+    raise RuntimeError("Cannot find platform in lockfile.")
+
+
+def _do_validate_platform(platform: str) -> Tuple[bool, str]:
+    from ensureconda.resolve import platform_subdir
+
+    determined_subdir = platform_subdir()
+    return platform == determined_subdir, platform
+
+
+def do_validate_platform(lockfile: str):
+    platform_lockfile = extract_platform(lockfile)
+    try:
+        success, platform_sys = _do_validate_platform(platform_lockfile)
+    except KeyError:
+        raise RuntimeError(f"Unknown platform type in lockfile '{platform_lockfile}'.")
+    if not success:
+        raise PlatformValidationError(
+            f"Platform in lockfile '{platform_lockfile}' is not compatible with system platform '{platform_sys}'."
+        )
 
 
 def conda_pkgs_dir():
@@ -750,6 +788,12 @@ def lock(
 )
 @click.option("--auth-file", help="Path to the authentication file.", default="")
 @click.option(
+    "--validate-platform",
+    is_flag=True,
+    default=True,
+    help="Whether the platform compatibility between your lockfile and the host system should be validated.",
+)
+@click.option(
     "--log-level",
     help="Log level.",
     default="INFO",
@@ -757,13 +801,30 @@ def lock(
 )
 @click.argument("lock-file")
 def install(
-    conda, mamba, micromamba, prefix, name, lock_file, auth, auth_file, log_level
+    conda,
+    mamba,
+    micromamba,
+    prefix,
+    name,
+    lock_file,
+    auth,
+    auth_file,
+    validate_platform,
+    log_level,
 ):
     """Perform a conda install"""
     logging.basicConfig(level=log_level)
     auth = json.loads(auth) if auth else read_json(auth_file) if auth_file else None
     _conda_exe = determine_conda_executable(conda, mamba=mamba, micromamba=micromamba)
     install_func = partial(do_conda_install, conda=_conda_exe, prefix=prefix, name=name)
+    if validate_platform:
+        lockfile = read_file(lock_file)
+        try:
+            do_validate_platform(lockfile)
+        except PlatformValidationError as error:
+            raise PlatformValidationError(
+                error.args[0] + " Disable validation with `--validate-platform=False`."
+            )
     if auth:
         lockfile = read_file(lock_file)
         with _add_auth(lockfile, auth) as lockfile_with_auth:

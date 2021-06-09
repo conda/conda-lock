@@ -7,4 +7,4 @@
 .idea/
 build/
 dist/
-
+venv/

@@ -266,31 +266,43 @@ def test_install(tmp_path, conda_exe, zlib_environment, monkeypatch):
             lock_filename_template,
         ],
     )
+    if result.exit_code != 0:
+        print(result.stdout, file=sys.stdout)
+        print(result.stderr, file=sys.stderr)
     assert result.exit_code == 0
 
     env_name = "test_env"
-    result = runner.invoke(
-        main,
-        [
-            "install",
-            "--conda",
-            conda_exe,
-            "--prefix",
-            tmp_path / env_name,
-            lock_filename,
-        ],
-    )
+
+    def invoke_install(*extra_args):
+        return runner.invoke(
+            main,
+            [
+                "install",
+                "--conda",
+                conda_exe,
+                "--prefix",
+                tmp_path / env_name,
+                *extra_args,
+                lock_filename,
+            ],
+        )
+
+    result = invoke_install()
     print(result.stdout, file=sys.stdout)
     print(result.stderr, file=sys.stderr)
     logging.debug(
         "lockfile contents: \n\n=======\n%s\n\n==========",
         pathlib.Path(lock_filename).read_text(),
     )
-    assert result.exit_code == 0
-    assert _check_package_installed(
-        package=package,
-        prefix=str(tmp_path / env_name),
-    ), f"Package {package} does not exist in {tmp_path} environment"
+    if sys.platform.lower().startswith("linux"):
+        assert result.exit_code == 0
+        assert _check_package_installed(
+            package=package,
+            prefix=str(tmp_path / env_name),
+        ), f"Package {package} does not exist in {tmp_path} environment"
+    else:
+        # since by default we do platform validation we would expect this to fail
+        assert result.exit_code != 0
 
 
 @pytest.mark.parametrize(
