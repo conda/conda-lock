@@ -324,6 +324,7 @@ def make_lock_files(
     include_dev_dependencies: bool = True,
     channel_overrides: Optional[Sequence[str]] = None,
     filename_template: Optional[str] = None,
+    output_environment: bool = False,
 ):
     """Generate the lock files for the given platforms from the src file provided
 
@@ -367,7 +368,10 @@ def make_lock_files(
             channels = lock_spec.channels
 
         lockfile_contents = create_lockfile_from_spec(
-            channels=channels, conda=conda, spec=lock_spec
+            channels=channels,
+            conda=conda,
+            spec=lock_spec,
+            output_environment=output_environment,
         )
 
         def sanitize_lockfile_line(line):
@@ -389,6 +393,8 @@ def make_lock_files(
             filename = filename_template.format(**context)
         else:
             filename = f"conda-{lock_spec.platform}.lock"
+        if output_environment and not filename.endswith(".yml"):
+            filename += ".yml"
         with open(filename, "w") as fo:
             fo.write(
                 "\n".join(sanitize_lockfile_line(ln) for ln in lockfile_contents) + "\n"
@@ -407,7 +413,11 @@ def is_micromamba(conda: PathLike) -> bool:
 
 
 def create_lockfile_from_spec(
-    *, channels: Sequence[str], conda: PathLike, spec: LockSpecification
+    *,
+    channels: Sequence[str],
+    conda: PathLike,
+    spec: LockSpecification,
+    output_environment: bool,
 ) -> List[str]:
     dry_run_install = solve_specs_for_arch(
         conda=conda,
@@ -416,54 +426,73 @@ def create_lockfile_from_spec(
         specs=spec.specs,
     )
     logging.debug("dry_run_install:\n%s", dry_run_install)
-    lockfile_contents = [
-        f"# platform: {spec.platform}",
-        f"# env_hash: {spec.env_hash()}\n",
-        "@EXPLICIT\n",
-    ]
 
-    link_actions = dry_run_install["actions"]["LINK"]
-    for link in link_actions:
-        if is_micromamba(conda):
-            link["url_base"] = fn_to_dist_name(link["url"])
-            link["dist_name"] = fn_to_dist_name(link["fn"])
-        else:
-            link[
-                "url_base"
-            ] = f"{link['base_url']}/{link['platform']}/{link['dist_name']}"
+    if output_environment:
+        link_actions = dry_run_install["actions"]["LINK"]
+        lockfile_contents = [
+            "channels:\n",
+            *(f"- {channel}\n" for channel in channels),
+            "dependencies:\n",
+            *(
+                f'- {pkg["name"]}={pkg["version"]}={pkg["build_string"]}'
+                for pkg in link_actions
+            ),
+        ]
+    else:
+        lockfile_contents = [
+            f"# platform: {spec.platform}",
+            f"# env_hash: {spec.env_hash()}\n",
+            "@EXPLICIT\n",
+        ]
 
-        link["url"] = f"{link['url_base']}.tar.bz2"
-        link["url_conda"] = f"{link['url_base']}.conda"
-    link_dists = {link["dist_name"] for link in link_actions}
+        link_actions = dry_run_install["actions"]["LINK"]
+        for link in link_actions:
+            if is_micromamba(conda):
+                link["url_base"] = fn_to_dist_name(link["url"])
+                link["dist_name"] = fn_to_dist_name(link["fn"])
+            else:
+                link[
+                    "url_base"
+                ] = f"{link['base_url']}/{link['platform']}/{link['dist_name']}"
 
-    fetch_actions = dry_run_install["actions"]["FETCH"]
+            link["url"] = f"{link['url_base']}.tar.bz2"
+            link["url_conda"] = f"{link['url_base']}.conda"
+        link_dists = {link["dist_name"] for link in link_actions}
 
-    fetch_by_dist_name = {fn_to_dist_name(pkg["fn"]): pkg for pkg in fetch_actions}
+        fetch_actions = dry_run_install["actions"]["FETCH"]
 
-    non_fetch_packages = link_dists - set(fetch_by_dist_name)
-    if len(non_fetch_packages) > 0:
-        for search_res in search_for_md5s(
-            conda=conda,
-            package_specs=[
-                x for x in link_actions if x["dist_name"] in non_fetch_packages
-            ],
-            platform=spec.platform,
-            channels=channels,
-        ):
-            dist_name = fn_to_dist_name(search_res["fn"])
-            fetch_by_dist_name[dist_name] = search_res
+        fetch_by_dist_name = {fn_to_dist_name(pkg["fn"]): pkg for pkg in fetch_actions}
 
-    for pkg in link_actions:
-        dist_name = (
-            fn_to_dist_name(pkg["fn"]) if is_micromamba(conda) else pkg["dist_name"]
-        )
-        url = fetch_by_dist_name[dist_name]["url"]
-        md5 = fetch_by_dist_name[dist_name]["md5"]
-        lockfile_contents.append(f"{url}#{md5}")
+        non_fetch_packages = link_dists - set(fetch_by_dist_name)
+        if len(non_fetch_packages) > 0:
+            for search_res in search_for_md5s(
+                conda=conda,
+                package_specs=[
+                    x for x in link_actions if x["dist_name"] in non_fetch_packages
+                ],
+                platform=spec.platform,
+                channels=channels,
+            ):
+                dist_name = fn_to_dist_name(search_res["fn"])
+                fetch_by_dist_name[dist_name] = search_res
 
-    logging.debug("lockfile_contents:\n%s\n", lockfile_contents)
+        for pkg in link_actions:
+            dist_name = (
+                fn_to_dist_name(pkg["fn"]) if is_micromamba(conda) else pkg["dist_name"]
+            )
+            url = fetch_by_dist_name[dist_name]["url"]
+            md5 = fetch_by_dist_name[dist_name]["md5"]
+            lockfile_contents.append(f"{url}#{md5}")
+
+        logging.debug("lockfile_contents:\n%s\n", lockfile_contents)
 
     return lockfile_contents
+
+
+def create_environment_file_from_spec(
+    *, channels: Sequence[str], conda: PathLike, spec: LockSpecification
+) -> List[str]:
+    ...
 
 
 def main_on_docker(env_file, platforms):
@@ -631,6 +660,7 @@ def run_lock(
     include_dev_dependencies: bool = True,
     channel_overrides: Optional[Sequence[str]] = None,
     filename_template: Optional[str] = None,
+    output_environment: bool = False,
 ) -> None:
     _conda_exe = determine_conda_executable(
         conda_exe, mamba=mamba, micromamba=micromamba
@@ -642,6 +672,7 @@ def run_lock(
         include_dev_dependencies=include_dev_dependencies,
         channel_overrides=channel_overrides,
         filename_template=filename_template,
+        output_environment=output_environment,
     )
 
 
@@ -692,6 +723,12 @@ def main():
     help="path to a conda environment specification(s)",
 )
 @click.option(
+    "--output-environment",
+    is_flag=True,
+    default=False,
+    help="Output locks as an enriched environment.yml file (rather than a list of explicit urls).",
+)
+@click.option(
     "--filename-template",
     default="conda-{platform}.lock",
     help="Template for the lock file names. Must include {platform} token. For a full list and description of available tokens, see the command help text.",
@@ -726,6 +763,7 @@ def lock(
     channel_overrides,
     dev_dependencies,
     files,
+    output_environment,
     filename_template,
     strip_auth,
     log_level,
@@ -753,6 +791,7 @@ def lock(
         micromamba=micromamba,
         include_dev_dependencies=dev_dependencies,
         channel_overrides=channel_overrides,
+        output_environment=output_environment,
     )
     if strip_auth:
         with tempfile.TemporaryDirectory() as tempdir:
