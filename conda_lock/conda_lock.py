@@ -64,12 +64,12 @@ CONDA_PKGS_DIRS = None
 DEFAULT_PLATFORMS = ["osx-64", "linux-64", "win-64"]
 DEFAULT_KINDS = ["explicit"]
 KIND_FILE_EXT = {
-    'explicit': '',
-    'env': '.yml',
+    "explicit": "",
+    "env": ".yml",
 }
 KIND_USE_TEXT = {
-    'explicit': 'conda create --name YOURENV --file {lockfile}',
-    'env': 'conda env create --name YOURENV --file {lockfile}',
+    "explicit": "conda create --name YOURENV --file {lockfile}",
+    "env": "conda env create --name YOURENV --file {lockfile}",
 }
 
 
@@ -371,7 +371,7 @@ def make_lock_files(
                 sys.exit(1)
 
     for plat in platforms:
-        print(f"generating lockfile for {plat}", file=sys.stderr)
+        print(f"Generating lockfile(s) for {plat}...", file=sys.stderr)
         lock_specs = parse_source_files(
             src_files=src_files,
             platform=plat,
@@ -407,11 +407,25 @@ def make_lock_files(
 
             filename += KIND_FILE_EXT[kind]
             with open(filename, "w") as fo:
-                fo.write(
-                    "\n".join(lockfile_contents) + "\n"
-                )
+                fo.write("\n".join(lockfile_contents) + "\n")
 
-            print("Install lock using:", KIND_USE_TEXT[kind].format(lockfile=filename), file=sys.stderr)
+            print(
+                f" - Install lock using {'(see warning below)' if kind == 'env' else ''}:",
+                KIND_USE_TEXT[kind].format(lockfile=filename),
+                file=sys.stderr,
+            )
+
+    if "env" in kinds:
+        print(
+            "\nWARNING: Using environment lock files (*.yml) does NOT guarantee "
+            "that generated environments will be identical over time, since the "
+            "dependency resolver is re-run every time and changes in repository "
+            "metadata or resolver logic may cause variation. Conversely, since "
+            "the resolver is run every time, the resulting packages ARE "
+            "guaranteed to be seen by conda as being in a consistent state. This "
+            "makes them useful when updating existing environments.",
+            file=sys.stderr,
+        )
 
 
 def is_micromamba(conda: PathLike) -> bool:
@@ -433,7 +447,7 @@ def create_lockfile_from_spec(
     )
     logging.debug("dry_run_install:\n%s", dry_run_install)
 
-    if kind == 'env':
+    if kind == "env":
         link_actions = dry_run_install["actions"]["LINK"]
         lockfile_contents = [
             "channels:",
@@ -444,7 +458,7 @@ def create_lockfile_from_spec(
                 for pkg in link_actions
             ),
         ]
-    elif kind == 'explicit':
+    elif kind == "explicit":
         lockfile_contents = [
             f"# platform: {spec.platform}",
             f"# env_hash: {spec.env_hash()}\n",
@@ -497,10 +511,7 @@ def create_lockfile_from_spec(
             else:
                 return line
 
-        lockfile_contents = [
-            sanitize_lockfile_line(line)
-            for line in lockfile_contents
-        ]
+        lockfile_contents = [sanitize_lockfile_line(line) for line in lockfile_contents]
     else:
         raise ValueError(f"Unrecognised lock kind {kind}.")
 
