@@ -526,12 +526,6 @@ def create_lockfile_from_spec(
     return lockfile_contents
 
 
-def create_environment_file_from_spec(
-    *, channels: Sequence[str], conda: PathLike, spec: LockSpecification
-) -> List[str]:
-    ...
-
-
 def main_on_docker(env_file, platforms):
     env_path = pathlib.Path(env_file)
     platform_arg = []
