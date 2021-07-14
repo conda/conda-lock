@@ -62,6 +62,15 @@ if not (sys.version_info.major >= 3 and sys.version_info.minor >= 6):
 
 CONDA_PKGS_DIRS = None
 DEFAULT_PLATFORMS = ["osx-64", "linux-64", "win-64"]
+DEFAULT_KINDS = ["explicit"]
+KIND_FILE_EXT = {
+    'explicit': '',
+    'env': '.yml',
+}
+KIND_USE_TEXT = {
+    'explicit': 'conda create --name YOURENV --file {lockfile}',
+    'env': 'conda env create --name YOURENV --file {lockfile}',
+}
 
 
 def _extract_platform(line: str) -> Optional[str]:
@@ -320,11 +329,11 @@ def fn_to_dist_name(fn: str) -> str:
 def make_lock_files(
     conda: PathLike,
     platforms: List[str],
+    kinds: List[str],
     src_files: List[pathlib.Path],
     include_dev_dependencies: bool = True,
     channel_overrides: Optional[Sequence[str]] = None,
     filename_template: Optional[str] = None,
-    output_environment: bool = False,
 ):
     """Generate the lock files for the given platforms from the src file provided
 
@@ -367,45 +376,34 @@ def make_lock_files(
         else:
             channels = lock_spec.channels
 
-        lockfile_contents = create_lockfile_from_spec(
-            channels=channels,
-            conda=conda,
-            spec=lock_spec,
-            output_environment=output_environment,
-        )
-
-        def sanitize_lockfile_line(line):
-            line = line.strip()
-            if line == "":
-                return "#"
-            else:
-                return line
-
-        if filename_template:
-            context = {
-                "platform": lock_spec.platform,
-                "dev-dependencies": str(include_dev_dependencies).lower(),
-                "spec-hash": lock_spec.env_hash(),
-                "version": pkg_resources.get_distribution("conda_lock").version,
-                "timestamp": datetime.datetime.utcnow().strftime("%Y%m%dT%H%M%SZ"),
-            }
-
-            filename = filename_template.format(**context)
-        else:
-            filename = f"conda-{lock_spec.platform}.lock"
-        if output_environment and not filename.endswith(".yml"):
-            filename += ".yml"
-        with open(filename, "w") as fo:
-            fo.write(
-                "\n".join(sanitize_lockfile_line(ln) for ln in lockfile_contents) + "\n"
+        for kind in kinds:
+            lockfile_contents = create_lockfile_from_spec(
+                channels=channels,
+                conda=conda,
+                spec=lock_spec,
+                kind=kind,
             )
 
-    print("To use the generated lock files create a new environment:", file=sys.stderr)
-    print("", file=sys.stderr)
-    print(
-        "     conda create --name YOURENV --file conda-linux-64.lock", file=sys.stderr
-    )
-    print("", file=sys.stderr)
+            if filename_template:
+                context = {
+                    "platform": lock_spec.platform,
+                    "dev-dependencies": str(include_dev_dependencies).lower(),
+                    "spec-hash": lock_spec.env_hash(),
+                    "version": pkg_resources.get_distribution("conda_lock").version,
+                    "timestamp": datetime.datetime.utcnow().strftime("%Y%m%dT%H%M%SZ"),
+                }
+
+                filename = filename_template.format(**context)
+            else:
+                filename = f"conda-{lock_spec.platform}.lock"
+
+            filename += KIND_FILE_EXT[kind]
+            with open(filename, "w") as fo:
+                fo.write(
+                    "\n".join(lockfile_contents) + "\n"
+                )
+
+            print("Install lock using:", KIND_USE_TEXT[kind].format(lockfile=filename), file=sys.stderr)
 
 
 def is_micromamba(conda: PathLike) -> bool:
@@ -417,7 +415,7 @@ def create_lockfile_from_spec(
     channels: Sequence[str],
     conda: PathLike,
     spec: LockSpecification,
-    output_environment: bool,
+    kind: str,
 ) -> List[str]:
     dry_run_install = solve_specs_for_arch(
         conda=conda,
@@ -427,18 +425,18 @@ def create_lockfile_from_spec(
     )
     logging.debug("dry_run_install:\n%s", dry_run_install)
 
-    if output_environment:
+    if kind == 'env':
         link_actions = dry_run_install["actions"]["LINK"]
         lockfile_contents = [
-            "channels:\n",
-            *(f"- {channel}\n" for channel in channels),
-            "dependencies:\n",
+            "channels:",
+            *(f"  - {channel}" for channel in channels),
+            "dependencies:",
             *(
-                f'- {pkg["name"]}={pkg["version"]}={pkg["build_string"]}'
+                f'  - {pkg["name"]}={pkg["version"]}={pkg["build_string"]}'
                 for pkg in link_actions
             ),
         ]
-    else:
+    elif kind == 'explicit':
         lockfile_contents = [
             f"# platform: {spec.platform}",
             f"# env_hash: {spec.env_hash()}\n",
@@ -484,8 +482,21 @@ def create_lockfile_from_spec(
             md5 = fetch_by_dist_name[dist_name]["md5"]
             lockfile_contents.append(f"{url}#{md5}")
 
-        logging.debug("lockfile_contents:\n%s\n", lockfile_contents)
+        def sanitize_lockfile_line(line):
+            line = line.strip()
+            if line == "":
+                return "#"
+            else:
+                return line
 
+        lockfile_contents = [
+            sanitize_lockfile_line(line)
+            for line in lockfile_contents
+        ]
+    else:
+        raise ValueError(f"Unrecognised lock kind {kind}.")
+
+    logging.debug("lockfile_contents:\n%s\n", lockfile_contents)
     return lockfile_contents
 
 
@@ -660,7 +671,7 @@ def run_lock(
     include_dev_dependencies: bool = True,
     channel_overrides: Optional[Sequence[str]] = None,
     filename_template: Optional[str] = None,
-    output_environment: bool = False,
+    kinds: Optional[List[str]] = None,
 ) -> None:
     _conda_exe = determine_conda_executable(
         conda_exe, mamba=mamba, micromamba=micromamba
@@ -672,7 +683,7 @@ def run_lock(
         include_dev_dependencies=include_dev_dependencies,
         channel_overrides=channel_overrides,
         filename_template=filename_template,
-        output_environment=output_environment,
+        kinds=kinds or DEFAULT_KINDS,
     )
 
 
@@ -723,15 +734,17 @@ def main():
     help="path to a conda environment specification(s)",
 )
 @click.option(
-    "--output-environment",
-    is_flag=True,
-    default=False,
-    help="Output locks as an enriched environment.yml file (rather than a list of explicit urls).",
+    "-k",
+    "--kind",
+    default=["explicit"],
+    type=str,
+    multiple=True,
+    help="Kind of lock file(s) to generate [should be one of 'explicit' or 'env'].",
 )
 @click.option(
     "--filename-template",
     default="conda-{platform}.lock",
-    help="Template for the lock file names. Must include {platform} token. For a full list and description of available tokens, see the command help text.",
+    help="Template for the lock file names. Filename must include {platform} token, and must not end in '.yml'. For a full list and description of available tokens, see the command help text.",
 )
 @click.option(
     "--strip-auth",
@@ -763,7 +776,7 @@ def lock(
     channel_overrides,
     dev_dependencies,
     files,
-    output_environment,
+    kind,
     filename_template,
     strip_auth,
     log_level,
@@ -791,7 +804,7 @@ def lock(
         micromamba=micromamba,
         include_dev_dependencies=dev_dependencies,
         channel_overrides=channel_overrides,
-        output_environment=output_environment,
+        kinds=kind,
     )
     if strip_auth:
         with tempfile.TemporaryDirectory() as tempdir:
