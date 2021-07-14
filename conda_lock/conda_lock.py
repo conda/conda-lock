@@ -361,6 +361,14 @@ def make_lock_files(
                 file=sys.stderr,
             )
             sys.exit(1)
+        for kind, file_ext in KIND_FILE_EXT.items():
+            if file_ext and filename_template.endswith(file_ext):
+                print(
+                    f"Filename template must not end with '{file_ext}', as this "
+                    f"is reserved for '{kind}' lock files, in which case it is "
+                    f"automatically added."
+                )
+                sys.exit(1)
 
     for plat in platforms:
         print(f"generating lockfile for {plat}", file=sys.stderr)
