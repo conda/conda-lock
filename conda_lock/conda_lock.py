@@ -223,6 +223,7 @@ def do_conda_install(conda: PathLike, prefix: str, name: str, file: str) -> None
 
     args: MutableSequence[PathLike] = [
         str(conda),
+        *(['env'] if file.endswith('.yml') else []),
         "create",
         "--file",
         file,
