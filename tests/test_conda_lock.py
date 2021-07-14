@@ -156,7 +156,7 @@ def test_poetry_version_parsing_constraints(package, version, url_pattern):
         platform="linux-64",
     )
     lockfile_contents = create_lockfile_from_spec(
-        conda=_conda_exe, channels=spec.channels, spec=spec
+        conda=_conda_exe, channels=spec.channels, spec=spec, kind='explicit',
     )
 
     for line in lockfile_contents:
