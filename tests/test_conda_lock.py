@@ -156,7 +156,10 @@ def test_poetry_version_parsing_constraints(package, version, url_pattern):
         platform="linux-64",
     )
     lockfile_contents = create_lockfile_from_spec(
-        conda=_conda_exe, channels=spec.channels, spec=spec, kind='explicit',
+        conda=_conda_exe,
+        channels=spec.channels,
+        spec=spec,
+        kind="explicit",
     )
 
     for line in lockfile_contents:
@@ -237,8 +240,10 @@ def _check_package_installed(package: str, prefix: str):
 
 def conda_supports_env(conda_exe):
     try:
-        subprocess.check_call([conda_exe, "env"], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    except:
+        subprocess.check_call(
+            [conda_exe, "env"], stdout=subprocess.PIPE, stderr=subprocess.PIPE
+        )
+    except subprocess.CalledProcessError:
         return False
     return True
 
@@ -248,7 +253,9 @@ def test_install(kind, tmp_path, conda_exe, zlib_environment, monkeypatch):
     if is_micromamba(conda_exe):
         monkeypatch.setenv("CONDA_FLAGS", "-v")
     if kind == "env" and not conda_supports_env(conda_exe):
-        pytest.skip(f"Standalone conda @ '{conda_exe}' does not support materializing from environment files.")
+        pytest.skip(
+            f"Standalone conda @ '{conda_exe}' does not support materializing from environment files."
+        )
 
     package = "zlib"
     platform = "linux-64"
