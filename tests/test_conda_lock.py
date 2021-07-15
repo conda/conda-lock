@@ -156,7 +156,10 @@ def test_poetry_version_parsing_constraints(package, version, url_pattern):
         platform="linux-64",
     )
     lockfile_contents = create_lockfile_from_spec(
-        conda=_conda_exe, channels=spec.channels, spec=spec
+        conda=_conda_exe,
+        channels=spec.channels,
+        spec=spec,
+        kind="explicit",
     )
 
     for line in lockfile_contents:
@@ -235,15 +238,30 @@ def _check_package_installed(package: str, prefix: str):
     return True
 
 
-def test_install(tmp_path, conda_exe, zlib_environment, monkeypatch):
+def conda_supports_env(conda_exe):
+    try:
+        subprocess.check_call(
+            [conda_exe, "env"], stdout=subprocess.PIPE, stderr=subprocess.PIPE
+        )
+    except subprocess.CalledProcessError:
+        return False
+    return True
+
+
+@pytest.mark.parametrize("kind", ["explicit", "env"])
+def test_install(kind, tmp_path, conda_exe, zlib_environment, monkeypatch):
     if is_micromamba(conda_exe):
         monkeypatch.setenv("CONDA_FLAGS", "-v")
+    if kind == "env" and not conda_supports_env(conda_exe):
+        pytest.skip(
+            f"Standalone conda @ '{conda_exe}' does not support materializing from environment files."
+        )
 
     package = "zlib"
     platform = "linux-64"
 
     lock_filename_template = "conda-{platform}-{dev-dependencies}.lock"
-    lock_filename = "conda-linux-64-true.lock"
+    lock_filename = "conda-linux-64-true.lock" + (".yml" if kind == "env" else "")
     try:
         os.remove(lock_filename)
     except OSError:
@@ -262,6 +280,8 @@ def test_install(tmp_path, conda_exe, zlib_environment, monkeypatch):
             platform,
             "-f",
             zlib_environment,
+            "-k",
+            kind,
             "--filename-template",
             lock_filename_template,
         ],
