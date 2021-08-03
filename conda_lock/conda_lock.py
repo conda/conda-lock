@@ -44,6 +44,8 @@ from conda_lock.src_parser.meta_yaml import parse_meta_yaml_file
 from conda_lock.src_parser.pyproject_toml import parse_pyproject_toml
 
 
+DEFAULT_FILES = [pathlib.Path("environment.yml")]
+
 PathLike = Union[str, pathlib.Path]
 
 # Captures basic auth credentials, if they exists, in the second capture group.
@@ -693,6 +695,11 @@ def run_lock(
     filename_template: Optional[str] = None,
     kinds: Optional[List[str]] = None,
 ) -> None:
+    if environment_files == DEFAULT_FILES:
+        long_ext_file = pathlib.Path("environment.yaml")
+        if long_ext_file.exists() and not environment_files[0].exists():
+            environment_files = [long_ext_file]
+
     _conda_exe = determine_conda_executable(
         conda_exe, mamba=mamba, micromamba=micromamba
     )
@@ -748,7 +755,7 @@ def main():
     "-f",
     "--file",
     "files",
-    default=["environment.yml"],
+    default=DEFAULT_FILES,
     type=click.Path(),
     multiple=True,
     help="path to a conda environment specification(s)",
