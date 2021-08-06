@@ -6,6 +6,7 @@ import atexit
 import datetime
 import json
 import logging
+from operator import itemgetter
 import os
 import pathlib
 import re
@@ -459,7 +460,7 @@ def create_lockfile_from_spec(
     ]
 
     if kind == "env":
-        link_actions = dry_run_install["actions"]["LINK"]
+        link_actions = sorted(dry_run_install["actions"]["LINK"], key=itemgetter("name"))
         lockfile_contents.extend(
             [
                 "channels:",
@@ -474,7 +475,7 @@ def create_lockfile_from_spec(
     elif kind == "explicit":
         lockfile_contents.append("@EXPLICIT\n")
 
-        link_actions = dry_run_install["actions"]["LINK"]
+        link_actions = sorted(dry_run_install["actions"]["LINK"], key=itemgetter("name"))
         for link in link_actions:
             if is_micromamba(conda):
                 link["url_base"] = fn_to_dist_name(link["url"])
