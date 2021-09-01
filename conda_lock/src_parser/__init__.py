@@ -10,7 +10,7 @@ class LockSpecification:
         self.channels = channels
         self.platform = platform
 
-    def env_hash(self) -> str:
+    def input_hash(self) -> str:
         env_spec = json.dumps(
             {
                 "channels": self.channels,

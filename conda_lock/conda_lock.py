@@ -56,6 +56,8 @@ DOMAIN_PATTERN = re.compile(r"^(https?:\/\/)?([^\/]+)(.*)")
 
 # Captures the platform in the first group.
 PLATFORM_PATTERN = re.compile(r"^# platform: (.*)$")
+INPUT_HASH_PATTERN = re.compile(r"^# input_hash: (.*)$")
+
 
 if not (sys.version_info.major >= 3 and sys.version_info.minor >= 6):
     print("conda_lock needs to run under python >=3.6")
@@ -82,12 +84,27 @@ def _extract_platform(line: str) -> Optional[str]:
     return None
 
 
+def _extract_spec_hash(line: str) -> Optional[str]:
+    search = INPUT_HASH_PATTERN.search(line)
+    if search:
+        return search.group(1)
+    return None
+
+
 def extract_platform(lockfile: str) -> str:
     for line in lockfile.strip().split("\n"):
         platform = _extract_platform(line)
         if platform:
             return platform
     raise RuntimeError("Cannot find platform in lockfile.")
+
+
+def extract_input_hash(lockfile_contents: str) -> Optional[str]:
+    for line in lockfile_contents.strip().split("\n"):
+        platform = _extract_spec_hash(line)
+        if platform:
+            return platform
+    return None
 
 
 def _do_validate_platform(platform: str) -> Tuple[bool, str]:
@@ -181,6 +198,9 @@ def solve_specs_for_arch(
         except json.JSONDecodeError as e:
             print(f"Failed to parse json, {e}")
             message = ""
+        except KeyError:
+            print("Message key not found in json! returning the full json text")
+            message = err_json
 
         print(f"Could not lock the environment for platform {platform}")
         if message:
@@ -331,6 +351,32 @@ def fn_to_dist_name(fn: str) -> str:
     return fn
 
 
+def make_lock_specs(
+    *,
+    platforms: List[str],
+    src_files: List[pathlib.Path],
+    include_dev_dependencies: bool = True,
+    channel_overrides: Optional[Sequence[str]] = None,
+) -> Dict[str, LockSpecification]:
+    """Generate the lockfile specs from a set of input src_files"""
+    res = {}
+    for plat in platforms:
+        lock_specs = parse_source_files(
+            src_files=src_files,
+            platform=plat,
+            include_dev_dependencies=include_dev_dependencies,
+        )
+
+        lock_spec = aggregate_lock_specs(lock_specs)
+        if channel_overrides:
+            channels = list(channel_overrides)
+        else:
+            channels = lock_spec.channels
+        lock_spec.channels = channels
+        res[sys.platform] = lock_spec
+    return res
+
+
 def make_lock_files(
     conda: PathLike,
     platforms: List[str],
@@ -339,6 +385,7 @@ def make_lock_files(
     include_dev_dependencies: bool = True,
     channel_overrides: Optional[Sequence[str]] = None,
     filename_template: Optional[str] = None,
+    check_spec_hash: bool = False,
 ):
     """Generate the lock files for the given platforms from the src file provided
 
@@ -356,6 +403,8 @@ def make_lock_files(
         Forced list of channels to use.
     filename_template :
         Format for the lock file names. Must include {platform}.
+    check_spec_hash :
+        Validate that the existing spec hash has not already been generated for.
 
     """
     if filename_template:
@@ -375,33 +424,22 @@ def make_lock_files(
                 )
                 sys.exit(1)
 
-    for plat in platforms:
-        print(f"Generating lockfile(s) for {plat}...", file=sys.stderr)
-        lock_specs = parse_source_files(
-            src_files=src_files,
-            platform=plat,
-            include_dev_dependencies=include_dev_dependencies,
-        )
+    lock_specs = make_lock_specs(
+        platforms=platforms,
+        src_files=src_files,
+        include_dev_dependencies=include_dev_dependencies,
+        channel_overrides=channel_overrides,
+    )
 
-        lock_spec = aggregate_lock_specs(lock_specs)
-        if channel_overrides:
-            channels = channel_overrides
-        else:
-            channels = lock_spec.channels
-
+    for plat, lock_spec in lock_specs.items():
         for kind in kinds:
-            lockfile_contents = create_lockfile_from_spec(
-                channels=channels,
-                conda=conda,
-                spec=lock_spec,
-                kind=kind,
-            )
-
             if filename_template:
                 context = {
                     "platform": lock_spec.platform,
                     "dev-dependencies": str(include_dev_dependencies).lower(),
-                    "spec-hash": lock_spec.env_hash(),
+                    # legacy key
+                    "spec-hash": lock_spec.input_hash(),
+                    "input-hash": lock_spec.input_hash(),
                     "version": pkg_resources.get_distribution("conda_lock").version,
                     "timestamp": datetime.datetime.utcnow().strftime("%Y%m%dT%H%M%SZ"),
                 }
@@ -409,6 +447,24 @@ def make_lock_files(
                 filename = filename_template.format(**context)
             else:
                 filename = f"conda-{lock_spec.platform}.lock"
+
+            lockfile = pathlib.Path(filename)
+            if lockfile.exists() and check_spec_hash:
+                existing_spec_hash = extract_input_hash(lockfile.read_text())
+                if existing_spec_hash == lock_spec.input_hash():
+                    print(
+                        f"Spec hash already locked for {plat}. Skipping",
+                        file=sys.stderr,
+                    )
+                    continue
+
+            print(f"Generating lockfile(s) for {plat}...", file=sys.stderr)
+            lockfile_contents = create_lockfile_from_spec(
+                channels=lock_spec.channels,
+                conda=conda,
+                spec=lock_spec,
+                kind=kind,
+            )
 
             filename += KIND_FILE_EXT[kind]
             with open(filename, "w") as fo:
@@ -455,7 +511,7 @@ def create_lockfile_from_spec(
     lockfile_contents = [
         "# Generated by conda-lock.",
         f"# platform: {spec.platform}",
-        f"# env_hash: {spec.env_hash()}\n",
+        f"# input_hash: {spec.input_hash()}\n",
     ]
 
     if kind == "env":
@@ -694,6 +750,7 @@ def run_lock(
     channel_overrides: Optional[Sequence[str]] = None,
     filename_template: Optional[str] = None,
     kinds: Optional[List[str]] = None,
+    check_input_hash: bool = False,
 ) -> None:
     if environment_files == DEFAULT_FILES:
         long_ext_file = pathlib.Path("environment.yaml")
@@ -711,6 +768,7 @@ def run_lock(
         channel_overrides=channel_overrides,
         filename_template=filename_template,
         kinds=kinds or DEFAULT_KINDS,
+        check_spec_hash=check_input_hash,
     )
 
 
@@ -780,6 +838,12 @@ def main():
     help="Strip the basic auth credentials from the lockfile.",
 )
 @click.option(
+    "--check-input-hash",
+    is_flag=True,
+    default=False,
+    help="Check existing input hashes in lockfiles before regenerating lock files.  If no files were updated exit with exit code 4.  Incompatible with --strip-auth",
+)
+@click.option(
     "--log-level",
     help="Log level.",
     default="INFO",
@@ -806,6 +870,7 @@ def lock(
     kind,
     filename_template,
     strip_auth,
+    check_input_hash: bool,
     log_level,
 ):
     """Generate fully reproducible lock files for conda environments.
@@ -816,7 +881,7 @@ def lock(
     \b
         platform: The platform this lock file was generated for (conda subdir).
         dev-dependencies: Whether or not dev dependencies are included in this lock file.
-        spec-hash: A sha256 hash of the lock file spec.
+        input-hash: A sha256 hash of the lock file input specification.
         version: The version of conda-lock used to generate this lock file.
         timestamp: The approximate timestamp of the output file in ISO8601 basic format.
     """
@@ -843,7 +908,9 @@ def lock(
                 lockfile = _strip_auth_from_lockfile(lockfile)
                 write_file(lockfile, os.path.join(filename_template_dir, file))
     else:
-        lock_func(filename_template=filename_template)
+        lock_func(
+            filename_template=filename_template, check_input_hash=check_input_hash
+        )
 
 
 @main.command("install")
