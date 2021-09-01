@@ -53,6 +53,15 @@ def zlib_environment():
 
 
 @pytest.fixture
+def input_hash_zlib_environment():
+    return (
+        pathlib.Path(__file__)
+        .parent.joinpath("test-input-hash-zlib")
+        .joinpath("environment.yml")
+    )
+
+
+@pytest.fixture
 def meta_yaml_environment():
     return pathlib.Path(__file__).parent.joinpath("test-recipe").joinpath("meta.yaml")
 
@@ -140,6 +149,38 @@ def test_run_lock(monkeypatch, zlib_environment, conda_exe):
     run_lock([zlib_environment], conda_exe=conda_exe)
 
 
+def test_run_lock_with_input_hash_check(
+    monkeypatch, input_hash_zlib_environment: pathlib.Path, conda_exe, capsys
+):
+    monkeypatch.chdir(input_hash_zlib_environment.parent)
+    if is_micromamba(conda_exe):
+        monkeypatch.setenv("CONDA_FLAGS", "-v")
+    lockfile = input_hash_zlib_environment.parent / "conda-linux-64.lock"
+    if lockfile.exists():
+        lockfile.unlink()
+
+    run_lock(
+        [input_hash_zlib_environment],
+        platforms=["linux-64"],
+        conda_exe=conda_exe,
+        check_input_hash=True,
+    )
+    stat = lockfile.stat()
+    created = stat.st_mtime_ns
+
+    capsys.readouterr()
+    run_lock(
+        [input_hash_zlib_environment],
+        platforms=["linux-64"],
+        conda_exe=conda_exe,
+        check_input_hash=True,
+    )
+    stat = lockfile.stat()
+    assert stat.st_mtime_ns == created
+    output = capsys.readouterr()
+    assert "Spec hash already locked for" in output.err
+
+
 @pytest.mark.parametrize(
     "package,version,url_pattern",
     [
@@ -183,21 +224,21 @@ def test_aggregate_lock_specs():
     )
 
     assert (
-        aggregate_lock_specs([gpu_spec, base_spec]).env_hash()
+        aggregate_lock_specs([gpu_spec, base_spec]).input_hash()
         == LockSpecification(
             specs=["pytorch", "python =3.7"],
             channels=["pytorch", "conda-forge"],
             platform="linux-64",
-        ).env_hash()
+        ).input_hash()
     )
 
     assert (
-        aggregate_lock_specs([base_spec, gpu_spec]).env_hash()
+        aggregate_lock_specs([base_spec, gpu_spec]).input_hash()
         == LockSpecification(
             specs=["pytorch", "python =3.7"],
             channels=["conda-forge"],
             platform="linux-64",
-        ).env_hash()
+        ).input_hash()
     )
 
 
