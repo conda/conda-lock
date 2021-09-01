@@ -77,6 +77,16 @@ is being built from support them).  This can be disabled easily
 ```bash
 conda-lock --no-dev-dependencies -f ./recipe/meta.yaml
 ```
+#### --check-input-hash
+
+Under some situation you may want to run conda lock in some kind of automated way (eg as a precommit) and want to not
+need to regenerate the lockfiles if the underlying input specification for that particular lock as not changed.
+
+```
+conda-lock --check-input-hash -p linux-64
+```
+
+When the input_hash of the input files, channels match those present in a given lockfile, that lockfile will not be regenerated.
 
 #### --strip-auth, --auth and --auth-file
 
