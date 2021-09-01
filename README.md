@@ -100,8 +100,7 @@ In order to `conda-lock install` a lock file with its basic auth credentials str
 
 ```json
 {
-  "domain": "username:password",
-  // ...
+  "domain": "username:password"
 }
 ```
 
