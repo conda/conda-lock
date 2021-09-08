@@ -8,7 +8,7 @@ It does this by performing a conda solve for each platform you desire a lockfile
 This also has the added benefit of acting as an external pre-solve for conda as the lockfiles it generates
 results in the conda solver *not* being invoked when installing the packages from the generated lockfile.
 
-## why?
+## Why?
 
 Conda [`environment.yml`][envyaml] files are very useful for defining desired environments but there are times when we want to
 be able to EXACTLY reproduce an environment by just installing and downloading the packages needed.
@@ -16,7 +16,7 @@ be able to EXACTLY reproduce an environment by just installing and downloading t
 This is particularly handy in the context of a gitops style setup where you use conda to provision environments in
 various places.
 
-## installation
+## Installation
 
 ```bash
 pip install conda-lock
@@ -36,9 +36,9 @@ conda-lock install [-p {prefix}|-n {name}] conda-linux-64.lock
 conda create -n my-locked-env --file conda-linux-64.lock
 ```
 
-## Advance usage
+## Advanced usage
 
-#### File naming
+### File naming
 
 By default conda-lock will name files as `"conda-{platform}.lock"`.
 
@@ -47,7 +47,7 @@ If you want to override that call conda-lock as follows.
 conda-lock --filename-template "specific-{platform}.conda.lock"
 ```
 
-#### Compound specification
+### Compound specification
 
 Conda-lock will build a spec list from several files if requested.
 
@@ -69,7 +69,7 @@ an [environment.yml][envyaml]
 conda-lock -c conda-forge -p linux-64
 ```
 
-#### --dev-dependencies/--no-dev-dependencies
+### --dev-dependencies/--no-dev-dependencies
 
 By default conda-lock will include dev dependencies in the specification of the lock (if the files that the lock
 is being built from support them).  This can be disabled easily
@@ -77,7 +77,7 @@ is being built from support them).  This can be disabled easily
 ```bash
 conda-lock --no-dev-dependencies -f ./recipe/meta.yaml
 ```
-#### --check-input-hash
+### --check-input-hash
 
 Under some situation you may want to run conda lock in some kind of automated way (eg as a precommit) and want to not
 need to regenerate the lockfiles if the underlying input specification for that particular lock as not changed.
@@ -88,7 +88,7 @@ conda-lock --check-input-hash -p linux-64
 
 When the input_hash of the input files, channels match those present in a given lockfile, that lockfile will not be regenerated.
 
-#### --strip-auth, --auth and --auth-file
+### --strip-auth, --auth and --auth-file
 
 By default `conda-lock` will leave basic auth credentials for private conda channels in the lock file. If you wish to strip authentication from the file, provide the `--strip-auth` argument.
 
@@ -137,15 +137,15 @@ extra:
     - defaults
 ```
 
-### pyproject.toml configuration
+### pyproject.toml
 
-Since pyproject.toml files are commonly used by python packages it can be desirable to create a lock
+Since `pyproject.toml` files are commonly used by python packages it can be desirable to create a lock
 file directly from those dependencies to single-source a package's dependencies.  This makes use of some
 conda-forge infrastructure ([pypi-mapping][mapping]) to do a lookup of the PyPI package name to a corresponding
 conda package name (e.g. `docker` -> `docker-py`).  In cases where there exists no lookup for the package it assumes that
 the PyPI name, and the conda name are the same.
 
-#### channels
+#### Channels
 
 ```toml
 # pyproject.toml
@@ -156,7 +156,33 @@ channels = [
 ]
 ```
 
-#### extra dependencies
+#### Extras
+
+If your pyproject.toml file contains optional dependencies/extras these can be referred to by using the `--extras` flag
+
+```toml
+# pyproject.toml
+
+[tool.poetry.dependencies]
+mandatory = "^1.0"
+psycopg2 = { version = "^2.7", optional = true }
+mysqlclient = { version = "^1.3", optional = true }
+
+[tool.poetry.extras]
+mysql = ["mysqlclient"]
+pgsql = ["psycopg2"]
+
+```
+
+These can be referened as follows
+
+```
+conda-lock --extra mysql --extra pgsql -f pyproject.toml
+```
+
+When generating lockfiles that make use of extras it is recommended to make use of `--filename-template` covered [here](#file-naming).
+
+#### Extra conda dependencies
 
 Since in a `pyproject.toml` all the definitions are python dependencies if you need
 to specify some non-python dependencies as well this can be accomplished by adding
