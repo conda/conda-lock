@@ -19,6 +19,7 @@ from contextlib import contextmanager
 from functools import partial
 from itertools import chain
 from typing import (
+    AbstractSet,
     Dict,
     Iterator,
     List,
@@ -357,6 +358,7 @@ def make_lock_specs(
     src_files: List[pathlib.Path],
     include_dev_dependencies: bool = True,
     channel_overrides: Optional[Sequence[str]] = None,
+    extras: Optional[AbstractSet[str]] = None,
 ) -> Dict[str, LockSpecification]:
     """Generate the lockfile specs from a set of input src_files"""
     res = {}
@@ -365,6 +367,7 @@ def make_lock_specs(
             src_files=src_files,
             platform=plat,
             include_dev_dependencies=include_dev_dependencies,
+            extras=extras,
         )
 
         lock_spec = aggregate_lock_specs(lock_specs)
@@ -386,6 +389,7 @@ def make_lock_files(
     channel_overrides: Optional[Sequence[str]] = None,
     filename_template: Optional[str] = None,
     check_spec_hash: bool = False,
+    extras: Optional[AbstractSet[str]] = None,
 ):
     """Generate the lock files for the given platforms from the src file provided
 
@@ -405,6 +409,8 @@ def make_lock_files(
         Format for the lock file names. Must include {platform}.
     check_spec_hash :
         Validate that the existing spec hash has not already been generated for.
+    extras :
+        For src files that support extras use the extras defined in there.
 
     """
     if filename_template:
@@ -429,6 +435,7 @@ def make_lock_files(
         src_files=src_files,
         include_dev_dependencies=include_dev_dependencies,
         channel_overrides=channel_overrides,
+        extras=extras,
     )
 
     for plat, lock_spec in lock_specs.items():
@@ -608,7 +615,10 @@ def main_on_docker(env_file, platforms):
 
 
 def parse_source_files(
-    src_files: List[pathlib.Path], platform: str, include_dev_dependencies: bool
+    src_files: List[pathlib.Path],
+    platform: str,
+    include_dev_dependencies: bool,
+    extras: Optional[AbstractSet[str]] = None,
 ) -> List[LockSpecification]:
     desired_envs = []
     for src_file in src_files:
@@ -618,7 +628,9 @@ def parse_source_files(
             )
         elif src_file.name == "pyproject.toml":
             desired_envs.append(
-                parse_pyproject_toml(src_file, platform, include_dev_dependencies)
+                parse_pyproject_toml(
+                    src_file, platform, include_dev_dependencies, extras
+                )
             )
         else:
             desired_envs.append(parse_environment_file(src_file, platform))
@@ -751,6 +763,7 @@ def run_lock(
     filename_template: Optional[str] = None,
     kinds: Optional[List[str]] = None,
     check_input_hash: bool = False,
+    extras: Optional[AbstractSet[str]] = None,
 ) -> None:
     if environment_files == DEFAULT_FILES:
         long_ext_file = pathlib.Path("environment.yaml")
@@ -769,6 +782,7 @@ def run_lock(
         filename_template=filename_template,
         kinds=kinds or DEFAULT_KINDS,
         check_spec_hash=check_input_hash,
+        extras=extras,
     )
 
 
@@ -838,6 +852,13 @@ def main():
     help="Strip the basic auth credentials from the lockfile.",
 )
 @click.option(
+    "--extras",
+    default=[],
+    type=str,
+    multiple=True,
+    help="When used in conjunction with input sources that support extras (pyproject.toml) will add the deps from those extras to the input specification",
+)
+@click.option(
     "--check-input-hash",
     is_flag=True,
     default=False,
@@ -870,6 +891,7 @@ def lock(
     kind,
     filename_template,
     strip_auth,
+    extras,
     check_input_hash: bool,
     log_level,
 ):
@@ -887,6 +909,7 @@ def lock(
     """
     logging.basicConfig(level=log_level)
     files = [pathlib.Path(file) for file in files]
+    extras = set(extras)
     lock_func = partial(
         run_lock,
         environment_files=files,
@@ -897,6 +920,7 @@ def lock(
         include_dev_dependencies=dev_dependencies,
         channel_overrides=channel_overrides,
         kinds=kind,
+        extras=extras,
     )
     if strip_auth:
         with tempfile.TemporaryDirectory() as tempdir:
