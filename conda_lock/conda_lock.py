@@ -43,6 +43,11 @@ from conda_lock.src_parser import LockSpecification
 from conda_lock.src_parser.environment_yaml import parse_environment_file
 from conda_lock.src_parser.meta_yaml import parse_meta_yaml_file
 from conda_lock.src_parser.pyproject_toml import parse_pyproject_toml
+from conda_lock.virtual_package import (
+    FakeRepoData,
+    default_virtual_package_repodata,
+    virtual_package_repo_from_specification,
+)
 
 
 DEFAULT_FILES = [pathlib.Path("environment.yml")]
@@ -152,7 +157,10 @@ def conda_env_override(platform) -> Dict[str, str]:
 
 
 def solve_specs_for_arch(
-    conda: PathLike, channels: Sequence[str], specs: List[str], platform: str
+    conda: PathLike,
+    channels: Sequence[str],
+    specs: List[str],
+    platform: str,
 ) -> dict:
     args: MutableSequence[PathLike] = [
         str(conda),
@@ -167,6 +175,7 @@ def solve_specs_for_arch(
         args.extend(shlex.split(conda_flags))
     if channels:
         args.append("--override-channels")
+
     for channel in channels:
         args.extend(["--channel", channel])
         if channel == "defaults" and platform in {"win-64", "win-32"}:
@@ -359,6 +368,7 @@ def make_lock_specs(
     include_dev_dependencies: bool = True,
     channel_overrides: Optional[Sequence[str]] = None,
     extras: Optional[AbstractSet[str]] = None,
+    virtual_package_repo: FakeRepoData,
 ) -> Dict[str, LockSpecification]:
     """Generate the lockfile specs from a set of input src_files"""
     res = {}
@@ -375,6 +385,7 @@ def make_lock_specs(
             channels = list(channel_overrides)
         else:
             channels = lock_spec.channels
+        lock_spec.virtual_package_repo = virtual_package_repo
         lock_spec.channels = channels
         res[plat] = lock_spec
     return res
@@ -390,6 +401,7 @@ def make_lock_files(
     filename_template: Optional[str] = None,
     check_spec_hash: bool = False,
     extras: Optional[AbstractSet[str]] = None,
+    virtual_package_spec: Optional[pathlib.Path] = None,
 ):
     """Generate the lock files for the given platforms from the src file provided
 
@@ -430,12 +442,21 @@ def make_lock_files(
                 )
                 sys.exit(1)
 
+    # initialize virtual package fake
+    if virtual_package_spec and virtual_package_spec.exists():
+        virtual_package_repo = virtual_package_repo_from_specification(
+            virtual_package_spec
+        )
+    else:
+        virtual_package_repo = default_virtual_package_repodata()
+
     lock_specs = make_lock_specs(
         platforms=platforms,
         src_files=src_files,
         include_dev_dependencies=include_dev_dependencies,
         channel_overrides=channel_overrides,
         extras=extras,
+        virtual_package_repo=virtual_package_repo,
     )
 
     for plat, lock_spec in lock_specs.items():
@@ -467,7 +488,6 @@ def make_lock_files(
 
             print(f"Generating lockfile(s) for {plat}...", file=sys.stderr)
             lockfile_contents = create_lockfile_from_spec(
-                channels=lock_spec.channels,
                 conda=conda,
                 spec=lock_spec,
                 kind=kind,
@@ -502,15 +522,16 @@ def is_micromamba(conda: PathLike) -> bool:
 
 def create_lockfile_from_spec(
     *,
-    channels: Sequence[str],
     conda: PathLike,
     spec: LockSpecification,
     kind: str,
 ) -> List[str]:
+    assert spec.virtual_package_repo is not None
+    virtual_package_channel = spec.virtual_package_repo.channel_url
     dry_run_install = solve_specs_for_arch(
         conda=conda,
         platform=spec.platform,
-        channels=channels,
+        channels=[*spec.channels, virtual_package_channel],
         specs=spec.specs,
     )
     logging.debug("dry_run_install:\n%s", dry_run_install)
@@ -526,11 +547,12 @@ def create_lockfile_from_spec(
         lockfile_contents.extend(
             [
                 "channels:",
-                *(f"  - {channel}" for channel in channels),
+                *(f"  - {channel}" for channel in spec.channels),
                 "dependencies:",
                 *(
                     f'  - {pkg["name"]}={pkg["version"]}={pkg["build_string"]}'
                     for pkg in link_actions
+                    # TODO: exclude injected virtual packages
                 ),
             ]
         )
@@ -546,7 +568,6 @@ def create_lockfile_from_spec(
                 link[
                     "url_base"
                 ] = f"{link['base_url']}/{link['platform']}/{link['dist_name']}"
-
             link["url"] = f"{link['url_base']}.tar.bz2"
             link["url_conda"] = f"{link['url_base']}.conda"
         link_dists = {link["dist_name"] for link in link_actions}
@@ -563,7 +584,7 @@ def create_lockfile_from_spec(
                     x for x in link_actions if x["dist_name"] in non_fetch_packages
                 ],
                 platform=spec.platform,
-                channels=channels,
+                channels=spec.channels,
             ):
                 dist_name = fn_to_dist_name(search_res["fn"])
                 fetch_by_dist_name[dist_name] = search_res

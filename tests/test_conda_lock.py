@@ -208,7 +208,6 @@ def test_poetry_version_parsing_constraints(package, version, url_pattern):
     )
     lockfile_contents = create_lockfile_from_spec(
         conda=_conda_exe,
-        channels=spec.channels,
         spec=spec,
         kind="explicit",
     )
