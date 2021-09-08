@@ -373,7 +373,7 @@ def make_lock_specs(
         else:
             channels = lock_spec.channels
         lock_spec.channels = channels
-        res[sys.platform] = lock_spec
+        res[plat] = lock_spec
     return res
 
 
