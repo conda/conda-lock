@@ -2,7 +2,7 @@ import collections
 import collections.abc
 import pathlib
 
-from typing import List, Mapping, Optional
+from typing import AbstractSet, List, Mapping, Optional
 
 import requests
 import toml
@@ -68,20 +68,31 @@ def poetry_version_to_conda_version(version_string):
 
 
 def parse_poetry_pyproject_toml(
-    pyproject_toml: pathlib.Path, platform: str, include_dev_dependencies: bool
+    pyproject_toml: pathlib.Path,
+    platform: str,
+    include_dev_dependencies: bool,
+    extras: Optional[AbstractSet[str]] = None,
 ) -> LockSpecification:
     contents = toml.load(pyproject_toml)
     specs: List[str] = []
+    extras = extras or set()
     dependency_sections = ["dependencies"]
     if include_dev_dependencies:
         dependency_sections.append("dev-dependencies")
+
+    desired_extras_deps = set()
+    for extra in extras:
+        extra_deps = get_in(["tool", "poetry", "extras", extra], contents, [])
+        desired_extras_deps.update(extra_deps)
 
     for key in dependency_sections:
         deps = get_in(["tool", "poetry", key], contents, {})
         for depname, depattrs in deps.items():
             conda_dep_name = normalize_pypi_name(depname)
+            optional_dep = False
             if isinstance(depattrs, collections.Mapping):
                 poetry_version_spec = depattrs["version"]
+                optional_dep = depattrs.get("optional", False)
                 # TODO: support additional features such as markers for things like sys_platform, platform_system
             elif isinstance(depattrs, str):
                 poetry_version_spec = depattrs
@@ -92,10 +103,11 @@ def parse_poetry_pyproject_toml(
             conda_version = poetry_version_to_conda_version(poetry_version_spec)
             spec = to_match_spec(conda_dep_name, conda_version)
 
-            if conda_dep_name == "python":
-                specs.insert(0, spec)
-            else:
-                specs.append(spec)
+            if not optional_dep or (depname in desired_extras_deps):
+                if conda_dep_name == "python":
+                    specs.insert(0, spec)
+                else:
+                    specs.append(spec)
 
     conda_deps = get_in(["tool", "conda-lock", "dependencies"], contents, {})
     specs.extend(parse_conda_dependencies(conda_deps))
@@ -114,12 +126,18 @@ def to_match_spec(conda_dep_name, conda_version):
 
 
 def parse_pyproject_toml(
-    pyproject_toml: pathlib.Path, platform: str, include_dev_dependencies: bool
+    pyproject_toml: pathlib.Path,
+    platform: str,
+    include_dev_dependencies: bool,
+    extras: Optional[AbstractSet[str]] = None,
 ):
     contents = toml.load(pyproject_toml)
     build_system = get_in(["build-system", "build-backend"], contents)
+    pep_621_probe = get_in(["project", "dependencies"], contents)
     parse = parse_poetry_pyproject_toml
-    if build_system.startswith("poetry"):
+    if pep_621_probe is not None:
+        parse = parse_pep621_pyproject_toml
+    elif build_system.startswith("poetry"):
         parse = parse_poetry_pyproject_toml
     elif build_system.startswith("flit"):
         parse = parse_flit_pyproject_toml
@@ -130,7 +148,7 @@ def parse_pyproject_toml(
             "Could not detect build-system in pyproject.toml.  Assuming poetry"
         )
 
-    return parse(pyproject_toml, platform, include_dev_dependencies)
+    return parse(pyproject_toml, platform, include_dev_dependencies, extras)
 
 
 def python_requirement_to_conda_spec(requirement: str):
@@ -148,9 +166,13 @@ def python_requirement_to_conda_spec(requirement: str):
 
 
 def parse_flit_pyproject_toml(
-    pyproject_toml: pathlib.Path, platform: str, include_dev_dependencies: bool
+    pyproject_toml: pathlib.Path,
+    platform: str,
+    include_dev_dependencies: bool,
+    extras: Optional[AbstractSet[str]] = None,
 ):
     contents = toml.load(pyproject_toml)
+    extras = extras or set()
 
     requirements = get_in(["tool", "flit", "metadata", "requires"], contents, [])
     if include_dev_dependencies:
@@ -160,10 +182,46 @@ def parse_flit_pyproject_toml(
         requirements += get_in(
             ["tool", "flit", "metadata", "requires-extra", "dev"], contents, []
         )
+    for extra in extras:
+        requirements += get_in(
+            ["tool", "flit", "metadata", "requires-extra", extra], contents, []
+        )
 
     dependency_sections = ["tool"]
     if include_dev_dependencies:
         dependency_sections += ["dev-dependencies"]
+
+    specs = [python_requirement_to_conda_spec(req) for req in requirements]
+
+    conda_deps = get_in(["tool", "conda-lock", "dependencies"], contents, {})
+    specs.extend(parse_conda_dependencies(conda_deps))
+
+    channels = get_in(["tool", "conda-lock", "channels"], contents, [])
+
+    return LockSpecification(specs=specs, channels=channels, platform=platform)
+
+
+def parse_pep621_pyproject_toml(
+    pyproject_toml: pathlib.Path,
+    platform: str,
+    include_dev_dependencies: bool,
+    extras: Optional[AbstractSet[str]] = None,
+):
+    contents = toml.load(pyproject_toml)
+    extras = extras or set()
+
+    requirements = get_in(["project", "dependencies"], contents, [])
+    if include_dev_dependencies:
+        requirements += get_in(
+            ["project", "optional-dependencies", "test"], contents, []
+        )
+        requirements += get_in(
+            ["project", "optional-dependencies", "dev"], contents, []
+        )
+    for extra in extras:
+        requirements += get_in(
+            ["project", "optional-dependencies", extra], contents, []
+        )
 
     specs = [python_requirement_to_conda_spec(req) for req in requirements]
 

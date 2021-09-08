@@ -124,6 +124,16 @@ def test_parse_poetry(poetry_pyproject_toml, include_dev_dependencies):
     assert "certifi[version='>=2019.11.28']" in res.specs
     assert ("pytest[version='>=5.1.0,<5.2.0']" in res.specs) == include_dev_dependencies
     assert res.channels == ["defaults"]
+    assert "tomlkit[version='>=0.7.0,<1.0.0']" not in res.specs
+
+    res = parse_poetry_pyproject_toml(
+        poetry_pyproject_toml,
+        platform="linux-64",
+        include_dev_dependencies=include_dev_dependencies,
+        extras={"tomlkit"},
+    )
+
+    assert "tomlkit[version='>=0.7.0,<1.0.0']" in res.specs
 
 
 def test_parse_flit(flit_pyproject_toml, include_dev_dependencies):
