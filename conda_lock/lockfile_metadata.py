@@ -32,13 +32,19 @@ STR_TAG = "tag:yaml.org,2002:str"
 # Click stuff
 # -----------
 
-DEFAULT_METADATA_TO_INCLUDE = ["about", "platform", "input_hash"]
-"""Default fields when '--metadata=...' is not present."""
+# This value of "PREVIOUS" is a special value. At some point we probably want
+# to switch default to the new structured header. For that, uncomment the stuff
+# directly below.
+DEFAULT_METADATA_TO_INCLUDE = ["previous"]
 
-# Validate DEFAULT_METADATA_TO_INCLUDE.
-_invalid_fields = set(DEFAULT_METADATA_TO_INCLUDE) - set(METADATA_FIELDS_LIST)
-if _invalid_fields:
-    raise ValueError(f"Default metadata values {_invalid_fields} are invalid.")
+
+# DEFAULT_METADATA_TO_INCLUDE = ["about", "platform", "input_hash"]
+# """Default fields when '--metadata=...' is not present."""
+
+# # Validate DEFAULT_METADATA_TO_INCLUDE.
+# _invalid_fields = set(DEFAULT_METADATA_TO_INCLUDE) - set(METADATA_FIELDS_LIST)
+# if _invalid_fields:
+#     raise ValueError(f"Default metadata values {_invalid_fields} are invalid.")
 
 
 def validate_metadata_to_include(ctx, param, metadata_to_include) -> List[str]:
