@@ -67,6 +67,10 @@ class MetadataFields:
         """The conda-lock version used to make this lockfile."""
         return get_distribution("conda_lock").version
 
+    def metadata_version(self) -> int:
+        """The version of this metadata. Format is semver, major-only."""
+        return 1
+
     def input_hash(self) -> str:
         """A SHA-256 hash of the lock file input specification."""
         return self.spec.input_hash()
