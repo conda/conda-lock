@@ -17,9 +17,9 @@ DEFAULT_TIME = 1577854800000
 
 
 class FakePackage(BaseModel):
-    class Config:
-        """pydantic config."""
+    """A minimal representation of the required metadata for a conda package"""
 
+    class Config:
         allow_mutation = False
         frozen = True
 
@@ -147,13 +147,48 @@ OSX_VERSIONS_ARM64: List[str] = []
 
 
 def default_virtual_package_repodata() -> FakeRepoData:
+    """Define a reasonable modern set of virtual packages that should be safe enough to assume"""
     repodata = _init_fake_repodata()
-    fake_packages = [
-        FakePackage(name="__glibc", version="2.17"),
-        FakePackage(name="__cuda", version="11.4"),
-    ]
-    for pkg in fake_packages:
-        repodata.add_package(pkg)
+
+    unix_virtual = FakePackage(name="__unix", version="0")
+    repodata.add_package(
+        unix_virtual,
+        subdirs=["linux-aarch64", "linux-ppc64le", "linux-64", "osx-64", "osx-arm64"],
+    )
+
+    linux_virtual = FakePackage(name="__linux", version="5.10")
+    repodata.add_package(
+        linux_virtual, subdirs=["linux-aarch64", "linux-ppc64le", "linux-64"]
+    )
+
+    win_virtual = FakePackage(name="__win", version="0")
+    repodata.add_package(win_virtual, subdirs=["win-64"])
+
+    archspec_x86 = FakePackage(name="__archspec", version="1", build_string="x86_64")
+    repodata.add_package(archspec_x86, subdirs=["win-64", "linux-64", "osx-64"])
+
+    archspec_arm64 = FakePackage(name="__archspec", version="1", build_string="arm64")
+    repodata.add_package(archspec_arm64, subdirs=["osx-arm64"])
+
+    archspec_aarch64 = FakePackage(
+        name="__archspec", version="1", build_string="aarch64"
+    )
+    repodata.add_package(archspec_aarch64, subdirs=["linux-aarch64"])
+
+    archspec_ppc64le = FakePackage(
+        name="__archspec", version="1", build_string="ppc64le"
+    )
+    repodata.add_package(archspec_ppc64le, subdirs=["linux-ppc64le"])
+
+    glibc_virtual = FakePackage(name="__glibc", version="2.17")
+    repodata.add_package(
+        glibc_virtual, subdirs=["linux-aarch64", "linux-ppc64le", "linux-64"]
+    )
+
+    cuda_virtual = FakePackage(name="__cuda", version="11.4")
+    repodata.add_package(
+        cuda_virtual, subdirs=["linux-aarch64", "linux-ppc64le", "linux-64", "win-64"]
+    )
 
     for osx_ver in OSX_VERSIONS_X86:
         package = FakePackage(name="__osx", version=osx_ver)

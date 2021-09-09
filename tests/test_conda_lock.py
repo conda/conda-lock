@@ -538,20 +538,37 @@ def test_virtual_packages(conda_exe, monkeypatch, kind):
 
 
 def test_virtual_package_input_hash_stability():
-    from conda_lock.virtual_package import (
-        default_virtual_package_repodata,
-        virtual_package_repo_from_specification,
-    )
+    from conda_lock.virtual_package import virtual_package_repo_from_specification
 
     test_dir = TEST_DIR.joinpath("test-cuda")
     spec = test_dir / "virtual-packages-old-glibc.yaml"
 
     vpr = virtual_package_repo_from_specification(spec)
     spec = LockSpecification([], [], "linux-64", vpr)
-    expected = "ee2d9f11360510d22c6378f7a6e2ad9da251ae08c9ecf4757b3246021d82eb21"
+    expected = "e8e6f657016351e26bef54e35091b6fcc76b266e1f136a8fa1f2f493d62d6dd6"
     assert spec.input_hash() == expected
 
+
+def _param(platform, hash):
+    return pytest.param(platform, hash, id=platform)
+
+
+@pytest.mark.parametrize(
+    ["platform", "expected"],
+    [
+        # fmt: off
+        _param("linux-64", "ed70aec6681f127c0bf2118c556c9e078afdab69b254b4e5aee12fdc8d7420b5"),
+        _param("linux-aarch64", "b30f28e2ad39531888479a67ac82c56c7fef041503f98eeb8b3cbaaa7a855ed9"),
+        _param("linux-ppc64le", "5b2235e1138500de742a291e3f0f26d68c61e6a6d4debadea106f4814055a28d"),
+        _param("osx-64", "b995edf1fe0718d3810b5cca77e235fa0e8c689179a79731bdc799418020bd3e"),
+        _param("osx-arm64", "e0a6f743325833c93d440e1dab0165afdf1b7d623740803b6cedc19f05618d73"),
+        _param("win-64", "3fe95154e8d7b99fa6326e025fb7d7ce44e4ae8253ac71e8f5b2acec50091c9e"),
+        # fmt: on
+    ],
+)
+def test_default_virtual_package_input_hash_stability(platform, expected):
+    from conda_lock.virtual_package import default_virtual_package_repodata
+
     vpr = default_virtual_package_repodata()
-    spec = LockSpecification([], [], "linux-64", vpr)
-    expected = "1e9efb84a8b0899ade9ea7319c4f10df7e0c6d28c5f306f6035cbf296d4e460e"
+    spec = LockSpecification([], [], platform, vpr)
     assert spec.input_hash() == expected

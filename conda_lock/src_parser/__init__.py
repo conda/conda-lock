@@ -26,7 +26,11 @@ class LockSpecification:
             "specs": sorted(self.specs),
         }
         if self.virtual_package_repo is not None:
-            data["virtual_package_hash"] = self.virtual_package_repo.all_repodata
+            vpr_data = self.virtual_package_repo.all_repodata
+            data["virtual_package_hash"] = {
+                "noarch": vpr_data.get("noarch", {}),
+                self.platform: vpr_data.get(self.platform, {}),
+            }
 
         env_spec = json.dumps(data, sort_keys=True)
         return hashlib.sha256(env_spec.encode("utf-8")).hexdigest()
