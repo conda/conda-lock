@@ -200,22 +200,27 @@ def test_run_lock_with_input_hash_check(
 )
 def test_poetry_version_parsing_constraints(package, version, url_pattern):
     _conda_exe = determine_conda_executable("conda", mamba=False, micromamba=False)
-    spec = LockSpecification(
-        specs=[to_match_spec(package, poetry_version_to_conda_version(version))],
-        channels=["conda-forge"],
-        platform="linux-64",
-    )
-    lockfile_contents = create_lockfile_from_spec(
-        conda=_conda_exe,
-        spec=spec,
-        kind="explicit",
-    )
+    from conda_lock.virtual_package import default_virtual_package_repodata
 
-    for line in lockfile_contents:
-        if url_pattern in line:
-            break
-    else:
-        raise ValueError(f"could not find {package} {version}")
+    vpr = default_virtual_package_repodata()
+    with vpr:
+        spec = LockSpecification(
+            specs=[to_match_spec(package, poetry_version_to_conda_version(version))],
+            channels=["conda-forge"],
+            platform="linux-64",
+            virtual_package_repo=vpr,
+        )
+        lockfile_contents = create_lockfile_from_spec(
+            conda=_conda_exe,
+            spec=spec,
+            kind="explicit",
+        )
+
+        for line in lockfile_contents:
+            if url_pattern in line:
+                break
+        else:
+            raise ValueError(f"could not find {package} {version}")
 
 
 def test_aggregate_lock_specs():
