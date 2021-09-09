@@ -535,3 +535,23 @@ def test_virtual_packages(conda_exe, monkeypatch, kind):
     # system virtual packages regardless of whether they should be present.  Skip this check in that case
     if not is_micromamba(conda_exe):
         assert result.exit_code != 0
+
+
+def test_virtual_package_input_hash_stability():
+    from conda_lock.virtual_package import (
+        default_virtual_package_repodata,
+        virtual_package_repo_from_specification,
+    )
+
+    test_dir = TEST_DIR.joinpath("test-cuda")
+    spec = test_dir / "virtual-packages-old-glibc.yaml"
+
+    vpr = virtual_package_repo_from_specification(spec)
+    spec = LockSpecification([], [], "linux-64", vpr)
+    expected = "ee2d9f11360510d22c6378f7a6e2ad9da251ae08c9ecf4757b3246021d82eb21"
+    assert spec.input_hash() == expected
+
+    vpr = default_virtual_package_repodata()
+    spec = LockSpecification([], [], "linux-64", vpr)
+    expected = "1e9efb84a8b0899ade9ea7319c4f10df7e0c6d28c5f306f6035cbf296d4e460e"
+    assert spec.input_hash() == expected

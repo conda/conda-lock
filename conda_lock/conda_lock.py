@@ -555,7 +555,8 @@ def create_lockfile_from_spec(
                 *(
                     f'  - {pkg["name"]}={pkg["version"]}={pkg["build_string"]}'
                     for pkg in link_actions
-                    # TODO: exclude injected virtual packages
+                    # exclude virtual packages
+                    if not pkg["name"].startswith("__")
                 ),
             ]
         )
