@@ -450,58 +450,61 @@ def make_lock_files(
     else:
         virtual_package_repo = default_virtual_package_repodata()
 
-    lock_specs = make_lock_specs(
-        platforms=platforms,
-        src_files=src_files,
-        include_dev_dependencies=include_dev_dependencies,
-        channel_overrides=channel_overrides,
-        extras=extras,
-        virtual_package_repo=virtual_package_repo,
-    )
+    with virtual_package_repo:
+        lock_specs = make_lock_specs(
+            platforms=platforms,
+            src_files=src_files,
+            include_dev_dependencies=include_dev_dependencies,
+            channel_overrides=channel_overrides,
+            extras=extras,
+            virtual_package_repo=virtual_package_repo,
+        )
 
-    for plat, lock_spec in lock_specs.items():
-        for kind in kinds:
-            if filename_template:
-                context = {
-                    "platform": lock_spec.platform,
-                    "dev-dependencies": str(include_dev_dependencies).lower(),
-                    # legacy key
-                    "spec-hash": lock_spec.input_hash(),
-                    "input-hash": lock_spec.input_hash(),
-                    "version": pkg_resources.get_distribution("conda_lock").version,
-                    "timestamp": datetime.datetime.utcnow().strftime("%Y%m%dT%H%M%SZ"),
-                }
+        for plat, lock_spec in lock_specs.items():
+            for kind in kinds:
+                if filename_template:
+                    context = {
+                        "platform": lock_spec.platform,
+                        "dev-dependencies": str(include_dev_dependencies).lower(),
+                        # legacy key
+                        "spec-hash": lock_spec.input_hash(),
+                        "input-hash": lock_spec.input_hash(),
+                        "version": pkg_resources.get_distribution("conda_lock").version,
+                        "timestamp": datetime.datetime.utcnow().strftime(
+                            "%Y%m%dT%H%M%SZ"
+                        ),
+                    }
 
-                filename = filename_template.format(**context)
-            else:
-                filename = f"conda-{lock_spec.platform}.lock"
+                    filename = filename_template.format(**context)
+                else:
+                    filename = f"conda-{lock_spec.platform}.lock"
 
-            lockfile = pathlib.Path(filename)
-            if lockfile.exists() and check_spec_hash:
-                existing_spec_hash = extract_input_hash(lockfile.read_text())
-                if existing_spec_hash == lock_spec.input_hash():
-                    print(
-                        f"Spec hash already locked for {plat}. Skipping",
-                        file=sys.stderr,
-                    )
-                    continue
+                lockfile = pathlib.Path(filename)
+                if lockfile.exists() and check_spec_hash:
+                    existing_spec_hash = extract_input_hash(lockfile.read_text())
+                    if existing_spec_hash == lock_spec.input_hash():
+                        print(
+                            f"Spec hash already locked for {plat}. Skipping",
+                            file=sys.stderr,
+                        )
+                        continue
 
-            print(f"Generating lockfile(s) for {plat}...", file=sys.stderr)
-            lockfile_contents = create_lockfile_from_spec(
-                conda=conda,
-                spec=lock_spec,
-                kind=kind,
-            )
+                print(f"Generating lockfile(s) for {plat}...", file=sys.stderr)
+                lockfile_contents = create_lockfile_from_spec(
+                    conda=conda,
+                    spec=lock_spec,
+                    kind=kind,
+                )
 
-            filename += KIND_FILE_EXT[kind]
-            with open(filename, "w") as fo:
-                fo.write("\n".join(lockfile_contents) + "\n")
+                filename += KIND_FILE_EXT[kind]
+                with open(filename, "w") as fo:
+                    fo.write("\n".join(lockfile_contents) + "\n")
 
-            print(
-                f" - Install lock using {'(see warning below)' if kind == 'env' else ''}:",
-                KIND_USE_TEXT[kind].format(lockfile=filename),
-                file=sys.stderr,
-            )
+                print(
+                    f" - Install lock using {'(see warning below)' if kind == 'env' else ''}:",
+                    KIND_USE_TEXT[kind].format(lockfile=filename),
+                    file=sys.stderr,
+                )
 
     if "env" in kinds:
         print(
@@ -877,6 +880,7 @@ def main():
     help="Strip the basic auth credentials from the lockfile.",
 )
 @click.option(
+    "-e",
     "--extras",
     default=[],
     type=str,
@@ -895,11 +899,13 @@ def main():
     default="INFO",
     type=click.Choice(["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]),
 )
-@click.option('--pdb', is_flag=True, help="Drop into a postmortem debugger if conda-lock crashes")
 @click.option(
-    '--virtual-package-spec', 
+    "--pdb", is_flag=True, help="Drop into a postmortem debugger if conda-lock crashes"
+)
+@click.option(
+    "--virtual-package-spec",
     type=click.Path(),
-    help='Specify a set of virtual packages to use.',
+    help="Specify a set of virtual packages to use.",
 )
 def lock(
     conda,
@@ -933,16 +939,18 @@ def lock(
     logging.basicConfig(level=log_level)
 
     if pdb:
+
         def handle_exception(exc_type, exc_value, exc_traceback):
             import pdb
-            pdb.post_mortem(exc_traceback)      
-    
+
+            pdb.post_mortem(exc_traceback)
+
         sys.excepthook = handle_exception
 
     if not virtual_package_spec:
         candidates = [
-            pathlib.Path('virtual-packages.yml'),
-            pathlib.Path('virtual-packages.yaml'),
+            pathlib.Path("virtual-packages.yml"),
+            pathlib.Path("virtual-packages.yaml"),
         ]
         for c in candidates:
             if c.exists():

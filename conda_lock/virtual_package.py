@@ -58,6 +58,7 @@ class FakeRepoData:
         }
         self.all_repodata: Dict[str, dict] = {}
         self.hash: Optional[str] = None
+        self.old_env_vars: Dict[str, str] = {}
 
     @property
     def channel_url(self):
@@ -98,6 +99,26 @@ class FakeRepoData:
         for filename in glob.iglob(str(self.base_path / "**"), recursive=True):
             logger.debug(filename)
         logger.debug("repo: %s", self.channel_url)
+
+    def __enter__(self):
+        """Ensure that if glibc etc is set by the overrides we force the conda solver overrride variables"""
+        env_vars_to_clear = set()
+        for package in self.packages_by_subdir:
+            if package.name.startswith("__"):
+                upper_name = package.name.lstrip("_").upper()
+                env_vars_to_clear.add(f"CONDA_OVERRIDE_{upper_name}")
+
+        for e in env_vars_to_clear:
+            self.old_env_vars[e] = os.environ.get(e)
+            os.environ[e] = ""
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        """Clear out old vars"""
+        for k, v in self.old_env_vars.items():
+            if v is None:
+                del os.environ[k]
+            else:
+                os.environ[k] = v
 
 
 def _init_fake_repodata() -> FakeRepoData:
@@ -169,6 +190,7 @@ def virtual_package_repo_from_specification(
 
     with virtual_package_spec_file.open("r") as fp:
         data = yaml.safe_load(fp)
+    logging.debug("Virtual package spec: %s", data)
 
     spec = VirtualPackageSpec.parse_obj(data)
 

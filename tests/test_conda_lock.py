@@ -37,6 +37,9 @@ from conda_lock.src_parser.pyproject_toml import (
 )
 
 
+TEST_DIR = pathlib.Path(__file__).parent
+
+
 @pytest.fixture(autouse=True)
 def logging_setup(caplog):
     caplog.set_level(logging.DEBUG)
@@ -44,12 +47,12 @@ def logging_setup(caplog):
 
 @pytest.fixture
 def gdal_environment():
-    return pathlib.Path(__file__).parent.joinpath("gdal").joinpath("environment.yml")
+    return TEST_DIR.joinpath("gdal").joinpath("environment.yml")
 
 
 @pytest.fixture
 def zlib_environment():
-    return pathlib.Path(__file__).parent.joinpath("zlib").joinpath("environment.yml")
+    return TEST_DIR.joinpath("zlib").joinpath("environment.yml")
 
 
 @pytest.fixture
@@ -63,21 +66,17 @@ def input_hash_zlib_environment():
 
 @pytest.fixture
 def meta_yaml_environment():
-    return pathlib.Path(__file__).parent.joinpath("test-recipe").joinpath("meta.yaml")
+    return TEST_DIR.joinpath("test-recipe").joinpath("meta.yaml")
 
 
 @pytest.fixture
 def poetry_pyproject_toml():
-    return (
-        pathlib.Path(__file__).parent.joinpath("test-poetry").joinpath("pyproject.toml")
-    )
+    return TEST_DIR.joinpath("test-poetry").joinpath("pyproject.toml")
 
 
 @pytest.fixture
 def flit_pyproject_toml():
-    return (
-        pathlib.Path(__file__).parent.joinpath("test-flit").joinpath("pyproject.toml")
-    )
+    return TEST_DIR.joinpath("test-flit").joinpath("pyproject.toml")
 
 
 @pytest.fixture(
@@ -469,19 +468,65 @@ def auth_():
     "stripped_lockfile,lockfile_with_auth",
     tuple(
         (
-            _read_file(
-                pathlib.Path(__file__)
-                .parent.joinpath("test-stripped-lockfile")
-                .joinpath(f"{filename}.lock")
-            ),
-            _read_file(
-                pathlib.Path(__file__)
-                .parent.joinpath("test-lockfile-with-auth")
-                .joinpath(f"{filename}.lock")
-            ),
+            _read_file(TEST_DIR / "test-stripped-lockfile" / f"{filename}.lock"),
+            _read_file(TEST_DIR / "test-lockfile-with-auth" / f"{filename}.lock"),
         )
         for filename in ("test",)
     ),
 )
 def test__add_auth_to_lockfile(stripped_lockfile, lockfile_with_auth, auth):
     assert _add_auth_to_lockfile(stripped_lockfile, auth) == lockfile_with_auth
+
+
+@pytest.mark.parametrize("kind", ["explicit", "env"])
+def test_virtual_packages(conda_exe, monkeypatch, kind):
+    test_dir = TEST_DIR.joinpath("test-cuda")
+    monkeypatch.chdir(test_dir)
+
+    if is_micromamba(conda_exe):
+        monkeypatch.setenv("CONDA_FLAGS", "-v")
+    if kind == "env" and not conda_supports_env(conda_exe):
+        pytest.skip(
+            f"Standalone conda @ '{conda_exe}' does not support materializing from environment files."
+        )
+
+    platform = "linux-64"
+
+    from click.testing import CliRunner, Result
+
+    runner = CliRunner(mix_stderr=False)
+    result = runner.invoke(
+        main,
+        [
+            "lock",
+            "--conda",
+            conda_exe,
+            "-p",
+            platform,
+            "-k",
+            kind,
+        ],
+    )
+
+    assert result.exit_code == 0
+
+    runner = CliRunner(mix_stderr=False)
+    result = runner.invoke(
+        main,
+        [
+            "lock",
+            "--conda",
+            conda_exe,
+            "-p",
+            platform,
+            "-k",
+            kind,
+            "--virtual-package-spec",
+            test_dir / "virtual-packages-old-glibc.yaml",
+        ],
+    )
+
+    # micromamba doesn't respect the CONDA_OVERRIDE_XXX="" env vars appropriately so it will include the
+    # system virtual packages regardless of whether they should be present.  Skip this check in that case
+    if not is_micromamba(conda_exe):
+        assert result.exit_code != 0
