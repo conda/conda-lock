@@ -50,8 +50,8 @@ from conda_lock.virtual_package import (
 )
 
 
+logger = logging.getLogger(__name__)
 DEFAULT_FILES = [pathlib.Path("environment.yml")]
-
 PathLike = Union[str, pathlib.Path]
 
 # Captures basic auth credentials, if they exists, in the second capture group.
@@ -594,6 +594,8 @@ def create_lockfile_from_spec(
                 fn_to_dist_name(pkg["fn"]) if is_micromamba(conda) else pkg["dist_name"]
             )
             url = fetch_by_dist_name[dist_name]["url"]
+            if url.startswith(virtual_package_channel):
+                continue
             md5 = fetch_by_dist_name[dist_name]["md5"]
             lockfile_contents.append(f"{url}#{md5}")
 
@@ -785,6 +787,7 @@ def run_lock(
     kinds: Optional[List[str]] = None,
     check_input_hash: bool = False,
     extras: Optional[AbstractSet[str]] = None,
+    virtual_package_spec: Optional[pathlib.Path] = None,
 ) -> None:
     if environment_files == DEFAULT_FILES:
         long_ext_file = pathlib.Path("environment.yaml")
@@ -804,6 +807,7 @@ def run_lock(
         kinds=kinds or DEFAULT_KINDS,
         check_spec_hash=check_input_hash,
         extras=extras,
+        virtual_package_spec=virtual_package_spec,
     )
 
 
@@ -891,16 +895,12 @@ def main():
     default="INFO",
     type=click.Choice(["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]),
 )
-# @click.option(
-#     "-m",
-#     "--mode",
-#     type=click.Choice(["default", "docker"], case_sensitive=True),
-#     default="default",
-#     help="""
-#             Run this conda-lock in an isolated docker container.  This may be
-#             required to account for some issues where conda-lock conflicts with
-#             existing condarc configurations.""",
-# )
+@click.option('--pdb', is_flag=True, help="Drop into a postmortem debugger if conda-lock crashes")
+@click.option(
+    '--virtual-package-spec', 
+    type=click.Path(),
+    help='Specify a set of virtual packages to use.',
+)
 def lock(
     conda,
     mamba,
@@ -915,6 +915,8 @@ def lock(
     extras,
     check_input_hash: bool,
     log_level,
+    pdb,
+    virtual_package_spec,
 ):
     """Generate fully reproducible lock files for conda environments.
 
@@ -929,6 +931,25 @@ def lock(
         timestamp: The approximate timestamp of the output file in ISO8601 basic format.
     """
     logging.basicConfig(level=log_level)
+
+    if pdb:
+        def handle_exception(exc_type, exc_value, exc_traceback):
+            import pdb
+            pdb.post_mortem(exc_traceback)      
+    
+        sys.excepthook = handle_exception
+
+    if not virtual_package_spec:
+        candidates = [
+            pathlib.Path('virtual-packages.yml'),
+            pathlib.Path('virtual-packages.yaml'),
+        ]
+        for c in candidates:
+            if c.exists():
+                logger.info("Using virtual packages from %s", c)
+                virtual_package_spec = c
+                break
+
     files = [pathlib.Path(file) for file in files]
     extras = set(extras)
     lock_func = partial(
@@ -942,6 +963,7 @@ def lock(
         channel_overrides=channel_overrides,
         kinds=kind,
         extras=extras,
+        virtual_package_spec=virtual_package_spec,
     )
     if strip_auth:
         with tempfile.TemporaryDirectory() as tempdir:

@@ -92,12 +92,12 @@ class FakeRepoData:
             repodata = self._write_subdir(subdir)
             self.all_repodata[subdir] = repodata
 
-        logger.info("Wrote fake repodata to %s", self.base_path)
+        logger.debug("Wrote fake repodata to %s", self.base_path)
         import glob
 
         for filename in glob.iglob(str(self.base_path / "**"), recursive=True):
-            logger.info(filename)
-        logger.info("repo: %s", self.channel_url)
+            logger.debug(filename)
+        logger.debug("repo: %s", self.channel_url)
 
 
 def _init_fake_repodata() -> FakeRepoData:
