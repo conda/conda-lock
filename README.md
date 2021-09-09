@@ -82,7 +82,7 @@ conda-lock --no-dev-dependencies -f ./recipe/meta.yaml
 Under some situation you may want to run conda lock in some kind of automated way (eg as a precommit) and want to not
 need to regenerate the lockfiles if the underlying input specification for that particular lock as not changed.
 
-```
+```bash
 conda-lock --check-input-hash -p linux-64
 ```
 
@@ -106,9 +106,47 @@ In order to `conda-lock install` a lock file with its basic auth credentials str
 
 You can provide the authentication either as string through `--auth` or as a filepath through `--auth-file`.
 
-```
+```bash
 conda-lock install --auth-file auth.json conda-linux-64.lock
 ```
+
+### --virtual-package-spec
+
+Conda makes use of [virtual packages](https://conda.io/projects/conda/en/latest/user-guide/tasks/manage-virtual.html) that are available at
+runtime to gate dependency on system features.  Due to these not generally existing on your local execution platform conda-lock will inject
+them into the solution environment with a reasonable guess at what a default system configuration should be.
+
+If you want to override which virtual packages are injected you can create a file like
+
+```yaml
+# virtual-packages.yml
+subdirs:
+  linux-64:
+    packages:
+      __glibc: 2.17
+      __cuda: 11.4
+  win-64:
+    packages:
+      __cuda: 11.4
+```
+
+conda-lock will automatically use a `virtual-packages.yml` it finds in the the current working directory.  Alternatively one can be specified
+explicitly via the flag.
+
+```bash
+conda lock --virtual-package-spec virtual-packages-cuda.yml -p linux-64
+```
+
+#### Input hash stability
+
+Virtual packages take part in the input hash so if you build an environment with a different set of virtual packages the input hash will change.
+Additionally the default set of virtual packages may be augmented in future versions of conda-lock.  If you desire very stable input hashes
+we recommend creating a `virtual-packages.yml` file to lock down the virtual packages considered.
+
+#### ⚠️ in conjunction with micromamba
+
+Micromamba does not presently support some of the overrides to remove all discovered virtual packages, consequently the set of virtual packages
+available at solve time may be larger than those specified in your specification.
 
 ## Supported file sources
 
