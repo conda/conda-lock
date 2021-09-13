@@ -43,10 +43,15 @@ from conda_lock.src_parser import LockSpecification
 from conda_lock.src_parser.environment_yaml import parse_environment_file
 from conda_lock.src_parser.meta_yaml import parse_meta_yaml_file
 from conda_lock.src_parser.pyproject_toml import parse_pyproject_toml
+from conda_lock.virtual_package import (
+    FakeRepoData,
+    default_virtual_package_repodata,
+    virtual_package_repo_from_specification,
+)
 
 
+logger = logging.getLogger(__name__)
 DEFAULT_FILES = [pathlib.Path("environment.yml")]
-
 PathLike = Union[str, pathlib.Path]
 
 # Captures basic auth credentials, if they exists, in the second capture group.
@@ -152,7 +157,10 @@ def conda_env_override(platform) -> Dict[str, str]:
 
 
 def solve_specs_for_arch(
-    conda: PathLike, channels: Sequence[str], specs: List[str], platform: str
+    conda: PathLike,
+    channels: Sequence[str],
+    specs: List[str],
+    platform: str,
 ) -> dict:
     args: MutableSequence[PathLike] = [
         str(conda),
@@ -167,6 +175,7 @@ def solve_specs_for_arch(
         args.extend(shlex.split(conda_flags))
     if channels:
         args.append("--override-channels")
+
     for channel in channels:
         args.extend(["--channel", channel])
         if channel == "defaults" and platform in {"win-64", "win-32"}:
@@ -359,6 +368,7 @@ def make_lock_specs(
     include_dev_dependencies: bool = True,
     channel_overrides: Optional[Sequence[str]] = None,
     extras: Optional[AbstractSet[str]] = None,
+    virtual_package_repo: FakeRepoData,
 ) -> Dict[str, LockSpecification]:
     """Generate the lockfile specs from a set of input src_files"""
     res = {}
@@ -375,6 +385,7 @@ def make_lock_specs(
             channels = list(channel_overrides)
         else:
             channels = lock_spec.channels
+        lock_spec.virtual_package_repo = virtual_package_repo
         lock_spec.channels = channels
         res[plat] = lock_spec
     return res
@@ -390,6 +401,7 @@ def make_lock_files(
     filename_template: Optional[str] = None,
     check_spec_hash: bool = False,
     extras: Optional[AbstractSet[str]] = None,
+    virtual_package_spec: Optional[pathlib.Path] = None,
 ):
     """Generate the lock files for the given platforms from the src file provided
 
@@ -430,58 +442,69 @@ def make_lock_files(
                 )
                 sys.exit(1)
 
-    lock_specs = make_lock_specs(
-        platforms=platforms,
-        src_files=src_files,
-        include_dev_dependencies=include_dev_dependencies,
-        channel_overrides=channel_overrides,
-        extras=extras,
-    )
+    # initialize virtual package fake
+    if virtual_package_spec and virtual_package_spec.exists():
+        virtual_package_repo = virtual_package_repo_from_specification(
+            virtual_package_spec
+        )
+    else:
+        virtual_package_repo = default_virtual_package_repodata()
 
-    for plat, lock_spec in lock_specs.items():
-        for kind in kinds:
-            if filename_template:
-                context = {
-                    "platform": lock_spec.platform,
-                    "dev-dependencies": str(include_dev_dependencies).lower(),
-                    # legacy key
-                    "spec-hash": lock_spec.input_hash(),
-                    "input-hash": lock_spec.input_hash(),
-                    "version": pkg_resources.get_distribution("conda_lock").version,
-                    "timestamp": datetime.datetime.utcnow().strftime("%Y%m%dT%H%M%SZ"),
-                }
+    with virtual_package_repo:
+        lock_specs = make_lock_specs(
+            platforms=platforms,
+            src_files=src_files,
+            include_dev_dependencies=include_dev_dependencies,
+            channel_overrides=channel_overrides,
+            extras=extras,
+            virtual_package_repo=virtual_package_repo,
+        )
 
-                filename = filename_template.format(**context)
-            else:
-                filename = f"conda-{lock_spec.platform}.lock"
+        for plat, lock_spec in lock_specs.items():
+            for kind in kinds:
+                if filename_template:
+                    context = {
+                        "platform": lock_spec.platform,
+                        "dev-dependencies": str(include_dev_dependencies).lower(),
+                        # legacy key
+                        "spec-hash": lock_spec.input_hash(),
+                        "input-hash": lock_spec.input_hash(),
+                        "version": pkg_resources.get_distribution("conda_lock").version,
+                        "timestamp": datetime.datetime.utcnow().strftime(
+                            "%Y%m%dT%H%M%SZ"
+                        ),
+                    }
 
-            lockfile = pathlib.Path(filename)
-            if lockfile.exists() and check_spec_hash:
-                existing_spec_hash = extract_input_hash(lockfile.read_text())
-                if existing_spec_hash == lock_spec.input_hash():
-                    print(
-                        f"Spec hash already locked for {plat}. Skipping",
-                        file=sys.stderr,
-                    )
-                    continue
+                    filename = filename_template.format(**context)
+                else:
+                    filename = f"conda-{lock_spec.platform}.lock"
 
-            print(f"Generating lockfile(s) for {plat}...", file=sys.stderr)
-            lockfile_contents = create_lockfile_from_spec(
-                channels=lock_spec.channels,
-                conda=conda,
-                spec=lock_spec,
-                kind=kind,
-            )
+                lockfile = pathlib.Path(filename)
+                if lockfile.exists() and check_spec_hash:
+                    existing_spec_hash = extract_input_hash(lockfile.read_text())
+                    if existing_spec_hash == lock_spec.input_hash():
+                        print(
+                            f"Spec hash already locked for {plat}. Skipping",
+                            file=sys.stderr,
+                        )
+                        continue
 
-            filename += KIND_FILE_EXT[kind]
-            with open(filename, "w") as fo:
-                fo.write("\n".join(lockfile_contents) + "\n")
+                print(f"Generating lockfile(s) for {plat}...", file=sys.stderr)
+                lockfile_contents = create_lockfile_from_spec(
+                    conda=conda,
+                    spec=lock_spec,
+                    kind=kind,
+                )
 
-            print(
-                f" - Install lock using {'(see warning below)' if kind == 'env' else ''}:",
-                KIND_USE_TEXT[kind].format(lockfile=filename),
-                file=sys.stderr,
-            )
+                filename += KIND_FILE_EXT[kind]
+                with open(filename, "w") as fo:
+                    fo.write("\n".join(lockfile_contents) + "\n")
+
+                print(
+                    f" - Install lock using {'(see warning below)' if kind == 'env' else ''}:",
+                    KIND_USE_TEXT[kind].format(lockfile=filename),
+                    file=sys.stderr,
+                )
 
     if "env" in kinds:
         print(
@@ -502,15 +525,16 @@ def is_micromamba(conda: PathLike) -> bool:
 
 def create_lockfile_from_spec(
     *,
-    channels: Sequence[str],
     conda: PathLike,
     spec: LockSpecification,
     kind: str,
 ) -> List[str]:
+    assert spec.virtual_package_repo is not None
+    virtual_package_channel = spec.virtual_package_repo.channel_url
     dry_run_install = solve_specs_for_arch(
         conda=conda,
         platform=spec.platform,
-        channels=channels,
+        channels=[*spec.channels, virtual_package_channel],
         specs=spec.specs,
     )
     logging.debug("dry_run_install:\n%s", dry_run_install)
@@ -526,11 +550,13 @@ def create_lockfile_from_spec(
         lockfile_contents.extend(
             [
                 "channels:",
-                *(f"  - {channel}" for channel in channels),
+                *(f"  - {channel}" for channel in spec.channels),
                 "dependencies:",
                 *(
                     f'  - {pkg["name"]}={pkg["version"]}={pkg["build_string"]}'
                     for pkg in link_actions
+                    # exclude virtual packages
+                    if not pkg["name"].startswith("__")
                 ),
             ]
         )
@@ -546,7 +572,6 @@ def create_lockfile_from_spec(
                 link[
                     "url_base"
                 ] = f"{link['base_url']}/{link['platform']}/{link['dist_name']}"
-
             link["url"] = f"{link['url_base']}.tar.bz2"
             link["url_conda"] = f"{link['url_base']}.conda"
         link_dists = {link["dist_name"] for link in link_actions}
@@ -563,7 +588,7 @@ def create_lockfile_from_spec(
                     x for x in link_actions if x["dist_name"] in non_fetch_packages
                 ],
                 platform=spec.platform,
-                channels=channels,
+                channels=spec.channels,
             ):
                 dist_name = fn_to_dist_name(search_res["fn"])
                 fetch_by_dist_name[dist_name] = search_res
@@ -573,6 +598,8 @@ def create_lockfile_from_spec(
                 fn_to_dist_name(pkg["fn"]) if is_micromamba(conda) else pkg["dist_name"]
             )
             url = fetch_by_dist_name[dist_name]["url"]
+            if url.startswith(virtual_package_channel):
+                continue
             md5 = fetch_by_dist_name[dist_name]["md5"]
             lockfile_contents.append(f"{url}#{md5}")
 
@@ -764,6 +791,7 @@ def run_lock(
     kinds: Optional[List[str]] = None,
     check_input_hash: bool = False,
     extras: Optional[AbstractSet[str]] = None,
+    virtual_package_spec: Optional[pathlib.Path] = None,
 ) -> None:
     if environment_files == DEFAULT_FILES:
         long_ext_file = pathlib.Path("environment.yaml")
@@ -783,6 +811,7 @@ def run_lock(
         kinds=kinds or DEFAULT_KINDS,
         check_spec_hash=check_input_hash,
         extras=extras,
+        virtual_package_spec=virtual_package_spec,
     )
 
 
@@ -852,6 +881,7 @@ def main():
     help="Strip the basic auth credentials from the lockfile.",
 )
 @click.option(
+    "-e",
     "--extras",
     default=[],
     type=str,
@@ -870,16 +900,14 @@ def main():
     default="INFO",
     type=click.Choice(["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]),
 )
-# @click.option(
-#     "-m",
-#     "--mode",
-#     type=click.Choice(["default", "docker"], case_sensitive=True),
-#     default="default",
-#     help="""
-#             Run this conda-lock in an isolated docker container.  This may be
-#             required to account for some issues where conda-lock conflicts with
-#             existing condarc configurations.""",
-# )
+@click.option(
+    "--pdb", is_flag=True, help="Drop into a postmortem debugger if conda-lock crashes"
+)
+@click.option(
+    "--virtual-package-spec",
+    type=click.Path(),
+    help="Specify a set of virtual packages to use.",
+)
 def lock(
     conda,
     mamba,
@@ -894,6 +922,8 @@ def lock(
     extras,
     check_input_hash: bool,
     log_level,
+    pdb,
+    virtual_package_spec,
 ):
     """Generate fully reproducible lock files for conda environments.
 
@@ -908,6 +938,27 @@ def lock(
         timestamp: The approximate timestamp of the output file in ISO8601 basic format.
     """
     logging.basicConfig(level=log_level)
+
+    if pdb:
+
+        def handle_exception(exc_type, exc_value, exc_traceback):
+            import pdb
+
+            pdb.post_mortem(exc_traceback)
+
+        sys.excepthook = handle_exception
+
+    if not virtual_package_spec:
+        candidates = [
+            pathlib.Path("virtual-packages.yml"),
+            pathlib.Path("virtual-packages.yaml"),
+        ]
+        for c in candidates:
+            if c.exists():
+                logger.info("Using virtual packages from %s", c)
+                virtual_package_spec = c
+                break
+
     files = [pathlib.Path(file) for file in files]
     extras = set(extras)
     lock_func = partial(
@@ -921,6 +972,7 @@ def lock(
         channel_overrides=channel_overrides,
         kinds=kind,
         extras=extras,
+        virtual_package_spec=virtual_package_spec,
     )
     if strip_auth:
         with tempfile.TemporaryDirectory() as tempdir:

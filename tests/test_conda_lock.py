@@ -37,6 +37,9 @@ from conda_lock.src_parser.pyproject_toml import (
 )
 
 
+TEST_DIR = pathlib.Path(__file__).parent
+
+
 @pytest.fixture(autouse=True)
 def logging_setup(caplog):
     caplog.set_level(logging.DEBUG)
@@ -44,12 +47,12 @@ def logging_setup(caplog):
 
 @pytest.fixture
 def gdal_environment():
-    return pathlib.Path(__file__).parent.joinpath("gdal").joinpath("environment.yml")
+    return TEST_DIR.joinpath("gdal").joinpath("environment.yml")
 
 
 @pytest.fixture
 def zlib_environment():
-    return pathlib.Path(__file__).parent.joinpath("zlib").joinpath("environment.yml")
+    return TEST_DIR.joinpath("zlib").joinpath("environment.yml")
 
 
 @pytest.fixture
@@ -63,21 +66,17 @@ def input_hash_zlib_environment():
 
 @pytest.fixture
 def meta_yaml_environment():
-    return pathlib.Path(__file__).parent.joinpath("test-recipe").joinpath("meta.yaml")
+    return TEST_DIR.joinpath("test-recipe").joinpath("meta.yaml")
 
 
 @pytest.fixture
 def poetry_pyproject_toml():
-    return (
-        pathlib.Path(__file__).parent.joinpath("test-poetry").joinpath("pyproject.toml")
-    )
+    return TEST_DIR.joinpath("test-poetry").joinpath("pyproject.toml")
 
 
 @pytest.fixture
 def flit_pyproject_toml():
-    return (
-        pathlib.Path(__file__).parent.joinpath("test-flit").joinpath("pyproject.toml")
-    )
+    return TEST_DIR.joinpath("test-flit").joinpath("pyproject.toml")
 
 
 @pytest.fixture(
@@ -201,23 +200,27 @@ def test_run_lock_with_input_hash_check(
 )
 def test_poetry_version_parsing_constraints(package, version, url_pattern):
     _conda_exe = determine_conda_executable("conda", mamba=False, micromamba=False)
-    spec = LockSpecification(
-        specs=[to_match_spec(package, poetry_version_to_conda_version(version))],
-        channels=["conda-forge"],
-        platform="linux-64",
-    )
-    lockfile_contents = create_lockfile_from_spec(
-        conda=_conda_exe,
-        channels=spec.channels,
-        spec=spec,
-        kind="explicit",
-    )
+    from conda_lock.virtual_package import default_virtual_package_repodata
 
-    for line in lockfile_contents:
-        if url_pattern in line:
-            break
-    else:
-        raise ValueError(f"could not find {package} {version}")
+    vpr = default_virtual_package_repodata()
+    with vpr:
+        spec = LockSpecification(
+            specs=[to_match_spec(package, poetry_version_to_conda_version(version))],
+            channels=["conda-forge"],
+            platform="linux-64",
+            virtual_package_repo=vpr,
+        )
+        lockfile_contents = create_lockfile_from_spec(
+            conda=_conda_exe,
+            spec=spec,
+            kind="explicit",
+        )
+
+        for line in lockfile_contents:
+            if url_pattern in line:
+                break
+        else:
+            raise ValueError(f"could not find {package} {version}")
 
 
 def test_aggregate_lock_specs():
@@ -470,19 +473,102 @@ def auth_():
     "stripped_lockfile,lockfile_with_auth",
     tuple(
         (
-            _read_file(
-                pathlib.Path(__file__)
-                .parent.joinpath("test-stripped-lockfile")
-                .joinpath(f"{filename}.lock")
-            ),
-            _read_file(
-                pathlib.Path(__file__)
-                .parent.joinpath("test-lockfile-with-auth")
-                .joinpath(f"{filename}.lock")
-            ),
+            _read_file(TEST_DIR / "test-stripped-lockfile" / f"{filename}.lock"),
+            _read_file(TEST_DIR / "test-lockfile-with-auth" / f"{filename}.lock"),
         )
         for filename in ("test",)
     ),
 )
 def test__add_auth_to_lockfile(stripped_lockfile, lockfile_with_auth, auth):
     assert _add_auth_to_lockfile(stripped_lockfile, auth) == lockfile_with_auth
+
+
+@pytest.mark.parametrize("kind", ["explicit", "env"])
+def test_virtual_packages(conda_exe, monkeypatch, kind):
+    test_dir = TEST_DIR.joinpath("test-cuda")
+    monkeypatch.chdir(test_dir)
+
+    if is_micromamba(conda_exe):
+        monkeypatch.setenv("CONDA_FLAGS", "-v")
+    if kind == "env" and not conda_supports_env(conda_exe):
+        pytest.skip(
+            f"Standalone conda @ '{conda_exe}' does not support materializing from environment files."
+        )
+
+    platform = "linux-64"
+
+    from click.testing import CliRunner, Result
+
+    runner = CliRunner(mix_stderr=False)
+    result = runner.invoke(
+        main,
+        [
+            "lock",
+            "--conda",
+            conda_exe,
+            "-p",
+            platform,
+            "-k",
+            kind,
+        ],
+    )
+
+    assert result.exit_code == 0
+
+    runner = CliRunner(mix_stderr=False)
+    result = runner.invoke(
+        main,
+        [
+            "lock",
+            "--conda",
+            conda_exe,
+            "-p",
+            platform,
+            "-k",
+            kind,
+            "--virtual-package-spec",
+            test_dir / "virtual-packages-old-glibc.yaml",
+        ],
+    )
+
+    # micromamba doesn't respect the CONDA_OVERRIDE_XXX="" env vars appropriately so it will include the
+    # system virtual packages regardless of whether they should be present.  Skip this check in that case
+    if not is_micromamba(conda_exe):
+        assert result.exit_code != 0
+
+
+def test_virtual_package_input_hash_stability():
+    from conda_lock.virtual_package import virtual_package_repo_from_specification
+
+    test_dir = TEST_DIR.joinpath("test-cuda")
+    spec = test_dir / "virtual-packages-old-glibc.yaml"
+
+    vpr = virtual_package_repo_from_specification(spec)
+    spec = LockSpecification([], [], "linux-64", vpr)
+    expected = "e8e6f657016351e26bef54e35091b6fcc76b266e1f136a8fa1f2f493d62d6dd6"
+    assert spec.input_hash() == expected
+
+
+def _param(platform, hash):
+    return pytest.param(platform, hash, id=platform)
+
+
+@pytest.mark.parametrize(
+    ["platform", "expected"],
+    [
+        # fmt: off
+        _param("linux-64", "ed70aec6681f127c0bf2118c556c9e078afdab69b254b4e5aee12fdc8d7420b5"),
+        _param("linux-aarch64", "b30f28e2ad39531888479a67ac82c56c7fef041503f98eeb8b3cbaaa7a855ed9"),
+        _param("linux-ppc64le", "5b2235e1138500de742a291e3f0f26d68c61e6a6d4debadea106f4814055a28d"),
+        _param("osx-64", "b995edf1fe0718d3810b5cca77e235fa0e8c689179a79731bdc799418020bd3e"),
+        _param("osx-arm64", "e0a6f743325833c93d440e1dab0165afdf1b7d623740803b6cedc19f05618d73"),
+        _param("win-64", "3fe95154e8d7b99fa6326e025fb7d7ce44e4ae8253ac71e8f5b2acec50091c9e"),
+        # fmt: on
+    ],
+)
+def test_default_virtual_package_input_hash_stability(platform, expected):
+    from conda_lock.virtual_package import default_virtual_package_repodata
+
+    vpr = default_virtual_package_repodata()
+    spec = LockSpecification([], [], platform, vpr)
+    assert spec.input_hash() == expected
