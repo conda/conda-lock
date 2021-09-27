@@ -38,7 +38,9 @@ def normalize_pypi_name(name: str) -> str:
         return name
 
 
-def poetry_version_to_conda_version(version_string):
+def poetry_version_to_conda_version(version_string: Optional[str]) -> Optional[str]:
+    if version_string is None:
+        return None
     components = [c.replace(" ", "").strip() for c in version_string.split(",")]
     output_components = []
 
@@ -47,18 +49,16 @@ def poetry_version_to_conda_version(version_string):
             continue
         version_pieces = c.lstrip("<>=^~!").split(".")
         if c[0] == "^":
-            upper_version = version_pieces.copy()
-            upper_version[0] = int(upper_version[0]) + 1
-            for i in range(1, len(upper_version)):
-                upper_version[i] = 0
+            upper_version = [int(version_pieces[0]) + 1]
+            for i in range(1, len(version_pieces)):
+                upper_version.append(0)
 
             output_components.append(f">={join_version_components(version_pieces)}")
             output_components.append(f"<{join_version_components(upper_version)}")
         elif c[0] == "~":
-            upper_version = version_pieces.copy()
-            upper_version[1] = int(upper_version[1]) + 1
-            for i in range(2, len(upper_version)):
-                upper_version[i] = 0
+            upper_version = [int(version_pieces[0]), int(version_pieces[1]) + 1]
+            for i in range(2, len(version_pieces)):
+                upper_version.append(0)
 
             output_components.append(f">={join_version_components(version_pieces)}")
             output_components.append(f"<{join_version_components(upper_version)}")
@@ -75,6 +75,7 @@ def parse_poetry_pyproject_toml(
 ) -> LockSpecification:
     contents = toml.load(pyproject_toml)
     specs: List[str] = []
+    pip_specs: List[str] = []
     extras = extras or set()
     dependency_sections = ["dependencies"]
     if include_dev_dependencies:
@@ -90,9 +91,18 @@ def parse_poetry_pyproject_toml(
         for depname, depattrs in deps.items():
             conda_dep_name = normalize_pypi_name(depname)
             optional_dep = False
+            pip_dep = False
+            url = None
             if isinstance(depattrs, collections.Mapping):
-                poetry_version_spec = depattrs["version"]
+                poetry_version_spec = depattrs.get("version", None)
+                url = depattrs.get("url", None)
                 optional_dep = depattrs.get("optional", False)
+                # If a depdendency is explicitly marked as sourced from pypi,
+                # or is a URL dependency, delegate to the pip section
+                pip_dep = (
+                    depattrs.get("source", None) == "pypi"
+                    or poetry_version_spec is None
+                )
                 # TODO: support additional features such as markers for things like sys_platform, platform_system
             elif isinstance(depattrs, str):
                 poetry_version_spec = depattrs
@@ -101,20 +111,35 @@ def parse_poetry_pyproject_toml(
                     f"Unsupported type for dependency: {depname}: {depattrs:r}"
                 )
             conda_version = poetry_version_to_conda_version(poetry_version_spec)
-            spec = to_match_spec(conda_dep_name, conda_version)
 
-            if not optional_dep or (depname in desired_extras_deps):
+            if pip_dep and not optional_dep or (depname in desired_extras_deps):
+                if conda_version:
+                    spec = f"{depname} {conda_version}"
+                elif url:
+                    spec = f"{depname} @ {url}"
+                else:
+                    spec = depname
+                pip_specs.append(spec)
+
+            elif not optional_dep or (depname in desired_extras_deps):
+                spec = to_match_spec(conda_dep_name, conda_version)
                 if conda_dep_name == "python":
                     specs.insert(0, spec)
                 else:
                     specs.append(spec)
+
+    # ensure pip is in the target env
+    if pip_specs:
+        specs.append("pip")
 
     conda_deps = get_in(["tool", "conda-lock", "dependencies"], contents, {})
     specs.extend(parse_conda_dependencies(conda_deps))
 
     channels = get_in(["tool", "conda-lock", "channels"], contents, [])
 
-    return LockSpecification(specs=specs, channels=channels, platform=platform)
+    return LockSpecification(
+        specs=specs, pip_specs=pip_specs, channels=channels, platform=platform
+    )
 
 
 def to_match_spec(conda_dep_name, conda_version):
