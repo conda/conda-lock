@@ -52,7 +52,7 @@ conda-lock --filename-template "specific-{platform}.conda.lock"
 Conda-lock will build a spec list from several files if requested.
 
 ```bash
-conda-lock -f base.yml -f specific.yml -p linux-64 --filename-format "specific-{platform}.lock"
+conda-lock -f base.yml -f specific.yml -p linux-64 --filename-template "specific-{platform}.lock"
 ````
 
 In this case all dependencies are combined, and the first non-empty value for `channels` is used as the final
