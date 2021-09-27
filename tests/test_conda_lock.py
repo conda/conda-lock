@@ -21,12 +21,16 @@ from conda_lock.conda_lock import (
     aggregate_lock_specs,
     conda_env_override,
     create_lockfile_from_spec,
+    default_virtual_package_repodata,
     determine_conda_executable,
     is_micromamba,
     main,
+    make_lock_specs,
     parse_meta_yaml_file,
     run_lock,
+    solve_specs_for_arch,
 )
+from conda_lock.pypi_solver import parse_pip_requirement, solve_pypi
 from conda_lock.src_parser import LockSpecification
 from conda_lock.src_parser.environment_yaml import parse_environment_file
 from conda_lock.src_parser.pyproject_toml import (
@@ -48,6 +52,11 @@ def logging_setup(caplog):
 @pytest.fixture
 def gdal_environment():
     return TEST_DIR.joinpath("gdal").joinpath("environment.yml")
+
+
+@pytest.fixture
+def pip_environment():
+    return TEST_DIR.joinpath("test-pypi-resolve").joinpath("environment.yml")
 
 
 @pytest.fixture
@@ -94,6 +103,89 @@ def test_parse_environment_file(gdal_environment):
     res = parse_environment_file(gdal_environment, "linux-64")
     assert all(x in res.specs for x in ["python >=3.7,<3.8", "gdal"])
     assert all(x in res.channels for x in ["conda-forge", "defaults"])
+
+
+def test_parse_environment_file_with_pip(pip_environment):
+    res = parse_environment_file(pip_environment, "linux-64")
+    assert res.pip_specs == ["requests-toolbelt==0.9.1"]
+
+
+def test_choose_wheel(pip_environment):
+
+    solution = solve_pypi(["fastavro"], [], "3.9.7", "linux-64")
+    assert solution is None
+
+
+@pytest.mark.parametrize(
+    "requirement, parsed",
+    [
+        (
+            "package-thingie1[foo]",
+            {
+                "name": "package-thingie1",
+                "constraint": None,
+                "extras": "foo",
+                "url": None,
+            },
+        ),
+        (
+            "package[extra] @ https://foo.bar/package.whl#sha1=blerp",
+            {
+                "name": "package",
+                "constraint": None,
+                "extras": "extra",
+                "url": "https://foo.bar/package.whl#sha1=blerp",
+            },
+        ),
+        (
+            "package[extra] = 2.1",
+            {
+                "name": "package",
+                "constraint": "= 2.1",
+                "extras": "extra",
+                "url": None,
+            },
+        ),
+        (
+            "package[extra] == 2.1",
+            {
+                "name": "package",
+                "constraint": "== 2.1",
+                "extras": "extra",
+                "url": None,
+            },
+        ),
+        (
+            "package[extra]===2.1",
+            {
+                "name": "package",
+                "constraint": "===2.1",
+                "extras": "extra",
+                "url": None,
+            },
+        ),
+        (
+            "package[extra] >=2.1.*, <4.0",
+            {
+                "name": "package",
+                "constraint": ">=2.1.*, <4.0",
+                "extras": "extra",
+                "url": None,
+            },
+        ),
+        (
+            "package[extra] >=0.8.0-alpha.2,<1.0.0.0",
+            {
+                "name": "package",
+                "constraint": ">=0.8.0-alpha.2,<1.0.0.0",
+                "extras": "extra",
+                "url": None,
+            },
+        ),
+    ],
+)
+def test_parse_pip_requirement(requirement, parsed):
+    assert parse_pip_requirement(requirement) == parsed
 
 
 def test_parse_meta_yaml_file(meta_yaml_environment, include_dev_dependencies):
@@ -156,6 +248,73 @@ def test_run_lock(monkeypatch, zlib_environment, conda_exe):
     if is_micromamba(conda_exe):
         monkeypatch.setenv("CONDA_FLAGS", "-v")
     run_lock([zlib_environment], conda_exe=conda_exe)
+
+
+def test_run_lock_with_pip(monkeypatch, pip_environment, conda_exe):
+    monkeypatch.chdir(pip_environment.parent)
+    if is_micromamba(conda_exe):
+        monkeypatch.setenv("CONDA_FLAGS", "-v")
+    run_lock([pip_environment], conda_exe=conda_exe)
+
+
+def test_solve_with_pip(pip_environment, conda_exe):
+
+    virtual_package_repo = default_virtual_package_repodata()
+
+    with virtual_package_repo:
+        lock_specs = make_lock_specs(
+            platforms=["linux-64"],
+            src_files=[pip_environment],
+            include_dev_dependencies=False,
+            channel_overrides=None,
+            extras=None,
+            virtual_package_repo=virtual_package_repo,
+        )
+
+        spec = lock_specs["linux-64"]
+
+        dry_run_install = solve_specs_for_arch(
+            conda=conda_exe,
+            platform=spec.platform,
+            channels=[*spec.channels, virtual_package_repo.channel_url],
+            specs=spec.specs,
+        )
+
+    python_version = None
+    locked_packages = []
+    for package in (
+        dry_run_install["actions"]["FETCH"] + dry_run_install["actions"]["LINK"]
+    ):
+        if package["name"] == "python":
+            python_version = package["version"]
+        else:
+            locked_packages.append((package["name"], package["version"]))
+    assert python_version.startswith("3.9.")
+
+    pip_installs = solve_pypi(
+        spec.pip_specs, conda_installed=locked_packages, python_version=python_version
+    )
+    assert len(pip_installs) == 1
+    assert pip_installs[0]["name"] == "requests-toolbelt"
+    assert pip_installs[0]["version"] == "0.9.1"
+
+    pip_installs = solve_pypi(
+        [
+            "requests-toolbelt @ https://files.pythonhosted.org/packages/60/ef/7681134338fc097acef8d9b2f8abe0458e4d87559c689a8c306d0957ece5/requests_toolbelt-0.9.1-py2.py3-none-any.whl#sha256=380606e1d10dc85c3bd47bf5a6095f815ec007be7a8b69c878507068df059e6f"
+        ],
+        conda_installed=locked_packages,
+        python_version=python_version,
+    )
+    assert len(pip_installs) == 1
+    assert pip_installs[0]["name"] == "requests-toolbelt"
+    assert "version" not in pip_installs[0]
+    assert (
+        pip_installs[0]["url"]
+        == "https://files.pythonhosted.org/packages/60/ef/7681134338fc097acef8d9b2f8abe0458e4d87559c689a8c306d0957ece5/requests_toolbelt-0.9.1-py2.py3-none-any.whl"
+    )
+    assert pip_installs[0]["hashes"] == [
+        "sha256:380606e1d10dc85c3bd47bf5a6095f815ec007be7a8b69c878507068df059e6f"
+    ]
 
 
 def test_run_lock_with_input_hash_check(
@@ -261,7 +420,7 @@ def test_aggregate_lock_specs():
         pytest.param("conda"),
         pytest.param("mamba"),
         pytest.param("micromamba"),
-        pytest.param("conda_exe"),
+        # pytest.param("conda_exe"),
     ],
 )
 def conda_exe(request):

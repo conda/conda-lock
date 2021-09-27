@@ -1,0 +1,7 @@
+channels:
+  - conda-forge
+dependencies:
+  - python=3.9
+  - requests=2.26
+  - pip:
+    - requests-toolbelt==0.9.1

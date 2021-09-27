@@ -12,11 +12,13 @@ class LockSpecification:
         specs: List[str],
         channels: List[str],
         platform: str,
+        pip_specs: Optional[List[str]] = None,
         virtual_package_repo: Optional[FakeRepoData] = None,
     ):
         self.specs = specs
         self.channels = channels
         self.platform = platform
+        self.pip_specs = pip_specs
         self.virtual_package_repo = virtual_package_repo
 
     def input_hash(self) -> str:
@@ -24,6 +26,7 @@ class LockSpecification:
             "channels": self.channels,
             "platform": self.platform,
             "specs": sorted(self.specs),
+            "pip_specs": sorted(self.pip_specs or []),
         }
         if self.virtual_package_repo is not None:
             vpr_data = self.virtual_package_repo.all_repodata

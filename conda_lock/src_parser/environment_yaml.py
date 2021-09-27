@@ -27,15 +27,14 @@ def parse_environment_file(
     mapping_specs = [x for x in specs if not isinstance(x, str)]
     specs = [x for x in specs if isinstance(x, str)]
 
-    # Print a warning if there are pip specs in the dependencies
+    # Consume pip specs
+    pip_specs = []
     for mapping_spec in mapping_specs:
         if "pip" in mapping_spec:
-            print(
-                (
-                    "Warning, found pip deps not included in the lock file! You'll need to install "
-                    "them separately"
-                ),
-                file=sys.stderr,
-            )
+            pip_specs += mapping_spec["pip"]
+            # ensure pip is in target env
+            specs.append("pip")
 
-    return LockSpecification(specs=specs, channels=channels, platform=platform)
+    return LockSpecification(
+        specs=specs, channels=channels, platform=platform, pip_specs=pip_specs
+    )
