@@ -63,9 +63,18 @@ class FakeRepoData:
     @property
     def channel_url(self):
         if isinstance(self.base_path, pathlib.WindowsPath):
-            return str(self.base_path.absolute().as_posix())
+            return str(self.base_path.absolute())
         else:
-            return f"file://{str(self.base_path.absolute().as_posix())}"
+            return f"file://{self.base_path.absolute().as_posix()}"
+
+    @property
+    def channel_url_posix(self):
+        if isinstance(self.base_path, pathlib.WindowsPath):
+            # Mamba has a different return format for windows filepach urls and takes the form
+            # file:///C:/dira/dirb
+            return f"file:///{self.base_path.absolute().as_posix()}"
+        else:
+            return f"file://{self.base_path.absolute().as_posix()}"
 
     def add_package(self, package: FakePackage, subdirs: Iterable[str] = ()):
         subdirs = frozenset(subdirs)
@@ -188,10 +197,12 @@ def default_virtual_package_repodata() -> FakeRepoData:
         glibc_virtual, subdirs=["linux-aarch64", "linux-ppc64le", "linux-64"]
     )
 
-    cuda_virtual = FakePackage(name="__cuda", version="11.4")
-    repodata.add_package(
-        cuda_virtual, subdirs=["linux-aarch64", "linux-ppc64le", "linux-64", "win-64"]
-    )
+    for cuda_version in ["11.4"]:
+        cuda_virtual = FakePackage(name="__cuda", version=cuda_version)
+        repodata.add_package(
+            cuda_virtual,
+            subdirs=["linux-aarch64", "linux-ppc64le", "linux-64", "win-64"],
+        )
 
     for osx_ver in OSX_VERSIONS_X86:
         package = FakePackage(name="__osx", version=osx_ver)

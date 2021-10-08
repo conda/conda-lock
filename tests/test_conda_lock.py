@@ -117,13 +117,13 @@ def test_parse_poetry(poetry_pyproject_toml, include_dev_dependencies):
         include_dev_dependencies=include_dev_dependencies,
     )
 
-    assert "requests[version='>=2.13.0,<3.0.0']" in res.specs
-    assert "toml[version='>=0.10']" in res.specs
-    assert "sqlite[version='<3.34']" in res.specs
-    assert "certifi[version='>=2019.11.28']" in res.specs
-    assert ("pytest[version='>=5.1.0,<5.2.0']" in res.specs) == include_dev_dependencies
+    assert "requests >=2.13.0,<3.0.0" in res.specs
+    assert "toml >=0.10" in res.specs
+    assert "sqlite <3.34" in res.specs
+    assert "certifi >=2019.11.28" in res.specs
+    assert ("pytest >=5.1.0,<5.2.0" in res.specs) == include_dev_dependencies
     assert res.channels == ["defaults"]
-    assert "tomlkit[version='>=0.7.0,<1.0.0']" not in res.specs
+    assert "tomlkit >=0.7.0,<1.0.0" not in res.specs
 
     res = parse_poetry_pyproject_toml(
         poetry_pyproject_toml,
@@ -132,7 +132,7 @@ def test_parse_poetry(poetry_pyproject_toml, include_dev_dependencies):
         extras={"tomlkit"},
     )
 
-    assert "tomlkit[version='>=0.7.0,<1.0.0']" in res.specs
+    assert "tomlkit >=0.7.0,<1.0.0" in res.specs
 
 
 def test_parse_flit(flit_pyproject_toml, include_dev_dependencies):
@@ -142,12 +142,12 @@ def test_parse_flit(flit_pyproject_toml, include_dev_dependencies):
         include_dev_dependencies=include_dev_dependencies,
     )
 
-    assert "requests[version='>=2.13.0']" in res.specs
-    assert "toml[version='>=0.10']" in res.specs
-    assert "sqlite[version='<3.34']" in res.specs
-    assert "certifi[version='>=2019.11.28']" in res.specs
+    assert "requests >=2.13.0" in res.specs
+    assert "toml >=0.10" in res.specs
+    assert "sqlite <3.34" in res.specs
+    assert "certifi >=2019.11.28" in res.specs
     # test deps
-    assert ("pytest[version='>=5.1.0']" in res.specs) == include_dev_dependencies
+    assert ("pytest >=5.1.0" in res.specs) == include_dev_dependencies
     assert res.channels == ["defaults"]
 
 
@@ -198,23 +198,29 @@ def test_run_lock_with_input_hash_check(
         ("python", "^2.7", "/python-2.7"),
     ],
 )
-def test_poetry_version_parsing_constraints(package, version, url_pattern):
+def test_poetry_version_parsing_constraints(package, version, url_pattern, capsys):
     _conda_exe = determine_conda_executable("conda", mamba=False, micromamba=False)
+    # _conda_exe = determine_conda_executable(None, mamba=True, micromamba=False)
+
     from conda_lock.virtual_package import default_virtual_package_repodata
 
     vpr = default_virtual_package_repodata()
-    with vpr:
+    with vpr, capsys.disabled():
         spec = LockSpecification(
             specs=[to_match_spec(package, poetry_version_to_conda_version(version))],
             channels=["conda-forge"],
             platform="linux-64",
             virtual_package_repo=vpr,
         )
-        lockfile_contents = create_lockfile_from_spec(
-            conda=_conda_exe,
-            spec=spec,
-            kind="explicit",
-        )
+        try:
+            lockfile_contents = create_lockfile_from_spec(
+                conda=_conda_exe,
+                spec=spec,
+                kind="explicit",
+            )
+        except BaseException as e:
+            print(e)
+            raise
 
         for line in lockfile_contents:
             if url_pattern in line:
@@ -303,7 +309,7 @@ def conda_supports_env(conda_exe):
 
 
 @pytest.mark.parametrize("kind", ["explicit", "env"])
-def test_install(kind, tmp_path, conda_exe, zlib_environment, monkeypatch):
+def test_install(kind, tmp_path, conda_exe, zlib_environment, monkeypatch, capsys):
     if is_micromamba(conda_exe):
         monkeypatch.setenv("CONDA_FLAGS", "-v")
     if kind == "env" and not conda_supports_env(conda_exe):
@@ -323,26 +329,26 @@ def test_install(kind, tmp_path, conda_exe, zlib_environment, monkeypatch):
 
     from click.testing import CliRunner
 
-    runner = CliRunner(mix_stderr=False)
-    result = runner.invoke(
-        main,
-        [
-            "lock",
-            "--conda",
-            conda_exe,
-            "-p",
-            platform,
-            "-f",
-            zlib_environment,
-            "-k",
-            kind,
-            "--filename-template",
-            lock_filename_template,
-        ],
-    )
-    if result.exit_code != 0:
-        print(result.stdout, file=sys.stdout)
-        print(result.stderr, file=sys.stderr)
+    with capsys.disabled():
+        runner = CliRunner(mix_stderr=False)
+        result = runner.invoke(
+            main,
+            [
+                "lock",
+                "--conda",
+                conda_exe,
+                "-p",
+                platform,
+                "-f",
+                zlib_environment,
+                "-k",
+                kind,
+                "--filename-template",
+                lock_filename_template,
+            ],
+        )
+    print(result.stdout, file=sys.stdout)
+    print(result.stderr, file=sys.stderr)
     assert result.exit_code == 0
 
     env_name = "test_env"
@@ -484,7 +490,7 @@ def test__add_auth_to_lockfile(stripped_lockfile, lockfile_with_auth, auth):
 
 
 @pytest.mark.parametrize("kind", ["explicit", "env"])
-def test_virtual_packages(conda_exe, monkeypatch, kind):
+def test_virtual_packages(conda_exe, monkeypatch, kind, capsys):
     test_dir = TEST_DIR.joinpath("test-cuda")
     monkeypatch.chdir(test_dir)
 
@@ -499,20 +505,25 @@ def test_virtual_packages(conda_exe, monkeypatch, kind):
 
     from click.testing import CliRunner, Result
 
-    runner = CliRunner(mix_stderr=False)
-    result = runner.invoke(
-        main,
-        [
-            "lock",
-            "--conda",
-            conda_exe,
-            "-p",
-            platform,
-            "-k",
-            kind,
-        ],
-    )
+    with capsys.disabled():
+        runner = CliRunner(mix_stderr=False)
+        result = runner.invoke(
+            main,
+            [
+                "lock",
+                "--conda",
+                conda_exe,
+                "-p",
+                platform,
+                "-k",
+                kind,
+            ],
+        )
 
+    print(result.stdout, file=sys.stdout)
+    print(result.stderr, file=sys.stderr)
+    if result.exception:
+        raise result.exception
     assert result.exit_code == 0
 
     runner = CliRunner(mix_stderr=False)

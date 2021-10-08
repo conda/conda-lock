@@ -119,7 +119,7 @@ def parse_poetry_pyproject_toml(
 
 def to_match_spec(conda_dep_name, conda_version):
     if conda_version:
-        spec = f"{conda_dep_name}[version='{conda_version}']"
+        spec = f"{conda_dep_name} {conda_version}"
     else:
         spec = f"{conda_dep_name}"
     return spec
