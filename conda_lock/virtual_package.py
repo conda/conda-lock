@@ -62,7 +62,10 @@ class FakeRepoData:
 
     @property
     def channel_url(self):
-        return f"file://{str(self.base_path.absolute())}"
+        if isinstance(self.base_path, pathlib.WindowsPath):
+            return str(self.base_path.absolute().as_posix())
+        else:
+            return f"file://{str(self.base_path.absolute().as_posix())}"
 
     def add_package(self, package: FakePackage, subdirs: Iterable[str] = ()):
         subdirs = frozenset(subdirs)

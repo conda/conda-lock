@@ -958,6 +958,8 @@ def lock(
                 logger.info("Using virtual packages from %s", c)
                 virtual_package_spec = c
                 break
+    else:
+        virtual_package_spec = pathlib.Path(virtual_package_spec)
 
     files = [pathlib.Path(file) for file in files]
     extras = set(extras)
