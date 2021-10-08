@@ -5,6 +5,42 @@ on:
   push:
 
 jobs:
+  test-windows:
+    env:
+      PYTHONUNBUFFERED: "1"
+    runs-on: windows-latest
+    strategy:
+      fail-fast: false
+    steps:
+      - uses: actions/checkout@v2
+      - uses: conda-incubator/setup-miniconda@v2
+        with:
+          auto-update-conda: true
+          python-version: ${{ matrix.python-version }}
+          channels: conda-forge
+
+      - name: Install deps
+        run: |
+          conda activate test
+          conda install mamba pip pytest-cov pytest-xdist
+          python -m pip install ensureconda==1.2.1
+          python -m pip install -r requirements.txt
+          python -m pip install -r requirements-dev.txt
+
+      - name: install lib
+        run: |
+          conda activate test
+          pip install -e . --no-deps --force-reinstall
+
+      - name: run-test
+        run: |
+          conda activate test
+          Xcopy /E /I tests "%RUNNER_TEMP%\\tests"
+          pushd "${RUNNER_TEMP}"
+          set TMPDIR="%RUNNER_TEMP%"
+          dir
+          pytest --showlocals -vrsx --cov=conda_lock tests
+
   test:
     runs-on: ${{ matrix.os }}
     strategy:
@@ -15,6 +51,8 @@ jobs:
     defaults:
       run:
         shell: bash -l {0}
+    env:
+      PYTHONUNBUFFERED: "1"
     steps:
       - uses: actions/checkout@v2
 
@@ -62,6 +100,4 @@ jobs:
           pushd "${RUNNER_TEMP}/tests/gdal"
           export TMPDIR="${RUNNER_TEMP}"
           ls -lah
-          conda-lock -f environment.yml -p linux-64
-
-
+          conda-lock --mamba  -f environment.yml -p linux-64
