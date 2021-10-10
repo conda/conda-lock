@@ -163,7 +163,7 @@ def solve_specs_for_arch(
     platform: str,
 ) -> dict:
     args: MutableSequence[PathLike] = [
-        str(conda),
+        conda,
         "create",
         "--prefix",
         os.path.join(conda_pkgs_dir(), "prefix"),
@@ -184,6 +184,7 @@ def solve_specs_for_arch(
             # platform is not Windows, we need to add it manually
             args.extend(["--channel", "msys2"])
     args.extend(specs)
+
     proc = subprocess.run(
         args,
         env=conda_env_override(platform),
@@ -193,7 +194,9 @@ def solve_specs_for_arch(
     )
 
     def print_proc(proc):
-        print(f"    Command: {proc.args}")
+        import shlex
+
+        print(f"    Command: {' '.join(shlex.quote(x) for x in proc.args)}")
         if proc.stdout:
             print(f"    STDOUT:\n{proc.stdout}")
         if proc.stderr:
@@ -520,7 +523,9 @@ def make_lock_files(
 
 
 def is_micromamba(conda: PathLike) -> bool:
-    return str(conda).endswith("micromamba") or str(conda).endswith("micromamba.exe")
+    return str(conda).endswith("micromamba") or str(conda).lower().endswith(
+        "micromamba.exe"
+    )
 
 
 def create_lockfile_from_spec(
@@ -600,7 +605,13 @@ def create_lockfile_from_spec(
             url = fetch_by_dist_name[dist_name]["url"]
             if url.startswith(virtual_package_channel):
                 continue
-            md5 = fetch_by_dist_name[dist_name]["md5"]
+            if url.startswith(spec.virtual_package_repo.channel_url_posix):
+                continue
+            try:
+                md5 = fetch_by_dist_name[dist_name]["md5"]
+            except KeyError:
+                logger.error("failed to determine md5 for %s", url)
+                raise
             lockfile_contents.append(f"{url}#{md5}")
 
         def sanitize_lockfile_line(line):
@@ -958,6 +969,8 @@ def lock(
                 logger.info("Using virtual packages from %s", c)
                 virtual_package_spec = c
                 break
+    else:
+        virtual_package_spec = pathlib.Path(virtual_package_spec)
 
     files = [pathlib.Path(file) for file in files]
     extras = set(extras)
