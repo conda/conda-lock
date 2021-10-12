@@ -90,13 +90,13 @@ def parse_poetry_pyproject_toml(
         deps = get_in(["tool", "poetry", key], contents, {})
         for depname, depattrs in deps.items():
             conda_dep_name = normalize_pypi_name(depname)
-            optional_dep = False
+            required_dep = True
             pip_dep = False
             url = None
             if isinstance(depattrs, collections.Mapping):
                 poetry_version_spec = depattrs.get("version", None)
                 url = depattrs.get("url", None)
-                optional_dep = depattrs.get("optional", False)
+                required_dep = not depattrs.get("optional", False)
                 # If a depdendency is explicitly marked as sourced from pypi,
                 # or is a URL dependency, delegate to the pip section
                 pip_dep = (
@@ -112,21 +112,21 @@ def parse_poetry_pyproject_toml(
                 )
             conda_version = poetry_version_to_conda_version(poetry_version_spec)
 
-            if pip_dep and not optional_dep or (depname in desired_extras_deps):
-                if conda_version:
-                    spec = f"{depname} {conda_version}"
-                elif url:
-                    spec = f"{depname} @ {url}"
+            if required_dep or depname in desired_extras_deps:
+                if pip_dep:
+                    if conda_version:
+                        spec = f"{depname} {conda_version}"
+                    elif url:
+                        spec = f"{depname} @ {url}"
+                    else:
+                        spec = depname
+                    pip_specs.append(spec)
                 else:
-                    spec = depname
-                pip_specs.append(spec)
-
-            elif not optional_dep or (depname in desired_extras_deps):
-                spec = to_match_spec(conda_dep_name, conda_version)
-                if conda_dep_name == "python":
-                    specs.insert(0, spec)
-                else:
-                    specs.append(spec)
+                    spec = to_match_spec(conda_dep_name, conda_version)
+                    if conda_dep_name == "python":
+                        specs.insert(0, spec)
+                    else:
+                        specs.append(spec)
 
     # ensure pip is in the target env
     if pip_specs:

@@ -33,6 +33,7 @@ from conda_lock.conda_lock import (
 from conda_lock.pypi_solver import parse_pip_requirement, solve_pypi
 from conda_lock.src_parser import LockSpecification
 from conda_lock.src_parser.environment_yaml import parse_environment_file
+from conda_lock.src_parser.explicit import parse_explicit_file
 from conda_lock.src_parser.pyproject_toml import (
     parse_flit_pyproject_toml,
     parse_poetry_pyproject_toml,
@@ -110,10 +111,20 @@ def test_parse_environment_file_with_pip(pip_environment):
     assert res.pip_specs == ["requests-toolbelt==0.9.1"]
 
 
-def test_choose_wheel(pip_environment):
+def test_choose_wheel() -> None:
 
-    solution = solve_pypi(["fastavro"], [], "3.9.7", "linux-64")
-    assert solution is None
+    solution = solve_pypi(
+        ["fastavro"],
+        use_latest=[],
+        pip_locked=[],
+        conda_locked=[],
+        python_version="3.9.7",
+        platform="linux-64",
+    )
+    assert len(solution) == 1
+    assert solution[0]["hashes"] == [
+        "sha256:fafe37983605ed74a5ca8063951f6d5984ad871e0ff895f14afa81a6d88c316e"
+    ]
 
 
 @pytest.mark.parametrize(
@@ -292,7 +303,12 @@ def test_solve_with_pip(pip_environment, conda_exe):
     assert python_version.startswith("3.9.")
 
     pip_installs = solve_pypi(
-        spec.pip_specs, conda_installed=locked_packages, python_version=python_version
+        spec.pip_specs,
+        use_latest=[],
+        pip_locked=[],
+        conda_locked=locked_packages,
+        python_version=python_version,
+        platform="linux-64",
     )
     assert len(pip_installs) == 1
     assert pip_installs[0]["name"] == "requests-toolbelt"
@@ -302,12 +318,15 @@ def test_solve_with_pip(pip_environment, conda_exe):
         [
             "requests-toolbelt @ https://files.pythonhosted.org/packages/60/ef/7681134338fc097acef8d9b2f8abe0458e4d87559c689a8c306d0957ece5/requests_toolbelt-0.9.1-py2.py3-none-any.whl#sha256=380606e1d10dc85c3bd47bf5a6095f815ec007be7a8b69c878507068df059e6f"
         ],
-        conda_installed=locked_packages,
+        use_latest=[],
+        conda_locked=locked_packages,
+        pip_locked=[],
         python_version=python_version,
+        platform="linux-64",
     )
     assert len(pip_installs) == 1
     assert pip_installs[0]["name"] == "requests-toolbelt"
-    assert "version" not in pip_installs[0]
+    assert pip_installs[0].get("version") is None
     assert (
         pip_installs[0]["url"]
         == "https://files.pythonhosted.org/packages/60/ef/7681134338fc097acef8d9b2f8abe0458e4d87559c689a8c306d0957ece5/requests_toolbelt-0.9.1-py2.py3-none-any.whl"
@@ -703,8 +722,8 @@ def test_virtual_package_input_hash_stability():
     spec = test_dir / "virtual-packages-old-glibc.yaml"
 
     vpr = virtual_package_repo_from_specification(spec)
-    spec = LockSpecification([], [], "linux-64", vpr)
-    expected = "e8e6f657016351e26bef54e35091b6fcc76b266e1f136a8fa1f2f493d62d6dd6"
+    spec = LockSpecification([], [], "linux-64", virtual_package_repo=vpr)
+    expected = "dd3db10126e00cd63c1fa7713f4a1f9831f6f44fabd0f5d79ac906820a7f4917"
     assert spec.input_hash() == expected
 
 
@@ -716,12 +735,12 @@ def _param(platform, hash):
     ["platform", "expected"],
     [
         # fmt: off
-        _param("linux-64", "ed70aec6681f127c0bf2118c556c9e078afdab69b254b4e5aee12fdc8d7420b5"),
-        _param("linux-aarch64", "b30f28e2ad39531888479a67ac82c56c7fef041503f98eeb8b3cbaaa7a855ed9"),
-        _param("linux-ppc64le", "5b2235e1138500de742a291e3f0f26d68c61e6a6d4debadea106f4814055a28d"),
-        _param("osx-64", "b995edf1fe0718d3810b5cca77e235fa0e8c689179a79731bdc799418020bd3e"),
-        _param("osx-arm64", "e0a6f743325833c93d440e1dab0165afdf1b7d623740803b6cedc19f05618d73"),
-        _param("win-64", "3fe95154e8d7b99fa6326e025fb7d7ce44e4ae8253ac71e8f5b2acec50091c9e"),
+        _param("linux-64", "fae755df14d75217a7e2bee4ed783a4ee78fbdbcf6d116bbe6219111c522faae"),
+        _param("linux-aarch64", "4e36c02f9a51bd81b01f8ff1a573d76dc35f624341a8bd1c8d89e3f24eafdee9"),
+        _param("linux-ppc64le", "4a59cae31ce96a0ed3cc0919531aa2c39deb75af581992b4381803506916cac2"),
+        _param("osx-64", "fb3daef6cf7780d4d7a64a36decc095f01778f5e8a4b575f6ef54c7a9b0fbbdf"),
+        _param("osx-arm64", "4df1c8002040537b0d5132fe59067325a32e0bef0f8429c5b92914effc161804"),
+        _param("win-64", "b98d3b765676e05e7bfe76d3ee1de58f2dd2abbdb033b463bf6e3b0d4cd0a91f"),
         # fmt: on
     ],
 )
@@ -729,5 +748,26 @@ def test_default_virtual_package_input_hash_stability(platform, expected):
     from conda_lock.virtual_package import default_virtual_package_repodata
 
     vpr = default_virtual_package_repodata()
-    spec = LockSpecification([], [], platform, vpr)
+    spec = LockSpecification([], [], platform, virtual_package_repo=vpr)
     assert spec.input_hash() == expected
+
+
+@pytest.fixture
+def explicit_lockfile():
+    return (
+        pathlib.Path(__file__)
+        .parent.joinpath("test-lockfile")
+        .joinpath("explicit.lock")
+    )
+
+
+def test_parse_explicit_lockfile(explicit_lockfile):
+    specs, pip_specs = parse_explicit_file(explicit_lockfile)
+
+    assert (
+        "pymage @ https://github.com/MickaelRigault/pymage/archive/v1.0.tar.gz#sha256=11e99c4ea06b76ca7fb5b42d1d35d64139a4fa6f7f163a2f0f9cc3ea0b3c55eb"
+        in pip_specs
+    )
+    assert "aiohttp ===3.7.4.post0" in pip_specs
+
+    assert "python ===3.9.0" in specs

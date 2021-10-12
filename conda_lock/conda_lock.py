@@ -40,8 +40,9 @@ from click_default_group import DefaultGroup
 from conda_lock.common import read_file, read_json, write_file
 from conda_lock.errors import PlatformValidationError
 from conda_lock.pypi_solver import PipRequirement, solve_pypi
-from conda_lock.src_parser import LockSpecification
+from conda_lock.src_parser import LockSpecification, UpdateSpecification
 from conda_lock.src_parser.environment_yaml import parse_environment_file
+from conda_lock.src_parser.explicit import parse_explicit_file
 from conda_lock.src_parser.meta_yaml import parse_meta_yaml_file
 from conda_lock.src_parser.pyproject_toml import parse_pyproject_toml
 from conda_lock.virtual_package import (
@@ -438,6 +439,34 @@ def make_lock_specs(
     return res
 
 
+def make_lock_spec(
+    *,
+    platform: str,
+    src_files: List[pathlib.Path],
+    include_dev_dependencies: bool = True,
+    channel_overrides: Optional[Sequence[str]] = None,
+    extras: Optional[AbstractSet[str]] = None,
+    virtual_package_repo: FakeRepoData,
+) -> LockSpecification:
+    """Generate the lockfile specs from a set of input src_files"""
+    lock_specs = parse_source_files(
+        src_files=src_files,
+        platform=platform,
+        include_dev_dependencies=include_dev_dependencies,
+        extras=extras,
+    )
+
+    lock_spec = aggregate_lock_specs(lock_specs)
+    if channel_overrides:
+        channels = list(channel_overrides)
+    else:
+        channels = lock_spec.channels
+    lock_spec.virtual_package_repo = virtual_package_repo
+    lock_spec.channels = channels
+
+    return lock_spec
+
+
 def make_lock_files(
     conda: PathLike,
     platforms: List[str],
@@ -449,6 +478,7 @@ def make_lock_files(
     check_spec_hash: bool = False,
     extras: Optional[AbstractSet[str]] = None,
     virtual_package_spec: Optional[pathlib.Path] = None,
+    update: Optional[List[str]] = None,
 ):
     """Generate the lock files for the given platforms from the src file provided
 
@@ -498,16 +528,16 @@ def make_lock_files(
         virtual_package_repo = default_virtual_package_repodata()
 
     with virtual_package_repo:
-        lock_specs = make_lock_specs(
-            platforms=platforms,
-            src_files=src_files,
-            include_dev_dependencies=include_dev_dependencies,
-            channel_overrides=channel_overrides,
-            extras=extras,
-            virtual_package_repo=virtual_package_repo,
-        )
+        for plat in platforms:
+            lock_spec = make_lock_spec(
+                platform=plat,
+                src_files=src_files,
+                include_dev_dependencies=include_dev_dependencies,
+                channel_overrides=channel_overrides,
+                extras=extras,
+                virtual_package_repo=virtual_package_repo,
+            )
 
-        for plat, lock_spec in lock_specs.items():
             for kind in kinds:
                 if filename_template:
                     context = {
@@ -536,10 +566,19 @@ def make_lock_files(
                         )
                         continue
 
+                if lockfile.exists():
+                    conda_locked, pip_locked = parse_lock_file(lockfile)
+                    update_spec = UpdateSpecification(
+                        conda=conda_locked, pip=pip_locked, update=update
+                    )
+                else:
+                    update_spec = UpdateSpecification()
+
                 print(f"Generating lockfile(s) for {plat}...", file=sys.stderr)
                 lockfile_contents = create_lockfile_from_spec(
                     conda=conda,
                     spec=lock_spec,
+                    update_spec=update_spec,
                     kind=kind,
                 )
 
@@ -570,11 +609,12 @@ def is_micromamba(conda: PathLike) -> bool:
     return str(conda).endswith("micromamba") or str(conda).endswith("micromamba.exe")
 
 
-def create_lockfile_from_spec(
+def create_lockfile_from_spec(  # noqa: C901
     *,
     conda: PathLike,
     spec: LockSpecification,
     kind: str,
+    update_spec: UpdateSpecification = UpdateSpecification(),
 ) -> List[str]:
     assert spec.virtual_package_repo is not None
     virtual_package_channel = spec.virtual_package_repo.channel_url
@@ -600,7 +640,9 @@ def create_lockfile_from_spec(
             raise ValueError("Got pip specs without Python")
         pip = solve_pypi(
             spec.pip_specs,
-            conda_installed=locked_packages,
+            use_latest=update_spec.update,
+            pip_locked=update_spec.pip,
+            conda_locked=locked_packages,
             python_version=python_version,
             platform=spec.platform,
         )
@@ -754,6 +796,12 @@ def parse_source_files(
     return desired_envs
 
 
+def parse_lock_file(
+    path: pathlib.Path,
+) -> Tuple[List[str], List[str]]:
+    return parse_explicit_file(path)
+
+
 def aggregate_lock_specs(lock_specs: List[LockSpecification]) -> LockSpecification:
     # union the dependencies
     specs = list(
@@ -890,6 +938,7 @@ def run_lock(
     check_input_hash: bool = False,
     extras: Optional[AbstractSet[str]] = None,
     virtual_package_spec: Optional[pathlib.Path] = None,
+    update: Optional[List[str]] = None,
 ) -> None:
     if environment_files == DEFAULT_FILES:
         long_ext_file = pathlib.Path("environment.yaml")
@@ -910,6 +959,7 @@ def run_lock(
         check_spec_hash=check_input_hash,
         extras=extras,
         virtual_package_spec=virtual_package_spec,
+        update=update,
     )
 
 
@@ -1006,6 +1056,11 @@ def main():
     type=click.Path(),
     help="Specify a set of virtual packages to use.",
 )
+@click.option(
+    "--update",
+    # multiple=True,
+    help="Packages to update to their latest versions. If empty, update all.",
+)
 def lock(
     conda,
     mamba,
@@ -1022,6 +1077,7 @@ def lock(
     log_level,
     pdb,
     virtual_package_spec,
+    update=None,
 ):
     """Generate fully reproducible lock files for conda environments.
 
@@ -1071,6 +1127,7 @@ def lock(
         kinds=kind,
         extras=extras,
         virtual_package_spec=virtual_package_spec,
+        update=update,
     )
     if strip_auth:
         with tempfile.TemporaryDirectory() as tempdir:

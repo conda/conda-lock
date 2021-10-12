@@ -27,6 +27,10 @@ class PlatformEnv(Env):
         if platform == "linux-64":
             # FIXME: in principle these depend on the glibc in the conda env
             self._platforms = ["manylinux_2_17_x86_64", "manylinux2014_x86_64"]
+        elif platform == "osx-64":
+            self._platforms = ["macosx_10_9_x86_64"]
+        elif platform == "win-64":
+            self._platforms = ["win_amd64"]
         else:
             raise ValueError(f"Unsupported platform '{platform}'")
         self._python_version = tuple(map(int, python_version.split(".")))
@@ -105,6 +109,20 @@ def get_dependency(requirement: str) -> Dependency:
         )
 
 
+def get_package(requirement: str) -> Package:
+    parsed = parse_pip_requirement(requirement)
+    if parsed is None:
+        raise ValueError(f"Unknown pip requirement '{requirement}'")
+    if parsed["url"]:
+        return Package(
+            parsed["name"], source_type="url", source_url=parsed["url"], version="0.0.0"
+        )
+    elif parsed["constraint"].startswith("==="):
+        return Package(parsed["name"], version=parsed["constraint"][3:])
+    else:
+        raise ValueError(f"Unknown package spec {requirement}")
+
+
 PYPI_LOOKUP: Optional[dict] = None
 
 
@@ -122,16 +140,19 @@ def normalize_conda_name(name: str):
 
 
 def solve_pypi(
-    dependencies: list[str],
-    conda_installed: list[tuple[str, str]],
+    pip_specs: list[str],
+    use_latest: list[str],
+    pip_locked: list[str],
+    conda_locked: list[tuple[str, str]],
     python_version: str,
     platform: str,
     verbose: bool = False,
 ) -> list[PipRequirement]:
     dummy_package = ProjectPackage("_dummy_package_", "0.0.0")
     dummy_package.python_versions = f"=={python_version}"
-    for spec in dependencies:
-        dummy_package.add_dependency(get_dependency(spec))
+    dependencies = [get_dependency(spec) for spec in pip_specs]
+    for dep in dependencies:
+        dummy_package.add_dependency(dep)
 
     pypi = PyPiRepository()
     pool = Pool(repositories=[pypi])
@@ -140,16 +161,20 @@ def solve_pypi(
     locked = Repository()
 
     python_packages = dict()
-    for name, version in conda_installed:
+    for name, version in conda_locked:
         pypi_name = normalize_conda_name(name)
         # Prefer the Python package when its name collides with the Conda package
         # for the underlying library, e.g. python-xxhash (pypi: xxhash) over xxhash
         # (pypi: no equivalent)
         if pypi_name not in python_packages or pypi_name != name:
             python_packages[pypi_name] = version
+    # treat conda packages as both locked and installed
     for name, version in python_packages.items():
         for repo in (locked, installed):
             repo.add_package(Package(name=name, version=version))
+    # treat pip packages as locked only
+    for spec in pip_locked:
+        locked.add_package(get_package(spec))
 
     io = ConsoleIO()
     if verbose:
@@ -161,7 +186,11 @@ def solve_pypi(
         locked=locked,
         io=io,
     )
-    result = s.solve(use_latest=dependencies)
+    result = s.solve(
+        use_latest=[
+            name for name in use_latest if any(name == dep.name for dep in dependencies)
+        ]
+    )
 
     chooser = Chooser(pool, env=PlatformEnv(python_version, platform))
 
