@@ -9,13 +9,15 @@ import yaml
 from conda_lock.src_parser import LockSpecification
 from conda_lock.src_parser.selectors import filter_platform_selectors
 
+from . import PipLock
 
-def parse_explicit_file(explicit_file: pathlib.Path) -> tuple[list[str], list[str]]:
+
+def parse_explicit_file(explicit_file: pathlib.Path) -> tuple[list[str], list[PipLock]]:
     if not explicit_file.exists():
         raise FileNotFoundError(f"{explicit_file} not found")
 
-    specs: list[str] = []
-    pip_specs: list[str] = []
+    conda_urls: list[str] = []
+    pip_specs: list[PipLock] = []
 
     pip_lines: list[str] = []
 
@@ -28,13 +30,7 @@ def parse_explicit_file(explicit_file: pathlib.Path) -> tuple[list[str], list[st
                 else:
                     pip_lines.append(subline.strip())
             elif line.startswith("http"):
-                path = pathlib.Path(urlparse(line).path)
-                while path.suffix in {".tar", ".tgz", ".gz", ".bz2"}:
-                    path = path.with_suffix("")
-                parts = path.name.split("-")[:-1]
-                version = parts.pop()
-                name = "-".join(parts)
-                specs.append(f"{name} ==={version}")
+                conda_urls.append(line.strip())
     for line in pip_lines:
         name, spec = line.split(" @ ")
         url = spec.split(" ")[0]
@@ -42,13 +38,10 @@ def parse_explicit_file(explicit_file: pathlib.Path) -> tuple[list[str], list[st
         while path.suffix in {".tar", ".tgz", ".gz", ".bz2", ".whl"}:
             path = path.with_suffix("")
         parts = path.name.split("-")
-        try:
-            version = parts[1]
-            pip_specs.append(f"{name} ==={version}")
-        except IndexError:
-            hashes = [
-                hash.split("=")[1].replace(":", "=") for hash in spec.split(" ")[1:]
-            ]
-            pip_specs.append(f"{name} @ {url}#{hashes[0]}")
+        hashes = [hash.split("=")[1].replace(":", "=") for hash in spec.split(" ")[1:]]
+        version = parts[1] if len(parts) > 1 else None
+        pip_specs.append(
+            {"name": name, "version": version, "url": url, "hashes": hashes}
+        )
 
-    return specs, pip_specs
+    return conda_urls, pip_specs

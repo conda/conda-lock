@@ -6,7 +6,9 @@ import shutil
 import subprocess
 import sys
 
+from glob import glob
 from typing import Any, MutableSequence
+from urllib.parse import urldefrag, urlsplit
 
 import pytest
 
@@ -23,6 +25,7 @@ from conda_lock.conda_lock import (
     create_lockfile_from_spec,
     default_virtual_package_repodata,
     determine_conda_executable,
+    fake_conda_environment,
     is_micromamba,
     main,
     make_lock_specs,
@@ -677,6 +680,9 @@ def test_virtual_packages(conda_exe, monkeypatch, kind):
 
     from click.testing import CliRunner, Result
 
+    for lockfile in glob(f"conda-{platform}.*"):
+        os.unlink(lockfile)
+
     runner = CliRunner(mix_stderr=False)
     result = runner.invoke(
         main,
@@ -692,6 +698,9 @@ def test_virtual_packages(conda_exe, monkeypatch, kind):
     )
 
     assert result.exit_code == 0
+
+    for lockfile in glob(f"conda-{platform}.*"):
+        os.unlink(lockfile)
 
     runner = CliRunner(mix_stderr=False)
     result = runner.invoke(
@@ -761,13 +770,77 @@ def explicit_lockfile():
     )
 
 
+# @pytest.fixture
+# def explicit_lockfile():
+#     return (
+#         pathlib.Path(__file__)
+#         .parent.joinpath("zlib")
+#         .joinpath("conda-osx-64.lock")
+#     )
+
+
 def test_parse_explicit_lockfile(explicit_lockfile):
-    specs, pip_specs = parse_explicit_file(explicit_lockfile)
+    conda, pip = parse_explicit_file(explicit_lockfile)
+
+    assert {
+        "name": "pymage",
+        "version": None,
+        "url": "https://github.com/MickaelRigault/pymage/archive/v1.0.tar.gz",
+        "hashes": [
+            "sha256=11e99c4ea06b76ca7fb5b42d1d35d64139a4fa6f7f163a2f0f9cc3ea0b3c55eb"
+        ],
+    } in pip
+    assert {
+        "name": "aiohttp",
+        "version": "3.7.4.post0",
+        "url": "https://files.pythonhosted.org/packages/34/40/2b3295eb6f66209d1b2ad6ef34ebdf1cb1675c62f8697a8fe7c4f11d2838/aiohttp-3.7.4.post0-cp39-cp39-manylinux2014_x86_64.whl",
+        "hashes": [
+            "sha256=17c073de315745a1510393a96e680d20af8e67e324f70b42accbd4cb3315c9fb"
+        ],
+    } in pip
 
     assert (
-        "pymage @ https://github.com/MickaelRigault/pymage/archive/v1.0.tar.gz#sha256=11e99c4ea06b76ca7fb5b42d1d35d64139a4fa6f7f163a2f0f9cc3ea0b3c55eb"
-        in pip_specs
+        "https://conda.anaconda.org/conda-forge/linux-64/python-3.9.0-hffdb5ce_5_cpython.tar.bz2#d26d64e4cf67cbfab3caf9176c9255de"
+        in conda
     )
-    assert "aiohttp ===3.7.4.post0" in pip_specs
 
-    assert "python ===3.9.0" in specs
+
+def test_fake_conda_env(conda_exe, explicit_lockfile):
+
+    specs, pip_specs = parse_explicit_file(explicit_lockfile)
+    with open(explicit_lockfile) as f:
+        urls = [line.strip() for line in f if line.startswith("http")]
+
+    with fake_conda_environment(urls) as prefix:
+        packages = json.loads(
+            subprocess.check_output(
+                [
+                    conda_exe,
+                    "list",
+                    "--debug",
+                    "-p",
+                    prefix,
+                    "--json",
+                ]
+            )
+        )
+        assert len(packages) == len(urls)
+        url_for_name = {
+            "-".join(pathlib.Path(urlsplit(u).path).name.split("-")[:-2]): u
+            for u in urls
+        }
+        for p, u in zip(packages, urls):
+            u = url_for_name[p["name"]]
+            path = pathlib.Path(urlsplit(urldefrag(u)[0]).path)
+            platform = p["platform"]
+            if is_micromamba(conda_exe):
+                assert (
+                    p["base_url"]
+                    == f"https://conda.anaconda.org/conda-forge/{platform}"
+                )
+                assert p["channel"] == f"conda-forge/{platform}"
+            else:
+                assert p["base_url"] == "https://conda.anaconda.org/conda-forge"
+                assert p["channel"] == "conda-forge"
+            assert p["dist_name"] == f"{path.name[:-8]}"
+            assert platform == path.parent.name

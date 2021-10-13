@@ -18,6 +18,7 @@ from poetry.repositories.pypi_repository import PyPiRepository
 from poetry.repositories.repository import Repository
 from poetry.utils.env import Env
 
+from conda_lock.src_parser import PipLock
 from conda_lock.src_parser.pyproject_toml import get_lookup as get_forward_lookup
 
 
@@ -109,18 +110,13 @@ def get_dependency(requirement: str) -> Dependency:
         )
 
 
-def get_package(requirement: str) -> Package:
-    parsed = parse_pip_requirement(requirement)
-    if parsed is None:
-        raise ValueError(f"Unknown pip requirement '{requirement}'")
-    if parsed["url"]:
+def get_package(locked: PipLock) -> Package:
+    if locked["version"] is None:
         return Package(
-            parsed["name"], source_type="url", source_url=parsed["url"], version="0.0.0"
+            locked["name"], source_type="url", source_url=locked["url"], version="0.0.0"
         )
-    elif parsed["constraint"].startswith("==="):
-        return Package(parsed["name"], version=parsed["constraint"][3:])
     else:
-        raise ValueError(f"Unknown package spec {requirement}")
+        return Package(locked["name"], version=locked["version"])
 
 
 PYPI_LOOKUP: Optional[dict] = None
@@ -142,7 +138,7 @@ def normalize_conda_name(name: str):
 def solve_pypi(
     pip_specs: list[str],
     use_latest: list[str],
-    pip_locked: list[str],
+    pip_locked: list[PipLock],
     conda_locked: list[tuple[str, str]],
     python_version: str,
     platform: str,
@@ -186,11 +182,8 @@ def solve_pypi(
         locked=locked,
         io=io,
     )
-    result = s.solve(
-        use_latest=[
-            name for name in use_latest if any(name == dep.name for dep in dependencies)
-        ]
-    )
+    to_update = list({spec["name"] for spec in pip_locked}.intersection(use_latest))
+    result = s.solve(use_latest=to_update)
 
     chooser = Chooser(pool, env=PlatformEnv(python_version, platform))
 

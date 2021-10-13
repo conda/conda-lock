@@ -4,6 +4,7 @@ Somewhat hacky solution to create conda lock files.
 
 import atexit
 import datetime
+import itertools
 import json
 import logging
 import os
@@ -16,10 +17,11 @@ import sys
 import tempfile
 
 from contextlib import contextmanager
-from functools import partial
+from functools import lru_cache, partial
 from itertools import chain
 from typing import (
     AbstractSet,
+    Any,
     Dict,
     Iterator,
     List,
@@ -30,17 +32,19 @@ from typing import (
     Tuple,
     Union,
 )
+from urllib.parse import urldefrag, urlsplit, urlunsplit
 
 import click
 import ensureconda
 import pkg_resources
+import requests
 
 from click_default_group import DefaultGroup
 
 from conda_lock.common import read_file, read_json, write_file
 from conda_lock.errors import PlatformValidationError
 from conda_lock.pypi_solver import PipRequirement, solve_pypi
-from conda_lock.src_parser import LockSpecification, UpdateSpecification
+from conda_lock.src_parser import LockSpecification, PipLock, UpdateSpecification
 from conda_lock.src_parser.environment_yaml import parse_environment_file
 from conda_lock.src_parser.explicit import parse_explicit_file
 from conda_lock.src_parser.meta_yaml import parse_meta_yaml_file
@@ -158,6 +162,24 @@ def conda_env_override(platform) -> Dict[str, str]:
     return env
 
 
+def _get_conda_flags(channels: Sequence[str], platform) -> List[str]:
+    args = []
+    conda_flags = os.environ.get("CONDA_FLAGS")
+    if conda_flags:
+        args.extend(shlex.split(conda_flags))
+    if channels:
+        args.append("--override-channels")
+
+    for channel in channels:
+        args.extend(["--channel", channel])
+        if channel == "defaults" and platform in {"win-64", "win-32"}:
+            # msys2 is a windows-only channel that conda automatically
+            # injects if the host platform is Windows. If our host
+            # platform is not Windows, we need to add it manually
+            args.extend(["--channel", "msys2"])
+    return args
+
+
 def solve_specs_for_arch(
     conda: PathLike,
     channels: Sequence[str],
@@ -227,6 +249,120 @@ def solve_specs_for_arch(
         print("Could not solve for lock")
         print_proc(proc)
         sys.exit(1)
+
+
+def update_specs_for_arch(
+    conda: PathLike,
+    channels: Sequence[str],
+    specs: List[str],
+    update_spec: UpdateSpecification,
+    platform: str,
+) -> dict:
+
+    with fake_conda_environment(update_spec.conda) as prefix:
+        installed = {
+            entry["name"]: entry
+            for entry in json.loads(
+                subprocess.check_output(
+                    [str(conda), "list", "-p", prefix, "--json"],
+                    env=conda_env_override(platform),
+                )
+            )
+        }
+        spec_for_name = {v.split("[")[0]: v for v in specs}
+        to_update = [
+            spec_for_name[name]
+            for name in set(installed).intersection(update_spec.update)
+        ]
+        if to_update:
+            # NB: use `install` to get single-package updates; `update` applies all nonmajor
+            # updates unconditionally
+            args = [
+                str(conda),
+                "install",
+                *_get_conda_flags(channels=channels, platform=platform),
+            ]
+            proc = subprocess.run(
+                args + ["-p", prefix, "--json", "--dry-run", *to_update],
+                env=conda_env_override(platform),
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                encoding="utf8",
+            )
+
+            try:
+                proc.check_returncode()
+            except subprocess.CalledProcessError as exc:
+                err_json = json.loads(proc.stdout)
+                raise RuntimeError(
+                    f"Could not lock the environment for platform {platform}: {err_json.get('message')}"
+                ) from exc
+
+            update = json.loads(proc.stdout)
+        else:
+            update = {"actions": {"LINK": [], "FETCH": []}}
+
+        updated = {entry["name"]: entry for entry in update["actions"]["LINK"]}
+        for package in set(installed).difference(updated):
+            entry = installed[package]
+            fn = f'{entry["dist_name"]}.tar.bz2'
+            if is_micromamba(conda):
+                channel = f'{entry["base_url"]}'
+            else:
+                channel = f'{entry["base_url"]}/{entry["platform"]}'
+            url = f"{channel}/{fn}"
+            md5 = next(
+                urlsplit(s).fragment for s in update_spec.conda if s.startswith(url)
+            )
+            update["actions"]["FETCH"].append(
+                {
+                    "name": entry["name"],
+                    "channel": channel,
+                    "url": url,
+                    "fn": fn,
+                    "md5": md5,
+                    "version": entry["version"],
+                }
+            )
+            update["actions"]["LINK"].append({"url": url, "fn": fn, **entry})
+        return update
+
+
+@lru_cache(maxsize=32)
+def _get_repodata_for_channel(channel_url: str) -> Dict[str, Any]:
+    response = requests.get(channel_url + "/repodata.json")
+    return response.json()
+
+
+@contextmanager
+def fake_conda_environment(urls: list[str]):
+    """
+    Create a fake conda prefix containing metadata corresponding to the provided package URLs
+    """
+    with tempfile.TemporaryDirectory() as prefix:
+        conda_meta = pathlib.Path(prefix) / "conda-meta"
+        conda_meta.mkdir()
+        (conda_meta / "history").touch()
+        for url_string in urls:
+            url = urlsplit(url_string)
+            path = pathlib.Path(url.path)
+            channel = urlunsplit(
+                (url.scheme, url.hostname, str(path.parent), None, None)
+            )
+            entry = {
+                "channel": channel,
+                "url": urldefrag(url_string)[0],
+                **_get_repodata_for_channel(channel)["packages"][path.name],
+            }
+            if entry["md5"] != url.fragment:
+                raise ValueError(
+                    f"URL f{url_string} does not match repodata hash (f{entry['md5']})"
+                )
+            while path.suffix in {".tar", ".bz2", ".gz"}:
+                path = path.with_suffix("")
+            with open(conda_meta / (path.name + ".json"), "w") as f:
+                json.dump(entry, f, indent=2)
+        yield prefix
 
 
 def _process_stdout(stdout):
@@ -618,12 +754,22 @@ def create_lockfile_from_spec(  # noqa: C901
 ) -> List[str]:
     assert spec.virtual_package_repo is not None
     virtual_package_channel = spec.virtual_package_repo.channel_url
-    dry_run_install = solve_specs_for_arch(
-        conda=conda,
-        platform=spec.platform,
-        channels=[*spec.channels, virtual_package_channel],
-        specs=spec.specs,
-    )
+
+    if update_spec.conda:
+        dry_run_install = update_specs_for_arch(
+            conda=conda,
+            platform=spec.platform,
+            channels=[*spec.channels, virtual_package_channel],
+            specs=spec.specs,
+            update_spec=update_spec,
+        )
+    else:
+        dry_run_install = solve_specs_for_arch(
+            conda=conda,
+            platform=spec.platform,
+            channels=[*spec.channels, virtual_package_channel],
+            specs=spec.specs,
+        )
     logging.debug("dry_run_install:\n%s", dry_run_install)
 
     if spec.pip_specs:
@@ -731,6 +877,8 @@ def create_lockfile_from_spec(  # noqa: C901
                 return line
 
         lockfile_contents = [sanitize_lockfile_line(line) for line in lockfile_contents]
+        # sort emitted lines to ensure minimal diffs
+        lockfile_contents = lockfile_contents[:4] + sorted(lockfile_contents[4:])
 
         # emit an explicit requirements.txt, prefixed with '# pip '
         for pkg in pip:
@@ -798,7 +946,7 @@ def parse_source_files(
 
 def parse_lock_file(
     path: pathlib.Path,
-) -> Tuple[List[str], List[str]]:
+) -> Tuple[List[str], List[PipLock]]:
     return parse_explicit_file(path)
 
 
@@ -1058,7 +1206,7 @@ def main():
 )
 @click.option(
     "--update",
-    # multiple=True,
+    multiple=True,
     help="Packages to update to their latest versions. If empty, update all.",
 )
 def lock(

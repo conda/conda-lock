@@ -1,7 +1,7 @@
 import hashlib
 import json
 
-from typing import List, Optional
+from typing import List, Optional, TypedDict
 
 from conda_lock.virtual_package import FakeRepoData
 
@@ -39,11 +39,18 @@ class LockSpecification:
         return hashlib.sha256(env_spec.encode("utf-8")).hexdigest()
 
 
+class PipLock(TypedDict):
+    name: str
+    version: Optional[str]
+    url: str
+    hashes: List[str]
+
+
 class UpdateSpecification:
     def __init__(
         self,
         conda: Optional[List[str]] = None,
-        pip: Optional[List[str]] = None,
+        pip: Optional[List[PipLock]] = None,
         update: Optional[List[str]] = None,
     ):
         self.conda = conda or []
