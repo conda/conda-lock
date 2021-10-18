@@ -4,7 +4,6 @@ Somewhat hacky solution to create conda lock files.
 
 import atexit
 import datetime
-import itertools
 import json
 import logging
 import os
@@ -14,10 +13,11 @@ import shlex
 import shutil
 import subprocess
 import sys
+import tarfile
 import tempfile
 
 from contextlib import contextmanager
-from functools import lru_cache, partial
+from functools import partial
 from itertools import chain
 from typing import (
     AbstractSet,
@@ -328,10 +328,24 @@ def update_specs_for_arch(
         return update
 
 
-@lru_cache(maxsize=32)
-def _get_repodata_for_channel(channel_url: str) -> Dict[str, Any]:
-    response = requests.get(channel_url + "/repodata.json")
-    return response.json()
+# Retrieve index.json from package. This is much more efficient that downloading and
+# parsing repodata.json, which for conda-forge (linux-64 + noarch) requires 800 MB of
+# memory to store in parsed form.
+def _get_repodata_for_package(url: str) -> Dict[str, Any]:
+    with requests.get(url, stream=True) as response:
+        response.raise_for_status()
+        with tarfile.open(fileobj=response.raw, mode="r|bz2") as tf:
+            for member in tf:
+                if member.name == "info/index.json":
+                    fo = tf.extractfile(member)
+                    if fo:
+                        return json.load(fo)
+                    else:
+                        raise RuntimeError(
+                            f"Failed to extract {member.name} from {url}"
+                        )
+            else:
+                raise RuntimeError(f"{url} contains no info/index.json")
 
 
 @contextmanager
@@ -352,12 +366,9 @@ def fake_conda_environment(urls: list[str]):
             entry = {
                 "channel": channel,
                 "url": urldefrag(url_string)[0],
-                **_get_repodata_for_channel(channel)["packages"][path.name],
+                "md5": url.fragment,
+                **_get_repodata_for_package(url_string),
             }
-            if entry["md5"] != url.fragment:
-                raise ValueError(
-                    f"URL f{url_string} does not match repodata hash (f{entry['md5']})"
-                )
             while path.suffix in {".tar", ".bz2", ".gz"}:
                 path = path.with_suffix("")
             with open(conda_meta / (path.name + ".json"), "w") as f:
