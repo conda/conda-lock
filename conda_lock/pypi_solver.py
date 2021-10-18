@@ -73,7 +73,7 @@ REQUIREMENT_PATTERN = re.compile(
                         (?:=|[><~=!])?=
                         |
                         [<>]
-                    )
+                    )?
                     \s?
                     (?:
                         [A-Za-z0-9\.-_\*]+ # a version tuple, e.g. x.y.z
