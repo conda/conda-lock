@@ -176,6 +176,11 @@ def parse_pyproject_toml(
     return parse(pyproject_toml, platform, include_dev_dependencies, extras)
 
 
+def get_platforms_from_pyproject_toml(pyproject_toml: pathlib.Path) -> List[str]:
+    contents = toml.load(pyproject_toml)
+    return get_in(["tool", "conda-lock", "platforms"], contents, default=[])
+
+
 def python_requirement_to_conda_spec(requirement: str):
     """Parse a requirements.txt like requirement to a conda spec"""
     requirement_specifier = requirement.split(";")[0].strip()

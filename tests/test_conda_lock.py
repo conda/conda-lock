@@ -12,7 +12,10 @@ from urllib.parse import urldefrag, urlsplit
 
 import pytest
 
+from pytest_mock import MockerFixture
+
 from conda_lock.conda_lock import (
+    DEFAULT_PLATFORMS,
     PathLike,
     _add_auth_to_line,
     _add_auth_to_lockfile,
@@ -269,6 +272,19 @@ def test_run_lock_with_pip(monkeypatch, pip_environment, conda_exe):
     if is_micromamba(conda_exe):
         monkeypatch.setenv("CONDA_FLAGS", "-v")
     run_lock([pip_environment], conda_exe=conda_exe)
+
+
+def test_platforms_from_pyproject(monkeypatch, mocker: MockerFixture):
+    pyproject = TEST_DIR.joinpath("test-platforms").joinpath("pyproject.toml")
+    monkeypatch.chdir(pyproject.parent)
+    mock = mocker.patch("conda_lock.conda_lock.make_lock_files")
+    run_lock([pyproject], conda_exe=None)
+    assert sorted(mock.call_args.kwargs["platforms"]) == ["none", "such"]
+
+    pyproject = TEST_DIR.joinpath("test-poetry").joinpath("pyproject.toml")
+    monkeypatch.chdir(pyproject.parent)
+    run_lock([pyproject], conda_exe=None)
+    assert sorted(mock.call_args.kwargs["platforms"]) == sorted(DEFAULT_PLATFORMS)
 
 
 def test_solve_with_pip(pip_environment, conda_exe):

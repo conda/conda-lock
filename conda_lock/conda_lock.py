@@ -48,7 +48,10 @@ from conda_lock.src_parser import LockSpecification, PipLock, UpdateSpecificatio
 from conda_lock.src_parser.environment_yaml import parse_environment_file
 from conda_lock.src_parser.explicit import parse_explicit_file
 from conda_lock.src_parser.meta_yaml import parse_meta_yaml_file
-from conda_lock.src_parser.pyproject_toml import parse_pyproject_toml
+from conda_lock.src_parser.pyproject_toml import (
+    get_platforms_from_pyproject_toml,
+    parse_pyproject_toml,
+)
 from conda_lock.virtual_package import (
     FakeRepoData,
     default_virtual_package_repodata,
@@ -1084,6 +1087,14 @@ def _strip_auth_from_lockfile(lockfile: str) -> str:
     return stripped_lockfile
 
 
+def _get_platforms_from_sources(src_files: List[pathlib.Path]):
+    platforms = set()
+    for src_file in src_files:
+        if src_file.name == "pyproject.toml":
+            platforms.update(get_platforms_from_pyproject_toml(src_file))
+    return list(platforms) or DEFAULT_PLATFORMS
+
+
 def run_lock(
     environment_files: List[pathlib.Path],
     conda_exe: Optional[str],
@@ -1110,7 +1121,7 @@ def run_lock(
     make_lock_files(
         conda=_conda_exe,
         src_files=environment_files,
-        platforms=platforms or DEFAULT_PLATFORMS,
+        platforms=platforms or _get_platforms_from_sources(environment_files),
         include_dev_dependencies=include_dev_dependencies,
         channel_overrides=channel_overrides,
         filename_template=filename_template,

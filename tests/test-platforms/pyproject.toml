@@ -1,0 +1,5 @@
+[tool.conda-lock]
+channels = [
+    'defaults'
+]
+platforms = ['none', 'such']
