@@ -9,15 +9,17 @@ import yaml
 from conda_lock.src_parser import LockSpecification
 from conda_lock.src_parser.selectors import filter_platform_selectors
 
-from . import PipLock
+from . import PipPackage
 
 
-def parse_explicit_file(explicit_file: pathlib.Path) -> tuple[list[str], list[PipLock]]:
+def parse_explicit_file(
+    explicit_file: pathlib.Path,
+) -> tuple[list[str], list[PipPackage]]:
     if not explicit_file.exists():
         raise FileNotFoundError(f"{explicit_file} not found")
 
     conda_urls: list[str] = []
-    pip_specs: list[PipLock] = []
+    pip_specs: list[PipPackage] = []
 
     pip_lines: list[str] = []
 

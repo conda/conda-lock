@@ -43,8 +43,15 @@ from click_default_group import DefaultGroup
 
 from conda_lock.common import read_file, read_json, write_file
 from conda_lock.errors import PlatformValidationError
-from conda_lock.pypi_solver import PipRequirement, solve_pypi
-from conda_lock.src_parser import LockSpecification, PipLock, UpdateSpecification
+
+
+try:
+    from conda_lock.pypi_solver import solve_pypi
+
+    pip_support = True
+except ImportError:
+    pip_support = False
+from conda_lock.src_parser import LockSpecification, PipPackage, UpdateSpecification
 from conda_lock.src_parser.environment_yaml import parse_environment_file
 from conda_lock.src_parser.explicit import parse_explicit_file
 from conda_lock.src_parser.meta_yaml import parse_meta_yaml_file
@@ -787,6 +794,8 @@ def create_lockfile_from_spec(  # noqa: C901
     logging.debug("dry_run_install:\n%s", dry_run_install)
 
     if spec.pip_specs:
+        if not pip_support:
+            raise ValueError("pip support is not enabled")
         python_version: Optional[str] = None
         locked_packages = []
         for package in (
@@ -815,7 +824,7 @@ def create_lockfile_from_spec(  # noqa: C901
         f"# input_hash: {spec.input_hash()}\n",
     ]
 
-    def format_pip_requirement(spec: PipRequirement) -> str:
+    def format_pip_requirement(spec: PipPackage) -> str:
         if "url" in spec:
             return f'{spec["name"]} @ {spec["url"]}'
         else:
@@ -954,13 +963,13 @@ def parse_source_files(
                 )
             )
         else:
-            desired_envs.append(parse_environment_file(src_file, platform))
+            desired_envs.append(parse_environment_file(src_file, platform, pip_support))
     return desired_envs
 
 
 def parse_lock_file(
     path: pathlib.Path,
-) -> Tuple[List[str], List[PipLock]]:
+) -> Tuple[List[str], List[PipPackage]]:
     return parse_explicit_file(path)
 
 

@@ -8,7 +8,7 @@ from conda_lock.src_parser.selectors import filter_platform_selectors
 
 
 def parse_environment_file(
-    environment_file: pathlib.Path, platform: str
+    environment_file: pathlib.Path, platform: str, pip_support: bool = False
 ) -> LockSpecification:
     if not environment_file.exists():
         raise FileNotFoundError(f"{environment_file} not found")
@@ -31,9 +31,19 @@ def parse_environment_file(
     pip_specs = []
     for mapping_spec in mapping_specs:
         if "pip" in mapping_spec:
-            pip_specs += mapping_spec["pip"]
-            # ensure pip is in target env
-            specs.append("pip")
+            if pip_support:
+                pip_specs += mapping_spec["pip"]
+                # ensure pip is in target env
+                specs.append("pip")
+            else:
+                print(
+                    (
+                        "Warning: found pip deps, but conda-lock was installed without pypi support. "
+                        "pip dependencies will not be included in the lock file. Either install them "
+                        "separately, or install conda-lock with `-E pip_support`."
+                    ),
+                    file=sys.stderr,
+                )
 
     return LockSpecification(
         specs=specs, channels=channels, platform=platform, pip_specs=pip_specs

@@ -2,7 +2,7 @@ import re
 import sys
 
 from pathlib import Path
-from typing import Optional, TypedDict
+from typing import Dict, List, Optional, TypedDict
 from urllib.parse import urldefrag
 
 from clikit.api.io.flags import VERY_VERBOSE
@@ -18,7 +18,7 @@ from poetry.repositories.pypi_repository import PyPiRepository
 from poetry.repositories.repository import Repository
 from poetry.utils.env import Env
 
-from conda_lock.src_parser import PipLock
+from conda_lock.src_parser import PipPackage
 from conda_lock.src_parser.pyproject_toml import get_lookup as get_forward_lookup
 
 
@@ -47,13 +47,6 @@ class PlatformEnv(Env):
                 python_version=self._python_version, platforms=self._platforms
             )
         )
-
-
-class PipRequirement(TypedDict):
-    name: str
-    version: Optional[str]
-    url: str
-    hashes: list[str]
 
 
 REQUIREMENT_PATTERN = re.compile(
@@ -90,7 +83,7 @@ REQUIREMENT_PATTERN = re.compile(
 )
 
 
-def parse_pip_requirement(requirement: str) -> Optional[dict[str, str]]:
+def parse_pip_requirement(requirement: str) -> Optional[Dict[str, str]]:
     match = REQUIREMENT_PATTERN.match(requirement)
     if not match:
         return None
@@ -110,7 +103,7 @@ def get_dependency(requirement: str) -> Dependency:
         )
 
 
-def get_package(locked: PipLock) -> Package:
+def get_package(locked: PipPackage) -> Package:
     if locked["version"] is None:
         return Package(
             locked["name"], source_type="url", source_url=locked["url"], version="0.0.0"
@@ -119,10 +112,10 @@ def get_package(locked: PipLock) -> Package:
         return Package(locked["name"], version=locked["version"])
 
 
-PYPI_LOOKUP: Optional[dict] = None
+PYPI_LOOKUP: Optional[Dict] = None
 
 
-def get_lookup() -> dict:
+def get_lookup() -> Dict:
     global PYPI_LOOKUP
     if PYPI_LOOKUP is None:
         PYPI_LOOKUP = {
@@ -136,14 +129,14 @@ def normalize_conda_name(name: str):
 
 
 def solve_pypi(
-    pip_specs: list[str],
-    use_latest: list[str],
-    pip_locked: list[PipLock],
-    conda_locked: list[tuple[str, str]],
+    pip_specs: List[str],
+    use_latest: List[str],
+    pip_locked: List[PipPackage],
+    conda_locked: List[tuple[str, str]],
     python_version: str,
     platform: str,
     verbose: bool = False,
-) -> list[PipRequirement]:
+) -> List[PipPackage]:
     dummy_package = ProjectPackage("_dummy_package_", "0.0.0")
     dummy_package.python_versions = f"=={python_version}"
     dependencies = [get_dependency(spec) for spec in pip_specs]
@@ -190,7 +183,7 @@ def solve_pypi(
     # Extract distributions from Poetry package plan, ignoring uninstalls
     # (usually: conda package with no pypi equivalent) and skipped ops
     # (already installed)
-    requirements: list[PipRequirement] = []
+    requirements: List[PipPackage] = []
     for op in result:
         if not isinstance(op, Uninstall) and not op.skipped:
             # Take direct references verbatim

@@ -39,7 +39,7 @@ class LockSpecification:
         return hashlib.sha256(env_spec.encode("utf-8")).hexdigest()
 
 
-class PipLock(TypedDict):
+class PipPackage(TypedDict):
     name: str
     version: Optional[str]
     url: str
@@ -50,7 +50,7 @@ class UpdateSpecification:
     def __init__(
         self,
         conda: Optional[List[str]] = None,
-        pip: Optional[List[PipLock]] = None,
+        pip: Optional[List[PipPackage]] = None,
         update: Optional[List[str]] = None,
     ):
         self.conda = conda or []
