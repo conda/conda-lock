@@ -239,7 +239,7 @@ sqlite = ">=3.34"
 In order to use conda-lock in a docker-style context you want to add the lockfile to the
 docker container.  In order to refresh the lock file just run `conda-lock` again.
 
-Given aa file tree like
+Given a file tree like
 ```
   Dockerfile
   environment.yaml
