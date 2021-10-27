@@ -1023,8 +1023,7 @@ def lock(
 )
 @click.option("--auth-file", help="Path to the authentication file.", default="")
 @click.option(
-    "--validate-platform",
-    is_flag=True,
+    "--validate-platform/--no-validate-platform",
     default=True,
     help="Whether the platform compatibility between your lockfile and the host system should be validated.",
 )
@@ -1058,7 +1057,7 @@ def install(
             do_validate_platform(lockfile)
         except PlatformValidationError as error:
             raise PlatformValidationError(
-                error.args[0] + " Disable validation with `--validate-platform=False`."
+                error.args[0] + " Disable validation with `--no-validate-platform`."
             )
     if auth:
         lockfile = read_file(lock_file)
