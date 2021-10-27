@@ -16,6 +16,7 @@ import sys
 import tempfile
 
 from contextlib import contextmanager
+from distutils.version import LooseVersion
 from functools import partial
 from itertools import chain
 from typing import (
@@ -71,6 +72,7 @@ if not (sys.version_info.major >= 3 and sys.version_info.minor >= 6):
 
 
 CONDA_PKGS_DIRS = None
+MAMBA_ROOT_PREFIX = None
 DEFAULT_PLATFORMS = ["osx-64", "linux-64", "win-64"]
 DEFAULT_KINDS = ["explicit"]
 KIND_FILE_EXT = {
@@ -143,10 +145,29 @@ def conda_pkgs_dir():
         return CONDA_PKGS_DIRS
 
 
+def mamba_root_prefix():
+    """Legacy root prefix used by micromamba"""
+    global MAMBA_ROOT_PREFIX
+    if MAMBA_ROOT_PREFIX is None:
+        temp_dir = tempfile.TemporaryDirectory()
+        MAMBA_ROOT_PREFIX = temp_dir.name
+        atexit.register(temp_dir.cleanup)
+        os.environ["MAMBA_ROOT_PREFIX"] = MAMBA_ROOT_PREFIX
+        return MAMBA_ROOT_PREFIX
+    else:
+        return MAMBA_ROOT_PREFIX
+
+
 def reset_conda_pkgs_dir():
     """Clear the fake conda packages directory.  This is used only by testing"""
     global CONDA_PKGS_DIRS
+    global MAMBA_ROOT_PREFIX
     CONDA_PKGS_DIRS = None
+    MAMBA_ROOT_PREFIX = None
+    if "CONDA_PKGS_DIRS" in os.environ:
+        del os.environ["CONDA_PKGS_DIRS"]
+    if "MAMBA_ROOT_PREFIX" in os.environ:
+        del os.environ["MAMBA_ROOT_PREFIX"]
 
 
 def conda_env_override(platform) -> Dict[str, str]:
@@ -282,8 +303,6 @@ def do_conda_install(conda: PathLike, prefix: str, name: str, file: str) -> None
     conda_flags = os.environ.get("CONDA_FLAGS")
     if conda_flags:
         args.extend(shlex.split(conda_flags))
-
-    logging.debug("$MAMBA_ROOT_PREFIX: %s", os.environ.get("MAMBA_ROOT_PREFIX"))
 
     with subprocess.Popen(
         args,
@@ -732,11 +751,11 @@ def determine_conda_executable(
 ):
     for candidate in _determine_conda_executable(conda_executable, mamba, micromamba):
         if candidate is not None:
-            if is_micromamba(candidate) and "MAMBA_ROOT_PREFIX" not in os.environ:
-                mamba_root_prefix = pathlib.Path(candidate).parent / "mamba_root"
-                mamba_root_prefix.mkdir(exist_ok=True, parents=True)
-                os.environ["MAMBA_ROOT_PREFIX"] = str(mamba_root_prefix)
-
+            if is_micromamba(candidate):
+                if ensureconda.api.determine_micromamba_version(
+                    candidate
+                ) < LooseVersion("0.17"):
+                    mamba_root_prefix()
             return candidate
     raise RuntimeError("Could not find conda (or compatible) executable")
 
