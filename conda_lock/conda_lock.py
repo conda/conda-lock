@@ -339,21 +339,25 @@ def search_for_md5s(
     """
 
     def matchspec(spec):
-        return (
-            f"{spec['name']}["
-            f"version={spec['version']},"
-            f"subdir={spec['platform']},"
-            f"channel={spec['channel']},"
-            f"build={spec['build_string']}"
-            "]"
-        )
+        try:
+            return (
+                f"{spec['name']}["
+                f"version={spec['version']},"
+                f"subdir={spec.get('platform', platform)},"
+                f"channel={spec['channel']},"
+                f"build={spec['build_string']}"
+                "]"
+            )
+        except Exception:
+            logger.error("Failed to build a matchspec for %s", spec)
+            raise
 
     found: Set[str] = set()
     logging.debug("Searching for package specs: \n%s", package_specs)
     packages: List[Tuple[str, str]] = [
         *[(d["name"], matchspec(d)) for d in package_specs],
         *[(d["name"], f"{d['name']}[url='{d['url_conda']}']") for d in package_specs],
-        *[(d["name"], f"{d['name']}[url='{d['url']}']") for d in package_specs],
+        *[(d["name"], f"{d['name']}[url='{d['url_tar_bz2']}']") for d in package_specs],
     ]
 
     for name, spec in packages:
@@ -603,15 +607,22 @@ def create_lockfile_from_spec(
                 link[
                     "url_base"
                 ] = f"{link['base_url']}/{link['platform']}/{link['dist_name']}"
-            link["url"] = f"{link['url_base']}.tar.bz2"
+            link["url_tar_bz2"] = f"{link['url_base']}.tar.bz2"
             link["url_conda"] = f"{link['url_base']}.conda"
+
         link_dists = {link["dist_name"] for link in link_actions}
+        link_dists_with_md5_and_url = {
+            link["dist_name"]
+            for link in link_actions
+            if bool(link.get("url")) and bool(link.get("md5"))
+        }
 
-        fetch_actions = dry_run_install["actions"]["FETCH"]
-
+        fetch_actions = dry_run_install["actions"].get(["FETCH"], [])
         fetch_by_dist_name = {fn_to_dist_name(pkg["fn"]): pkg for pkg in fetch_actions}
 
-        non_fetch_packages = link_dists - set(fetch_by_dist_name)
+        non_fetch_packages = (
+            link_dists - set(fetch_by_dist_name) - link_dists_with_md5_and_url
+        )
         if len(non_fetch_packages) > 0:
             for search_res in search_for_md5s(
                 conda=conda,
@@ -625,16 +636,18 @@ def create_lockfile_from_spec(
                 fetch_by_dist_name[dist_name] = search_res
 
         for pkg in link_actions:
-            dist_name = (
-                fn_to_dist_name(pkg["fn"]) if is_micromamba(conda) else pkg["dist_name"]
-            )
-            url = fetch_by_dist_name[dist_name]["url"]
+            dist_name = pkg["dist_name"]
+            url = pkg["url"]
+            if not url:
+                url = fetch_by_dist_name[dist_name]["url"]
             if url.startswith(virtual_package_channel):
                 continue
             if url.startswith(spec.virtual_package_repo.channel_url_posix):
                 continue
             try:
-                md5 = fetch_by_dist_name[dist_name]["md5"]
+                md5 = pkg.get("md5")
+                if not md5:
+                    md5 = fetch_by_dist_name[dist_name]["md5"]
             except KeyError:
                 logger.error("failed to determine md5 for %s", url)
                 raise
