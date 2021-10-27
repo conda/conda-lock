@@ -19,6 +19,9 @@ class LockSpecification:
         self.platform = platform
         self.virtual_package_repo = virtual_package_repo
 
+    def __str__(self) -> str:
+        return f"LockSpecification(specs={self.specs}, channels={self.specs}, platform={self.platform})"
+
     def input_hash(self) -> str:
         data: dict = {
             "channels": self.channels,

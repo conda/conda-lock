@@ -19,12 +19,12 @@ from conda_lock.conda_lock import (
     _strip_auth_from_line,
     _strip_auth_from_lockfile,
     aggregate_lock_specs,
-    conda_env_override,
     create_lockfile_from_spec,
     determine_conda_executable,
     is_micromamba,
     main,
     parse_meta_yaml_file,
+    reset_conda_pkgs_dir,
     run_lock,
 )
 from conda_lock.src_parser import LockSpecification
@@ -43,6 +43,11 @@ TEST_DIR = pathlib.Path(__file__).parent
 @pytest.fixture(autouse=True)
 def logging_setup(caplog):
     caplog.set_level(logging.DEBUG)
+
+
+@pytest.fixture
+def reset_global_conda_pkgs_dir():
+    reset_conda_pkgs_dir()
 
 
 @pytest.fixture
@@ -309,7 +314,9 @@ def conda_supports_env(conda_exe):
 
 
 @pytest.mark.parametrize("kind", ["explicit", "env"])
-def test_install(kind, tmp_path, conda_exe, zlib_environment, monkeypatch, capsys):
+def test_install(
+    request, kind, tmp_path, conda_exe, zlib_environment, monkeypatch, capsys
+):
     if is_micromamba(conda_exe):
         monkeypatch.setenv("CONDA_FLAGS", "-v")
     if kind == "env" and not conda_supports_env(conda_exe):
@@ -320,8 +327,14 @@ def test_install(kind, tmp_path, conda_exe, zlib_environment, monkeypatch, capsy
     package = "zlib"
     platform = "linux-64"
 
-    lock_filename_template = "conda-{platform}-{dev-dependencies}.lock"
-    lock_filename = "conda-linux-64-true.lock" + (".yml" if kind == "env" else "")
+    lock_filename_template = (
+        request.node.name + "conda-{platform}-{dev-dependencies}.lock"
+    )
+    lock_filename = (
+        request.node.name
+        + "conda-linux-64-true.lock"
+        + (".yml" if kind == "env" else "")
+    )
     try:
         os.remove(lock_filename)
     except OSError:
@@ -370,10 +383,11 @@ def test_install(kind, tmp_path, conda_exe, zlib_environment, monkeypatch, capsy
     result = invoke_install()
     print(result.stdout, file=sys.stdout)
     print(result.stderr, file=sys.stderr)
-    logging.debug(
-        "lockfile contents: \n\n=======\n%s\n\n==========",
-        pathlib.Path(lock_filename).read_text(),
-    )
+    if pathlib.Path(lock_filename).exists:
+        logging.debug(
+            "lockfile contents: \n\n=======\n%s\n\n==========",
+            pathlib.Path(lock_filename).read_text(),
+        )
     if sys.platform.lower().startswith("linux"):
         assert result.exit_code == 0
         assert _check_package_installed(

@@ -90,7 +90,7 @@ def parse_poetry_pyproject_toml(
         for depname, depattrs in deps.items():
             conda_dep_name = normalize_pypi_name(depname)
             optional_dep = False
-            if isinstance(depattrs, collections.Mapping):
+            if isinstance(depattrs, collections.abc.Mapping):
                 poetry_version_spec = depattrs["version"]
                 optional_dep = depattrs.get("optional", False)
                 # TODO: support additional features such as markers for things like sys_platform, platform_system
