@@ -196,7 +196,7 @@ def solve_specs_for_arch(
     def print_proc(proc):
         import shlex
 
-        print(f"    Command: {' '.join(shlex.quote(x) for x in proc.args)}")
+        print(f"    Command: {' '.join(shlex.quote(str(x)) for x in proc.args)}")
         if proc.stdout:
             print(f"    STDOUT:\n{proc.stdout}")
         if proc.stderr:
