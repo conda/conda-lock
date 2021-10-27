@@ -45,7 +45,7 @@ def logging_setup(caplog):
     caplog.set_level(logging.DEBUG)
 
 
-@pytest.fixture(autouse=True)
+@pytest.fixture
 def reset_global_conda_pkgs_dir():
     reset_conda_pkgs_dir()
 
