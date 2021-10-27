@@ -617,7 +617,7 @@ def create_lockfile_from_spec(
             if bool(link.get("url")) and bool(link.get("md5"))
         }
 
-        fetch_actions = dry_run_install["actions"].get(["FETCH"], [])
+        fetch_actions = dry_run_install["actions"].get("FETCH", [])
         fetch_by_dist_name = {fn_to_dist_name(pkg["fn"]): pkg for pkg in fetch_actions}
 
         non_fetch_packages = (
@@ -637,7 +637,7 @@ def create_lockfile_from_spec(
 
         for pkg in link_actions:
             dist_name = pkg["dist_name"]
-            url = pkg["url"]
+            url = pkg.get("url")
             if not url:
                 url = fetch_by_dist_name[dist_name]["url"]
             if url.startswith(virtual_package_channel):
