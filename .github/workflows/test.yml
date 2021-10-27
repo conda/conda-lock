@@ -8,6 +8,7 @@ jobs:
   test-windows:
     env:
       PYTHONUNBUFFERED: "1"
+      FORCE_COLOR: "1"
     runs-on: windows-latest
     strategy:
       fail-fast: false
@@ -53,6 +54,7 @@ jobs:
         shell: bash -l {0}
     env:
       PYTHONUNBUFFERED: "1"
+      FORCE_COLOR: "1"
     steps:
       - uses: actions/checkout@v2
 

@@ -37,6 +37,7 @@ import ensureconda
 import pkg_resources
 
 from click_default_group import DefaultGroup
+from ensureconda.api import determine_micromamba_version
 
 from conda_lock.common import read_file, read_json, write_file
 from conda_lock.errors import PlatformValidationError
@@ -752,9 +753,7 @@ def determine_conda_executable(
     for candidate in _determine_conda_executable(conda_executable, mamba, micromamba):
         if candidate is not None:
             if is_micromamba(candidate):
-                if ensureconda.api.determine_micromamba_version(
-                    candidate
-                ) < LooseVersion("0.17"):
+                if determine_micromamba_version(candidate) < LooseVersion("0.17"):
                     mamba_root_prefix()
             return candidate
     raise RuntimeError("Could not find conda (or compatible) executable")
