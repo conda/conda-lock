@@ -40,7 +40,7 @@ jobs:
           pushd "${RUNNER_TEMP}"
           set TMPDIR="%RUNNER_TEMP%"
           dir
-          pytest --showlocals -vrsx --cov=conda_lock tests
+          pytest -n auto --showlocals -vrsx --cov=conda_lock tests
 
   test:
     runs-on: ${{ matrix.os }}
@@ -93,7 +93,7 @@ jobs:
           ls -lah
           set -x
           which pytest
-          pytest --showlocals -vrsx --cov=conda_lock tests
+          pytest -n auto --showlocals -vrsx --cov=conda_lock tests
 
       - name: test-gdal
         shell: bash -l {0}
