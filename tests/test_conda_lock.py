@@ -19,12 +19,12 @@ from conda_lock.conda_lock import (
     _strip_auth_from_line,
     _strip_auth_from_lockfile,
     aggregate_lock_specs,
-    conda_env_override,
     create_lockfile_from_spec,
     determine_conda_executable,
     is_micromamba,
     main,
     parse_meta_yaml_file,
+    reset_conda_pkgs_dir,
     run_lock,
 )
 from conda_lock.src_parser import LockSpecification
@@ -43,6 +43,11 @@ TEST_DIR = pathlib.Path(__file__).parent
 @pytest.fixture(autouse=True)
 def logging_setup(caplog):
     caplog.set_level(logging.DEBUG)
+
+
+@pytest.fixture(autouse=True)
+def reset_global_conda_pkgs_dir():
+    reset_conda_pkgs_dir()
 
 
 @pytest.fixture
