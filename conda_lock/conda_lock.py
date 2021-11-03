@@ -792,7 +792,7 @@ def _add_auth_to_lockfile(lockfile: str, auth: Dict[str, str]) -> str:
 @contextmanager
 def _add_auth(lockfile: str, auth: Dict[str, str]) -> Iterator[str]:
     lockfile_with_auth = _add_auth_to_lockfile(lockfile, auth)
-    
+
     # On Windows, NamedTemporaryFiles can't be opened a second time, so we have to close it first (and delete it manually later)
     tf = tempfile.NamedTemporaryFile(delete=False)
     try:
