@@ -6,12 +6,17 @@ from dataclasses import dataclass
 from itertools import chain
 from typing import Dict, List, Literal, Optional, Sequence, Set, Tuple, TypedDict
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from conda_lock.virtual_package import FakeRepoData
 
 
-class Selectors(BaseModel):
+class StrictModel(BaseModel):
+    class Config:
+        extra = "forbid"
+
+
+class Selectors(StrictModel):
     platform: Optional[List[str]] = None
 
     def __ior__(self, other) -> "Selectors":
@@ -24,7 +29,7 @@ class Selectors(BaseModel):
         return self
 
 
-class Dependency(BaseModel):
+class Dependency(StrictModel):
     name: str
     manager: Literal["conda", "pip"] = "conda"
     optional: bool = False
@@ -42,37 +47,35 @@ class URLDependency(Dependency):
     hashes: List[str]
 
 
-class Package(TypedDict):
+class Package(StrictModel):
     url: str
     hash: str
 
 
-class LockedDependencyBase(TypedDict):
-    name: str
-    version: str
-    manager: Literal["conda", "pip"]
-    platforms: List[str]
-    dependencies: Dict[str, str]
-    packages: Dict[str, Package]
-
-
-class Source(TypedDict):
+class DependencySource(StrictModel):
     type: Literal["url"]
     url: str
 
 
-class LockedDependency(LockedDependencyBase, total=False):
-    optional: bool
-    category: str
-    source: Source
+class LockedDependency(StrictModel):
+    name: str
+    version: str
+    manager: Literal["conda", "pip"]
+    platforms: List[str]
+    dependencies: Dict[str, str] = {}
+    packages: Dict[str, Package]
+    optional: bool = False
+    category: str = "main"
+    source: Optional[DependencySource] = None
 
 
-LockMeta = TypedDict(
-    "LockMeta", {"content-hash": str, "channels": List[str], "platforms": List[str]}
-)
+class LockMeta(StrictModel):
+    content_hash: str
+    channels: List[str]
+    platforms: List[str]
 
 
-class Lockfile(TypedDict):
+class Lockfile(StrictModel):
     package: List[LockedDependency]
     metadata: LockMeta
 
@@ -120,7 +123,7 @@ def _apply_categories(
         while True:
             todo.extend(
                 dep
-                for dep in planned[item]["dependencies"]
+                for dep in planned[item].dependencies
                 # exclude virtual packages
                 if not (dep in deps or dep.startswith("__"))
             )
@@ -149,8 +152,8 @@ def _apply_categories(
     for dep, root in root_requests.items():
         source = requested[root]
         target = planned[dep]
-        target["category"] = source.category
-        target["optional"] = source.optional
+        target.category = source.category
+        target.optional = source.optional
 
 
 def aggregate_lock_specs(

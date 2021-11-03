@@ -133,12 +133,15 @@ def get_dependency(dep: src_parser.Dependency) -> Dependency:
 
 
 def get_package(locked: src_parser.LockedDependency) -> Package:
-    if locked["version"] is None:
+    if locked.source is not None:
         return Package(
-            locked["name"], source_type="url", source_url=locked["url"], version="0.0.0"
+            locked.name,
+            source_type="url",
+            source_url=locked.source.url,
+            version="0.0.0",
         )
     else:
-        return Package(locked["name"], version=locked["version"])
+        return Package(locked.name, version=locked.version)
 
 
 PYPI_LOOKUP: Optional[Dict] = None
@@ -179,16 +182,14 @@ def solve_pypi(
 
     python_packages = dict()
     for dep in conda_locked.values():
-        if dep["name"].startswith("__"):
+        if dep.name.startswith("__"):
             continue
-        # elif dep["name"] == "python":
-        #     dummy_package.python_versions = f'=={dep["version"]}'
-        pypi_name = normalize_conda_name(dep["name"])
+        pypi_name = normalize_conda_name(dep.name)
         # Prefer the Python package when its name collides with the Conda package
         # for the underlying library, e.g. python-xxhash (pypi: xxhash) over xxhash
         # (pypi: no equivalent)
-        if pypi_name not in python_packages or pypi_name != dep["name"]:
-            python_packages[pypi_name] = dep["version"]
+        if pypi_name not in python_packages or pypi_name != dep.name:
+            python_packages[pypi_name] = dep.version
     # treat conda packages as both locked and installed
     for name, version in python_packages.items():
         for repo in (locked, installed):
@@ -210,7 +211,7 @@ def solve_pypi(
         io=io,
     )
     to_update = list(
-        {spec["name"] for spec in pip_locked.values()}.intersection(use_latest)
+        {spec.name for spec in pip_locked.values()}.intersection(use_latest)
     )
     env = PlatformEnv(python_version, platform)
     # find platform-specific solution (e.g. dependencies conditioned on markers)
@@ -226,43 +227,32 @@ def solve_pypi(
     for op in result:
         if not isinstance(op, Uninstall) and not op.skipped:
             # Take direct references verbatim
+            source: Optional[src_parser.DependencySource] = None
             if op.package.source_type == "url":
                 url, fragment = urldefrag(op.package.source_url)
-                requirements.append(
-                    {
-                        "name": op.package.name,
-                        "version": str(op.package.version),
-                        "manager": "pip",
-                        "source": {"type": "url", "url": url},
-                        "platforms": [platform],
-                        "dependencies": {
-                            dep.name: str(dep.constraint) for dep in op.package.requires
-                        },
-                        "packages": {
-                            platform: {"url": url, "hash": fragment.replace("=", ":")}
-                        },
-                    }
-                )
+                source = src_parser.DependencySource(type="url", url=url)
+                package = src_parser.Package(url=url, hash=fragment.replace("=", ":"))
             # Choose the most specific distribution for the target
             else:
                 link = chooser.choose_for(op.package)
-                requirements.append(
-                    {
-                        "name": op.package.name,
-                        "version": str(op.package.version),
-                        "manager": "pip",
-                        "platforms": [platform],
-                        "dependencies": {
-                            dep.name: str(dep.constraint) for dep in op.package.requires
-                        },
-                        "packages": {
-                            platform: {
-                                "url": link.url_without_fragment,
-                                "hash": f"{link.hash_name}:{link.hash}",
-                            }
-                        },
-                    }
+                package = src_parser.Package(
+                    url=link.url_without_fragment,
+                    hash=f"{link.hash_name}:{link.hash}",
                 )
+
+            requirements.append(
+                src_parser.LockedDependency(
+                    name=op.package.name,
+                    version=str(op.package.version),
+                    manager="pip",
+                    source=source,
+                    platforms=[platform],
+                    dependencies={
+                        dep.name: str(dep.constraint) for dep in op.package.requires
+                    },
+                    packages={platform: package},
+                )
+            )
 
     # use PyPI names of conda packages to walking the dependency tree and propagate
     # categories from explicit to transitive dependencies
@@ -271,9 +261,9 @@ def solve_pypi(
             normalize_conda_name(name).lower(): dep
             for name, dep in conda_locked.items()
         },
-        **{dep["name"]: dep for dep in requirements},
+        **{dep.name: dep for dep in requirements},
     }
 
     src_parser._apply_categories(requested=pip_specs, planned=planned)
 
-    return {dep["name"]: dep for dep in requirements}
+    return {dep.name: dep for dep in requirements}

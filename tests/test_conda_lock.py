@@ -31,7 +31,12 @@ from conda_lock.conda_lock import (
 from conda_lock.conda_solver import _get_repodata_for_package, fake_conda_environment
 from conda_lock.invoke_conda import _ensureconda, is_micromamba
 from conda_lock.pypi_solver import parse_pip_requirement, solve_pypi
-from conda_lock.src_parser import Dependency, LockSpecification, VersionedDependency
+from conda_lock.src_parser import (
+    Dependency,
+    LockedDependency,
+    LockSpecification,
+    VersionedDependency,
+)
 from conda_lock.src_parser.environment_yaml import parse_environment_file
 from conda_lock.src_parser.lockfile import parse_conda_lock_file
 from conda_lock.src_parser.pyproject_toml import (
@@ -154,21 +159,23 @@ def test_choose_wheel() -> None:
         use_latest=[],
         pip_locked={},
         conda_locked={
-            "python": {
-                "name": "python",
-                "version": "3.9.7",
-                "manager": "conda",
-                "platforms": ["linux-64"],
-                "dependencies": {},
-                "packages": {},
-            }
+            "python": LockedDependency.parse_obj(
+                {
+                    "name": "python",
+                    "version": "3.9.7",
+                    "manager": "conda",
+                    "platforms": ["linux-64"],
+                    "dependencies": {},
+                    "packages": {},
+                }
+            )
         },
         python_version="3.9.7",
         platform="linux-64",
     )
     assert len(solution) == 1
     assert (
-        solution["fastavro"]["packages"]["linux-64"]["hash"]
+        solution["fastavro"].packages["linux-64"].hash
         == "sha256:a111a384a786b7f1fd6a8a8307da07ccf4d4c425084e2d61bae33ecfb60de405"
     )
 
@@ -381,8 +388,8 @@ def test_poetry_version_parsing_constraints(package, version, url_pattern):
             spec=spec,
         )
 
-        python = next(p for p in lockfile_contents["package"] if p["name"] == "python")
-        assert url_pattern in python["packages"]["linux-64"]["url"]
+        python = next(p for p in lockfile_contents.package if p.name == "python")
+        assert url_pattern in python.packages["linux-64"].url
 
 
 def _make_spec(name, constraint="*"):
@@ -763,7 +770,7 @@ def test_fake_conda_env(conda_exe, conda_lock_toml):
     lockfile_content = parse_conda_lock_file(conda_lock_toml)
 
     with fake_conda_environment(
-        lockfile_content["package"], platform="linux-64"
+        lockfile_content.package, platform="linux-64"
     ) as prefix:
         packages = json.loads(
             subprocess.check_output(
@@ -777,18 +784,14 @@ def test_fake_conda_env(conda_exe, conda_lock_toml):
                 ]
             )
         )
-        locked = {
-            p["name"]: p for p in lockfile_content["package"] if p["manager"] == "conda"
-        }
+        locked = {p.name: p for p in lockfile_content.package if p.manager == "conda"}
         assert len(packages) == len(locked)
         for env_package in packages:
             locked_package = locked[env_package["name"]]
 
             platform = env_package["platform"]
             path = pathlib.Path(
-                urlsplit(
-                    urldefrag(locked_package["packages"]["linux-64"]["url"])[0]
-                ).path
+                urlsplit(urldefrag(locked_package.packages["linux-64"].url)[0]).path
             )
             if is_micromamba(conda_exe):
                 assert (

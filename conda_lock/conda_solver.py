@@ -36,6 +36,7 @@ from conda_lock.invoke_conda import (
 from conda_lock.src_parser import (
     Dependency,
     LockedDependency,
+    Package,
     VersionedDependency,
     _apply_categories,
 )
@@ -85,9 +86,7 @@ def solve_conda(
         for dep in specs.values()
         if isinstance(dep, VersionedDependency) and dep.manager == "conda"
     ]
-    conda_locked = {
-        dep["name"]: dep for dep in locked.values() if dep["manager"] == "conda"
-    }
+    conda_locked = {dep.name: dep for dep in locked.values() if dep.manager == "conda"}
     to_update = set(update).intersection(conda_locked)
 
     if to_update:
@@ -112,23 +111,19 @@ def solve_conda(
     ), "no link-only packages"
 
     # extract dependencies from package plan
-    planned: Dict[str, LockedDependency] = {
-        action["name"]: {
-            "name": action["name"],
-            "version": action["version"],
-            "manager": "conda",
-            "optional": False,
-            "category": "main",
-            "platforms": [platform],
-            "dependencies": {
+    planned = {
+        action["name"]: LockedDependency(
+            name=action["name"],
+            version=action["version"],
+            manager="conda",
+            platforms=[platform],
+            dependencies={
                 item.split()[0]: " ".join(item.split(" ")[1:])
                 for item in action.get("depends") or []
             },
             # NB: virtual packages may have no hash
-            "packages": {
-                platform: {"url": action["url"], "hash": action.get("md5", "")}
-            },
-        }
+            packages={platform: Package(url=action["url"], hash=action.get("md5", ""))},
+        )
         for action in cast(List[FetchAction], dry_run_install["actions"]["FETCH"])
     }
 
@@ -273,7 +268,7 @@ def update_specs_for_arch(
             else:
                 channel = f'{entry["base_url"]}/{entry["platform"]}'
             url = f"{channel}/{fn}"
-            md5 = locked[package]["packages"][platform]["hash"]
+            md5 = locked[package].packages[platform].hash
             dryrun_install["actions"]["FETCH"].append(
                 {
                     "name": entry["name"],
@@ -319,18 +314,18 @@ def fake_conda_environment(locked: Iterable[LockedDependency], platform: str):
         conda_meta = pathlib.Path(prefix) / "conda-meta"
         conda_meta.mkdir()
         (conda_meta / "history").touch()
-        for dep in (dep for dep in locked if dep["manager"] == "conda"):
-            package = dep["packages"][platform]
-            url = urlsplit(package["url"])
+        for dep in (dep for dep in locked if dep.manager == "conda"):
+            package = dep.packages[platform]
+            url = urlsplit(package.url)
             path = pathlib.Path(url.path)
             channel = urlunsplit(
                 (url.scheme, url.hostname, str(path.parent), None, None)
             )
             entry = {
                 "channel": channel,
-                "url": package["url"],
-                "md5": package["hash"],
-                **_get_repodata_for_package(package["url"]),
+                "url": package.url,
+                "md5": package.hash,
+                **_get_repodata_for_package(package.url),
             }
             while path.suffix in {".tar", ".bz2", ".gz"}:
                 path = path.with_suffix("")
