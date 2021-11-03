@@ -2,49 +2,41 @@ import json
 import logging
 import os
 import pathlib
-import shutil
 import subprocess
 import sys
 
 from glob import glob
-from typing import Any, MutableSequence
+from typing import Any
 from urllib.parse import urldefrag, urlsplit
 
 import pytest
-
-from pytest_mock import MockerFixture
 
 from conda_lock.conda_lock import (
     DEFAULT_PLATFORMS,
     PathLike,
     _add_auth_to_line,
     _add_auth_to_lockfile,
-    _ensureconda,
     _extract_domain,
     _strip_auth_from_line,
     _strip_auth_from_lockfile,
     aggregate_lock_specs,
-    conda_env_override,
     create_lockfile_from_spec,
     default_virtual_package_repodata,
     determine_conda_executable,
-    fake_conda_environment,
-    is_micromamba,
+    extract_input_hash,
     main,
-    make_lock_specs,
     parse_meta_yaml_file,
     run_lock,
-    solve_specs_for_arch,
 )
+from conda_lock.conda_solver import _get_repodata_for_package, fake_conda_environment
+from conda_lock.invoke_conda import _ensureconda, is_micromamba
 from conda_lock.pypi_solver import parse_pip_requirement, solve_pypi
-from conda_lock.src_parser import LockSpecification
+from conda_lock.src_parser import Dependency, LockSpecification, VersionedDependency
 from conda_lock.src_parser.environment_yaml import parse_environment_file
-from conda_lock.src_parser.explicit import parse_explicit_file
+from conda_lock.src_parser.lockfile import parse_conda_lock_file
 from conda_lock.src_parser.pyproject_toml import (
-    parse_flit_pyproject_toml,
-    parse_poetry_pyproject_toml,
+    parse_pyproject_toml,
     poetry_version_to_conda_version,
-    to_match_spec,
 )
 
 
@@ -108,29 +100,77 @@ def include_dev_dependencies(request: Any) -> bool:
 
 def test_parse_environment_file(gdal_environment):
     res = parse_environment_file(gdal_environment, "linux-64")
-    assert all(x in res.specs for x in ["python >=3.7,<3.8", "gdal"])
+    assert all(
+        x in res.dependencies
+        for x in [
+            VersionedDependency(
+                name="python",
+                version=">=3.7,<3.8",
+            ),
+            VersionedDependency(
+                name="gdal",
+                version="",
+            ),
+        ]
+    )
+    assert (
+        VersionedDependency(
+            name="toolz",
+            manager="pip",
+            version="*",
+        )
+        in res.dependencies
+    )
     assert all(x in res.channels for x in ["conda-forge", "defaults"])
 
 
 def test_parse_environment_file_with_pip(pip_environment):
     res = parse_environment_file(pip_environment, "linux-64")
-    assert res.pip_specs == ["requests-toolbelt==0.9.1"]
+    assert [dep for dep in res.dependencies if dep.manager == "pip"] == [
+        VersionedDependency(
+            name="requests-toolbelt",
+            manager="pip",
+            optional=False,
+            category="main",
+            extras=[],
+            version="=0.9.1",
+        )
+    ]
 
 
 def test_choose_wheel() -> None:
 
     solution = solve_pypi(
-        ["fastavro"],
+        {
+            "fastavro": VersionedDependency(
+                name="fastavro",
+                manager="pip",
+                optional=False,
+                category="main",
+                extras=[],
+                version="1.4.7",
+            )
+        },
         use_latest=[],
-        pip_locked=[],
-        conda_locked=[],
+        pip_locked={},
+        conda_locked={
+            "python": {
+                "name": "python",
+                "version": "3.9.7",
+                "manager": "conda",
+                "platforms": ["linux-64"],
+                "dependencies": {},
+                "packages": {},
+            }
+        },
         python_version="3.9.7",
         platform="linux-64",
     )
     assert len(solution) == 1
-    assert solution[0]["hashes"] == [
-        "sha256:fafe37983605ed74a5ca8063951f6d5984ad871e0ff895f14afa81a6d88c316e"
-    ]
+    assert (
+        solution["fastavro"]["packages"]["linux-64"]["hash"]
+        == "sha256:a111a384a786b7f1fd6a8a8307da07ccf4d4c425084e2d61bae33ecfb60de405"
+    )
 
 
 @pytest.mark.parametrize(
@@ -205,58 +245,55 @@ def test_parse_pip_requirement(requirement, parsed):
     assert parse_pip_requirement(requirement) == parsed
 
 
-def test_parse_meta_yaml_file(meta_yaml_environment, include_dev_dependencies):
-    res = parse_meta_yaml_file(
-        meta_yaml_environment,
-        platform="linux-64",
-        include_dev_dependencies=include_dev_dependencies,
-    )
-    assert all(x in res.specs for x in ["python", "numpy"])
+# @pytest.mark.xfail(reason="platform selectors are currently broken")
+def test_parse_meta_yaml_file(meta_yaml_environment):
+    res = parse_meta_yaml_file(meta_yaml_environment, ["linux-64", "osx-64"])
+    specs = {dep.name: dep for dep in res.dependencies}
+    assert all(x in specs for x in ["python", "numpy"])
     # Ensure that this dep specified by a python selector is ignored
-    assert "enum34" not in res.specs
+    assert "enum34" not in specs
     # Ensure that this platform specific dep is included
-    assert "zlib" in res.specs
-    assert ("pytest" in res.specs) == include_dev_dependencies
+    assert "zlib" in specs
+    assert specs["pytest"].category == "dev"
+    assert specs["pytest"].optional is True
 
 
-def test_parse_poetry(poetry_pyproject_toml, include_dev_dependencies):
-    res = parse_poetry_pyproject_toml(
+def test_parse_poetry(poetry_pyproject_toml):
+    res = parse_pyproject_toml(
         poetry_pyproject_toml,
-        platform="linux-64",
-        include_dev_dependencies=include_dev_dependencies,
     )
 
-    assert "requests[version='>=2.13.0,<3.0.0']" in res.specs
-    assert "toml[version='>=0.10']" in res.specs
-    assert "sqlite[version='<3.34']" in res.specs
-    assert "certifi[version='>=2019.11.28']" in res.specs
-    assert ("pytest[version='>=5.1.0,<5.2.0']" in res.specs) == include_dev_dependencies
+    specs = {dep.name: dep for dep in res.dependencies}
+
+    assert specs["requests"].version == ">=2.13.0,<3.0.0"
+    assert specs["toml"].version == ">=0.10"
+    assert specs["sqlite"].version == "<3.34"
+    assert specs["certifi"].version == ">=2019.11.28"
+    assert specs["pytest"].version == ">=5.1.0,<5.2.0"
+    assert specs["pytest"].optional is True
+    assert specs["pytest"].category == "dev"
+    assert specs["tomlkit"].version == ">=0.7.0,<1.0.0"
+    assert specs["tomlkit"].optional is True
+    assert specs["tomlkit"].category == "tomlkit"
+
     assert res.channels == ["defaults"]
-    assert "tomlkit[version='>=0.7.0,<1.0.0']" not in res.specs
-
-    res = parse_poetry_pyproject_toml(
-        poetry_pyproject_toml,
-        platform="linux-64",
-        include_dev_dependencies=include_dev_dependencies,
-        extras={"tomlkit"},
-    )
-
-    assert "tomlkit[version='>=0.7.0,<1.0.0']" in res.specs
 
 
-def test_parse_flit(flit_pyproject_toml, include_dev_dependencies):
-    res = parse_flit_pyproject_toml(
+def test_parse_flit(flit_pyproject_toml):
+    res = parse_pyproject_toml(
         flit_pyproject_toml,
-        platform="linux-64",
-        include_dev_dependencies=include_dev_dependencies,
     )
 
-    assert "requests[version='>=2.13.0']" in res.specs
-    assert "toml[version='>=0.10']" in res.specs
-    assert "sqlite[version='<3.34']" in res.specs
-    assert "certifi[version='>=2019.11.28']" in res.specs
-    # test deps
-    assert ("pytest[version='>=5.1.0']" in res.specs) == include_dev_dependencies
+    specs = {dep.name: dep for dep in res.dependencies}
+
+    assert specs["requests"].version == ">=2.13.0"
+    assert specs["toml"].version == ">=0.10"
+    assert specs["sqlite"].version == "<3.34"
+    assert specs["certifi"].version == ">=2019.11.28"
+    assert specs["pytest"].version == ">=5.1.0"
+    assert specs["pytest"].optional is True
+    assert specs["pytest"].category == "dev"
+
     assert res.channels == ["defaults"]
 
 
@@ -272,87 +309,6 @@ def test_run_lock_with_pip(monkeypatch, pip_environment, conda_exe):
     if is_micromamba(conda_exe):
         monkeypatch.setenv("CONDA_FLAGS", "-v")
     run_lock([pip_environment], conda_exe=conda_exe)
-
-
-def test_platforms_from_pyproject(monkeypatch, mocker: MockerFixture):
-    pyproject = TEST_DIR.joinpath("test-platforms").joinpath("pyproject.toml")
-    monkeypatch.chdir(pyproject.parent)
-    mock = mocker.patch("conda_lock.conda_lock.make_lock_files")
-    run_lock([pyproject], conda_exe=None)
-    assert sorted(mock.call_args.kwargs["platforms"]) == ["none", "such"]
-
-    pyproject = TEST_DIR.joinpath("test-poetry").joinpath("pyproject.toml")
-    monkeypatch.chdir(pyproject.parent)
-    run_lock([pyproject], conda_exe=None)
-    assert sorted(mock.call_args.kwargs["platforms"]) == sorted(DEFAULT_PLATFORMS)
-
-
-def test_solve_with_pip(pip_environment, conda_exe):
-
-    virtual_package_repo = default_virtual_package_repodata()
-
-    with virtual_package_repo:
-        lock_specs = make_lock_specs(
-            platforms=["linux-64"],
-            src_files=[pip_environment],
-            include_dev_dependencies=False,
-            channel_overrides=None,
-            extras=None,
-            virtual_package_repo=virtual_package_repo,
-        )
-
-        spec = lock_specs["linux-64"]
-
-        dry_run_install = solve_specs_for_arch(
-            conda=conda_exe,
-            platform=spec.platform,
-            channels=[*spec.channels, virtual_package_repo.channel_url],
-            specs=spec.specs,
-        )
-
-    python_version = None
-    locked_packages = []
-    for package in (
-        dry_run_install["actions"]["FETCH"] + dry_run_install["actions"]["LINK"]
-    ):
-        if package["name"] == "python":
-            python_version = package["version"]
-        else:
-            locked_packages.append((package["name"], package["version"]))
-    assert python_version.startswith("3.9.")
-
-    pip_installs = solve_pypi(
-        spec.pip_specs,
-        use_latest=[],
-        pip_locked=[],
-        conda_locked=locked_packages,
-        python_version=python_version,
-        platform="linux-64",
-    )
-    assert len(pip_installs) == 1
-    assert pip_installs[0]["name"] == "requests-toolbelt"
-    assert pip_installs[0]["version"] == "0.9.1"
-
-    pip_installs = solve_pypi(
-        [
-            "requests-toolbelt @ https://files.pythonhosted.org/packages/60/ef/7681134338fc097acef8d9b2f8abe0458e4d87559c689a8c306d0957ece5/requests_toolbelt-0.9.1-py2.py3-none-any.whl#sha256=380606e1d10dc85c3bd47bf5a6095f815ec007be7a8b69c878507068df059e6f"
-        ],
-        use_latest=[],
-        conda_locked=locked_packages,
-        pip_locked=[],
-        python_version=python_version,
-        platform="linux-64",
-    )
-    assert len(pip_installs) == 1
-    assert pip_installs[0]["name"] == "requests-toolbelt"
-    assert pip_installs[0].get("version") is None
-    assert (
-        pip_installs[0]["url"]
-        == "https://files.pythonhosted.org/packages/60/ef/7681134338fc097acef8d9b2f8abe0458e4d87559c689a8c306d0957ece5/requests_toolbelt-0.9.1-py2.py3-none-any.whl"
-    )
-    assert pip_installs[0]["hashes"] == [
-        "sha256:380606e1d10dc85c3bd47bf5a6095f815ec007be7a8b69c878507068df059e6f"
-    ]
 
 
 def test_run_lock_with_input_hash_check(
@@ -373,6 +329,11 @@ def test_run_lock_with_input_hash_check(
     )
     stat = lockfile.stat()
     created = stat.st_mtime_ns
+
+    with open(lockfile) as f:
+        previous_hash = extract_input_hash(f.read())
+        assert previous_hash is not None
+        assert len(previous_hash) == 64
 
     capsys.readouterr()
     run_lock(
@@ -397,58 +358,69 @@ def test_run_lock_with_input_hash_check(
 )
 def test_poetry_version_parsing_constraints(package, version, url_pattern):
     _conda_exe = determine_conda_executable("conda", mamba=False, micromamba=False)
-    from conda_lock.virtual_package import default_virtual_package_repodata
 
     vpr = default_virtual_package_repodata()
     with vpr:
         spec = LockSpecification(
-            specs=[to_match_spec(package, poetry_version_to_conda_version(version))],
+            dependencies=[
+                VersionedDependency(
+                    name=package,
+                    version=poetry_version_to_conda_version(version),
+                    manager="conda",
+                    optional=False,
+                    category="main",
+                    extras=[],
+                )
+            ],
             channels=["conda-forge"],
-            platform="linux-64",
+            platforms=["linux-64"],
             virtual_package_repo=vpr,
         )
         lockfile_contents = create_lockfile_from_spec(
             conda=_conda_exe,
             spec=spec,
-            kind="explicit",
         )
 
-        for line in lockfile_contents:
-            if url_pattern in line:
-                break
-        else:
-            raise ValueError(f"could not find {package} {version}")
+        python = next(p for p in lockfile_contents["package"] if p["name"] == "python")
+        assert url_pattern in python["packages"]["linux-64"]["url"]
+
+
+def _make_spec(name, constraint="*"):
+    return VersionedDependency(
+        name=name,
+        version=constraint,
+    )
 
 
 def test_aggregate_lock_specs():
     gpu_spec = LockSpecification(
-        specs=["pytorch"],
+        dependencies=[_make_spec("pytorch")],
         channels=["pytorch", "conda-forge"],
-        platform="linux-64",
+        platforms=["linux-64"],
     )
 
     base_spec = LockSpecification(
-        specs=["python =3.7"],
+        dependencies=[_make_spec("python", "=3.7")],
         channels=["conda-forge"],
-        platform="linux-64",
+        platforms=["linux-64"],
     )
 
     assert (
-        aggregate_lock_specs([gpu_spec, base_spec]).input_hash()
+        aggregate_lock_specs([gpu_spec, base_spec]).content_hash()
         == LockSpecification(
-            specs=["pytorch", "python =3.7"],
+            dependencies=[_make_spec("pytorch"), _make_spec("python", "=3.7")],
             channels=["pytorch", "conda-forge"],
-            platform="linux-64",
-        ).input_hash()
+            platforms=["linux-64"],
+        ).content_hash()
     )
 
     assert (
-        aggregate_lock_specs([base_spec, gpu_spec]).input_hash()
-        == LockSpecification(
-            specs=["pytorch", "python =3.7"],
+        aggregate_lock_specs([base_spec, gpu_spec]).content_hash()
+        != LockSpecification(
+            dependencies=[_make_spec("pytorch"), _make_spec("python", "=3.7")],
             channels=["conda-forge"],
-            platform="linux-64",
-        ).input_hash()
+            platforms=["linux-64"],
+        ).content_hash()
     )
 
 
@@ -747,9 +719,9 @@ def test_virtual_package_input_hash_stability():
     spec = test_dir / "virtual-packages-old-glibc.yaml"
 
     vpr = virtual_package_repo_from_specification(spec)
-    spec = LockSpecification([], [], "linux-64", virtual_package_repo=vpr)
-    expected = "dd3db10126e00cd63c1fa7713f4a1f9831f6f44fabd0f5d79ac906820a7f4917"
-    assert spec.input_hash() == expected
+    spec = LockSpecification([], [], ["linux-64"], virtual_package_repo=vpr)
+    expected = "42d1f0386072f897dc1474f3571ec518755bf64379d4064c494f8ee59dbec683"
+    assert spec.content_hash() == expected
 
 
 def _param(platform, hash):
@@ -760,12 +732,12 @@ def _param(platform, hash):
     ["platform", "expected"],
     [
         # fmt: off
-        _param("linux-64", "fae755df14d75217a7e2bee4ed783a4ee78fbdbcf6d116bbe6219111c522faae"),
-        _param("linux-aarch64", "4e36c02f9a51bd81b01f8ff1a573d76dc35f624341a8bd1c8d89e3f24eafdee9"),
-        _param("linux-ppc64le", "4a59cae31ce96a0ed3cc0919531aa2c39deb75af581992b4381803506916cac2"),
-        _param("osx-64", "fb3daef6cf7780d4d7a64a36decc095f01778f5e8a4b575f6ef54c7a9b0fbbdf"),
-        _param("osx-arm64", "4df1c8002040537b0d5132fe59067325a32e0bef0f8429c5b92914effc161804"),
-        _param("win-64", "b98d3b765676e05e7bfe76d3ee1de58f2dd2abbdb033b463bf6e3b0d4cd0a91f"),
+        _param("linux-64", "956a5736d6245cc55d81834b317d3380ee43483e22b4ad16f55c32817957a172"),
+        _param("linux-aarch64", "055ccc17dffc0fed905d5e42864b6367f9890e662d0e9a3e5fa1dd58fda54630"),
+        _param("linux-ppc64le", "50f10680b44a3049be62aba6b144b20a4beeaadf541df0028621416f22b88b77"),
+        _param("osx-64", "a9693efa6c9a86a028b671bbda3918c2d29ff542a8fdb482d35d7ddcbbcb0ced"),
+        _param("osx-arm64", "e8210704de2912478cf9f4b5cc9518b43e29090b884fff3fd581e33137e10dc4"),
+        _param("win-64", "f9ecd43fd122b7431863b84a0234655fd52db2a4574c628706ac63e6b88ee164"),
         # fmt: on
     ],
 )
@@ -773,61 +745,26 @@ def test_default_virtual_package_input_hash_stability(platform, expected):
     from conda_lock.virtual_package import default_virtual_package_repodata
 
     vpr = default_virtual_package_repodata()
-    spec = LockSpecification([], [], platform, virtual_package_repo=vpr)
-    assert spec.input_hash() == expected
+    spec = LockSpecification([], [], [platform], virtual_package_repo=vpr)
+    assert spec.content_hash() == expected
 
 
 @pytest.fixture
-def explicit_lockfile():
+def conda_lock_toml():
     return (
         pathlib.Path(__file__)
         .parent.joinpath("test-lockfile")
-        .joinpath("explicit.lock")
+        .joinpath("conda-lock.toml")
     )
 
 
-# @pytest.fixture
-# def explicit_lockfile():
-#     return (
-#         pathlib.Path(__file__)
-#         .parent.joinpath("zlib")
-#         .joinpath("conda-osx-64.lock")
-#     )
+def test_fake_conda_env(conda_exe, conda_lock_toml):
 
+    lockfile_content = parse_conda_lock_file(conda_lock_toml)
 
-def test_parse_explicit_lockfile(explicit_lockfile):
-    conda, pip = parse_explicit_file(explicit_lockfile)
-
-    assert {
-        "name": "pymage",
-        "version": None,
-        "url": "https://github.com/MickaelRigault/pymage/archive/v1.0.tar.gz",
-        "hashes": [
-            "sha256=11e99c4ea06b76ca7fb5b42d1d35d64139a4fa6f7f163a2f0f9cc3ea0b3c55eb"
-        ],
-    } in pip
-    assert {
-        "name": "aiohttp",
-        "version": "3.7.4.post0",
-        "url": "https://files.pythonhosted.org/packages/34/40/2b3295eb6f66209d1b2ad6ef34ebdf1cb1675c62f8697a8fe7c4f11d2838/aiohttp-3.7.4.post0-cp39-cp39-manylinux2014_x86_64.whl",
-        "hashes": [
-            "sha256=17c073de315745a1510393a96e680d20af8e67e324f70b42accbd4cb3315c9fb"
-        ],
-    } in pip
-
-    assert (
-        "https://conda.anaconda.org/conda-forge/linux-64/python-3.9.0-hffdb5ce_5_cpython.tar.bz2#d26d64e4cf67cbfab3caf9176c9255de"
-        in conda
-    )
-
-
-def test_fake_conda_env(conda_exe, explicit_lockfile):
-
-    specs, pip_specs = parse_explicit_file(explicit_lockfile)
-    with open(explicit_lockfile) as f:
-        urls = [line.strip() for line in f if line.startswith("http")]
-
-    with fake_conda_environment(urls) as prefix:
+    with fake_conda_environment(
+        lockfile_content["package"], platform="linux-64"
+    ) as prefix:
         packages = json.loads(
             subprocess.check_output(
                 [
@@ -840,23 +777,46 @@ def test_fake_conda_env(conda_exe, explicit_lockfile):
                 ]
             )
         )
-        assert len(packages) == len(urls)
-        url_for_name = {
-            "-".join(pathlib.Path(urlsplit(u).path).name.split("-")[:-2]): u
-            for u in urls
+        locked = {
+            p["name"]: p for p in lockfile_content["package"] if p["manager"] == "conda"
         }
-        for p, u in zip(packages, urls):
-            u = url_for_name[p["name"]]
-            path = pathlib.Path(urlsplit(urldefrag(u)[0]).path)
-            platform = p["platform"]
+        assert len(packages) == len(locked)
+        for env_package in packages:
+            locked_package = locked[env_package["name"]]
+
+            platform = env_package["platform"]
+            path = pathlib.Path(
+                urlsplit(
+                    urldefrag(locked_package["packages"]["linux-64"]["url"])[0]
+                ).path
+            )
             if is_micromamba(conda_exe):
                 assert (
-                    p["base_url"]
+                    env_package["base_url"]
                     == f"https://conda.anaconda.org/conda-forge/{platform}"
                 )
-                assert p["channel"] == f"conda-forge/{platform}"
+                assert env_package["channel"] == f"conda-forge/{platform}"
             else:
-                assert p["base_url"] == "https://conda.anaconda.org/conda-forge"
-                assert p["channel"] == "conda-forge"
-            assert p["dist_name"] == f"{path.name[:-8]}"
+                assert (
+                    env_package["base_url"] == "https://conda.anaconda.org/conda-forge"
+                )
+                assert env_package["channel"] == "conda-forge"
+            assert env_package["dist_name"] == f"{path.name[:-8]}"
             assert platform == path.parent.name
+
+
+def test_repodata_for_package():
+    assert _get_repodata_for_package(
+        "https://conda.anaconda.org/conda-forge/linux-64/_libgcc_mutex-0.1-conda_forge.tar.bz2#d7c89558ba9fa0495403155b64376d81"
+    ) == {
+        "arch": "x86_64",
+        "build": "conda_forge",
+        "build_number": 0,
+        "depends": [],
+        "license": "None",
+        "name": "_libgcc_mutex",
+        "platform": "linux",
+        "subdir": "linux-64",
+        "timestamp": 1578324546067,
+        "version": "0.1",
+    }

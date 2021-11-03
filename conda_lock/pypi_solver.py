@@ -6,7 +6,7 @@ from typing import Dict, List, Optional, TypedDict
 from urllib.parse import urldefrag
 
 from clikit.api.io.flags import VERY_VERBOSE
-from clikit.io import ConsoleIO
+from clikit.io import ConsoleIO, NullIO
 from packaging.tags import compatible_tags, cpython_tags
 from poetry.core.packages import Dependency, Package, ProjectPackage, URLDependency
 from poetry.installation.chooser import Chooser
@@ -18,8 +18,9 @@ from poetry.repositories.pypi_repository import PyPiRepository
 from poetry.repositories.repository import Repository
 from poetry.utils.env import Env
 
-from conda_lock.src_parser import PipPackage
+from conda_lock import src_parser
 from conda_lock.src_parser.pyproject_toml import get_lookup as get_forward_lookup
+from conda_lock.src_parser.pyproject_toml import normalize_pypi_name
 
 
 class PlatformEnv(Env):
@@ -36,6 +37,15 @@ class PlatformEnv(Env):
             raise ValueError(f"Unsupported platform '{platform}'")
         self._python_version = tuple(map(int, python_version.split(".")))
 
+        if platform.startswith("osx-"):
+            self._sys_platform = "darwin"
+        elif platform.startswith("linux-"):
+            self._sys_platform = "linux"
+        elif platform.startswith("win-"):
+            self._sys_platform = "win32"
+        else:
+            raise ValueError(f"Unsupported platform '{platform}'")
+
     def get_supported_tags(self):
         """
         Mimic the output of packaging.tags.sys_tags() on the given platform
@@ -47,6 +57,25 @@ class PlatformEnv(Env):
                 python_version=self._python_version, platforms=self._platforms
             )
         )
+
+    def get_marker_env(self):
+        return {
+            # "implementation_name": implementation_name,
+            # "implementation_version": iver,
+            # "os_name": os.name,
+            # "platform_machine": platform.machine(),
+            # "platform_release": platform.release(),
+            # "platform_system": platform.system(),
+            # "platform_version": platform.version(),
+            "python_full_version": ".".join([str(c) for c in self._python_version]),
+            # "platform_python_implementation": platform.python_implementation(),
+            "python_version": ".".join([str(c) for c in self._python_version[:2]]),
+            "sys_platform": self._sys_platform,
+            # "version_info": sys.version_info,
+            # # Extra information
+            # "interpreter_name": interpreter_name(),
+            # "interpreter_version": interpreter_version(),
+        }
 
 
 REQUIREMENT_PATTERN = re.compile(
@@ -90,20 +119,20 @@ def parse_pip_requirement(requirement: str) -> Optional[Dict[str, str]]:
     return match.groupdict()
 
 
-def get_dependency(requirement: str) -> Dependency:
-    parsed = parse_pip_requirement(requirement)
-    if parsed is None:
-        raise ValueError(f"Unknown pip requirement '{requirement}'")
-    extras = re.split(r"\s?\,\s?", parsed["extras"]) if parsed["extras"] else None
-    if parsed["url"]:
-        return URLDependency(name=parsed["name"], url=parsed["url"], extras=extras)
-    else:
+def get_dependency(dep: src_parser.Dependency) -> Dependency:
+    # FIXME: how do deal with extras?
+    extras: List[str] = []
+    if isinstance(dep, src_parser.VersionedDependency):
         return Dependency(
-            name=parsed["name"], constraint=parsed["constraint"] or "*", extras=extras
+            name=dep.name, constraint=dep.version or "*", extras=dep.extras
         )
+    elif isinstance(dep, src_parser.URLDependency):
+        return URLDependency(name=dep.name, url=dep.url, extras=extras)
+    else:
+        raise ValueError(f"Unknown requirement {dep}")
 
 
-def get_package(locked: PipPackage) -> Package:
+def get_package(locked: src_parser.LockedDependency) -> Package:
     if locked["version"] is None:
         return Package(
             locked["name"], source_type="url", source_url=locked["url"], version="0.0.0"
@@ -129,17 +158,16 @@ def normalize_conda_name(name: str):
 
 
 def solve_pypi(
-    pip_specs: List[str],
+    pip_specs: Dict[str, src_parser.Dependency],
     use_latest: List[str],
-    pip_locked: List[PipPackage],
-    conda_locked: List[tuple[str, str]],
+    pip_locked: Dict[str, src_parser.LockedDependency],
+    conda_locked: Dict[str, src_parser.LockedDependency],
     python_version: str,
     platform: str,
     verbose: bool = False,
-) -> List[PipPackage]:
+) -> Dict[str, src_parser.LockedDependency]:
     dummy_package = ProjectPackage("_dummy_package_", "0.0.0")
-    dummy_package.python_versions = f"=={python_version}"
-    dependencies = [get_dependency(spec) for spec in pip_specs]
+    dependencies = [get_dependency(spec) for spec in pip_specs.values()]
     for dep in dependencies:
         dummy_package.add_dependency(dep)
 
@@ -150,24 +178,30 @@ def solve_pypi(
     locked = Repository()
 
     python_packages = dict()
-    for name, version in conda_locked:
-        pypi_name = normalize_conda_name(name)
+    for dep in conda_locked.values():
+        if dep["name"].startswith("__"):
+            continue
+        # elif dep["name"] == "python":
+        #     dummy_package.python_versions = f'=={dep["version"]}'
+        pypi_name = normalize_conda_name(dep["name"])
         # Prefer the Python package when its name collides with the Conda package
         # for the underlying library, e.g. python-xxhash (pypi: xxhash) over xxhash
         # (pypi: no equivalent)
-        if pypi_name not in python_packages or pypi_name != name:
-            python_packages[pypi_name] = version
+        if pypi_name not in python_packages or pypi_name != dep["name"]:
+            python_packages[pypi_name] = dep["version"]
     # treat conda packages as both locked and installed
     for name, version in python_packages.items():
         for repo in (locked, installed):
             repo.add_package(Package(name=name, version=version))
     # treat pip packages as locked only
-    for spec in pip_locked:
+    for spec in pip_locked.values():
         locked.add_package(get_package(spec))
 
-    io = ConsoleIO()
     if verbose:
+        io = ConsoleIO()
         io.set_verbosity(VERY_VERBOSE)
+    else:
+        io = NullIO()
     s = Solver(
         dummy_package,
         pool=pool,
@@ -175,15 +209,20 @@ def solve_pypi(
         locked=locked,
         io=io,
     )
-    to_update = list({spec["name"] for spec in pip_locked}.intersection(use_latest))
-    result = s.solve(use_latest=to_update)
+    to_update = list(
+        {spec["name"] for spec in pip_locked.values()}.intersection(use_latest)
+    )
+    env = PlatformEnv(python_version, platform)
+    # find platform-specific solution (e.g. dependencies conditioned on markers)
+    with s.use_environment(env):
+        result = s.solve(use_latest=to_update)
 
-    chooser = Chooser(pool, env=PlatformEnv(python_version, platform))
+    chooser = Chooser(pool, env=env)
 
     # Extract distributions from Poetry package plan, ignoring uninstalls
     # (usually: conda package with no pypi equivalent) and skipped ops
     # (already installed)
-    requirements: List[PipPackage] = []
+    requirements: List[src_parser.LockedDependency] = []
     for op in result:
         if not isinstance(op, Uninstall) and not op.skipped:
             # Take direct references verbatim
@@ -192,9 +231,16 @@ def solve_pypi(
                 requirements.append(
                     {
                         "name": op.package.name,
-                        "version": None,
-                        "url": url,
-                        "hashes": [fragment.replace("=", ":")],
+                        "version": str(op.package.version),
+                        "manager": "pip",
+                        "source": {"type": "url", "url": url},
+                        "platforms": [platform],
+                        "dependencies": {
+                            dep.name: str(dep.constraint) for dep in op.package.requires
+                        },
+                        "packages": {
+                            platform: {"url": url, "hash": fragment.replace("=", ":")}
+                        },
                     }
                 )
             # Choose the most specific distribution for the target
@@ -204,9 +250,30 @@ def solve_pypi(
                     {
                         "name": op.package.name,
                         "version": str(op.package.version),
-                        "url": link.url_without_fragment,
-                        "hashes": [f"{link.hash_name}:{link.hash}"],
+                        "manager": "pip",
+                        "platforms": [platform],
+                        "dependencies": {
+                            dep.name: str(dep.constraint) for dep in op.package.requires
+                        },
+                        "packages": {
+                            platform: {
+                                "url": link.url_without_fragment,
+                                "hash": f"{link.hash_name}:{link.hash}",
+                            }
+                        },
                     }
                 )
 
-    return requirements
+    # use PyPI names of conda packages to walking the dependency tree and propagate
+    # categories from explicit to transitive dependencies
+    planned = {
+        **{
+            normalize_conda_name(name).lower(): dep
+            for name, dep in conda_locked.items()
+        },
+        **{dep["name"]: dep for dep in requirements},
+    }
+
+    src_parser._apply_categories(requested=pip_specs, planned=planned)
+
+    return {dep["name"]: dep for dep in requirements}

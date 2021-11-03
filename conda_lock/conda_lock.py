@@ -2,47 +2,32 @@
 Somewhat hacky solution to create conda lock files.
 """
 
-import atexit
 import datetime
 import json
 import logging
 import os
 import pathlib
 import re
-import shlex
-import shutil
 import subprocess
 import sys
-import tarfile
 import tempfile
 
 from contextlib import contextmanager
 from functools import partial
 from itertools import chain
-from typing import (
-    AbstractSet,
-    Any,
-    Dict,
-    Iterator,
-    List,
-    MutableSequence,
-    Optional,
-    Sequence,
-    Set,
-    Tuple,
-    Union,
-)
-from urllib.parse import urldefrag, urlsplit, urlunsplit
+from typing import AbstractSet, Dict, Iterator, List, Optional, Sequence, Tuple, cast
+from urllib.parse import urlsplit
 
 import click
-import ensureconda
 import pkg_resources
-import requests
+import toml
 
 from click_default_group import DefaultGroup
 
 from conda_lock.common import read_file, read_json, write_file
+from conda_lock.conda_solver import solve_conda
 from conda_lock.errors import PlatformValidationError
+from conda_lock.invoke_conda import PathLike, _invoke_conda, determine_conda_executable
 
 
 try:
@@ -51,14 +36,17 @@ try:
     pip_support = True
 except ImportError:
     pip_support = False
-from conda_lock.src_parser import LockSpecification, PipPackage, UpdateSpecification
-from conda_lock.src_parser.environment_yaml import parse_environment_file
-from conda_lock.src_parser.explicit import parse_explicit_file
-from conda_lock.src_parser.meta_yaml import parse_meta_yaml_file
-from conda_lock.src_parser.pyproject_toml import (
-    get_platforms_from_pyproject_toml,
-    parse_pyproject_toml,
+from conda_lock.src_parser import (
+    LockedDependency,
+    Lockfile,
+    LockSpecification,
+    UpdateSpecification,
+    aggregate_lock_specs,
 )
+from conda_lock.src_parser.environment_yaml import parse_environment_file
+from conda_lock.src_parser.lockfile import parse_conda_lock_file
+from conda_lock.src_parser.meta_yaml import parse_meta_yaml_file
+from conda_lock.src_parser.pyproject_toml import parse_pyproject_toml
 from conda_lock.virtual_package import (
     FakeRepoData,
     default_virtual_package_repodata,
@@ -68,7 +56,6 @@ from conda_lock.virtual_package import (
 
 logger = logging.getLogger(__name__)
 DEFAULT_FILES = [pathlib.Path("environment.yml")]
-PathLike = Union[str, pathlib.Path]
 
 # Captures basic auth credentials, if they exists, in the second capture group.
 AUTH_PATTERN = re.compile(r"^(https?:\/\/)(.*:.*@)?(.*)")
@@ -92,11 +79,15 @@ DEFAULT_KINDS = ["explicit"]
 KIND_FILE_EXT = {
     "explicit": "",
     "env": ".yml",
+    "lock": "",
 }
 KIND_USE_TEXT = {
     "explicit": "conda create --name YOURENV --file {lockfile}",
     "env": "conda env create --name YOURENV --file {lockfile}",
+    "lock": "...you're on your own, buddy",
 }
+
+LOCKFILE_NAME = "conda-lock.toml"
 
 
 def _extract_platform(line: str) -> Optional[str]:
@@ -148,318 +139,11 @@ def do_validate_platform(lockfile: str):
         )
 
 
-def conda_pkgs_dir():
-    global CONDA_PKGS_DIRS
-    if CONDA_PKGS_DIRS is None:
-        temp_dir = tempfile.TemporaryDirectory()
-        CONDA_PKGS_DIRS = temp_dir.name
-        atexit.register(temp_dir.cleanup)
-        return CONDA_PKGS_DIRS
-    else:
-        return CONDA_PKGS_DIRS
-
-
-def conda_env_override(platform) -> Dict[str, str]:
-    env = dict(os.environ)
-    env.update(
-        {
-            "CONDA_SUBDIR": platform,
-            "CONDA_PKGS_DIRS": conda_pkgs_dir(),
-            "CONDA_UNSATISFIABLE_HINTS_CHECK_DEPTH": "0",
-            "CONDA_ADD_PIP_AS_PYTHON_DEPENDENCY": "False",
-        }
-    )
-    return env
-
-
-def _get_conda_flags(channels: Sequence[str], platform) -> List[str]:
-    args = []
-    conda_flags = os.environ.get("CONDA_FLAGS")
-    if conda_flags:
-        args.extend(shlex.split(conda_flags))
-    if channels:
-        args.append("--override-channels")
-
-    for channel in channels:
-        args.extend(["--channel", channel])
-        if channel == "defaults" and platform in {"win-64", "win-32"}:
-            # msys2 is a windows-only channel that conda automatically
-            # injects if the host platform is Windows. If our host
-            # platform is not Windows, we need to add it manually
-            args.extend(["--channel", "msys2"])
-    return args
-
-
-def solve_specs_for_arch(
-    conda: PathLike,
-    channels: Sequence[str],
-    specs: List[str],
-    platform: str,
-) -> dict:
-    args: MutableSequence[PathLike] = [
-        str(conda),
-        "create",
-        "--prefix",
-        os.path.join(conda_pkgs_dir(), "prefix"),
-        "--dry-run",
-        "--json",
-    ]
-    conda_flags = os.environ.get("CONDA_FLAGS")
-    if conda_flags:
-        args.extend(shlex.split(conda_flags))
-    if channels:
-        args.append("--override-channels")
-
-    for channel in channels:
-        args.extend(["--channel", channel])
-        if channel == "defaults" and platform in {"win-64", "win-32"}:
-            # msys2 is a windows-only channel that conda automatically
-            # injects if the host platform is Windows. If our host
-            # platform is not Windows, we need to add it manually
-            args.extend(["--channel", "msys2"])
-    args.extend(specs)
-    proc = subprocess.run(
-        args,
-        env=conda_env_override(platform),
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        encoding="utf8",
-    )
-
-    def print_proc(proc):
-        print(f"    Command: {proc.args}")
-        if proc.stdout:
-            print(f"    STDOUT:\n{proc.stdout}")
-        if proc.stderr:
-            print(f"    STDERR:\n{proc.stderr}")
-
-    try:
-        proc.check_returncode()
-    except subprocess.CalledProcessError:
-        try:
-            err_json = json.loads(proc.stdout)
-            message = err_json["message"]
-        except json.JSONDecodeError as e:
-            print(f"Failed to parse json, {e}")
-            message = ""
-        except KeyError:
-            print("Message key not found in json! returning the full json text")
-            message = err_json
-
-        print(f"Could not lock the environment for platform {platform}")
-        if message:
-            print(message)
-        print_proc(proc)
-
-        sys.exit(1)
-
-    try:
-        return json.loads(proc.stdout)
-    except json.JSONDecodeError:
-        print("Could not solve for lock")
-        print_proc(proc)
-        sys.exit(1)
-
-
-def update_specs_for_arch(
-    conda: PathLike,
-    channels: Sequence[str],
-    specs: List[str],
-    update_spec: UpdateSpecification,
-    platform: str,
-) -> dict:
-
-    with fake_conda_environment(update_spec.conda) as prefix:
-        installed = {
-            entry["name"]: entry
-            for entry in json.loads(
-                subprocess.check_output(
-                    [str(conda), "list", "-p", prefix, "--json"],
-                    env=conda_env_override(platform),
-                )
-            )
-        }
-        spec_for_name = {v.split("[")[0]: v for v in specs}
-        to_update = [
-            spec_for_name[name]
-            for name in set(installed).intersection(update_spec.update)
-        ]
-        if to_update:
-            # NB: use `install` to get single-package updates; `update` applies all nonmajor
-            # updates unconditionally
-            args = [
-                str(conda),
-                "install",
-                *_get_conda_flags(channels=channels, platform=platform),
-            ]
-            proc = subprocess.run(
-                args + ["-p", prefix, "--json", "--dry-run", *to_update],
-                env=conda_env_override(platform),
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                encoding="utf8",
-            )
-
-            try:
-                proc.check_returncode()
-            except subprocess.CalledProcessError as exc:
-                err_json = json.loads(proc.stdout)
-                raise RuntimeError(
-                    f"Could not lock the environment for platform {platform}: {err_json.get('message')}"
-                ) from exc
-
-            update = json.loads(proc.stdout)
-        else:
-            update = {"actions": {"LINK": [], "FETCH": []}}
-
-        updated = {entry["name"]: entry for entry in update["actions"]["LINK"]}
-        for package in set(installed).difference(updated):
-            entry = installed[package]
-            fn = f'{entry["dist_name"]}.tar.bz2'
-            if is_micromamba(conda):
-                channel = f'{entry["base_url"]}'
-            else:
-                channel = f'{entry["base_url"]}/{entry["platform"]}'
-            url = f"{channel}/{fn}"
-            md5 = next(
-                urlsplit(s).fragment for s in update_spec.conda if s.startswith(url)
-            )
-            update["actions"]["FETCH"].append(
-                {
-                    "name": entry["name"],
-                    "channel": channel,
-                    "url": url,
-                    "fn": fn,
-                    "md5": md5,
-                    "version": entry["version"],
-                }
-            )
-            update["actions"]["LINK"].append({"url": url, "fn": fn, **entry})
-        return update
-
-
-# Retrieve index.json from package. This is much more efficient that downloading and
-# parsing repodata.json, which for conda-forge (linux-64 + noarch) requires 800 MB of
-# memory to store in parsed form.
-def _get_repodata_for_package(url: str) -> Dict[str, Any]:
-    with requests.get(url, stream=True) as response:
-        response.raise_for_status()
-        with tarfile.open(fileobj=response.raw, mode="r|bz2") as tf:
-            for member in tf:
-                if member.name == "info/index.json":
-                    fo = tf.extractfile(member)
-                    if fo:
-                        return json.load(fo)
-                    else:
-                        raise RuntimeError(
-                            f"Failed to extract {member.name} from {url}"
-                        )
-            else:
-                raise RuntimeError(f"{url} contains no info/index.json")
-
-
-@contextmanager
-def fake_conda_environment(urls: list[str]):
-    """
-    Create a fake conda prefix containing metadata corresponding to the provided package URLs
-    """
-    with tempfile.TemporaryDirectory() as prefix:
-        conda_meta = pathlib.Path(prefix) / "conda-meta"
-        conda_meta.mkdir()
-        (conda_meta / "history").touch()
-        for url_string in urls:
-            url = urlsplit(url_string)
-            path = pathlib.Path(url.path)
-            channel = urlunsplit(
-                (url.scheme, url.hostname, str(path.parent), None, None)
-            )
-            entry = {
-                "channel": channel,
-                "url": urldefrag(url_string)[0],
-                "md5": url.fragment,
-                **_get_repodata_for_package(url_string),
-            }
-            while path.suffix in {".tar", ".bz2", ".gz"}:
-                path = path.with_suffix("")
-            with open(conda_meta / (path.name + ".json"), "w") as f:
-                json.dump(entry, f, indent=2)
-        yield prefix
-
-
-def _process_stdout(stdout):
-    cache = set()
-    extracting_packages = False
-    leading_empty = True
-    for logline in stdout:
-        logline = logline.rstrip()
-        if logline:
-            leading_empty = False
-        if logline == "Downloading and Extracting Packages":
-            extracting_packages = True
-        if not logline and (extracting_packages or leading_empty):
-            continue
-        if "%" in logline:
-            logline = logline.split()[0]
-            if logline not in cache:
-                yield logline
-                cache.add(logline)
-        else:
-            yield logline
-
-
 def do_conda_install(conda: PathLike, prefix: str, name: str, file: str) -> None:
 
-    if prefix and name:
-        raise ValueError("Provide either prefix, or name, but not both.")
+    _conda = partial(_invoke_conda, conda, prefix, name)
 
     kind = "env" if file.endswith(".yml") else "explicit"
-
-    args: MutableSequence[PathLike] = [
-        str(conda),
-        *(["env"] if kind == "env" else []),
-        "create",
-        "--file",
-        file,
-        *([] if kind == "env" else ["--yes"]),
-    ]
-
-    common_args = []
-    if prefix:
-        common_args.append("--prefix")
-        common_args.append(prefix)
-    if name:
-        common_args.append("--name")
-        common_args.append(name)
-    conda_flags = os.environ.get("CONDA_FLAGS")
-    if conda_flags:
-        common_args.extend(shlex.split(conda_flags))
-
-    args.extend(common_args)
-
-    assert len(common_args) == 2
-
-    logging.debug("$MAMBA_ROOT_PREFIX: %s", os.environ.get("MAMBA_ROOT_PREFIX"))
-
-    with subprocess.Popen(
-        args,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        bufsize=1,
-        universal_newlines=True,
-    ) as p:
-        if p.stdout:
-            for line in _process_stdout(p.stdout):
-                logging.info(line)
-
-        if p.stderr:
-            for line in p.stderr:
-                logging.error(line.rstrip())
-
-    if p.returncode != 0:
-        print(
-            f"Could not perform conda install using {file} lock file into {name or prefix}"
-        )
-        sys.exit(1)
 
     if kind == "explicit":
         with open(file) as explicit_env:
@@ -468,92 +152,38 @@ def do_conda_install(conda: PathLike, prefix: str, name: str, file: str) -> None
                 for line in explicit_env
                 if line.startswith("# pip ")
             ]
-        if not pip_requirements:
-            return
+    else:
+        pip_requirements = []
 
-        with tempfile.NamedTemporaryFile() as tf:
-            write_file("\n".join(pip_requirements), tf.name)
-            pip_proc = subprocess.run(
-                [
-                    str(conda),
-                    "run",
-                ]
-                + common_args
-                + [
-                    "pip",
-                    "install",
-                    "--no-deps",
-                    "-r",
-                    tf.name,
-                ]
-            )
+    if (
+        _conda(
+            [
+                *(["env"] if kind == "env" else []),
+                "create",
+                "--file",
+                file,
+                *([] if kind == "env" else ["--yes"]),
+            ],
+        ).returncode
+        != 0
+    ):
+        print(
+            f"Could not perform conda install using {file} lock file into {name or prefix}"
+        )
+        sys.exit(1)
 
-        if pip_proc.stdout:
-            for line in pip_proc.stdout.decode().split("\n"):
-                logging.info(line)
+    if not pip_requirements:
+        return
 
-        if pip_proc.stderr:
-            for line in pip_proc.stderr.decode().split("\n"):
-                logging.error(line.rstrip())
-
-        if pip_proc.returncode != 0:
+    with tempfile.NamedTemporaryFile() as tf:
+        write_file("\n".join(pip_requirements), tf.name)
+        if (
+            _conda(["run"], ["pip", "install", "--no-deps", "-r", tf.name])
+        ).returncode != 0:
             print(
                 f"Could not perform pip install using {file} lock file into {name or prefix}"
             )
             sys.exit(1)
-
-
-def search_for_md5s(
-    conda: PathLike, package_specs: List[dict], platform: str, channels: Sequence[str]
-):
-    """Use conda-search to determine the md5 metadata that we need.
-
-    This is only needed if pkgs_dirs is set in condarc.
-    Sadly this is going to be slow since we need to fetch each result individually
-    due to the cli of conda search
-
-    """
-
-    def matchspec(spec):
-        return (
-            f"{spec['name']}["
-            f"version={spec['version']},"
-            f"subdir={spec['platform']},"
-            f"channel={spec['channel']},"
-            f"build={spec['build_string']}"
-            "]"
-        )
-
-    found: Set[str] = set()
-    logging.debug("Searching for package specs: \n%s", package_specs)
-    packages: List[Tuple[str, str]] = [
-        *[(d["name"], matchspec(d)) for d in package_specs],
-        *[(d["name"], f"{d['name']}[url='{d['url_conda']}']") for d in package_specs],
-        *[(d["name"], f"{d['name']}[url='{d['url']}']") for d in package_specs],
-    ]
-
-    for name, spec in packages:
-        if name in found:
-            continue
-        channel_args = []
-        for c in channels:
-            channel_args += ["-c", c]
-        cmd = [str(conda), "search", *channel_args, "--json", spec]
-        logging.debug("seaching: %s", cmd)
-        out = subprocess.run(
-            cmd,
-            encoding="utf8",
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            env=conda_env_override(platform),
-        )
-        content = json.loads(out.stdout)
-        logging.debug("search output for %s\n%s", spec, content)
-        if name in content:
-            assert len(content[name]) == 1
-            logging.debug("Found %s", name)
-            yield content[name][0]
-            found.add(name)
 
 
 def fn_to_dist_name(fn: str) -> str:
@@ -566,99 +196,137 @@ def fn_to_dist_name(fn: str) -> str:
     return fn
 
 
-def make_lock_specs(
-    *,
-    platforms: List[str],
-    src_files: List[pathlib.Path],
-    include_dev_dependencies: bool = True,
-    channel_overrides: Optional[Sequence[str]] = None,
-    extras: Optional[AbstractSet[str]] = None,
-    virtual_package_repo: FakeRepoData,
-) -> Dict[str, LockSpecification]:
-    """Generate the lockfile specs from a set of input src_files"""
-    res = {}
-    for plat in platforms:
-        lock_specs = parse_source_files(
-            src_files=src_files,
-            platform=plat,
-            include_dev_dependencies=include_dev_dependencies,
-            extras=extras,
-        )
-
-        lock_spec = aggregate_lock_specs(lock_specs)
-        if channel_overrides:
-            channels = list(channel_overrides)
-        else:
-            channels = lock_spec.channels
-        lock_spec.virtual_package_repo = virtual_package_repo
-        lock_spec.channels = channels
-        res[plat] = lock_spec
-    return res
-
-
 def make_lock_spec(
     *,
-    platform: str,
     src_files: List[pathlib.Path],
-    include_dev_dependencies: bool = True,
-    channel_overrides: Optional[Sequence[str]] = None,
-    extras: Optional[AbstractSet[str]] = None,
     virtual_package_repo: FakeRepoData,
+    channel_overrides: Optional[Sequence[str]] = None,
+    platform_overrides: Optional[Sequence[str]] = None,
 ) -> LockSpecification:
     """Generate the lockfile specs from a set of input src_files"""
     lock_specs = parse_source_files(
-        src_files=src_files,
-        platform=platform,
-        include_dev_dependencies=include_dev_dependencies,
-        extras=extras,
+        src_files=src_files, platform_overrides=platform_overrides or DEFAULT_PLATFORMS
     )
 
     lock_spec = aggregate_lock_specs(lock_specs)
-    if channel_overrides:
-        channels = list(channel_overrides)
-    else:
-        channels = lock_spec.channels
     lock_spec.virtual_package_repo = virtual_package_repo
-    lock_spec.channels = channels
+    lock_spec.channels = (
+        list(channel_overrides) if channel_overrides else lock_spec.channels
+    )
+    lock_spec.platforms = (
+        list(platform_overrides) if platform_overrides else lock_spec.platforms
+    )
 
     return lock_spec
 
 
 def make_lock_files(
     conda: PathLike,
-    platforms: List[str],
-    kinds: List[str],
     src_files: List[pathlib.Path],
-    include_dev_dependencies: bool = True,
+    kinds: List[str],
+    platform_overrides: Optional[Sequence[str]] = None,
     channel_overrides: Optional[Sequence[str]] = None,
-    filename_template: Optional[str] = None,
-    check_spec_hash: bool = False,
-    extras: Optional[AbstractSet[str]] = None,
     virtual_package_spec: Optional[pathlib.Path] = None,
     update: Optional[List[str]] = None,
+    include_dev_dependencies: bool = True,
+    filename_template: Optional[str] = None,
+    extras: Optional[AbstractSet[str]] = None,
+    check_input_hash: bool = False,
 ):
-    """Generate the lock files for the given platforms from the src file provided
+    """Generate a lock file from the src file provided"""
+
+    # initialize virtual package fake
+    if virtual_package_spec and virtual_package_spec.exists():
+        virtual_package_repo = virtual_package_repo_from_specification(
+            virtual_package_spec
+        )
+    else:
+        virtual_package_repo = default_virtual_package_repodata()
+
+    with virtual_package_repo:
+        lock_spec = make_lock_spec(
+            src_files=src_files,
+            channel_overrides=channel_overrides,
+            platform_overrides=platform_overrides,
+            virtual_package_repo=virtual_package_repo,
+        )
+
+        kind = "lock"
+        filename = LOCKFILE_NAME
+
+        lockfile = pathlib.Path(filename)
+
+        lock_content: Optional[Lockfile] = None
+        if lockfile.exists():
+            lock_content = parse_conda_lock_file(lockfile)
+            update_spec = UpdateSpecification(
+                locked=lock_content["package"], update=update
+            )
+            if not (
+                check_input_hash
+                and lock_content["metadata"]["content-hash"] == lock_spec.content_hash()
+            ):
+                lock_content = None
+        else:
+            update_spec = UpdateSpecification()
+
+        if lock_content is None:
+            print(f"Locking dependencies for {lock_spec.platforms}...", file=sys.stderr)
+            lock_content = create_lockfile_from_spec(
+                conda=conda,
+                spec=lock_spec,
+                update_spec=update_spec,
+            )
+
+            if "lock" in kinds:
+                with open(filename, "w") as f:
+                    toml.dump(lock_content, f)
+                print(
+                    f" - Install lock using {'(see warning below)' if kind == 'env' else ''}:",
+                    KIND_USE_TEXT[kind].format(lockfile=filename),
+                    file=sys.stderr,
+                )
+        else:
+            print(
+                f"Spec hash already locked for {lock_spec.platforms}. Skipping",
+                file=sys.stderr,
+            )
+
+        do_render(
+            lock_content,
+            kinds=[k for k in kinds if k != "lock"],
+            include_dev_dependencies=include_dev_dependencies,
+            filename_template=filename_template,
+            extras=extras,
+            check_input_hash=check_input_hash,
+        )
+
+
+def do_render(
+    lockfile: Lockfile,
+    kinds: List[str],
+    include_dev_dependencies: bool = True,
+    filename_template: Optional[str] = None,
+    extras: Optional[AbstractSet[str]] = None,
+    check_input_hash: bool = False,
+):
+    """Render the lock content for each platform
 
     Parameters
     ----------
-    conda :
-        The path to a conda or mamba executable
-    platforms :
-        List of platforms to generate the lock for
-    src_files :
-        Paths to a supported source file types
     include_dev_dependencies :
-        For source types that separate out dev dependencies from regular ones,include those, default True
-    channel_overrides :
-        Forced list of channels to use.
+        Include development dependencies in output
     filename_template :
         Format for the lock file names. Must include {platform}.
-    check_spec_hash :
-        Validate that the existing spec hash has not already been generated for.
     extras :
-        For src files that support extras use the extras defined in there.
+        Include the given extras in output
 
     """
+
+    platforms = set(
+        chain.from_iterable(package["platforms"] for package in lockfile["package"])
+    )
+
     if filename_template:
         if "{platform}" not in filename_template and len(platforms) > 1:
             print(
@@ -676,78 +344,49 @@ def make_lock_files(
                 )
                 sys.exit(1)
 
-    # initialize virtual package fake
-    if virtual_package_spec and virtual_package_spec.exists():
-        virtual_package_repo = virtual_package_repo_from_specification(
-            virtual_package_spec
-        )
-    else:
-        virtual_package_repo = default_virtual_package_repodata()
+    for plat in platforms:
+        for kind in kinds:
+            if filename_template:
+                context = {
+                    "platform": plat,
+                    "dev-dependencies": str(include_dev_dependencies).lower(),
+                    "input-hash": lockfile["metadata"]["content-hash"],
+                    "version": pkg_resources.get_distribution("conda_lock").version,
+                    "timestamp": datetime.datetime.utcnow().strftime("%Y%m%dT%H%M%SZ"),
+                }
 
-    with virtual_package_repo:
-        for plat in platforms:
-            lock_spec = make_lock_spec(
-                platform=plat,
-                src_files=src_files,
+                filename = filename_template.format(**context)
+            else:
+                filename = f"conda-{plat}.lock"
+
+            if pathlib.Path(filename).exists() and check_input_hash:
+                with open(filename) as f:
+                    previous_hash = extract_input_hash(f.read())
+                if previous_hash == lockfile["metadata"]["content-hash"]:
+                    print(
+                        f"Spec hash already locked for {plat}. Skipping",
+                        file=sys.stderr,
+                    )
+                    continue
+
+            print(f"Rendering lockfile(s) for {plat}...", file=sys.stderr)
+            lockfile_contents = render_lockfile_for_platform(
+                lockfile=lockfile,
                 include_dev_dependencies=include_dev_dependencies,
-                channel_overrides=channel_overrides,
                 extras=extras,
-                virtual_package_repo=virtual_package_repo,
+                kind=kind,
+                platform=plat,
             )
 
-            for kind in kinds:
-                if filename_template:
-                    context = {
-                        "platform": lock_spec.platform,
-                        "dev-dependencies": str(include_dev_dependencies).lower(),
-                        # legacy key
-                        "spec-hash": lock_spec.input_hash(),
-                        "input-hash": lock_spec.input_hash(),
-                        "version": pkg_resources.get_distribution("conda_lock").version,
-                        "timestamp": datetime.datetime.utcnow().strftime(
-                            "%Y%m%dT%H%M%SZ"
-                        ),
-                    }
+            filename += KIND_FILE_EXT[kind]
+            with open(filename, "w") as fo:
+                fo.write("\n".join(lockfile_contents) + "\n")
 
-                    filename = filename_template.format(**context)
-                else:
-                    filename = f"conda-{lock_spec.platform}.lock"
-
-                lockfile = pathlib.Path(filename)
-                if lockfile.exists() and check_spec_hash:
-                    existing_spec_hash = extract_input_hash(lockfile.read_text())
-                    if existing_spec_hash == lock_spec.input_hash():
-                        print(
-                            f"Spec hash already locked for {plat}. Skipping",
-                            file=sys.stderr,
-                        )
-                        continue
-
-                if lockfile.exists():
-                    conda_locked, pip_locked = parse_lock_file(lockfile)
-                    update_spec = UpdateSpecification(
-                        conda=conda_locked, pip=pip_locked, update=update
-                    )
-                else:
-                    update_spec = UpdateSpecification()
-
-                print(f"Generating lockfile(s) for {plat}...", file=sys.stderr)
-                lockfile_contents = create_lockfile_from_spec(
-                    conda=conda,
-                    spec=lock_spec,
-                    update_spec=update_spec,
-                    kind=kind,
-                )
-
-                filename += KIND_FILE_EXT[kind]
-                with open(filename, "w") as fo:
-                    fo.write("\n".join(lockfile_contents) + "\n")
-
-                print(
-                    f" - Install lock using {'(see warning below)' if kind == 'env' else ''}:",
-                    KIND_USE_TEXT[kind].format(lockfile=filename),
-                    file=sys.stderr,
-                )
+            print(
+                f" - Install lock using {'(see warning below)' if kind == 'env' else ''}:",
+                KIND_USE_TEXT[kind].format(lockfile=filename),
+                file=sys.stderr,
+            )
 
     if "env" in kinds:
         print(
@@ -762,135 +401,96 @@ def make_lock_files(
         )
 
 
-def is_micromamba(conda: PathLike) -> bool:
-    return str(conda).endswith("micromamba") or str(conda).endswith("micromamba.exe")
-
-
-def create_lockfile_from_spec(  # noqa: C901
+def render_lockfile_for_platform(  # noqa: C901
     *,
-    conda: PathLike,
-    spec: LockSpecification,
+    lockfile: Lockfile,
+    include_dev_dependencies: bool,
+    extras: Optional[AbstractSet[str]],
     kind: str,
-    update_spec: UpdateSpecification = UpdateSpecification(),
+    platform: str,
 ) -> List[str]:
-    assert spec.virtual_package_repo is not None
-    virtual_package_channel = spec.virtual_package_repo.channel_url
-
-    if update_spec.conda:
-        dry_run_install = update_specs_for_arch(
-            conda=conda,
-            platform=spec.platform,
-            channels=[*spec.channels, virtual_package_channel],
-            specs=spec.specs,
-            update_spec=update_spec,
-        )
-    else:
-        dry_run_install = solve_specs_for_arch(
-            conda=conda,
-            platform=spec.platform,
-            channels=[*spec.channels, virtual_package_channel],
-            specs=spec.specs,
-        )
-    logging.debug("dry_run_install:\n%s", dry_run_install)
-
-    if spec.pip_specs:
-        if not pip_support:
-            raise ValueError("pip support is not enabled")
-        python_version: Optional[str] = None
-        locked_packages = []
-        for package in (
-            dry_run_install["actions"]["FETCH"] + dry_run_install["actions"]["LINK"]
-        ):
-            if package["name"] == "python":
-                python_version = package["version"]
-            elif not package["name"].startswith("__"):
-                locked_packages.append((package["name"], package["version"]))
-        if python_version is None:
-            raise ValueError("Got pip specs without Python")
-        pip = solve_pypi(
-            spec.pip_specs,
-            use_latest=update_spec.update,
-            pip_locked=update_spec.pip,
-            conda_locked=locked_packages,
-            python_version=python_version,
-            platform=spec.platform,
-        )
-    else:
-        pip = []
 
     lockfile_contents = [
         "# Generated by conda-lock.",
-        f"# platform: {spec.platform}",
-        f"# input_hash: {spec.input_hash()}\n",
+        f"# platform: {platform}",
+        f"# input_hash: {lockfile['metadata']['content-hash']}\n",
     ]
 
-    def format_pip_requirement(spec: PipPackage) -> str:
-        if "url" in spec:
-            return f'{spec["name"]} @ {spec["url"]}'
+    categories = {
+        "main",
+        *(extras or []),
+        *(["dev"] if include_dev_dependencies else []),
+    }
+
+    conda_deps = []
+    pip_deps = []
+    for p in lockfile["package"]:
+
+        if platform in p["platforms"] and (
+            (not p["optional"]) or (p["category"] in categories)
+        ):
+            if p["manager"] == "pip":
+                pip_deps.append(p)
+            # exclude virtual packages
+            elif not p["name"].startswith("__"):
+                conda_deps.append(p)
+
+    def format_pip_requirement(
+        spec: LockedDependency, platform: str, direct=False
+    ) -> str:
+        if spec.get("source", {}).get("type") == "url":
+            return f'{spec["name"]} @ {spec["source"]["url"]}'
+        elif direct:
+            pkg = spec["packages"][platform]
+            return f'{spec["name"]} @ {pkg["url"]}#{pkg["hash"].replace(":", "=")}'
         else:
             return f'{spec["name"]} === {spec["version"]}'
 
+    def format_conda_requirement(
+        spec: LockedDependency, platform: str, direct=False
+    ) -> str:
+        pkg = spec["packages"][platform]
+        if direct:
+            return f'{pkg["url"]}#{pkg["hash"]}'
+        else:
+            path = pathlib.Path(urlsplit(pkg["url"]).path)
+            while path.suffix in {".tar", ".bz2", ".gz", ".conda"}:
+                path = path.with_suffix("")
+            build_string = path.name.split("-")[-1]
+            return f'{spec["name"]}={spec["version"]}={build_string}'
+
     if kind == "env":
-        link_actions = dry_run_install["actions"]["LINK"]
         lockfile_contents.extend(
             [
                 "channels:",
-                *(f"  - {channel}" for channel in spec.channels),
+                *(f"  - {channel}" for channel in lockfile["metadata"]["channels"]),
                 "dependencies:",
                 *(
-                    f'  - {pkg["name"]}={pkg["version"]}={pkg["build_string"]}'
-                    for pkg in link_actions
-                    # exclude virtual packages
-                    if not pkg["name"].startswith("__")
+                    f"  - {format_conda_requirement(dep, platform, direct=False)}"
+                    for dep in conda_deps
                 ),
             ]
         )
-        if pip:
-            lockfile_contents.extend(
-                ["  - pip:", *(f"    - {format_pip_requirement(pkg)}" for pkg in pip)]
-            )
+        lockfile_contents.extend(
+            [
+                "  - pip:",
+                *(
+                    f"    - {format_pip_requirement(dep, platform, direct=False)}"
+                    for dep in pip_deps
+                ),
+            ]
+        )
     elif kind == "explicit":
         lockfile_contents.append("@EXPLICIT\n")
 
-        link_actions = dry_run_install["actions"]["LINK"]
-        for link in link_actions:
-            if is_micromamba(conda):
-                link["url_base"] = fn_to_dist_name(link["url"])
-                link["dist_name"] = fn_to_dist_name(link["fn"])
-            else:
-                link[
-                    "url_base"
-                ] = f"{link['base_url']}/{link['platform']}/{link['dist_name']}"
-            link["url"] = f"{link['url_base']}.tar.bz2"
-            link["url_conda"] = f"{link['url_base']}.conda"
-        link_dists = {link["dist_name"] for link in link_actions}
-
-        fetch_actions = dry_run_install["actions"]["FETCH"]
-
-        fetch_by_dist_name = {fn_to_dist_name(pkg["fn"]): pkg for pkg in fetch_actions}
-
-        non_fetch_packages = link_dists - set(fetch_by_dist_name)
-        if len(non_fetch_packages) > 0:
-            for search_res in search_for_md5s(
-                conda=conda,
-                package_specs=[
-                    x for x in link_actions if x["dist_name"] in non_fetch_packages
-                ],
-                platform=spec.platform,
-                channels=spec.channels,
-            ):
-                dist_name = fn_to_dist_name(search_res["fn"])
-                fetch_by_dist_name[dist_name] = search_res
-
-        for pkg in link_actions:
-            dist_name = (
-                fn_to_dist_name(pkg["fn"]) if is_micromamba(conda) else pkg["dist_name"]
+        lockfile_contents.extend(
+            sorted(
+                [
+                    format_conda_requirement(dep, platform, direct=True)
+                    for dep in conda_deps
+                ]
             )
-            url = fetch_by_dist_name[dist_name]["url"]
-            if url.startswith(virtual_package_channel):
-                continue
-            md5 = fetch_by_dist_name[dist_name]["md5"]
-            lockfile_contents.append(f"{url}#{md5}")
+        )
 
         def sanitize_lockfile_line(line):
             line = line.strip()
@@ -900,25 +500,122 @@ def create_lockfile_from_spec(  # noqa: C901
                 return line
 
         lockfile_contents = [sanitize_lockfile_line(line) for line in lockfile_contents]
-        # sort emitted lines to ensure minimal diffs
-        lockfile_contents = lockfile_contents[:4] + sorted(lockfile_contents[4:])
 
         # emit an explicit requirements.txt, prefixed with '# pip '
-        for pkg in pip:
-            lines = [format_pip_requirement(pkg)] + [
-                f"     --hash={hash}" for hash in pkg["hashes"]
-            ]
-            lockfile_contents.extend(
+        lockfile_contents.extend(
+            sorted(
                 [
-                    f"# pip {line}"
-                    for line in [line + " \\" for line in lines[:-1]] + [lines[-1]]
+                    f"# pip {format_pip_requirement(dep, platform, direct=True)}"
+                    for dep in pip_deps
                 ]
             )
+        )
     else:
         raise ValueError(f"Unrecognised lock kind {kind}.")
 
     logging.debug("lockfile_contents:\n%s\n", lockfile_contents)
     return lockfile_contents
+
+
+def _solve_for_arch(
+    conda: PathLike,
+    spec: LockSpecification,
+    platform: str,
+    channels: List[str],
+    update_spec: UpdateSpecification = UpdateSpecification(),
+) -> List[LockedDependency]:
+    # filter requested and locked dependencies to the current platform
+    dependencies = [
+        dep
+        for dep in spec.dependencies
+        if (not dep.selectors.platform) or platform in dep.selectors.platform
+    ]
+    locked = [dep for dep in update_spec.locked if platform in dep["platforms"]]
+    requested_deps_by_name = {
+        manager: {dep.name: dep for dep in dependencies if dep.manager == manager}
+        for manager in ("conda", "pip")
+    }
+    locked_deps_by_name = {
+        manager: {dep["name"]: dep for dep in locked if dep["manager"] == manager}
+        for manager in ("conda", "pip")
+    }
+
+    conda_deps = solve_conda(
+        conda,
+        specs=requested_deps_by_name["conda"],
+        locked=locked_deps_by_name["conda"],
+        update=update_spec.update,
+        platform=platform,
+        channels=channels,
+    )
+
+    if requested_deps_by_name["pip"]:
+        if not pip_support:
+            raise ValueError("pip support is not enabled")
+        if "python" not in conda_deps:
+            raise ValueError("Got pip specs without Python")
+        pip_deps = solve_pypi(
+            requested_deps_by_name["pip"],
+            use_latest=update_spec.update,
+            pip_locked={
+                dep["name"]: dep
+                for dep in update_spec.locked
+                if dep["manager"] == "pip"
+            },
+            conda_locked={dep["name"]: dep for dep in conda_deps.values()},
+            python_version=conda_deps["python"]["version"],
+            platform=platform,
+        )
+    else:
+        pip_deps = {}
+
+    return list(conda_deps.values()) + list(pip_deps.values())
+
+
+def create_lockfile_from_spec(
+    *,
+    conda: PathLike,
+    spec: LockSpecification,
+    update_spec: UpdateSpecification = UpdateSpecification(),
+) -> Lockfile:
+    assert spec.virtual_package_repo is not None
+    virtual_package_channel = spec.virtual_package_repo.channel_url
+
+    locked: Dict[Tuple[str, str], LockedDependency] = {}
+
+    spec.content_hash()
+
+    for platform in spec.platforms:
+
+        deps = _solve_for_arch(
+            conda=conda,
+            spec=spec,
+            platform=platform,
+            channels=[*spec.channels, virtual_package_channel],
+            update_spec=update_spec,
+        )
+
+        for dep in deps:
+            key = dep["manager"], dep["name"]
+            if key in locked:
+                target = locked[key]
+                if target["version"] != dep["version"]:
+                    raise ValueError(
+                        f'Platform inconsistency ({dep["manager"]}): {dep["name"]} resolves to {dep["version"]} on {platform}, but {target["version"]} on {target["platforms"][-1]}'
+                    )
+                target["platforms"].append(platform)
+                target["packages"].update(dep["packages"])
+            else:
+                locked[key] = dep
+
+    return {
+        "package": [locked[k] for k in sorted(locked.keys())],
+        "metadata": {
+            "content-hash": spec.content_hash(),
+            "channels": spec.channels,
+            "platforms": spec.platforms,
+        },
+    }
 
 
 def main_on_docker(env_file, platforms):
@@ -946,99 +643,19 @@ def main_on_docker(env_file, platforms):
 
 def parse_source_files(
     src_files: List[pathlib.Path],
-    platform: str,
-    include_dev_dependencies: bool,
-    extras: Optional[AbstractSet[str]] = None,
+    platform_overrides: Sequence[str],
 ) -> List[LockSpecification]:
     desired_envs = []
     for src_file in src_files:
         if src_file.name == "meta.yaml":
             desired_envs.append(
-                parse_meta_yaml_file(src_file, platform, include_dev_dependencies)
+                parse_meta_yaml_file(src_file, list(platform_overrides))
             )
         elif src_file.name == "pyproject.toml":
-            desired_envs.append(
-                parse_pyproject_toml(
-                    src_file, platform, include_dev_dependencies, extras
-                )
-            )
+            desired_envs.append(parse_pyproject_toml(src_file))
         else:
-            desired_envs.append(parse_environment_file(src_file, platform, pip_support))
+            desired_envs.append(parse_environment_file(src_file, pip_support))
     return desired_envs
-
-
-def parse_lock_file(
-    path: pathlib.Path,
-) -> Tuple[List[str], List[PipPackage]]:
-    return parse_explicit_file(path)
-
-
-def aggregate_lock_specs(lock_specs: List[LockSpecification]) -> LockSpecification:
-    # union the dependencies
-    specs = list(
-        set(chain.from_iterable([lock_spec.specs for lock_spec in lock_specs]))
-    )
-
-    pip_specs = list(
-        set(
-            chain.from_iterable([lock_spec.pip_specs or [] for lock_spec in lock_specs])
-        )
-    )
-
-    # pick the first non-empty channel
-    channels: List[str] = next(
-        (lock_spec.channels for lock_spec in lock_specs if lock_spec.channels), []
-    )
-
-    # pick the first non-empty platform
-    platform = next(
-        (lock_spec.platform for lock_spec in lock_specs if lock_spec.platform), ""
-    )
-
-    return LockSpecification(
-        specs=specs, channels=channels, platform=platform, pip_specs=pip_specs
-    )
-
-
-def _ensureconda(
-    mamba: bool = False,
-    micromamba: bool = False,
-    conda: bool = False,
-    conda_exe: bool = False,
-):
-    _conda_exe = ensureconda.ensureconda(
-        mamba=mamba,
-        micromamba=micromamba,
-        conda=conda,
-        conda_exe=conda_exe,
-    )
-
-    return _conda_exe
-
-
-def _determine_conda_executable(
-    conda_executable: Optional[str], mamba: bool, micromamba: bool
-):
-    if conda_executable:
-        if pathlib.Path(conda_executable).exists():
-            yield conda_executable
-        yield shutil.which(conda_executable)
-
-    yield _ensureconda(mamba=mamba, micromamba=micromamba, conda=True, conda_exe=True)
-
-
-def determine_conda_executable(
-    conda_executable: Optional[str], mamba: bool, micromamba: bool
-):
-    for candidate in _determine_conda_executable(conda_executable, mamba, micromamba):
-        if candidate is not None:
-            if is_micromamba(candidate) and "MAMBA_ROOT_PREFIX" not in os.environ:
-                mamba_root_prefix = pathlib.Path(candidate).parent / "mamba_root"
-                mamba_root_prefix.mkdir(exist_ok=True, parents=True)
-                os.environ["MAMBA_ROOT_PREFIX"] = str(mamba_root_prefix)
-
-            return candidate
-    raise RuntimeError("Could not find conda (or compatible) executable")
 
 
 def _add_auth_to_line(line: str, auth: Dict[str, str]):
@@ -1096,12 +713,40 @@ def _strip_auth_from_lockfile(lockfile: str) -> str:
     return stripped_lockfile
 
 
-def _get_platforms_from_sources(src_files: List[pathlib.Path]):
-    platforms = set()
-    for src_file in src_files:
-        if src_file.name == "pyproject.toml":
-            platforms.update(get_platforms_from_pyproject_toml(src_file))
-    return list(platforms) or DEFAULT_PLATFORMS
+@contextmanager
+def _render_lockfile_for_install(
+    filename: str,
+    include_dev_dependencies: bool = True,
+    extras: Optional[AbstractSet[str]] = None,
+):
+
+    if not filename.endswith(".toml"):
+        yield filename
+        return
+
+    from ensureconda.resolve import platform_subdir
+
+    with open(filename) as f:
+        lockfile = cast(Lockfile, toml.load(f))
+
+    # platform = platform_subdir()
+    platform = "linux-64"
+    if platform not in lockfile["metadata"]["platforms"]:
+        raise PlatformValidationError(
+            f"Dependencies are not locked for the current platform ({platform})"
+        )
+
+    with tempfile.NamedTemporaryFile(mode="w") as tf:
+        content = render_lockfile_for_platform(
+            lockfile=lockfile,
+            kind="explicit",
+            platform=platform,
+            include_dev_dependencies=include_dev_dependencies,
+            extras=extras,
+        )
+        tf.write("\n".join(content) + "\n")
+        tf.flush()
+        yield tf.name
 
 
 def run_lock(
@@ -1130,15 +775,15 @@ def run_lock(
     make_lock_files(
         conda=_conda_exe,
         src_files=environment_files,
-        platforms=platforms or _get_platforms_from_sources(environment_files),
-        include_dev_dependencies=include_dev_dependencies,
+        platform_overrides=platforms,
         channel_overrides=channel_overrides,
-        filename_template=filename_template,
-        kinds=kinds or DEFAULT_KINDS,
-        check_spec_hash=check_input_hash,
-        extras=extras,
         virtual_package_spec=virtual_package_spec,
         update=update,
+        kinds=kinds or DEFAULT_KINDS,
+        filename_template=filename_template,
+        include_dev_dependencies=include_dev_dependencies,
+        extras=extras,
+        check_input_hash=check_input_hash,
     )
 
 
@@ -1191,10 +836,10 @@ def main():
 @click.option(
     "-k",
     "--kind",
-    default=["explicit"],
+    default=["lock"],
     type=str,
     multiple=True,
-    help="Kind of lock file(s) to generate [should be one of 'explicit' or 'env'].",
+    help="Kind of lock file(s) to generate [should be one of 'lock', 'explicit', or 'env'].",
 )
 @click.option(
     "--filename-template",
@@ -1355,6 +1000,19 @@ def lock(
     default="INFO",
     type=click.Choice(["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]),
 )
+@click.option(
+    "--dev/--no-dev",
+    is_flag=True,
+    default=True,
+    help="include dev dependencies in the lockfile (where applicable)",
+)
+@click.option(
+    "-E",
+    "--extras",
+    multiple=True,
+    default=[],
+    help="include dev dependencies in the lockfile (where applicable)",
+)
 @click.argument("lock-file")
 def install(
     conda,
@@ -1367,13 +1025,15 @@ def install(
     auth_file,
     validate_platform,
     log_level,
+    dev,
+    extras,
 ):
     """Perform a conda install"""
     logging.basicConfig(level=log_level)
     auth = json.loads(auth) if auth else read_json(auth_file) if auth_file else None
     _conda_exe = determine_conda_executable(conda, mamba=mamba, micromamba=micromamba)
     install_func = partial(do_conda_install, conda=_conda_exe, prefix=prefix, name=name)
-    if validate_platform:
+    if validate_platform and not lock_file.endswith(".toml"):
         lockfile = read_file(lock_file)
         try:
             do_validate_platform(lockfile)
@@ -1381,12 +1041,85 @@ def install(
             raise PlatformValidationError(
                 error.args[0] + " Disable validation with `--validate-platform=False`."
             )
-    if auth:
-        lockfile = read_file(lock_file)
-        with _add_auth(lockfile, auth) as lockfile_with_auth:
-            install_func(file=lockfile_with_auth)
-    else:
-        install_func(file=lock_file)
+    with _render_lockfile_for_install(
+        lock_file, include_dev_dependencies=dev, extras=extras
+    ) as lockfile:
+        if auth:
+            with _add_auth(read_file(lockfile), auth) as lockfile_with_auth:
+                install_func(file=lockfile_with_auth)
+        else:
+            install_func(file=lockfile)
+
+
+@main.command("render")
+@click.option(
+    "--dev-dependencies/--no-dev-dependencies",
+    is_flag=True,
+    default=True,
+    help="include dev dependencies in the lockfile (where applicable)",
+)
+@click.option(
+    "-k",
+    "--kind",
+    default=["explicit"],
+    type=str,
+    multiple=True,
+    help="Kind of lock file(s) to generate [should be one of 'explicit' or 'env'].",
+)
+@click.option(
+    "--filename-template",
+    default="conda-{platform}.lock",
+    help="Template for the lock file names. Filename must include {platform} token, and must not end in '.yml'. For a full list and description of available tokens, see the command help text.",
+)
+@click.option(
+    "-e",
+    "--extras",
+    default=[],
+    type=str,
+    multiple=True,
+    help="When used in conjunction with input sources that support extras (pyproject.toml) will add the deps from those extras to the input specification",
+)
+@click.option(
+    "--log-level",
+    help="Log level.",
+    default="INFO",
+    type=click.Choice(["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]),
+)
+@click.option(
+    "--pdb", is_flag=True, help="Drop into a postmortem debugger if conda-lock crashes"
+)
+@click.argument("lock-file")
+def render(
+    dev_dependencies,
+    kind,
+    filename_template,
+    extras,
+    log_level,
+    lock_file,
+    pdb,
+):
+    """Render multi-platform lockfile into single-platform env or explicit file"""
+    logging.basicConfig(level=log_level)
+
+    if pdb:
+
+        def handle_exception(exc_type, exc_value, exc_traceback):
+            import pdb
+
+            pdb.post_mortem(exc_traceback)
+
+        sys.excepthook = handle_exception
+
+    with open(lock_file) as f:
+        lockfile = toml.load(f)
+
+    do_render(
+        lockfile,
+        filename_template=filename_template,
+        kinds=kind,
+        include_dev_dependencies=dev_dependencies,
+        extras=extras,
+    )
 
 
 if __name__ == "__main__":
