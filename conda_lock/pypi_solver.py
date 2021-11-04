@@ -230,15 +230,13 @@ def solve_pypi(
             source: Optional[src_parser.DependencySource] = None
             if op.package.source_type == "url":
                 url, fragment = urldefrag(op.package.source_url)
+                hash = fragment.replace("=", ":")
                 source = src_parser.DependencySource(type="url", url=url)
-                package = src_parser.Package(url=url, hash=fragment.replace("=", ":"))
             # Choose the most specific distribution for the target
             else:
                 link = chooser.choose_for(op.package)
-                package = src_parser.Package(
-                    url=link.url_without_fragment,
-                    hash=f"{link.hash_name}:{link.hash}",
-                )
+                url = link.url_without_fragment
+                hash = f"{link.hash_name}:{link.hash}"
 
             requirements.append(
                 src_parser.LockedDependency(
@@ -246,11 +244,12 @@ def solve_pypi(
                     version=str(op.package.version),
                     manager="pip",
                     source=source,
-                    platforms=[platform],
+                    platform=platform,
                     dependencies={
                         dep.name: str(dep.constraint) for dep in op.package.requires
                     },
-                    packages={platform: package},
+                    url=url,
+                    hash=hash,
                 )
             )
 

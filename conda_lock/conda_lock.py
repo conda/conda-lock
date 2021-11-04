@@ -324,9 +324,7 @@ def do_render(
 
     """
 
-    platforms = set(
-        chain.from_iterable(package.platforms for package in lockfile.package)
-    )
+    platforms = lockfile.metadata.platforms
 
     if filename_template:
         if "{platform}" not in filename_template and len(platforms) > 1:
@@ -426,8 +424,7 @@ def render_lockfile_for_platform(  # noqa: C901
     conda_deps = []
     pip_deps = []
     for p in lockfile.package:
-
-        if platform in p.platforms and ((not p.optional) or (p.category in categories)):
+        if p.platform == platform and ((not p.optional) or (p.category in categories)):
             if p.manager == "pip":
                 pip_deps.append(p)
             # exclude virtual packages
@@ -440,19 +437,17 @@ def render_lockfile_for_platform(  # noqa: C901
         if spec.source and spec.source.type == "url":
             return f"{spec.name} @ {spec.source.url}"
         elif direct:
-            pkg = spec.packages[platform]
-            return f'{spec.name} @ {pkg.url}#{pkg.hash.replace(":", "=")}'
+            return f'{spec.name} @ {spec.url}#{spec.hash.replace(":", "=")}'
         else:
             return f"{spec.name} === {spec.version}"
 
     def format_conda_requirement(
         spec: LockedDependency, platform: str, direct=False
     ) -> str:
-        pkg = spec.packages[platform]
         if direct:
-            return f"{pkg.url}#{pkg.hash}"
+            return f"{spec.url}#{spec.hash}"
         else:
-            path = pathlib.Path(urlsplit(pkg.url).path)
+            path = pathlib.Path(urlsplit(spec.url).path)
             while path.suffix in {".tar", ".bz2", ".gz", ".conda"}:
                 path = path.with_suffix("")
             build_string = path.name.split("-")[-1]
@@ -529,7 +524,7 @@ def _solve_for_arch(
         for dep in spec.dependencies
         if (not dep.selectors.platform) or platform in dep.selectors.platform
     ]
-    locked = [dep for dep in update_spec.locked if platform in dep.platforms]
+    locked = [dep for dep in update_spec.locked if dep.platform == platform]
     requested_deps_by_name = {
         manager: {dep.name: dep for dep in dependencies if dep.manager == manager}
         for manager in ("conda", "pip")
@@ -578,7 +573,7 @@ def create_lockfile_from_spec(
     assert spec.virtual_package_repo is not None
     virtual_package_channel = spec.virtual_package_repo.channel_url
 
-    locked: Dict[Tuple[str, str], LockedDependency] = {}
+    locked: Dict[Tuple[str, str, str], LockedDependency] = {}
 
     spec.content_hash()
 
@@ -593,17 +588,7 @@ def create_lockfile_from_spec(
         )
 
         for dep in deps:
-            key = dep.manager, dep.name
-            if key in locked:
-                target = locked[key]
-                if target.version != dep.version:
-                    raise ValueError(
-                        f"Platform inconsistency ({dep.manager}): {dep.name} resolves to {dep.version} on {platform}, but {target.version} on {target.platforms[-1]}"
-                    )
-                target.platforms.append(platform)
-                target.packages.update(dep.packages)
-            else:
-                locked[key] = dep
+            locked[(dep.manager, dep.name, dep.platform)] = dep
 
     return Lockfile(
         package=[locked[k] for k in sorted(locked.keys())],

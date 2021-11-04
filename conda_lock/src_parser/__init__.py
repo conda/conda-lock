@@ -61,9 +61,10 @@ class LockedDependency(StrictModel):
     name: str
     version: str
     manager: Literal["conda", "pip"]
-    platforms: List[str]
+    platform: str
     dependencies: Dict[str, str] = {}
-    packages: Dict[str, Package]
+    url: str
+    hash: str
     optional: bool = False
     category: str = "main"
     source: Optional[DependencySource] = None

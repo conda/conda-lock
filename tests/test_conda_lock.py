@@ -164,9 +164,10 @@ def test_choose_wheel() -> None:
                     "name": "python",
                     "version": "3.9.7",
                     "manager": "conda",
-                    "platforms": ["linux-64"],
+                    "platform": "linux-64",
                     "dependencies": {},
-                    "packages": {},
+                    "url": "",
+                    "hash": "",
                 }
             )
         },
@@ -175,7 +176,7 @@ def test_choose_wheel() -> None:
     )
     assert len(solution) == 1
     assert (
-        solution["fastavro"].packages["linux-64"].hash
+        solution["fastavro"].hash
         == "sha256:a111a384a786b7f1fd6a8a8307da07ccf4d4c425084e2d61bae33ecfb60de405"
     )
 
@@ -252,7 +253,6 @@ def test_parse_pip_requirement(requirement, parsed):
     assert parse_pip_requirement(requirement) == parsed
 
 
-# @pytest.mark.xfail(reason="platform selectors are currently broken")
 def test_parse_meta_yaml_file(meta_yaml_environment):
     res = parse_meta_yaml_file(meta_yaml_environment, ["linux-64", "osx-64"])
     specs = {dep.name: dep for dep in res.dependencies}
@@ -389,7 +389,7 @@ def test_poetry_version_parsing_constraints(package, version, url_pattern):
         )
 
         python = next(p for p in lockfile_contents.package if p.name == "python")
-        assert url_pattern in python.packages["linux-64"].url
+        assert url_pattern in python.url
 
 
 def _make_spec(name, constraint="*"):
@@ -790,9 +790,7 @@ def test_fake_conda_env(conda_exe, conda_lock_toml):
             locked_package = locked[env_package["name"]]
 
             platform = env_package["platform"]
-            path = pathlib.Path(
-                urlsplit(urldefrag(locked_package.packages["linux-64"].url)[0]).path
-            )
+            path = pathlib.Path(urlsplit(urldefrag(locked_package.url)[0]).path)
             if is_micromamba(conda_exe):
                 assert (
                     env_package["base_url"]

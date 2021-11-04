@@ -116,13 +116,14 @@ def solve_conda(
             name=action["name"],
             version=action["version"],
             manager="conda",
-            platforms=[platform],
+            platform=platform,
             dependencies={
                 item.split()[0]: " ".join(item.split(" ")[1:])
                 for item in action.get("depends") or []
             },
+            url=action["url"],
             # NB: virtual packages may have no hash
-            packages={platform: Package(url=action["url"], hash=action.get("md5", ""))},
+            hash=action.get("md5", ""),
         )
         for action in cast(List[FetchAction], dry_run_install["actions"]["FETCH"])
     }
@@ -268,7 +269,7 @@ def update_specs_for_arch(
             else:
                 channel = f'{entry["base_url"]}/{entry["platform"]}'
             url = f"{channel}/{fn}"
-            md5 = locked[package].packages[platform].hash
+            md5 = locked[package].hash
             dryrun_install["actions"]["FETCH"].append(
                 {
                     "name": entry["name"],
@@ -314,18 +315,19 @@ def fake_conda_environment(locked: Iterable[LockedDependency], platform: str):
         conda_meta = pathlib.Path(prefix) / "conda-meta"
         conda_meta.mkdir()
         (conda_meta / "history").touch()
-        for dep in (dep for dep in locked if dep.manager == "conda"):
-            package = dep.packages[platform]
-            url = urlsplit(package.url)
+        for dep in (
+            dep for dep in locked if dep.manager == "conda" and dep.platform == platform
+        ):
+            url = urlsplit(dep.url)
             path = pathlib.Path(url.path)
             channel = urlunsplit(
                 (url.scheme, url.hostname, str(path.parent), None, None)
             )
             entry = {
                 "channel": channel,
-                "url": package.url,
-                "md5": package.hash,
-                **_get_repodata_for_package(package.url),
+                "url": dep.url,
+                "md5": dep.hash,
+                **_get_repodata_for_package(dep.url),
             }
             while path.suffix in {".tar", ".bz2", ".gz"}:
                 path = path.with_suffix("")

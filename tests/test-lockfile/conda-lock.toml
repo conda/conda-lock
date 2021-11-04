@@ -2,46 +2,45 @@
 name = "_libgcc_mutex"
 version = "0.1"
 manager = "conda"
-platforms = [ "linux-64",]
+platform = "linux-64"
+url = "https://conda.anaconda.org/conda-forge/linux-64/_libgcc_mutex-0.1-conda_forge.tar.bz2"
+hash = "d7c89558ba9fa0495403155b64376d81"
 optional = false
 category = "main"
 
-[package.packages.linux-64]
-url = "https://conda.anaconda.org/conda-forge/linux-64/_libgcc_mutex-0.1-conda_forge.tar.bz2"
-hash = "d7c89558ba9fa0495403155b64376d81"
 [[package]]
 name = "_openmp_mutex"
 version = "4.5"
 manager = "conda"
-platforms = [ "linux-64",]
+platform = "linux-64"
+url = "https://conda.anaconda.org/conda-forge/linux-64/_openmp_mutex-4.5-1_gnu.tar.bz2"
+hash = "561e277319a41d4f24f5c05a9ef63c04"
 optional = false
 category = "main"
 
 [package.dependencies]
 _libgcc_mutex = "0.1 conda_forge"
 libgomp = ">=7.5.0"
-[package.packages.linux-64]
-url = "https://conda.anaconda.org/conda-forge/linux-64/_openmp_mutex-4.5-1_gnu.tar.bz2"
-hash = "561e277319a41d4f24f5c05a9ef63c04"
 [[package]]
 name = "args"
 version = "0.1.0"
 manager = "conda"
-platforms = [ "linux-64",]
+platform = "linux-64"
+url = "https://conda.anaconda.org/conda-forge/linux-64/args-0.1.0-py39hde42818_1003.tar.bz2"
+hash = "955ce7e385ec7d5e2b28b0f9242732e2"
 optional = false
 category = "main"
 
 [package.dependencies]
 python = ">=3.9,<3.10.0a0"
 python_abi = "3.9.* *_cp39"
-[package.packages.linux-64]
-url = "https://conda.anaconda.org/conda-forge/linux-64/args-0.1.0-py39hde42818_1003.tar.bz2"
-hash = "955ce7e385ec7d5e2b28b0f9242732e2"
 [[package]]
 name = "astropy"
 version = "4.3.1"
 manager = "conda"
-platforms = [ "linux-64",]
+platform = "linux-64"
+url = "https://conda.anaconda.org/conda-forge/linux-64/astropy-4.3.1-py39hce5d2b2_1.tar.bz2"
+hash = "51a64869f411a6f9680a1307c77afdc1"
 optional = false
 category = "main"
 
@@ -52,27 +51,25 @@ numpy = ">=1.19.5,<2.0a0"
 pyerfa = ">=1.7.3"
 python = ">=3.9,<3.10.0a0"
 python_abi = "3.9.* *_cp39"
-[package.packages.linux-64]
-url = "https://conda.anaconda.org/conda-forge/linux-64/astropy-4.3.1-py39hce5d2b2_1.tar.bz2"
-hash = "51a64869f411a6f9680a1307c77afdc1"
 [[package]]
 name = "attrs"
 version = "21.2.0"
 manager = "conda"
-platforms = [ "linux-64",]
+platform = "linux-64"
+url = "https://conda.anaconda.org/conda-forge/noarch/attrs-21.2.0-pyhd8ed1ab_0.tar.bz2"
+hash = "d2e1c7f388ac403df7079b411c37cc50"
 optional = true
 category = "dev"
 
 [package.dependencies]
 python = ">=2.7,!=3.0.*,!=3.1.*,!=3.2.*,!=3.3.*,!=3.4.*"
-[package.packages.linux-64]
-url = "https://conda.anaconda.org/conda-forge/noarch/attrs-21.2.0-pyhd8ed1ab_0.tar.bz2"
-hash = "d2e1c7f388ac403df7079b411c37cc50"
 [[package]]
 name = "autograd"
 version = "1.3"
 manager = "conda"
-platforms = [ "linux-64",]
+platform = "linux-64"
+url = "https://conda.anaconda.org/conda-forge/noarch/autograd-1.3-py_0.tar.bz2"
+hash = "657c5f269a3cdbde8e23147957a23f09"
 optional = false
 category = "main"
 
@@ -81,40 +78,37 @@ future = ">=0.15.2"
 numpy = ">=1.10"
 python = ""
 scipy = ">=0.17"
-[package.packages.linux-64]
-url = "https://conda.anaconda.org/conda-forge/noarch/autograd-1.3-py_0.tar.bz2"
-hash = "657c5f269a3cdbde8e23147957a23f09"
 [[package]]
 name = "backcall"
 version = "0.2.0"
 manager = "conda"
-platforms = [ "linux-64",]
+platform = "linux-64"
+url = "https://conda.anaconda.org/conda-forge/noarch/backcall-0.2.0-pyh9f0ad1d_0.tar.bz2"
+hash = "6006a6d08a3fa99268a2681c7fb55213"
 optional = false
 category = "main"
 
 [package.dependencies]
 python = ""
-[package.packages.linux-64]
-url = "https://conda.anaconda.org/conda-forge/noarch/backcall-0.2.0-pyh9f0ad1d_0.tar.bz2"
-hash = "6006a6d08a3fa99268a2681c7fb55213"
 [[package]]
 name = "backports"
 version = "1.0"
 manager = "conda"
-platforms = [ "linux-64",]
+platform = "linux-64"
+url = "https://conda.anaconda.org/conda-forge/noarch/backports-1.0-py_2.tar.bz2"
+hash = "0da16b293affa6ac31812376f8eb79dd"
 optional = false
 category = "main"
 
 [package.dependencies]
 python = ""
-[package.packages.linux-64]
-url = "https://conda.anaconda.org/conda-forge/noarch/backports-1.0-py_2.tar.bz2"
-hash = "0da16b293affa6ac31812376f8eb79dd"
 [[package]]
 name = "backports.functools_lru_cache"
 version = "1.6.4"
 manager = "conda"
-platforms = [ "linux-64",]
+platform = "linux-64"
+url = "https://conda.anaconda.org/conda-forge/noarch/backports.functools_lru_cache-1.6.4-pyhd8ed1ab_0.tar.bz2"
+hash = "c5b3edc62d6309088f4970b3eaaa65a6"
 optional = false
 category = "main"
 
@@ -122,28 +116,26 @@ category = "main"
 backports = ""
 python = ">=3.6"
 setuptools = ""
-[package.packages.linux-64]
-url = "https://conda.anaconda.org/conda-forge/noarch/backports.functools_lru_cache-1.6.4-pyhd8ed1ab_0.tar.bz2"
-hash = "c5b3edc62d6309088f4970b3eaaa65a6"
 [[package]]
 name = "blosc"
 version = "1.21.0"
 manager = "conda"
-platforms = [ "linux-64",]
+platform = "linux-64"
+url = "https://conda.anaconda.org/conda-forge/linux-64/blosc-1.21.0-h9c3ff4c_0.tar.bz2"
+hash = "5e815e5126c6f7e34ab4496fa1b48dca"
 optional = false
 category = "main"
 
 [package.dependencies]
 libgcc-ng = ">=9.3.0"
 libstdcxx-ng = ">=9.3.0"
-[package.packages.linux-64]
-url = "https://conda.anaconda.org/conda-forge/linux-64/blosc-1.21.0-h9c3ff4c_0.tar.bz2"
-hash = "5e815e5126c6f7e34ab4496fa1b48dca"
 [[package]]
 name = "boost"
 version = "1.74.0"
 manager = "conda"
-platforms = [ "linux-64",]
+platform = "linux-64"
+url = "https://conda.anaconda.org/conda-forge/linux-64/boost-1.74.0-py39h5472131_3.tar.bz2"
+hash = "ee2ecd799dd094305f4df20fec0ffc70"
 optional = false
 category = "main"
 
@@ -154,14 +146,13 @@ libstdcxx-ng = ">=9.3.0"
 numpy = ">=1.19.5,<2.0a0"
 python = ">=3.9,<3.10.0a0"
 python_abi = "3.9.* *_cp39"
-[package.packages.linux-64]
-url = "https://conda.anaconda.org/conda-forge/linux-64/boost-1.74.0-py39h5472131_3.tar.bz2"
-hash = "ee2ecd799dd094305f4df20fec0ffc70"
 [[package]]
 name = "boost-cpp"
 version = "1.74.0"
 manager = "conda"
-platforms = [ "linux-64",]
+platform = "linux-64"
+url = "https://conda.anaconda.org/conda-forge/linux-64/boost-cpp-1.74.0-h359cf19_5.tar.bz2"
+hash = "5778a2e0609975fac9b24ed637180d28"
 optional = false
 category = "main"
 
@@ -172,65 +163,60 @@ libgcc-ng = ">=9.4.0"
 libstdcxx-ng = ">=9.4.0"
 xz = ">=5.2.5,<5.3.0a0"
 zstd = ">=1.5.0,<1.6.0a0"
-[package.packages.linux-64]
-url = "https://conda.anaconda.org/conda-forge/linux-64/boost-cpp-1.74.0-h359cf19_5.tar.bz2"
-hash = "5778a2e0609975fac9b24ed637180d28"
 [[package]]
 name = "bzip2"
 version = "1.0.8"
 manager = "conda"
-platforms = [ "linux-64",]
+platform = "linux-64"
+url = "https://conda.anaconda.org/conda-forge/linux-64/bzip2-1.0.8-h7f98852_4.tar.bz2"
+hash = "a1fd65c7ccbf10880423d82bca54eb54"
 optional = false
 category = "main"
 
 [package.dependencies]
 libgcc-ng = ">=9.3.0"
-[package.packages.linux-64]
-url = "https://conda.anaconda.org/conda-forge/linux-64/bzip2-1.0.8-h7f98852_4.tar.bz2"
-hash = "a1fd65c7ccbf10880423d82bca54eb54"
 [[package]]
 name = "c-ares"
 version = "1.18.1"
 manager = "conda"
-platforms = [ "linux-64",]
+platform = "linux-64"
+url = "https://conda.anaconda.org/conda-forge/linux-64/c-ares-1.18.1-h7f98852_0.tar.bz2"
+hash = "f26ef8098fab1f719c91eb760d63381a"
 optional = false
 category = "main"
 
 [package.dependencies]
 libgcc-ng = ">=9.4.0"
-[package.packages.linux-64]
-url = "https://conda.anaconda.org/conda-forge/linux-64/c-ares-1.18.1-h7f98852_0.tar.bz2"
-hash = "f26ef8098fab1f719c91eb760d63381a"
 [[package]]
 name = "ca-certificates"
 version = "2021.10.8"
 manager = "conda"
-platforms = [ "linux-64",]
+platform = "linux-64"
+url = "https://conda.anaconda.org/conda-forge/linux-64/ca-certificates-2021.10.8-ha878542_0.tar.bz2"
+hash = "575611b8a84f45960e87722eeb51fa26"
 optional = false
 category = "main"
 
-[package.packages.linux-64]
-url = "https://conda.anaconda.org/conda-forge/linux-64/ca-certificates-2021.10.8-ha878542_0.tar.bz2"
-hash = "575611b8a84f45960e87722eeb51fa26"
 [[package]]
 name = "certifi"
 version = "2021.10.8"
 manager = "conda"
-platforms = [ "linux-64",]
+platform = "linux-64"
+url = "https://conda.anaconda.org/conda-forge/linux-64/certifi-2021.10.8-py39hf3d152e_1.tar.bz2"
+hash = "67982d98030fde9139a64219dbe4db5e"
 optional = false
 category = "main"
 
 [package.dependencies]
 python = ">=3.9,<3.10.0a0"
 python_abi = "3.9.* *_cp39"
-[package.packages.linux-64]
-url = "https://conda.anaconda.org/conda-forge/linux-64/certifi-2021.10.8-py39hf3d152e_1.tar.bz2"
-hash = "67982d98030fde9139a64219dbe4db5e"
 [[package]]
 name = "cfitsio"
 version = "3.470"
 manager = "conda"
-platforms = [ "linux-64",]
+platform = "linux-64"
+url = "https://conda.anaconda.org/conda-forge/linux-64/cfitsio-3.470-hb418390_7.tar.bz2"
+hash = "5bda2e5ca5edb0c207c3ec76f57f8ecc"
 optional = false
 category = "main"
 
@@ -241,54 +227,50 @@ libgcc-ng = ">=9.3.0"
 libgfortran-ng = ""
 libgfortran5 = ">=9.3.0"
 zlib = ">=1.2.11,<1.3.0a0"
-[package.packages.linux-64]
-url = "https://conda.anaconda.org/conda-forge/linux-64/cfitsio-3.470-hb418390_7.tar.bz2"
-hash = "5bda2e5ca5edb0c207c3ec76f57f8ecc"
 [[package]]
 name = "clint"
 version = "0.5.1"
 manager = "conda"
-platforms = [ "linux-64",]
+platform = "linux-64"
+url = "https://conda.anaconda.org/conda-forge/noarch/clint-0.5.1-py_1.tar.bz2"
+hash = "d13704bed3b991487ca841df7b5656dd"
 optional = false
 category = "main"
 
 [package.dependencies]
 args = ""
 python = ""
-[package.packages.linux-64]
-url = "https://conda.anaconda.org/conda-forge/noarch/clint-0.5.1-py_1.tar.bz2"
-hash = "d13704bed3b991487ca841df7b5656dd"
 [[package]]
 name = "colorama"
 version = "0.4.4"
 manager = "conda"
-platforms = [ "linux-64",]
+platform = "linux-64"
+url = "https://conda.anaconda.org/conda-forge/noarch/colorama-0.4.4-pyh9f0ad1d_0.tar.bz2"
+hash = "c08b4c1326b880ed44f3ffb04803332f"
 optional = false
 category = "main"
 
 [package.dependencies]
 python = ""
-[package.packages.linux-64]
-url = "https://conda.anaconda.org/conda-forge/noarch/colorama-0.4.4-pyh9f0ad1d_0.tar.bz2"
-hash = "c08b4c1326b880ed44f3ffb04803332f"
 [[package]]
 name = "cycler"
 version = "0.11.0"
 manager = "conda"
-platforms = [ "linux-64",]
+platform = "linux-64"
+url = "https://conda.anaconda.org/conda-forge/noarch/cycler-0.11.0-pyhd8ed1ab_0.tar.bz2"
+hash = "a50559fad0affdbb33729a68669ca1cb"
 optional = false
 category = "main"
 
 [package.dependencies]
 python = ">=3.6"
-[package.packages.linux-64]
-url = "https://conda.anaconda.org/conda-forge/noarch/cycler-0.11.0-pyhd8ed1ab_0.tar.bz2"
-hash = "a50559fad0affdbb33729a68669ca1cb"
 [[package]]
 name = "debugpy"
 version = "1.4.1"
 manager = "conda"
-platforms = [ "linux-64",]
+platform = "linux-64"
+url = "https://conda.anaconda.org/conda-forge/linux-64/debugpy-1.4.1-py39he80948d_1.tar.bz2"
+hash = "50011e8ee09f2caa3ae82eccdd96b088"
 optional = false
 category = "main"
 
@@ -297,40 +279,37 @@ libgcc-ng = ">=9.4.0"
 libstdcxx-ng = ">=9.4.0"
 python = ">=3.9,<3.10.0a0"
 python_abi = "3.9.* *_cp39"
-[package.packages.linux-64]
-url = "https://conda.anaconda.org/conda-forge/linux-64/debugpy-1.4.1-py39he80948d_1.tar.bz2"
-hash = "50011e8ee09f2caa3ae82eccdd96b088"
 [[package]]
 name = "decorator"
 version = "5.1.0"
 manager = "conda"
-platforms = [ "linux-64",]
+platform = "linux-64"
+url = "https://conda.anaconda.org/conda-forge/noarch/decorator-5.1.0-pyhd8ed1ab_0.tar.bz2"
+hash = "71b13ba2e0efcff45646f05d619534b0"
 optional = false
 category = "main"
 
 [package.dependencies]
 python = ">=3.5"
-[package.packages.linux-64]
-url = "https://conda.anaconda.org/conda-forge/noarch/decorator-5.1.0-pyhd8ed1ab_0.tar.bz2"
-hash = "71b13ba2e0efcff45646f05d619534b0"
 [[package]]
 name = "entrypoints"
 version = "0.3"
 manager = "conda"
-platforms = [ "linux-64",]
+platform = "linux-64"
+url = "https://conda.anaconda.org/conda-forge/noarch/entrypoints-0.3-pyhd8ed1ab_1003.tar.bz2"
+hash = "bbf9a201f6ce99a506f4955374d9a9f4"
 optional = false
 category = "main"
 
 [package.dependencies]
 python = ">=3.6"
-[package.packages.linux-64]
-url = "https://conda.anaconda.org/conda-forge/noarch/entrypoints-0.3-pyhd8ed1ab_1003.tar.bz2"
-hash = "bbf9a201f6ce99a506f4955374d9a9f4"
 [[package]]
 name = "freetype"
 version = "2.10.4"
 manager = "conda"
-platforms = [ "linux-64",]
+platform = "linux-64"
+url = "https://conda.anaconda.org/conda-forge/linux-64/freetype-2.10.4-h0708190_1.tar.bz2"
+hash = "4a06f2ac2e5bfae7b6b245171c3f07aa"
 optional = false
 category = "main"
 
@@ -338,42 +317,39 @@ category = "main"
 libgcc-ng = ">=9.3.0"
 libpng = ">=1.6.37,<1.7.0a0"
 zlib = ">=1.2.11,<1.3.0a0"
-[package.packages.linux-64]
-url = "https://conda.anaconda.org/conda-forge/linux-64/freetype-2.10.4-h0708190_1.tar.bz2"
-hash = "4a06f2ac2e5bfae7b6b245171c3f07aa"
 [[package]]
 name = "future"
 version = "0.18.2"
 manager = "conda"
-platforms = [ "linux-64",]
+platform = "linux-64"
+url = "https://conda.anaconda.org/conda-forge/linux-64/future-0.18.2-py39hf3d152e_4.tar.bz2"
+hash = "d7095dafe0af5c7fa3247d76cf00b08d"
 optional = false
 category = "main"
 
 [package.dependencies]
 python = ">=3.9,<3.10.0a0"
 python_abi = "3.9.* *_cp39"
-[package.packages.linux-64]
-url = "https://conda.anaconda.org/conda-forge/linux-64/future-0.18.2-py39hf3d152e_4.tar.bz2"
-hash = "d7095dafe0af5c7fa3247d76cf00b08d"
 [[package]]
 name = "gmp"
 version = "6.2.1"
 manager = "conda"
-platforms = [ "linux-64",]
+platform = "linux-64"
+url = "https://conda.anaconda.org/conda-forge/linux-64/gmp-6.2.1-h58526e2_0.tar.bz2"
+hash = "b94cf2db16066b242ebd26db2facbd56"
 optional = false
 category = "main"
 
 [package.dependencies]
 libgcc-ng = ">=7.5.0"
 libstdcxx-ng = ">=7.5.0"
-[package.packages.linux-64]
-url = "https://conda.anaconda.org/conda-forge/linux-64/gmp-6.2.1-h58526e2_0.tar.bz2"
-hash = "b94cf2db16066b242ebd26db2facbd56"
 [[package]]
 name = "hdf5"
 version = "1.12.1"
 manager = "conda"
-platforms = [ "linux-64",]
+platform = "linux-64"
+url = "https://conda.anaconda.org/conda-forge/linux-64/hdf5-1.12.1-nompi_h7f166f4_101.tar.bz2"
+hash = "32f0574bb2ff58a3a1a92dd711fdb000"
 optional = false
 category = "main"
 
@@ -386,14 +362,13 @@ libstdcxx-ng = ">=9.4.0"
 libzlib = ">=1.2.11,<1.3.0a0"
 openssl = ">=3.0.0,<4.0a0"
 zlib = ">=1.2.11,<1.3.0a0"
-[package.packages.linux-64]
-url = "https://conda.anaconda.org/conda-forge/linux-64/hdf5-1.12.1-nompi_h7f166f4_101.tar.bz2"
-hash = "32f0574bb2ff58a3a1a92dd711fdb000"
 [[package]]
 name = "healpy"
 version = "1.15.0"
 manager = "conda"
-platforms = [ "linux-64",]
+platform = "linux-64"
+url = "https://conda.anaconda.org/conda-forge/linux-64/healpy-1.15.0-py39h5cc0c36_2.tar.bz2"
+hash = "6b2617516eec7a08c3df718b06208f41"
 optional = false
 category = "main"
 
@@ -411,28 +386,26 @@ python = ">=3.9,<3.10.0a0"
 python_abi = "3.9.* *_cp39"
 scipy = ""
 six = ""
-[package.packages.linux-64]
-url = "https://conda.anaconda.org/conda-forge/linux-64/healpy-1.15.0-py39h5cc0c36_2.tar.bz2"
-hash = "6b2617516eec7a08c3df718b06208f41"
 [[package]]
 name = "icu"
 version = "69.1"
 manager = "conda"
-platforms = [ "linux-64",]
+platform = "linux-64"
+url = "https://conda.anaconda.org/conda-forge/linux-64/icu-69.1-h9c3ff4c_0.tar.bz2"
+hash = "e0773c9556d588b062a4e1424a6a02fa"
 optional = false
 category = "main"
 
 [package.dependencies]
 libgcc-ng = ">=9.4.0"
 libstdcxx-ng = ">=9.4.0"
-[package.packages.linux-64]
-url = "https://conda.anaconda.org/conda-forge/linux-64/icu-69.1-h9c3ff4c_0.tar.bz2"
-hash = "e0773c9556d588b062a4e1424a6a02fa"
 [[package]]
 name = "importlib-metadata"
 version = "4.8.1"
 manager = "conda"
-platforms = [ "linux-64",]
+platform = "linux-64"
+url = "https://conda.anaconda.org/conda-forge/linux-64/importlib-metadata-4.8.1-py39hf3d152e_1.tar.bz2"
+hash = "4a1f30269068fdcacd75e1782b407a19"
 optional = false
 category = "main"
 
@@ -440,27 +413,25 @@ category = "main"
 python = ">=3.9,<3.10.0a0"
 python_abi = "3.9.* *_cp39"
 zipp = ">=0.5"
-[package.packages.linux-64]
-url = "https://conda.anaconda.org/conda-forge/linux-64/importlib-metadata-4.8.1-py39hf3d152e_1.tar.bz2"
-hash = "4a1f30269068fdcacd75e1782b407a19"
 [[package]]
 name = "iniconfig"
 version = "1.1.1"
 manager = "conda"
-platforms = [ "linux-64",]
+platform = "linux-64"
+url = "https://conda.anaconda.org/conda-forge/noarch/iniconfig-1.1.1-pyh9f0ad1d_0.tar.bz2"
+hash = "39161f81cc5e5ca45b8226fbb06c6905"
 optional = true
 category = "dev"
 
 [package.dependencies]
 python = ""
-[package.packages.linux-64]
-url = "https://conda.anaconda.org/conda-forge/noarch/iniconfig-1.1.1-pyh9f0ad1d_0.tar.bz2"
-hash = "39161f81cc5e5ca45b8226fbb06c6905"
 [[package]]
 name = "ipykernel"
 version = "6.4.2"
 manager = "conda"
-platforms = [ "linux-64",]
+platform = "linux-64"
+url = "https://conda.anaconda.org/conda-forge/linux-64/ipykernel-6.4.2-py39hef51801_0.tar.bz2"
+hash = "b4a135cf9f5f29c7ef9905efdfa65271"
 optional = false
 category = "main"
 
@@ -474,14 +445,13 @@ python = ">=3.9,<3.10.0a0"
 python_abi = "3.9.* *_cp39"
 tornado = ">=4.2,<7.0"
 traitlets = ">=4.1.0,<6.0"
-[package.packages.linux-64]
-url = "https://conda.anaconda.org/conda-forge/linux-64/ipykernel-6.4.2-py39hef51801_0.tar.bz2"
-hash = "b4a135cf9f5f29c7ef9905efdfa65271"
 [[package]]
 name = "ipython"
 version = "7.29.0"
 manager = "conda"
-platforms = [ "linux-64",]
+platform = "linux-64"
+url = "https://conda.anaconda.org/conda-forge/linux-64/ipython-7.29.0-py39hef51801_1.tar.bz2"
+hash = "783ea5054aa2cfed178e4b707288c69d"
 optional = false
 category = "main"
 
@@ -498,40 +468,37 @@ python = ">=3.9,<3.10.0a0"
 python_abi = "3.9.* *_cp39"
 setuptools = ">=18.5"
 traitlets = ">=4.2"
-[package.packages.linux-64]
-url = "https://conda.anaconda.org/conda-forge/linux-64/ipython-7.29.0-py39hef51801_1.tar.bz2"
-hash = "783ea5054aa2cfed178e4b707288c69d"
 [[package]]
 name = "ipython_genutils"
 version = "0.2.0"
 manager = "conda"
-platforms = [ "linux-64",]
+platform = "linux-64"
+url = "https://conda.anaconda.org/conda-forge/noarch/ipython_genutils-0.2.0-py_1.tar.bz2"
+hash = "5071c982548b3a20caf70462f04f5287"
 optional = false
 category = "main"
 
 [package.dependencies]
 python = ""
-[package.packages.linux-64]
-url = "https://conda.anaconda.org/conda-forge/noarch/ipython_genutils-0.2.0-py_1.tar.bz2"
-hash = "5071c982548b3a20caf70462f04f5287"
 [[package]]
 name = "jbig"
 version = "2.1"
 manager = "conda"
-platforms = [ "linux-64",]
+platform = "linux-64"
+url = "https://conda.anaconda.org/conda-forge/linux-64/jbig-2.1-h7f98852_2003.tar.bz2"
+hash = "1aa0cee79792fa97b7ff4545110b60bf"
 optional = false
 category = "main"
 
 [package.dependencies]
 libgcc-ng = ">=9.3.0"
-[package.packages.linux-64]
-url = "https://conda.anaconda.org/conda-forge/linux-64/jbig-2.1-h7f98852_2003.tar.bz2"
-hash = "1aa0cee79792fa97b7ff4545110b60bf"
 [[package]]
 name = "jedi"
 version = "0.18.0"
 manager = "conda"
-platforms = [ "linux-64",]
+platform = "linux-64"
+url = "https://conda.anaconda.org/conda-forge/linux-64/jedi-0.18.0-py39hf3d152e_3.tar.bz2"
+hash = "8d85bb6c1160fe8d78f1fc69670cfbc7"
 optional = false
 category = "main"
 
@@ -539,27 +506,25 @@ category = "main"
 parso = ">=0.8.0,<0.9.0"
 python = ">=3.9,<3.10.0a0"
 python_abi = "3.9.* *_cp39"
-[package.packages.linux-64]
-url = "https://conda.anaconda.org/conda-forge/linux-64/jedi-0.18.0-py39hf3d152e_3.tar.bz2"
-hash = "8d85bb6c1160fe8d78f1fc69670cfbc7"
 [[package]]
 name = "jpeg"
 version = "9d"
 manager = "conda"
-platforms = [ "linux-64",]
+platform = "linux-64"
+url = "https://conda.anaconda.org/conda-forge/linux-64/jpeg-9d-h36c2ea0_0.tar.bz2"
+hash = "ea02ce6037dbe81803ae6123e5ba1568"
 optional = false
 category = "main"
 
 [package.dependencies]
 libgcc-ng = ">=7.5.0"
-[package.packages.linux-64]
-url = "https://conda.anaconda.org/conda-forge/linux-64/jpeg-9d-h36c2ea0_0.tar.bz2"
-hash = "ea02ce6037dbe81803ae6123e5ba1568"
 [[package]]
 name = "jupyter_client"
 version = "7.0.6"
 manager = "conda"
-platforms = [ "linux-64",]
+platform = "linux-64"
+url = "https://conda.anaconda.org/conda-forge/noarch/jupyter_client-7.0.6-pyhd8ed1ab_0.tar.bz2"
+hash = "bad4522cf4a022cb5500969ad67c3342"
 optional = false
 category = "main"
 
@@ -572,14 +537,13 @@ python-dateutil = ">=2.1"
 pyzmq = ">=13"
 tornado = ">=4.1"
 traitlets = ""
-[package.packages.linux-64]
-url = "https://conda.anaconda.org/conda-forge/noarch/jupyter_client-7.0.6-pyhd8ed1ab_0.tar.bz2"
-hash = "bad4522cf4a022cb5500969ad67c3342"
 [[package]]
 name = "jupyter_core"
 version = "4.9.1"
 manager = "conda"
-platforms = [ "linux-64",]
+platform = "linux-64"
+url = "https://conda.anaconda.org/conda-forge/linux-64/jupyter_core-4.9.1-py39hf3d152e_0.tar.bz2"
+hash = "a057ec7b5bd2fcdb898ff84b38a0a006"
 optional = false
 category = "main"
 
@@ -587,14 +551,13 @@ category = "main"
 python = ">=3.9,<3.10.0a0"
 python_abi = "3.9.* *_cp39"
 traitlets = ""
-[package.packages.linux-64]
-url = "https://conda.anaconda.org/conda-forge/linux-64/jupyter_core-4.9.1-py39hf3d152e_0.tar.bz2"
-hash = "a057ec7b5bd2fcdb898ff84b38a0a006"
 [[package]]
 name = "kiwisolver"
 version = "1.3.2"
 manager = "conda"
-platforms = [ "linux-64",]
+platform = "linux-64"
+url = "https://conda.anaconda.org/conda-forge/linux-64/kiwisolver-1.3.2-py39h1a9c180_1.tar.bz2"
+hash = "0692e15dbf6632726be4ed08aaeb37e1"
 optional = false
 category = "main"
 
@@ -603,14 +566,13 @@ libgcc-ng = ">=9.4.0"
 libstdcxx-ng = ">=9.4.0"
 python = ">=3.9,<3.10.0a0"
 python_abi = "3.9.* *_cp39"
-[package.packages.linux-64]
-url = "https://conda.anaconda.org/conda-forge/linux-64/kiwisolver-1.3.2-py39h1a9c180_1.tar.bz2"
-hash = "0692e15dbf6632726be4ed08aaeb37e1"
 [[package]]
 name = "krb5"
 version = "1.19.2"
 manager = "conda"
-platforms = [ "linux-64",]
+platform = "linux-64"
+url = "https://conda.anaconda.org/conda-forge/linux-64/krb5-1.19.2-h48eae69_3.tar.bz2"
+hash = "f8701ddce6b17c3c78c258144ff97720"
 optional = false
 category = "main"
 
@@ -620,14 +582,13 @@ libgcc-ng = ">=9.4.0"
 libstdcxx-ng = ">=9.4.0"
 openssl = ">=3.0.0,<4.0a0"
 tk = ">=8.6.11,<8.7.0a0"
-[package.packages.linux-64]
-url = "https://conda.anaconda.org/conda-forge/linux-64/krb5-1.19.2-h48eae69_3.tar.bz2"
-hash = "f8701ddce6b17c3c78c258144ff97720"
 [[package]]
 name = "lcms2"
 version = "2.12"
 manager = "conda"
-platforms = [ "linux-64",]
+platform = "linux-64"
+url = "https://conda.anaconda.org/conda-forge/linux-64/lcms2-2.12-hddcbb42_0.tar.bz2"
+hash = "797117394a4aa588de6d741b06fad80f"
 optional = false
 category = "main"
 
@@ -635,65 +596,60 @@ category = "main"
 jpeg = ">=9d,<10a"
 libgcc-ng = ">=9.3.0"
 libtiff = ">=4.2.0,<5.0a0"
-[package.packages.linux-64]
-url = "https://conda.anaconda.org/conda-forge/linux-64/lcms2-2.12-hddcbb42_0.tar.bz2"
-hash = "797117394a4aa588de6d741b06fad80f"
 [[package]]
 name = "ld_impl_linux-64"
 version = "2.36.1"
 manager = "conda"
-platforms = [ "linux-64",]
+platform = "linux-64"
+url = "https://conda.anaconda.org/conda-forge/linux-64/ld_impl_linux-64-2.36.1-hea4e1c9_2.tar.bz2"
+hash = "bd4f2e711b39af170e7ff15163fe87ee"
 optional = false
 category = "main"
 
-[package.packages.linux-64]
-url = "https://conda.anaconda.org/conda-forge/linux-64/ld_impl_linux-64-2.36.1-hea4e1c9_2.tar.bz2"
-hash = "bd4f2e711b39af170e7ff15163fe87ee"
 [[package]]
 name = "lerc"
 version = "3.0"
 manager = "conda"
-platforms = [ "linux-64",]
+platform = "linux-64"
+url = "https://conda.anaconda.org/conda-forge/linux-64/lerc-3.0-h9c3ff4c_0.tar.bz2"
+hash = "7fcefde484980d23f0ec24c11e314d2e"
 optional = false
 category = "main"
 
 [package.dependencies]
 libgcc-ng = ">=9.4.0"
 libstdcxx-ng = ">=9.4.0"
-[package.packages.linux-64]
-url = "https://conda.anaconda.org/conda-forge/linux-64/lerc-3.0-h9c3ff4c_0.tar.bz2"
-hash = "7fcefde484980d23f0ec24c11e314d2e"
 [[package]]
 name = "libblas"
 version = "3.9.0"
 manager = "conda"
-platforms = [ "linux-64",]
+platform = "linux-64"
+url = "https://conda.anaconda.org/conda-forge/linux-64/libblas-3.9.0-12_linux64_openblas.tar.bz2"
+hash = "4f93ba28c628a2c27cf39c055e6b219c"
 optional = false
 category = "main"
 
 [package.dependencies]
 libopenblas = ">=0.3.18,<1.0a0"
-[package.packages.linux-64]
-url = "https://conda.anaconda.org/conda-forge/linux-64/libblas-3.9.0-12_linux64_openblas.tar.bz2"
-hash = "4f93ba28c628a2c27cf39c055e6b219c"
 [[package]]
 name = "libcblas"
 version = "3.9.0"
 manager = "conda"
-platforms = [ "linux-64",]
+platform = "linux-64"
+url = "https://conda.anaconda.org/conda-forge/linux-64/libcblas-3.9.0-12_linux64_openblas.tar.bz2"
+hash = "2e5082d4a9a18c21100e6ce5b6bcb4ec"
 optional = false
 category = "main"
 
 [package.dependencies]
 libblas = "3.9.0 12_linux64_openblas"
-[package.packages.linux-64]
-url = "https://conda.anaconda.org/conda-forge/linux-64/libcblas-3.9.0-12_linux64_openblas.tar.bz2"
-hash = "2e5082d4a9a18c21100e6ce5b6bcb4ec"
 [[package]]
 name = "libcurl"
 version = "7.79.1"
 manager = "conda"
-platforms = [ "linux-64",]
+platform = "linux-64"
+url = "https://conda.anaconda.org/conda-forge/linux-64/libcurl-7.79.1-h494985f_1.tar.bz2"
+hash = "82c9d3315f9f356188e2e57aa810ee58"
 optional = false
 category = "main"
 
@@ -704,132 +660,122 @@ libnghttp2 = ">=1.43.0,<2.0a0"
 libssh2 = ">=1.10.0,<2.0a0"
 openssl = ">=3.0.0,<4.0a0"
 zlib = ">=1.2.11,<1.3.0a0"
-[package.packages.linux-64]
-url = "https://conda.anaconda.org/conda-forge/linux-64/libcurl-7.79.1-h494985f_1.tar.bz2"
-hash = "82c9d3315f9f356188e2e57aa810ee58"
 [[package]]
 name = "libdeflate"
 version = "1.8"
 manager = "conda"
-platforms = [ "linux-64",]
+platform = "linux-64"
+url = "https://conda.anaconda.org/conda-forge/linux-64/libdeflate-1.8-h7f98852_0.tar.bz2"
+hash = "91d22aefa665265e8e31988b15145c8a"
 optional = false
 category = "main"
 
 [package.dependencies]
 libgcc-ng = ">=9.3.0"
-[package.packages.linux-64]
-url = "https://conda.anaconda.org/conda-forge/linux-64/libdeflate-1.8-h7f98852_0.tar.bz2"
-hash = "91d22aefa665265e8e31988b15145c8a"
 [[package]]
 name = "libedit"
 version = "3.1.20191231"
 manager = "conda"
-platforms = [ "linux-64",]
+platform = "linux-64"
+url = "https://conda.anaconda.org/conda-forge/linux-64/libedit-3.1.20191231-he28a2e2_2.tar.bz2"
+hash = "4d331e44109e3f0e19b4cb8f9b82f3e1"
 optional = false
 category = "main"
 
 [package.dependencies]
 libgcc-ng = ">=7.5.0"
 ncurses = ">=6.2,<6.3.0a0"
-[package.packages.linux-64]
-url = "https://conda.anaconda.org/conda-forge/linux-64/libedit-3.1.20191231-he28a2e2_2.tar.bz2"
-hash = "4d331e44109e3f0e19b4cb8f9b82f3e1"
 [[package]]
 name = "libev"
 version = "4.33"
 manager = "conda"
-platforms = [ "linux-64",]
+platform = "linux-64"
+url = "https://conda.anaconda.org/conda-forge/linux-64/libev-4.33-h516909a_1.tar.bz2"
+hash = "6f8720dff19e17ce5d48cfe7f3d2f0a3"
 optional = false
 category = "main"
 
 [package.dependencies]
 libgcc-ng = ">=7.5.0"
-[package.packages.linux-64]
-url = "https://conda.anaconda.org/conda-forge/linux-64/libev-4.33-h516909a_1.tar.bz2"
-hash = "6f8720dff19e17ce5d48cfe7f3d2f0a3"
 [[package]]
 name = "libffi"
 version = "3.4.2"
 manager = "conda"
-platforms = [ "linux-64",]
+platform = "linux-64"
+url = "https://conda.anaconda.org/conda-forge/linux-64/libffi-3.4.2-h9c3ff4c_4.tar.bz2"
+hash = "dea515312db9d4788e52c2edfc657635"
 optional = false
 category = "main"
 
 [package.dependencies]
 libgcc-ng = ">=9.4.0"
 libstdcxx-ng = ">=9.4.0"
-[package.packages.linux-64]
-url = "https://conda.anaconda.org/conda-forge/linux-64/libffi-3.4.2-h9c3ff4c_4.tar.bz2"
-hash = "dea515312db9d4788e52c2edfc657635"
 [[package]]
 name = "libgcc-ng"
 version = "11.2.0"
 manager = "conda"
-platforms = [ "linux-64",]
+platform = "linux-64"
+url = "https://conda.anaconda.org/conda-forge/linux-64/libgcc-ng-11.2.0-h1d223b6_11.tar.bz2"
+hash = "e3495f4f93cfd6b68021cbe2b5844cd5"
 optional = false
 category = "main"
 
 [package.dependencies]
 _libgcc_mutex = "0.1 conda_forge"
 _openmp_mutex = ">=4.5"
-[package.packages.linux-64]
-url = "https://conda.anaconda.org/conda-forge/linux-64/libgcc-ng-11.2.0-h1d223b6_11.tar.bz2"
-hash = "e3495f4f93cfd6b68021cbe2b5844cd5"
 [[package]]
 name = "libgfortran-ng"
 version = "11.2.0"
 manager = "conda"
-platforms = [ "linux-64",]
+platform = "linux-64"
+url = "https://conda.anaconda.org/conda-forge/linux-64/libgfortran-ng-11.2.0-h69a702a_11.tar.bz2"
+hash = "4ea2f9f83b617a7682e8aa05dcb37c6a"
 optional = false
 category = "main"
 
 [package.dependencies]
 libgfortran5 = "11.2.0 h5c6108e_11"
-[package.packages.linux-64]
-url = "https://conda.anaconda.org/conda-forge/linux-64/libgfortran-ng-11.2.0-h69a702a_11.tar.bz2"
-hash = "4ea2f9f83b617a7682e8aa05dcb37c6a"
 [[package]]
 name = "libgfortran5"
 version = "11.2.0"
 manager = "conda"
-platforms = [ "linux-64",]
+platform = "linux-64"
+url = "https://conda.anaconda.org/conda-forge/linux-64/libgfortran5-11.2.0-h5c6108e_11.tar.bz2"
+hash = "2dcb18a9a0fa31f4f29e5a9b3eade394"
 optional = false
 category = "main"
 
-[package.packages.linux-64]
-url = "https://conda.anaconda.org/conda-forge/linux-64/libgfortran5-11.2.0-h5c6108e_11.tar.bz2"
-hash = "2dcb18a9a0fa31f4f29e5a9b3eade394"
 [[package]]
 name = "libgomp"
 version = "11.2.0"
 manager = "conda"
-platforms = [ "linux-64",]
+platform = "linux-64"
+url = "https://conda.anaconda.org/conda-forge/linux-64/libgomp-11.2.0-h1d223b6_11.tar.bz2"
+hash = "1d16527c76842bf9c41e9399d39d8097"
 optional = false
 category = "main"
 
 [package.dependencies]
 _libgcc_mutex = "0.1 conda_forge"
-[package.packages.linux-64]
-url = "https://conda.anaconda.org/conda-forge/linux-64/libgomp-11.2.0-h1d223b6_11.tar.bz2"
-hash = "1d16527c76842bf9c41e9399d39d8097"
 [[package]]
 name = "liblapack"
 version = "3.9.0"
 manager = "conda"
-platforms = [ "linux-64",]
+platform = "linux-64"
+url = "https://conda.anaconda.org/conda-forge/linux-64/liblapack-3.9.0-12_linux64_openblas.tar.bz2"
+hash = "9f401a6807a97e0c859d7522ae3d51ec"
 optional = false
 category = "main"
 
 [package.dependencies]
 libblas = "3.9.0 12_linux64_openblas"
-[package.packages.linux-64]
-url = "https://conda.anaconda.org/conda-forge/linux-64/liblapack-3.9.0-12_linux64_openblas.tar.bz2"
-hash = "9f401a6807a97e0c859d7522ae3d51ec"
 [[package]]
 name = "libnghttp2"
 version = "1.43.0"
 manager = "conda"
-platforms = [ "linux-64",]
+platform = "linux-64"
+url = "https://conda.anaconda.org/conda-forge/linux-64/libnghttp2-1.43.0-ha19adfc_1.tar.bz2"
+hash = "f012f7ad2b1a6607dc2b863304387787"
 optional = false
 category = "main"
 
@@ -840,14 +786,13 @@ libgcc-ng = ">=9.4.0"
 libstdcxx-ng = ">=9.4.0"
 openssl = ">=3.0.0,<4.0a0"
 zlib = ">=1.2.11,<1.3.0a0"
-[package.packages.linux-64]
-url = "https://conda.anaconda.org/conda-forge/linux-64/libnghttp2-1.43.0-ha19adfc_1.tar.bz2"
-hash = "f012f7ad2b1a6607dc2b863304387787"
 [[package]]
 name = "libopenblas"
 version = "0.3.18"
 manager = "conda"
-platforms = [ "linux-64",]
+platform = "linux-64"
+url = "https://conda.anaconda.org/conda-forge/linux-64/libopenblas-0.3.18-pthreads_h8fe5266_0.tar.bz2"
+hash = "41532e4448c0cce086d6570f95e4e12e"
 optional = false
 category = "main"
 
@@ -855,41 +800,38 @@ category = "main"
 libgcc-ng = ">=9.4.0"
 libgfortran-ng = ""
 libgfortran5 = ">=9.4.0"
-[package.packages.linux-64]
-url = "https://conda.anaconda.org/conda-forge/linux-64/libopenblas-0.3.18-pthreads_h8fe5266_0.tar.bz2"
-hash = "41532e4448c0cce086d6570f95e4e12e"
 [[package]]
 name = "libpng"
 version = "1.6.37"
 manager = "conda"
-platforms = [ "linux-64",]
+platform = "linux-64"
+url = "https://conda.anaconda.org/conda-forge/linux-64/libpng-1.6.37-h21135ba_2.tar.bz2"
+hash = "b6acf807307d033d4b7e758b4f44b036"
 optional = false
 category = "main"
 
 [package.dependencies]
 libgcc-ng = ">=7.5.0"
 zlib = ">=1.2.11,<1.3.0a0"
-[package.packages.linux-64]
-url = "https://conda.anaconda.org/conda-forge/linux-64/libpng-1.6.37-h21135ba_2.tar.bz2"
-hash = "b6acf807307d033d4b7e758b4f44b036"
 [[package]]
 name = "libsodium"
 version = "1.0.18"
 manager = "conda"
-platforms = [ "linux-64",]
+platform = "linux-64"
+url = "https://conda.anaconda.org/conda-forge/linux-64/libsodium-1.0.18-h36c2ea0_1.tar.bz2"
+hash = "c3788462a6fbddafdb413a9f9053e58d"
 optional = false
 category = "main"
 
 [package.dependencies]
 libgcc-ng = ">=7.5.0"
-[package.packages.linux-64]
-url = "https://conda.anaconda.org/conda-forge/linux-64/libsodium-1.0.18-h36c2ea0_1.tar.bz2"
-hash = "c3788462a6fbddafdb413a9f9053e58d"
 [[package]]
 name = "libssh2"
 version = "1.10.0"
 manager = "conda"
-platforms = [ "linux-64",]
+platform = "linux-64"
+url = "https://conda.anaconda.org/conda-forge/linux-64/libssh2-1.10.0-ha35d2d1_2.tar.bz2"
+hash = "e0adb0915b3e6971a84e347f998ca837"
 optional = false
 category = "main"
 
@@ -897,25 +839,23 @@ category = "main"
 libgcc-ng = ">=9.4.0"
 openssl = ">=3.0.0,<4.0a0"
 zlib = ">=1.2.11,<1.3.0a0"
-[package.packages.linux-64]
-url = "https://conda.anaconda.org/conda-forge/linux-64/libssh2-1.10.0-ha35d2d1_2.tar.bz2"
-hash = "e0adb0915b3e6971a84e347f998ca837"
 [[package]]
 name = "libstdcxx-ng"
 version = "11.2.0"
 manager = "conda"
-platforms = [ "linux-64",]
+platform = "linux-64"
+url = "https://conda.anaconda.org/conda-forge/linux-64/libstdcxx-ng-11.2.0-he4da1e4_11.tar.bz2"
+hash = "0bf83958e788f1e75ba26154cb702afe"
 optional = false
 category = "main"
 
-[package.packages.linux-64]
-url = "https://conda.anaconda.org/conda-forge/linux-64/libstdcxx-ng-11.2.0-he4da1e4_11.tar.bz2"
-hash = "0bf83958e788f1e75ba26154cb702afe"
 [[package]]
 name = "libtiff"
 version = "4.3.0"
 manager = "conda"
-platforms = [ "linux-64",]
+platform = "linux-64"
+url = "https://conda.anaconda.org/conda-forge/linux-64/libtiff-4.3.0-h6f004c6_2.tar.bz2"
+hash = "34fda41ca84e67232888c9a885903055"
 optional = false
 category = "main"
 
@@ -930,67 +870,62 @@ libwebp-base = ""
 libzlib = ">=1.2.11,<1.3.0a0"
 xz = ">=5.2.5,<5.3.0a0"
 zstd = ">=1.5.0,<1.6.0a0"
-[package.packages.linux-64]
-url = "https://conda.anaconda.org/conda-forge/linux-64/libtiff-4.3.0-h6f004c6_2.tar.bz2"
-hash = "34fda41ca84e67232888c9a885903055"
 [[package]]
 name = "libwebp-base"
 version = "1.2.1"
 manager = "conda"
-platforms = [ "linux-64",]
+platform = "linux-64"
+url = "https://conda.anaconda.org/conda-forge/linux-64/libwebp-base-1.2.1-h7f98852_0.tar.bz2"
+hash = "90607c4c0247f04ec98b48997de71c1a"
 optional = false
 category = "main"
 
 [package.dependencies]
 libgcc-ng = ">=9.4.0"
-[package.packages.linux-64]
-url = "https://conda.anaconda.org/conda-forge/linux-64/libwebp-base-1.2.1-h7f98852_0.tar.bz2"
-hash = "90607c4c0247f04ec98b48997de71c1a"
 [[package]]
 name = "libzlib"
 version = "1.2.11"
 manager = "conda"
-platforms = [ "linux-64",]
+platform = "linux-64"
+url = "https://conda.anaconda.org/conda-forge/linux-64/libzlib-1.2.11-h36c2ea0_1013.tar.bz2"
+hash = "dcddf696ff5dfcab567100d691678e18"
 optional = false
 category = "main"
 
 [package.dependencies]
 libgcc-ng = ">=7.5.0"
-[package.packages.linux-64]
-url = "https://conda.anaconda.org/conda-forge/linux-64/libzlib-1.2.11-h36c2ea0_1013.tar.bz2"
-hash = "dcddf696ff5dfcab567100d691678e18"
 [[package]]
 name = "lz4-c"
 version = "1.9.3"
 manager = "conda"
-platforms = [ "linux-64",]
+platform = "linux-64"
+url = "https://conda.anaconda.org/conda-forge/linux-64/lz4-c-1.9.3-h9c3ff4c_1.tar.bz2"
+hash = "fbe97e8fa6f275d7c76a09e795adc3e6"
 optional = false
 category = "main"
 
 [package.dependencies]
 libgcc-ng = ">=9.3.0"
 libstdcxx-ng = ">=9.3.0"
-[package.packages.linux-64]
-url = "https://conda.anaconda.org/conda-forge/linux-64/lz4-c-1.9.3-h9c3ff4c_1.tar.bz2"
-hash = "fbe97e8fa6f275d7c76a09e795adc3e6"
 [[package]]
 name = "lzo"
 version = "2.10"
 manager = "conda"
-platforms = [ "linux-64",]
+platform = "linux-64"
+url = "https://conda.anaconda.org/conda-forge/linux-64/lzo-2.10-h516909a_1000.tar.bz2"
+hash = "bb14fcb13341b81d5eb386423b9d2bac"
 optional = false
 category = "main"
 
 [package.dependencies]
 libgcc-ng = ">=7.5.0"
-[package.packages.linux-64]
-url = "https://conda.anaconda.org/conda-forge/linux-64/lzo-2.10-h516909a_1000.tar.bz2"
-hash = "bb14fcb13341b81d5eb386423b9d2bac"
 [[package]]
 name = "matplotlib-base"
 version = "3.4.3"
 manager = "conda"
-platforms = [ "linux-64",]
+platform = "linux-64"
+url = "https://conda.anaconda.org/conda-forge/linux-64/matplotlib-base-3.4.3-py39h2fa2bec_1.tar.bz2"
+hash = "17559929ff13c2a2be1618c1d657191b"
 optional = false
 category = "main"
 
@@ -1010,41 +945,38 @@ python_abi = "3.9.* *_cp39"
 setuptools = ""
 tk = ">=8.6.11,<8.7.0a0"
 tornado = ""
-[package.packages.linux-64]
-url = "https://conda.anaconda.org/conda-forge/linux-64/matplotlib-base-3.4.3-py39h2fa2bec_1.tar.bz2"
-hash = "17559929ff13c2a2be1618c1d657191b"
 [[package]]
 name = "matplotlib-inline"
 version = "0.1.3"
 manager = "conda"
-platforms = [ "linux-64",]
+platform = "linux-64"
+url = "https://conda.anaconda.org/conda-forge/noarch/matplotlib-inline-0.1.3-pyhd8ed1ab_0.tar.bz2"
+hash = "be3bfd435802d2c768c6b2439f325f3d"
 optional = false
 category = "main"
 
 [package.dependencies]
 python = ">=3.6"
 traitlets = ""
-[package.packages.linux-64]
-url = "https://conda.anaconda.org/conda-forge/noarch/matplotlib-inline-0.1.3-pyhd8ed1ab_0.tar.bz2"
-hash = "be3bfd435802d2c768c6b2439f325f3d"
 [[package]]
 name = "metis"
 version = "5.1.0"
 manager = "conda"
-platforms = [ "linux-64",]
+platform = "linux-64"
+url = "https://conda.anaconda.org/conda-forge/linux-64/metis-5.1.0-h58526e2_1006.tar.bz2"
+hash = "d099b812378b1e133c12e3b75167d83a"
 optional = false
 category = "main"
 
 [package.dependencies]
 libgcc-ng = ">=7.5.0"
-[package.packages.linux-64]
-url = "https://conda.anaconda.org/conda-forge/linux-64/metis-5.1.0-h58526e2_1006.tar.bz2"
-hash = "d099b812378b1e133c12e3b75167d83a"
 [[package]]
 name = "mock"
 version = "4.0.3"
 manager = "conda"
-platforms = [ "linux-64",]
+platform = "linux-64"
+url = "https://conda.anaconda.org/conda-forge/linux-64/mock-4.0.3-py39hf3d152e_2.tar.bz2"
+hash = "b1969febdc3cb97c120255a20b41737a"
 optional = false
 category = "main"
 
@@ -1052,67 +984,62 @@ category = "main"
 python = ">=3.9,<3.10.0a0"
 python_abi = "3.9.* *_cp39"
 six = ""
-[package.packages.linux-64]
-url = "https://conda.anaconda.org/conda-forge/linux-64/mock-4.0.3-py39hf3d152e_2.tar.bz2"
-hash = "b1969febdc3cb97c120255a20b41737a"
 [[package]]
 name = "more-itertools"
 version = "8.10.0"
 manager = "conda"
-platforms = [ "linux-64",]
+platform = "linux-64"
+url = "https://conda.anaconda.org/conda-forge/noarch/more-itertools-8.10.0-pyhd8ed1ab_0.tar.bz2"
+hash = "24a4379cfc9ba76a7ad238e5c32a6c68"
 optional = true
 category = "dev"
 
 [package.dependencies]
 python = ">=3.4"
-[package.packages.linux-64]
-url = "https://conda.anaconda.org/conda-forge/noarch/more-itertools-8.10.0-pyhd8ed1ab_0.tar.bz2"
-hash = "24a4379cfc9ba76a7ad238e5c32a6c68"
 [[package]]
 name = "mpfr"
 version = "4.1.0"
 manager = "conda"
-platforms = [ "linux-64",]
+platform = "linux-64"
+url = "https://conda.anaconda.org/conda-forge/linux-64/mpfr-4.1.0-h9202a9a_1.tar.bz2"
+hash = "ea9ebeddb066da8fad4a815e61b139be"
 optional = false
 category = "main"
 
 [package.dependencies]
 gmp = ">=6.2.1,<7.0a0"
 libgcc-ng = ">=7.5.0"
-[package.packages.linux-64]
-url = "https://conda.anaconda.org/conda-forge/linux-64/mpfr-4.1.0-h9202a9a_1.tar.bz2"
-hash = "ea9ebeddb066da8fad4a815e61b139be"
 [[package]]
 name = "ncurses"
 version = "6.2"
 manager = "conda"
-platforms = [ "linux-64",]
+platform = "linux-64"
+url = "https://conda.anaconda.org/conda-forge/linux-64/ncurses-6.2-h58526e2_4.tar.bz2"
+hash = "509f2a21c4a09214cd737a480dfd80c9"
 optional = false
 category = "main"
 
 [package.dependencies]
 libgcc-ng = ">=7.5.0"
-[package.packages.linux-64]
-url = "https://conda.anaconda.org/conda-forge/linux-64/ncurses-6.2-h58526e2_4.tar.bz2"
-hash = "509f2a21c4a09214cd737a480dfd80c9"
 [[package]]
 name = "nest-asyncio"
 version = "1.5.1"
 manager = "conda"
-platforms = [ "linux-64",]
+platform = "linux-64"
+url = "https://conda.anaconda.org/conda-forge/noarch/nest-asyncio-1.5.1-pyhd8ed1ab_0.tar.bz2"
+hash = "47a51a5b8f9cc41004c8d7bd88b62447"
 optional = false
 category = "main"
 
 [package.dependencies]
 python = ">=3.5"
-[package.packages.linux-64]
-url = "https://conda.anaconda.org/conda-forge/noarch/nest-asyncio-1.5.1-pyhd8ed1ab_0.tar.bz2"
-hash = "47a51a5b8f9cc41004c8d7bd88b62447"
 [[package]]
 name = "nuflux"
 version = "2.0.2"
 manager = "conda"
-platforms = [ "linux-64",]
+platform = "linux-64"
+url = "https://conda.anaconda.org/conda-forge/linux-64/nuflux-2.0.2-py39h9fcdd0f_1.tar.bz2"
+hash = "e71d9cd7fba92369b2b5abb1b89699b4"
 optional = false
 category = "main"
 
@@ -1125,14 +1052,13 @@ numpy = ""
 photospline = ">=2.0.7,<2.1.0a0"
 python = ">=3.9,<3.10.0a0"
 python_abi = "3.9.* *_cp39"
-[package.packages.linux-64]
-url = "https://conda.anaconda.org/conda-forge/linux-64/nuflux-2.0.2-py39h9fcdd0f_1.tar.bz2"
-hash = "e71d9cd7fba92369b2b5abb1b89699b4"
 [[package]]
 name = "numexpr"
 version = "2.7.3"
 manager = "conda"
-platforms = [ "linux-64",]
+platform = "linux-64"
+url = "https://conda.anaconda.org/conda-forge/linux-64/numexpr-2.7.3-py39hde0f152_0.tar.bz2"
+hash = "0c90ae2ceff7ac6878a090d35b4ea9ba"
 optional = false
 category = "main"
 
@@ -1143,14 +1069,13 @@ numpy = ">=1.19.5,<2.0a0"
 python = ">=3.9,<3.10.0a0"
 python_abi = "3.9.* *_cp39"
 setuptools = ""
-[package.packages.linux-64]
-url = "https://conda.anaconda.org/conda-forge/linux-64/numexpr-2.7.3-py39hde0f152_0.tar.bz2"
-hash = "0c90ae2ceff7ac6878a090d35b4ea9ba"
 [[package]]
 name = "numpy"
 version = "1.21.3"
 manager = "conda"
-platforms = [ "linux-64",]
+platform = "linux-64"
+url = "https://conda.anaconda.org/conda-forge/linux-64/numpy-1.21.3-py39hdbf815f_1.tar.bz2"
+hash = "e47227d44d6041254f4462420be46c08"
 optional = false
 category = "main"
 
@@ -1161,27 +1086,25 @@ libgcc-ng = ">=9.4.0"
 liblapack = ">=3.8.0,<4.0a0"
 python = ">=3.9,<3.10.0a0"
 python_abi = "3.9.* *_cp39"
-[package.packages.linux-64]
-url = "https://conda.anaconda.org/conda-forge/linux-64/numpy-1.21.3-py39hdbf815f_1.tar.bz2"
-hash = "e47227d44d6041254f4462420be46c08"
 [[package]]
 name = "olefile"
 version = "0.46"
 manager = "conda"
-platforms = [ "linux-64",]
+platform = "linux-64"
+url = "https://conda.anaconda.org/conda-forge/noarch/olefile-0.46-pyh9f0ad1d_1.tar.bz2"
+hash = "0b2e68acc8c78c8cc392b90983481f58"
 optional = false
 category = "main"
 
 [package.dependencies]
 python = ""
-[package.packages.linux-64]
-url = "https://conda.anaconda.org/conda-forge/noarch/olefile-0.46-pyh9f0ad1d_1.tar.bz2"
-hash = "0b2e68acc8c78c8cc392b90983481f58"
 [[package]]
 name = "openjpeg"
 version = "2.4.0"
 manager = "conda"
-platforms = [ "linux-64",]
+platform = "linux-64"
+url = "https://conda.anaconda.org/conda-forge/linux-64/openjpeg-2.4.0-hb52868f_1.tar.bz2"
+hash = "b7ad78ad2e9ee155f59e6428406ee824"
 optional = false
 category = "main"
 
@@ -1191,42 +1114,39 @@ libpng = ">=1.6.37,<1.7.0a0"
 libstdcxx-ng = ">=9.3.0"
 libtiff = ">=4.2.0,<5.0a0"
 zlib = ">=1.2.11,<1.3.0a0"
-[package.packages.linux-64]
-url = "https://conda.anaconda.org/conda-forge/linux-64/openjpeg-2.4.0-hb52868f_1.tar.bz2"
-hash = "b7ad78ad2e9ee155f59e6428406ee824"
 [[package]]
 name = "openssl"
 version = "3.0.0"
 manager = "conda"
-platforms = [ "linux-64",]
+platform = "linux-64"
+url = "https://conda.anaconda.org/conda-forge/linux-64/openssl-3.0.0-h7f98852_2.tar.bz2"
+hash = "3f9cc59705e5ee0c4ec99bd58fe94b94"
 optional = false
 category = "main"
 
 [package.dependencies]
 ca-certificates = ""
 libgcc-ng = ">=9.4.0"
-[package.packages.linux-64]
-url = "https://conda.anaconda.org/conda-forge/linux-64/openssl-3.0.0-h7f98852_2.tar.bz2"
-hash = "3f9cc59705e5ee0c4ec99bd58fe94b94"
 [[package]]
 name = "packaging"
 version = "21.0"
 manager = "conda"
-platforms = [ "linux-64",]
+platform = "linux-64"
+url = "https://conda.anaconda.org/conda-forge/noarch/packaging-21.0-pyhd8ed1ab_0.tar.bz2"
+hash = "45cfb8e482b5cce8f07c87e0e19a592c"
 optional = true
 category = "dev"
 
 [package.dependencies]
 pyparsing = ">=2.0.2"
 python = ">=3.6"
-[package.packages.linux-64]
-url = "https://conda.anaconda.org/conda-forge/noarch/packaging-21.0-pyhd8ed1ab_0.tar.bz2"
-hash = "45cfb8e482b5cce8f07c87e0e19a592c"
 [[package]]
 name = "pandas"
 version = "1.3.4"
 manager = "conda"
-platforms = [ "linux-64",]
+platform = "linux-64"
+url = "https://conda.anaconda.org/conda-forge/linux-64/pandas-1.3.4-py39hde0f152_0.tar.bz2"
+hash = "0eee2a7e311bb61b0c9bd6a50de5f929"
 optional = false
 category = "main"
 
@@ -1238,41 +1158,38 @@ python = ">=3.9,<3.10.0a0"
 python-dateutil = ">=2.7.3"
 python_abi = "3.9.* *_cp39"
 pytz = ">=2017.2"
-[package.packages.linux-64]
-url = "https://conda.anaconda.org/conda-forge/linux-64/pandas-1.3.4-py39hde0f152_0.tar.bz2"
-hash = "0eee2a7e311bb61b0c9bd6a50de5f929"
 [[package]]
 name = "parso"
 version = "0.8.2"
 manager = "conda"
-platforms = [ "linux-64",]
+platform = "linux-64"
+url = "https://conda.anaconda.org/conda-forge/noarch/parso-0.8.2-pyhd8ed1ab_0.tar.bz2"
+hash = "fb40b157bd62b457a1cc82527b63f0b0"
 optional = false
 category = "main"
 
 [package.dependencies]
 python = ">=3.6"
-[package.packages.linux-64]
-url = "https://conda.anaconda.org/conda-forge/noarch/parso-0.8.2-pyhd8ed1ab_0.tar.bz2"
-hash = "fb40b157bd62b457a1cc82527b63f0b0"
 [[package]]
 name = "pexpect"
 version = "4.8.0"
 manager = "conda"
-platforms = [ "linux-64",]
+platform = "linux-64"
+url = "https://conda.anaconda.org/conda-forge/noarch/pexpect-4.8.0-pyh9f0ad1d_2.tar.bz2"
+hash = "5909e7b978141dd80d28dbf9de627827"
 optional = false
 category = "main"
 
 [package.dependencies]
 ptyprocess = ">=0.5"
 python = ""
-[package.packages.linux-64]
-url = "https://conda.anaconda.org/conda-forge/noarch/pexpect-4.8.0-pyh9f0ad1d_2.tar.bz2"
-hash = "5909e7b978141dd80d28dbf9de627827"
 [[package]]
 name = "photospline"
 version = "2.0.7"
 manager = "conda"
-platforms = [ "linux-64",]
+platform = "linux-64"
+url = "https://conda.anaconda.org/conda-forge/linux-64/photospline-2.0.7-py39ha552708_0.tar.bz2"
+hash = "a8fcc6d1c0e2525159bd83643b2e636c"
 optional = false
 category = "main"
 
@@ -1284,27 +1201,25 @@ numpy = ">=1.19.5,<2.0a0"
 python = ">=3.9,<3.10.0a0"
 python_abi = "3.9.* *_cp39"
 suitesparse = ">=5.7.2,<6.0a0"
-[package.packages.linux-64]
-url = "https://conda.anaconda.org/conda-forge/linux-64/photospline-2.0.7-py39ha552708_0.tar.bz2"
-hash = "a8fcc6d1c0e2525159bd83643b2e636c"
 [[package]]
 name = "pickleshare"
 version = "0.7.5"
 manager = "conda"
-platforms = [ "linux-64",]
+platform = "linux-64"
+url = "https://conda.anaconda.org/conda-forge/noarch/pickleshare-0.7.5-py_1003.tar.bz2"
+hash = "415f0ebb6198cc2801c73438a9fb5761"
 optional = false
 category = "main"
 
 [package.dependencies]
 python = ">=3"
-[package.packages.linux-64]
-url = "https://conda.anaconda.org/conda-forge/noarch/pickleshare-0.7.5-py_1003.tar.bz2"
-hash = "415f0ebb6198cc2801c73438a9fb5761"
 [[package]]
 name = "pillow"
 version = "8.3.2"
 manager = "conda"
-platforms = [ "linux-64",]
+platform = "linux-64"
+url = "https://conda.anaconda.org/conda-forge/linux-64/pillow-8.3.2-py39ha612740_0.tar.bz2"
+hash = "e1e676b09fe9e9ad5e88335eca545443"
 optional = false
 category = "main"
 
@@ -1320,14 +1235,13 @@ python = ">=3.9,<3.10.0a0"
 python_abi = "3.9.* *_cp39"
 tk = ">=8.6.11,<8.7.0a0"
 zlib = ">=1.2.11,<1.3.0a0"
-[package.packages.linux-64]
-url = "https://conda.anaconda.org/conda-forge/linux-64/pillow-8.3.2-py39ha612740_0.tar.bz2"
-hash = "e1e676b09fe9e9ad5e88335eca545443"
 [[package]]
 name = "pip"
 version = "21.3.1"
 manager = "conda"
-platforms = [ "linux-64",]
+platform = "linux-64"
+url = "https://conda.anaconda.org/conda-forge/noarch/pip-21.3.1-pyhd8ed1ab_0.tar.bz2"
+hash = "e4fe2a9af78ff11f1aced7e62128c6a8"
 optional = false
 category = "main"
 
@@ -1335,68 +1249,63 @@ category = "main"
 python = ">=3.6"
 setuptools = ""
 wheel = ""
-[package.packages.linux-64]
-url = "https://conda.anaconda.org/conda-forge/noarch/pip-21.3.1-pyhd8ed1ab_0.tar.bz2"
-hash = "e4fe2a9af78ff11f1aced7e62128c6a8"
 [[package]]
 name = "pluggy"
 version = "1.0.0"
 manager = "conda"
-platforms = [ "linux-64",]
+platform = "linux-64"
+url = "https://conda.anaconda.org/conda-forge/linux-64/pluggy-1.0.0-py39hf3d152e_2.tar.bz2"
+hash = "2b6a2f6875bbebc7646fe556b677a015"
 optional = true
 category = "dev"
 
 [package.dependencies]
 python = ">=3.9,<3.10.0a0"
 python_abi = "3.9.* *_cp39"
-[package.packages.linux-64]
-url = "https://conda.anaconda.org/conda-forge/linux-64/pluggy-1.0.0-py39hf3d152e_2.tar.bz2"
-hash = "2b6a2f6875bbebc7646fe556b677a015"
 [[package]]
 name = "prompt-toolkit"
 version = "3.0.21"
 manager = "conda"
-platforms = [ "linux-64",]
+platform = "linux-64"
+url = "https://conda.anaconda.org/conda-forge/noarch/prompt-toolkit-3.0.21-pyha770c72_0.tar.bz2"
+hash = "49fe880250e91246d2a0f41f7ff94e81"
 optional = false
 category = "main"
 
 [package.dependencies]
 python = ">=3.6"
 wcwidth = ""
-[package.packages.linux-64]
-url = "https://conda.anaconda.org/conda-forge/noarch/prompt-toolkit-3.0.21-pyha770c72_0.tar.bz2"
-hash = "49fe880250e91246d2a0f41f7ff94e81"
 [[package]]
 name = "ptyprocess"
 version = "0.7.0"
 manager = "conda"
-platforms = [ "linux-64",]
+platform = "linux-64"
+url = "https://conda.anaconda.org/conda-forge/noarch/ptyprocess-0.7.0-pyhd3deb0d_0.tar.bz2"
+hash = "359eeb6536da0e687af562ed265ec263"
 optional = false
 category = "main"
 
 [package.dependencies]
 python = ""
-[package.packages.linux-64]
-url = "https://conda.anaconda.org/conda-forge/noarch/ptyprocess-0.7.0-pyhd3deb0d_0.tar.bz2"
-hash = "359eeb6536da0e687af562ed265ec263"
 [[package]]
 name = "py"
 version = "1.10.0"
 manager = "conda"
-platforms = [ "linux-64",]
+platform = "linux-64"
+url = "https://conda.anaconda.org/conda-forge/noarch/py-1.10.0-pyhd3deb0d_0.tar.bz2"
+hash = "88ca1328ecc79a070214aa24911bace8"
 optional = true
 category = "dev"
 
 [package.dependencies]
 python = ">=2.7"
-[package.packages.linux-64]
-url = "https://conda.anaconda.org/conda-forge/noarch/py-1.10.0-pyhd3deb0d_0.tar.bz2"
-hash = "88ca1328ecc79a070214aa24911bace8"
 [[package]]
 name = "pyerfa"
-version = "2.0.0"
+version = "2.0.0.1"
 manager = "conda"
-platforms = [ "linux-64",]
+platform = "linux-64"
+url = "https://conda.anaconda.org/conda-forge/linux-64/pyerfa-2.0.0.1-py39hce5d2b2_0.tar.bz2"
+hash = "a0e59773f4dcee0c0bf25f6c675e2b42"
 optional = false
 category = "main"
 
@@ -1405,41 +1314,38 @@ libgcc-ng = ">=9.4.0"
 numpy = ">=1.19.5,<2.0a0"
 python = ">=3.9,<3.10.0a0"
 python_abi = "3.9.* *_cp39"
-[package.packages.linux-64]
-url = "https://conda.anaconda.org/conda-forge/linux-64/pyerfa-2.0.0-py39hce5d2b2_0.tar.bz2"
-hash = "15c60b3e57280a12395cff79cece68e7"
 [[package]]
 name = "pygments"
 version = "2.10.0"
 manager = "conda"
-platforms = [ "linux-64",]
+platform = "linux-64"
+url = "https://conda.anaconda.org/conda-forge/noarch/pygments-2.10.0-pyhd8ed1ab_0.tar.bz2"
+hash = "32bcce837f1316f1c3208118b6c5e5fc"
 optional = false
 category = "main"
 
 [package.dependencies]
 python = ">=3.5"
 setuptools = ""
-[package.packages.linux-64]
-url = "https://conda.anaconda.org/conda-forge/noarch/pygments-2.10.0-pyhd8ed1ab_0.tar.bz2"
-hash = "32bcce837f1316f1c3208118b6c5e5fc"
 [[package]]
 name = "pyparsing"
 version = "3.0.4"
 manager = "conda"
-platforms = [ "linux-64",]
+platform = "linux-64"
+url = "https://conda.anaconda.org/conda-forge/noarch/pyparsing-3.0.4-pyhd8ed1ab_0.tar.bz2"
+hash = "bd88d04ada10f0f975bb5e2f9352d3a8"
 optional = true
 category = "dev"
 
 [package.dependencies]
 python = ">=3.6"
-[package.packages.linux-64]
-url = "https://conda.anaconda.org/conda-forge/noarch/pyparsing-3.0.4-pyhd8ed1ab_0.tar.bz2"
-hash = "bd88d04ada10f0f975bb5e2f9352d3a8"
 [[package]]
 name = "pytables"
 version = "3.6.1"
 manager = "conda"
-platforms = [ "linux-64",]
+platform = "linux-64"
+url = "https://conda.anaconda.org/conda-forge/linux-64/pytables-3.6.1-py39h2669a42_4.tar.bz2"
+hash = "c94d9b6cdb52eccec4c483f2961791f5"
 optional = false
 category = "main"
 
@@ -1457,14 +1363,13 @@ python = ">=3.9,<3.10.0a0"
 python_abi = "3.9.* *_cp39"
 six = ""
 zlib = ">=1.2.11,<1.3.0a0"
-[package.packages.linux-64]
-url = "https://conda.anaconda.org/conda-forge/linux-64/pytables-3.6.1-py39h2669a42_4.tar.bz2"
-hash = "c94d9b6cdb52eccec4c483f2961791f5"
 [[package]]
 name = "pytest"
 version = "6.2.5"
 manager = "conda"
-platforms = [ "linux-64",]
+platform = "linux-64"
+url = "https://conda.anaconda.org/conda-forge/linux-64/pytest-6.2.5-py39hf3d152e_1.tar.bz2"
+hash = "5a2cb92ccaac272bbf4d167352d6b4d4"
 optional = true
 category = "dev"
 
@@ -1478,14 +1383,13 @@ py = ">=1.8.2"
 python = ">=3.9,<3.10.0a0"
 python_abi = "3.9.* *_cp39"
 toml = ""
-[package.packages.linux-64]
-url = "https://conda.anaconda.org/conda-forge/linux-64/pytest-6.2.5-py39hf3d152e_1.tar.bz2"
-hash = "5a2cb92ccaac272bbf4d167352d6b4d4"
 [[package]]
 name = "pytest-runner"
 version = "5.3.1"
 manager = "conda"
-platforms = [ "linux-64",]
+platform = "linux-64"
+url = "https://conda.anaconda.org/conda-forge/noarch/pytest-runner-5.3.1-pyhd8ed1ab_0.tar.bz2"
+hash = "746605234be5c988579ba312035c3959"
 optional = false
 category = "main"
 
@@ -1493,14 +1397,13 @@ category = "main"
 pytest = ""
 python = ">=3.6"
 setuptools = ""
-[package.packages.linux-64]
-url = "https://conda.anaconda.org/conda-forge/noarch/pytest-runner-5.3.1-pyhd8ed1ab_0.tar.bz2"
-hash = "746605234be5c988579ba312035c3959"
 [[package]]
 name = "python"
 version = "3.9.7"
 manager = "conda"
-platforms = [ "linux-64",]
+platform = "linux-64"
+url = "https://conda.anaconda.org/conda-forge/linux-64/python-3.9.7-hf930737_3_cpython.tar.bz2"
+hash = "e9741ee23c7a0ea9b8968b517b9a8f9a"
 optional = false
 category = "main"
 
@@ -1516,54 +1419,50 @@ tk = ">=8.6.11,<8.7.0a0"
 tzdata = ""
 xz = ">=5.2.5,<5.3.0a0"
 zlib = ">=1.2.11,<1.3.0a0"
-[package.packages.linux-64]
-url = "https://conda.anaconda.org/conda-forge/linux-64/python-3.9.7-hf930737_3_cpython.tar.bz2"
-hash = "e9741ee23c7a0ea9b8968b517b9a8f9a"
 [[package]]
 name = "python-dateutil"
 version = "2.8.2"
 manager = "conda"
-platforms = [ "linux-64",]
+platform = "linux-64"
+url = "https://conda.anaconda.org/conda-forge/noarch/python-dateutil-2.8.2-pyhd8ed1ab_0.tar.bz2"
+hash = "dd999d1cc9f79e67dbb855c8924c7984"
 optional = false
 category = "main"
 
 [package.dependencies]
 python = ">=3.6"
 six = ">=1.5"
-[package.packages.linux-64]
-url = "https://conda.anaconda.org/conda-forge/noarch/python-dateutil-2.8.2-pyhd8ed1ab_0.tar.bz2"
-hash = "dd999d1cc9f79e67dbb855c8924c7984"
 [[package]]
 name = "python_abi"
 version = "3.9"
 manager = "conda"
-platforms = [ "linux-64",]
+platform = "linux-64"
+url = "https://conda.anaconda.org/conda-forge/linux-64/python_abi-3.9-2_cp39.tar.bz2"
+hash = "39adde4247484de2bb4000122fdcf665"
 optional = true
 category = "dev"
 
 [package.dependencies]
 python = "3.9.*"
-[package.packages.linux-64]
-url = "https://conda.anaconda.org/conda-forge/linux-64/python_abi-3.9-2_cp39.tar.bz2"
-hash = "39adde4247484de2bb4000122fdcf665"
 [[package]]
 name = "pytz"
 version = "2021.3"
 manager = "conda"
-platforms = [ "linux-64",]
+platform = "linux-64"
+url = "https://conda.anaconda.org/conda-forge/noarch/pytz-2021.3-pyhd8ed1ab_0.tar.bz2"
+hash = "7e4f811bff46a5a6a7e0094921389395"
 optional = false
 category = "main"
 
 [package.dependencies]
 python = ">=3"
-[package.packages.linux-64]
-url = "https://conda.anaconda.org/conda-forge/noarch/pytz-2021.3-pyhd8ed1ab_0.tar.bz2"
-hash = "7e4f811bff46a5a6a7e0094921389395"
 [[package]]
 name = "pyyaml"
 version = "6.0"
 manager = "conda"
-platforms = [ "linux-64",]
+platform = "linux-64"
+url = "https://conda.anaconda.org/conda-forge/linux-64/pyyaml-6.0-py39h3811e60_2.tar.bz2"
+hash = "99a3938e1a378b5683d899ca39e893f9"
 optional = false
 category = "main"
 
@@ -1572,14 +1471,13 @@ libgcc-ng = ">=9.4.0"
 python = ">=3.9,<3.10.0a0"
 python_abi = "3.9.* *_cp39"
 yaml = ">=0.2.5,<0.3.0a0"
-[package.packages.linux-64]
-url = "https://conda.anaconda.org/conda-forge/linux-64/pyyaml-6.0-py39h3811e60_1.tar.bz2"
-hash = "fd1575f69835e06f73c26d3bd04537a4"
 [[package]]
 name = "pyzmq"
 version = "22.3.0"
 manager = "conda"
-platforms = [ "linux-64",]
+platform = "linux-64"
+url = "https://conda.anaconda.org/conda-forge/linux-64/pyzmq-22.3.0-py39h37b5a0c_1.tar.bz2"
+hash = "90dbe11c01a89fc6fddb90cbe2672e68"
 optional = false
 category = "main"
 
@@ -1590,28 +1488,26 @@ libstdcxx-ng = ">=9.4.0"
 python = ">=3.9,<3.10.0a0"
 python_abi = "3.9.* *_cp39"
 zeromq = ">=4.3.4,<4.4.0a0"
-[package.packages.linux-64]
-url = "https://conda.anaconda.org/conda-forge/linux-64/pyzmq-22.3.0-py39h37b5a0c_1.tar.bz2"
-hash = "90dbe11c01a89fc6fddb90cbe2672e68"
 [[package]]
 name = "readline"
 version = "8.1"
 manager = "conda"
-platforms = [ "linux-64",]
+platform = "linux-64"
+url = "https://conda.anaconda.org/conda-forge/linux-64/readline-8.1-h46c0cb4_0.tar.bz2"
+hash = "5788de3c8d7a7d64ac56c784c4ef48e6"
 optional = false
 category = "main"
 
 [package.dependencies]
 libgcc-ng = ">=9.3.0"
 ncurses = ">=6.2,<6.3.0a0"
-[package.packages.linux-64]
-url = "https://conda.anaconda.org/conda-forge/linux-64/readline-8.1-h46c0cb4_0.tar.bz2"
-hash = "5788de3c8d7a7d64ac56c784c4ef48e6"
 [[package]]
 name = "scipy"
 version = "1.7.1"
 manager = "conda"
-platforms = [ "linux-64",]
+platform = "linux-64"
+url = "https://conda.anaconda.org/conda-forge/linux-64/scipy-1.7.1-py39hee8e79c_0.tar.bz2"
+hash = "ad828d8a09ce2e3820b3fce0a3ac85ed"
 optional = false
 category = "main"
 
@@ -1626,41 +1522,38 @@ libstdcxx-ng = ">=9.4.0"
 numpy = ">=1.19.5,<2.0a0"
 python = ">=3.9,<3.10.0a0"
 python_abi = "3.9.* *_cp39"
-[package.packages.linux-64]
-url = "https://conda.anaconda.org/conda-forge/linux-64/scipy-1.7.1-py39hee8e79c_0.tar.bz2"
-hash = "ad828d8a09ce2e3820b3fce0a3ac85ed"
 [[package]]
 name = "setuptools"
-version = "58.4.0"
+version = "58.5.2"
 manager = "conda"
-platforms = [ "linux-64",]
+platform = "linux-64"
+url = "https://conda.anaconda.org/conda-forge/linux-64/setuptools-58.5.2-py39hf3d152e_0.tar.bz2"
+hash = "9dca990ecac1e32f3bc8d80580e894a6"
 optional = false
 category = "main"
 
 [package.dependencies]
 python = ">=3.9,<3.10.0a0"
 python_abi = "3.9.* *_cp39"
-[package.packages.linux-64]
-url = "https://conda.anaconda.org/conda-forge/linux-64/setuptools-58.4.0-py39hf3d152e_1.tar.bz2"
-hash = "cc4630693ba87e61721ab5c9a6387fef"
 [[package]]
 name = "six"
 version = "1.16.0"
 manager = "conda"
-platforms = [ "linux-64",]
+platform = "linux-64"
+url = "https://conda.anaconda.org/conda-forge/noarch/six-1.16.0-pyh6c4a22f_0.tar.bz2"
+hash = "e5f25f8dbc060e9a8d912e432202afc2"
 optional = false
 category = "main"
 
 [package.dependencies]
 python = ""
-[package.packages.linux-64]
-url = "https://conda.anaconda.org/conda-forge/noarch/six-1.16.0-pyh6c4a22f_0.tar.bz2"
-hash = "e5f25f8dbc060e9a8d912e432202afc2"
 [[package]]
 name = "sqlite"
 version = "3.36.0"
 manager = "conda"
-platforms = [ "linux-64",]
+platform = "linux-64"
+url = "https://conda.anaconda.org/conda-forge/linux-64/sqlite-3.36.0-h9cd32fc_2.tar.bz2"
+hash = "3588c2c6cb9f9bcc65b544ab1c715d60"
 optional = false
 category = "main"
 
@@ -1669,14 +1562,13 @@ libgcc-ng = ">=9.4.0"
 ncurses = ">=6.2,<6.3.0a0"
 readline = ">=8.1,<9.0a0"
 zlib = ">=1.2.11,<1.3.0a0"
-[package.packages.linux-64]
-url = "https://conda.anaconda.org/conda-forge/linux-64/sqlite-3.36.0-h9cd32fc_2.tar.bz2"
-hash = "3588c2c6cb9f9bcc65b544ab1c715d60"
 [[package]]
 name = "suitesparse"
 version = "5.10.1"
 manager = "conda"
-platforms = [ "linux-64",]
+platform = "linux-64"
+url = "https://conda.anaconda.org/conda-forge/linux-64/suitesparse-5.10.1-h9e50725_1.tar.bz2"
+hash = "a3a685b5f9aeb890ed874502fe56accf"
 optional = false
 category = "main"
 
@@ -1689,68 +1581,63 @@ libstdcxx-ng = ">=9.4.0"
 metis = ">=5.1.0,<5.2.0a0"
 mpfr = ">=4.1.0,<5.0a0"
 tbb = ">=2021.3.0"
-[package.packages.linux-64]
-url = "https://conda.anaconda.org/conda-forge/linux-64/suitesparse-5.10.1-h9e50725_1.tar.bz2"
-hash = "a3a685b5f9aeb890ed874502fe56accf"
 [[package]]
 name = "tbb"
 version = "2021.4.0"
 manager = "conda"
-platforms = [ "linux-64",]
+platform = "linux-64"
+url = "https://conda.anaconda.org/conda-forge/linux-64/tbb-2021.4.0-h4bd325d_1.tar.bz2"
+hash = "5c0e6a6180660e803d06905ab97d1878"
 optional = false
 category = "main"
 
 [package.dependencies]
 libgcc-ng = ">=9.4.0"
 libstdcxx-ng = ">=9.4.0"
-[package.packages.linux-64]
-url = "https://conda.anaconda.org/conda-forge/linux-64/tbb-2021.4.0-h4bd325d_1.tar.bz2"
-hash = "5c0e6a6180660e803d06905ab97d1878"
 [[package]]
 name = "tk"
 version = "8.6.11"
 manager = "conda"
-platforms = [ "linux-64",]
+platform = "linux-64"
+url = "https://conda.anaconda.org/conda-forge/linux-64/tk-8.6.11-h27826a3_1.tar.bz2"
+hash = "84e76fb280e735fec1efd2d21fd9cb27"
 optional = false
 category = "main"
 
 [package.dependencies]
 libgcc-ng = ">=9.4.0"
 zlib = ">=1.2.11,<1.3.0a0"
-[package.packages.linux-64]
-url = "https://conda.anaconda.org/conda-forge/linux-64/tk-8.6.11-h27826a3_1.tar.bz2"
-hash = "84e76fb280e735fec1efd2d21fd9cb27"
 [[package]]
 name = "toml"
 version = "0.10.2"
 manager = "conda"
-platforms = [ "linux-64",]
+platform = "linux-64"
+url = "https://conda.anaconda.org/conda-forge/noarch/toml-0.10.2-pyhd8ed1ab_0.tar.bz2"
+hash = "f832c45a477c78bebd107098db465095"
 optional = true
 category = "dev"
 
 [package.dependencies]
 python = ">=2.7"
-[package.packages.linux-64]
-url = "https://conda.anaconda.org/conda-forge/noarch/toml-0.10.2-pyhd8ed1ab_0.tar.bz2"
-hash = "f832c45a477c78bebd107098db465095"
 [[package]]
 name = "toolz"
 version = "0.11.1"
 manager = "conda"
-platforms = [ "linux-64",]
+platform = "linux-64"
+url = "https://conda.anaconda.org/conda-forge/noarch/toolz-0.11.1-py_0.tar.bz2"
+hash = "d1e66b58cb00b3817ad9f05eec098c00"
 optional = false
 category = "main"
 
 [package.dependencies]
 python = ">=3.5"
-[package.packages.linux-64]
-url = "https://conda.anaconda.org/conda-forge/noarch/toolz-0.11.1-py_0.tar.bz2"
-hash = "d1e66b58cb00b3817ad9f05eec098c00"
 [[package]]
 name = "tornado"
 version = "6.1"
 manager = "conda"
-platforms = [ "linux-64",]
+platform = "linux-64"
+url = "https://conda.anaconda.org/conda-forge/linux-64/tornado-6.1-py39h3811e60_2.tar.bz2"
+hash = "5a7bb7af2f3bcf31ee6cd817de1d5011"
 optional = false
 category = "main"
 
@@ -1758,105 +1645,97 @@ category = "main"
 libgcc-ng = ">=9.4.0"
 python = ">=3.9,<3.10.0a0"
 python_abi = "3.9.* *_cp39"
-[package.packages.linux-64]
-url = "https://conda.anaconda.org/conda-forge/linux-64/tornado-6.1-py39h3811e60_2.tar.bz2"
-hash = "5a7bb7af2f3bcf31ee6cd817de1d5011"
 [[package]]
 name = "tqdm"
 version = "4.62.3"
 manager = "conda"
-platforms = [ "linux-64",]
+platform = "linux-64"
+url = "https://conda.anaconda.org/conda-forge/noarch/tqdm-4.62.3-pyhd8ed1ab_0.tar.bz2"
+hash = "24ed42db084efd6e615babec03c2b460"
 optional = false
 category = "main"
 
 [package.dependencies]
 colorama = ""
 python = ">=2.7"
-[package.packages.linux-64]
-url = "https://conda.anaconda.org/conda-forge/noarch/tqdm-4.62.3-pyhd8ed1ab_0.tar.bz2"
-hash = "24ed42db084efd6e615babec03c2b460"
 [[package]]
 name = "traitlets"
 version = "5.1.1"
 manager = "conda"
-platforms = [ "linux-64",]
+platform = "linux-64"
+url = "https://conda.anaconda.org/conda-forge/noarch/traitlets-5.1.1-pyhd8ed1ab_0.tar.bz2"
+hash = "a1bc9765ef9499760e88f568b3a6622c"
 optional = false
 category = "main"
 
 [package.dependencies]
 python = ">=3.7"
-[package.packages.linux-64]
-url = "https://conda.anaconda.org/conda-forge/noarch/traitlets-5.1.1-pyhd8ed1ab_0.tar.bz2"
-hash = "a1bc9765ef9499760e88f568b3a6622c"
 [[package]]
 name = "tzdata"
 version = "2021e"
 manager = "conda"
-platforms = [ "linux-64",]
+platform = "linux-64"
+url = "https://conda.anaconda.org/conda-forge/noarch/tzdata-2021e-he74cb21_0.tar.bz2"
+hash = "a751ec502589ebdc2eceb183ff602569"
 optional = false
 category = "main"
 
-[package.packages.linux-64]
-url = "https://conda.anaconda.org/conda-forge/noarch/tzdata-2021e-he74cb21_0.tar.bz2"
-hash = "a751ec502589ebdc2eceb183ff602569"
 [[package]]
 name = "wcwidth"
 version = "0.2.5"
 manager = "conda"
-platforms = [ "linux-64",]
+platform = "linux-64"
+url = "https://conda.anaconda.org/conda-forge/noarch/wcwidth-0.2.5-pyh9f0ad1d_2.tar.bz2"
+hash = "5266fcd697043c59621fda522b3d78ee"
 optional = false
 category = "main"
 
 [package.dependencies]
 "backports.functools_lru_cache" = ""
 python = ""
-[package.packages.linux-64]
-url = "https://conda.anaconda.org/conda-forge/noarch/wcwidth-0.2.5-pyh9f0ad1d_2.tar.bz2"
-hash = "5266fcd697043c59621fda522b3d78ee"
 [[package]]
 name = "wheel"
 version = "0.37.0"
 manager = "conda"
-platforms = [ "linux-64",]
+platform = "linux-64"
+url = "https://conda.anaconda.org/conda-forge/noarch/wheel-0.37.0-pyhd8ed1ab_1.tar.bz2"
+hash = "3aa2c3e25dd361b453d010388b9cdff1"
 optional = false
 category = "main"
 
 [package.dependencies]
 python = "!=3.0,!=3.1,!=3.2,!=3.3,!=3.4"
-[package.packages.linux-64]
-url = "https://conda.anaconda.org/conda-forge/noarch/wheel-0.37.0-pyhd8ed1ab_1.tar.bz2"
-hash = "3aa2c3e25dd361b453d010388b9cdff1"
 [[package]]
 name = "xz"
 version = "5.2.5"
 manager = "conda"
-platforms = [ "linux-64",]
+platform = "linux-64"
+url = "https://conda.anaconda.org/conda-forge/linux-64/xz-5.2.5-h516909a_1.tar.bz2"
+hash = "33f601066901f3e1a85af3522a8113f9"
 optional = false
 category = "main"
 
 [package.dependencies]
 libgcc-ng = ">=7.5.0"
-[package.packages.linux-64]
-url = "https://conda.anaconda.org/conda-forge/linux-64/xz-5.2.5-h516909a_1.tar.bz2"
-hash = "33f601066901f3e1a85af3522a8113f9"
 [[package]]
 name = "yaml"
 version = "0.2.5"
 manager = "conda"
-platforms = [ "linux-64",]
+platform = "linux-64"
+url = "https://conda.anaconda.org/conda-forge/linux-64/yaml-0.2.5-h516909a_0.tar.bz2"
+hash = "03a530e925414902547cf48da7756db8"
 optional = false
 category = "main"
 
 [package.dependencies]
 libgcc-ng = ">=7.5.0"
-[package.packages.linux-64]
-url = "https://conda.anaconda.org/conda-forge/linux-64/yaml-0.2.5-h516909a_0.tar.bz2"
-hash = "03a530e925414902547cf48da7756db8"
 [[package]]
 name = "zeromq"
 version = "4.3.4"
 manager = "conda"
-platforms = [ "linux-64",]
+platform = "linux-64"
+url = "https://conda.anaconda.org/conda-forge/linux-64/zeromq-4.3.4-h9c3ff4c_1.tar.bz2"
+hash = "21743a8d2ea0c8cfbbf8fe489b0347df"
 optional = false
 category = "main"
 
@@ -1864,41 +1743,38 @@ category = "main"
 libgcc-ng = ">=9.4.0"
 libsodium = ">=1.0.18,<1.0.19.0a0"
 libstdcxx-ng = ">=9.4.0"
-[package.packages.linux-64]
-url = "https://conda.anaconda.org/conda-forge/linux-64/zeromq-4.3.4-h9c3ff4c_1.tar.bz2"
-hash = "21743a8d2ea0c8cfbbf8fe489b0347df"
 [[package]]
 name = "zipp"
 version = "3.6.0"
 manager = "conda"
-platforms = [ "linux-64",]
+platform = "linux-64"
+url = "https://conda.anaconda.org/conda-forge/noarch/zipp-3.6.0-pyhd8ed1ab_0.tar.bz2"
+hash = "855e2c4622f5eb50a4f6f7167b9ba17a"
 optional = false
 category = "main"
 
 [package.dependencies]
 python = ">=3.6"
-[package.packages.linux-64]
-url = "https://conda.anaconda.org/conda-forge/noarch/zipp-3.6.0-pyhd8ed1ab_0.tar.bz2"
-hash = "855e2c4622f5eb50a4f6f7167b9ba17a"
 [[package]]
 name = "zlib"
 version = "1.2.11"
 manager = "conda"
-platforms = [ "linux-64",]
+platform = "linux-64"
+url = "https://conda.anaconda.org/conda-forge/linux-64/zlib-1.2.11-h36c2ea0_1013.tar.bz2"
+hash = "cf7190238072a41e9579e4476a6a60b8"
 optional = false
 category = "main"
 
 [package.dependencies]
 libgcc-ng = ">=7.5.0"
 libzlib = "1.2.11 h36c2ea0_1013"
-[package.packages.linux-64]
-url = "https://conda.anaconda.org/conda-forge/linux-64/zlib-1.2.11-h36c2ea0_1013.tar.bz2"
-hash = "cf7190238072a41e9579e4476a6a60b8"
 [[package]]
 name = "zstd"
 version = "1.5.0"
 manager = "conda"
-platforms = [ "linux-64",]
+platform = "linux-64"
+url = "https://conda.anaconda.org/conda-forge/linux-64/zstd-1.5.0-ha95c52a_0.tar.bz2"
+hash = "b56f94865e2de36abf054e7bfa499034"
 optional = false
 category = "main"
 
@@ -1908,52 +1784,48 @@ libstdcxx-ng = ">=9.3.0"
 lz4-c = ">=1.9.3,<1.9.4.0a0"
 xz = ">=5.2.5,<5.3.0a0"
 zlib = ">=1.2.11,<1.3.0a0"
-[package.packages.linux-64]
-url = "https://conda.anaconda.org/conda-forge/linux-64/zstd-1.5.0-ha95c52a_0.tar.bz2"
-hash = "b56f94865e2de36abf054e7bfa499034"
 [[package]]
 name = "colored"
 version = "1.4.3"
 manager = "pip"
-platforms = [ "linux-64",]
+platform = "linux-64"
+url = "https://files.pythonhosted.org/packages/f4/57/fe3e4e96efa3c68d3781a0903de0933ea2afa744852d907b290a2cb2294e/colored-1.4.3.tar.gz"
+hash = "sha256:b7b48b9f40e8a65bbb54813d5d79dd008dc8b8c5638d5bbfd30fc5a82e6def7a"
 optional = true
 category = "dev"
 
-[package.packages.linux-64]
-url = "https://files.pythonhosted.org/packages/f4/57/fe3e4e96efa3c68d3781a0903de0933ea2afa744852d907b290a2cb2294e/colored-1.4.3.tar.gz"
-hash = "sha256:b7b48b9f40e8a65bbb54813d5d79dd008dc8b8c5638d5bbfd30fc5a82e6def7a"
 [[package]]
 name = "easy-cache"
 version = "1.1.0"
 manager = "pip"
-platforms = [ "linux-64",]
+platform = "linux-64"
+url = "https://files.pythonhosted.org/packages/01/47/1d30783a8ce9df947f4d0c67726b3ecd0dfd22e363684b4eb1a8bf59e6e4/easy_cache-1.1.0-py3-none-any.whl"
+hash = "sha256:d99412159074d39891c83098dd5f0ca63bb56103e46efaa7e8455560680ce282"
 optional = false
 category = "main"
 
 [package.dependencies]
 six = "*"
-[package.packages.linux-64]
-url = "https://files.pythonhosted.org/packages/01/47/1d30783a8ce9df947f4d0c67726b3ecd0dfd22e363684b4eb1a8bf59e6e4/easy_cache-1.1.0-py3-none-any.whl"
-hash = "sha256:d99412159074d39891c83098dd5f0ca63bb56103e46efaa7e8455560680ce282"
 [[package]]
 name = "pydashi"
 version = "2.0.0a0"
 manager = "pip"
-platforms = [ "linux-64",]
+platform = "linux-64"
+url = "https://github.com/IceCube-SPNO/dashi/archive/refs/tags/v2.0.0-alpha.0.tar.gz"
+hash = ""
 optional = false
 category = "main"
 
 [package.source]
 type = "url"
 url = "https://github.com/IceCube-SPNO/dashi/archive/refs/tags/v2.0.0-alpha.0.tar.gz"
-[package.packages.linux-64]
-url = "https://github.com/IceCube-SPNO/dashi/archive/refs/tags/v2.0.0-alpha.0.tar.gz"
-hash = ""
 [[package]]
 name = "syrupy"
-version = "1.4.7"
+version = "1.5.0"
 manager = "pip"
-platforms = [ "linux-64",]
+platform = "linux-64"
+url = "https://files.pythonhosted.org/packages/be/4d/a575239721e18104e58613b14e09e9c48d224557413647dd3e3995dcfaec/syrupy-1.5.0-py3-none-any.whl"
+hash = "sha256:4e791e12bd605c4af8ae39648093a3c665b0c4155c9dc32bcaf08a5433887732"
 optional = true
 category = "dev"
 
@@ -1961,9 +1833,6 @@ category = "dev"
 attrs = ">=18.2.0,<22.0.0"
 colored = ">=1.3.92,<2.0.0"
 pytest = ">=5.1.0,<7.0.0"
-[package.packages.linux-64]
-url = "https://files.pythonhosted.org/packages/5e/78/6f09111ba7e8acd0464673076439255cc7910be3e39c65821fb37df000f6/syrupy-1.4.7-py3-none-any.whl"
-hash = "sha256:5c4b96f222fb2716898f916b20d911811f16a295d0da11eb3846f15bbac2fa55"
 
 [metadata]
 content_hash = "2c65c9a2b76f8ae32ec6c0f975186de713129f0e1fd713d98f41198a9d2ca7fd"
