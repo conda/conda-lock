@@ -182,14 +182,14 @@ def solve_specs_for_arch(
     except subprocess.CalledProcessError:
         try:
             err_json = json.loads(proc.stdout)
+            try:
+                message = err_json["message"]
+            except KeyError:
+                print("Message key not found in json! returning the full json text")
+                message = err_json
         except json.JSONDecodeError as e:
             print(f"Failed to parse json, {e}")
-            message = ""
-        try:
-            message = err_json["message"]
-        except KeyError:
-            print("Message key not found in json! returning the full json text")
-            message = err_json
+            message = proc.stdout
 
         print(f"Could not lock the environment for platform {platform}")
         if message:
