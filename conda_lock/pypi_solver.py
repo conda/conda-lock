@@ -31,6 +31,24 @@ class PlatformEnv(Env):
             self._platforms = ["manylinux_2_17_x86_64", "manylinux2014_x86_64"]
         elif platform == "osx-64":
             self._platforms = ["macosx_10_9_x86_64"]
+        elif platform == "osx-arm64":
+            self._platforms = [
+                "macosx_11_0_arm64",
+                "macosx_11_0_universal2",
+                "macosx_10_16_universal2",
+                "macosx_10_15_universal2",
+                "macosx_10_14_universal2",
+                "macosx_10_13_universal2",
+                "macosx_10_12_universal2",
+                "macosx_10_11_universal2",
+                "macosx_10_10_universal2",
+                "macosx_10_9_universal2",
+                "macosx_10_8_universal2",
+                "macosx_10_7_universal2",
+                "macosx_10_6_universal2",
+                "macosx_10_5_universal2",
+                "macosx_10_4_universal2",
+            ]
         elif platform == "win-64":
             self._platforms = ["win_amd64"]
         else:
