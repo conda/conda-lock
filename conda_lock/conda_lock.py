@@ -1093,7 +1093,7 @@ def render(
         sys.excepthook = handle_exception
 
     with open(lock_file) as f:
-        lockfile = toml.load(f)
+        lockfile = Lockfile.parse_obj(toml.load(f))
 
     do_render(
         lockfile,
