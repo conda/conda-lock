@@ -25,6 +25,7 @@ from conda_lock.conda_lock import (
     determine_conda_executable,
     extract_input_hash,
     main,
+    make_lock_spec,
     parse_meta_yaml_file,
     run_lock,
 )
@@ -61,6 +62,11 @@ def gdal_environment():
 @pytest.fixture
 def pip_environment():
     return TEST_DIR.joinpath("test-pypi-resolve").joinpath("environment.yml")
+
+
+@pytest.fixture
+def pip_local_package_environment():
+    return TEST_DIR.joinpath("test-local-pip").joinpath("environment.yml")
 
 
 @pytest.fixture
@@ -316,6 +322,24 @@ def test_run_lock_with_pip(monkeypatch, pip_environment, conda_exe):
     if is_micromamba(conda_exe):
         monkeypatch.setenv("CONDA_FLAGS", "-v")
     run_lock([pip_environment], conda_exe=conda_exe)
+
+
+def test_run_lock_with_local_package(
+    monkeypatch, pip_local_package_environment, conda_exe
+):
+    monkeypatch.chdir(pip_local_package_environment.parent)
+    if is_micromamba(conda_exe):
+        monkeypatch.setenv("CONDA_FLAGS", "-v")
+    virtual_package_repo = default_virtual_package_repodata()
+
+    with virtual_package_repo:
+        lock_spec = make_lock_spec(
+            src_files=[pip_local_package_environment],
+            virtual_package_repo=virtual_package_repo,
+        )
+    assert not any(
+        p.manager == "pip" for p in lock_spec.dependencies
+    ), "conda-lock ignores editable pip deps"
 
 
 def test_run_lock_with_input_hash_check(

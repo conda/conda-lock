@@ -62,6 +62,16 @@ def parse_environment_file(
         if "pip" in mapping_spec:
             if pip_support:
                 for spec in mapping_spec["pip"]:
+                    if re.match(r"^-e .*$", spec):
+                        print(
+                            (
+                                f"Warning: editable pip dep '{spec}' will not be included in the lock file. "
+                                "You will need to install it separately."
+                            ),
+                            file=sys.stderr,
+                        )
+                        continue
+
                     dependencies.append(
                         parse_python_requirement(
                             spec,
