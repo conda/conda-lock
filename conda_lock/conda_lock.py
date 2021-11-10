@@ -709,10 +709,9 @@ def _render_lockfile_for_install(
     from ensureconda.resolve import platform_subdir
 
     with open(filename) as f:
-        lockfile = cast(Lockfile, toml.load(f))
+        lockfile = Lockfile.parse_obj(toml.load(f))
 
-    # platform = platform_subdir()
-    platform = "linux-64"
+    platform = platform_subdir()
     if platform not in lockfile.metadata.platforms:
         raise PlatformValidationError(
             f"Dependencies are not locked for the current platform ({platform})"
