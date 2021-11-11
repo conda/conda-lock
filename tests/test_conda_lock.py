@@ -30,7 +30,7 @@ from conda_lock.conda_lock import (
     run_lock,
 )
 from conda_lock.conda_solver import _get_repodata_for_package, fake_conda_environment
-from conda_lock.invoke_conda import _ensureconda, is_micromamba
+from conda_lock.invoke_conda import _ensureconda, is_micromamba, reset_conda_pkgs_dir
 from conda_lock.pypi_solver import parse_pip_requirement, solve_pypi
 from conda_lock.src_parser import (
     Dependency,
@@ -52,6 +52,11 @@ TEST_DIR = pathlib.Path(__file__).parent
 @pytest.fixture(autouse=True)
 def logging_setup(caplog):
     caplog.set_level(logging.DEBUG)
+
+
+@pytest.fixture
+def reset_global_conda_pkgs_dir():
+    reset_conda_pkgs_dir()
 
 
 @pytest.fixture
@@ -387,11 +392,11 @@ def test_run_lock_with_input_hash_check(
         ("python", "^2.7", "/python-2.7"),
     ],
 )
-def test_poetry_version_parsing_constraints(package, version, url_pattern):
+def test_poetry_version_parsing_constraints(package, version, url_pattern, capsys):
     _conda_exe = determine_conda_executable("conda", mamba=False, micromamba=False)
 
     vpr = default_virtual_package_repodata()
-    with vpr:
+    with vpr, capsys.disabled():
         spec = LockSpecification(
             dependencies=[
                 VersionedDependency(
@@ -503,7 +508,9 @@ def conda_supports_env(conda_exe):
 
 
 @pytest.mark.parametrize("kind", ["explicit", "env"])
-def test_install(kind, tmp_path, conda_exe, zlib_environment, monkeypatch):
+def test_install(
+    request, kind, tmp_path, conda_exe, zlib_environment, monkeypatch, capsys
+):
     if is_micromamba(conda_exe):
         monkeypatch.setenv("CONDA_FLAGS", "-v")
     if kind == "env" and not conda_supports_env(conda_exe):
@@ -514,8 +521,14 @@ def test_install(kind, tmp_path, conda_exe, zlib_environment, monkeypatch):
     package = "zlib"
     platform = "linux-64"
 
-    lock_filename_template = "conda-{platform}-{dev-dependencies}.lock"
-    lock_filename = "conda-linux-64-true.lock" + (".yml" if kind == "env" else "")
+    lock_filename_template = (
+        request.node.name + "conda-{platform}-{dev-dependencies}.lock"
+    )
+    lock_filename = (
+        request.node.name
+        + "conda-linux-64-true.lock"
+        + (".yml" if kind == "env" else "")
+    )
     try:
         os.remove(lock_filename)
     except OSError:
@@ -523,26 +536,26 @@ def test_install(kind, tmp_path, conda_exe, zlib_environment, monkeypatch):
 
     from click.testing import CliRunner
 
-    runner = CliRunner(mix_stderr=False)
-    result = runner.invoke(
-        main,
-        [
-            "lock",
-            "--conda",
-            conda_exe,
-            "-p",
-            platform,
-            "-f",
-            zlib_environment,
-            "-k",
-            kind,
-            "--filename-template",
-            lock_filename_template,
-        ],
-    )
-    if result.exit_code != 0:
-        print(result.stdout, file=sys.stdout)
-        print(result.stderr, file=sys.stderr)
+    with capsys.disabled():
+        runner = CliRunner(mix_stderr=False)
+        result = runner.invoke(
+            main,
+            [
+                "lock",
+                "--conda",
+                conda_exe,
+                "-p",
+                platform,
+                "-f",
+                zlib_environment,
+                "-k",
+                kind,
+                "--filename-template",
+                lock_filename_template,
+            ],
+        )
+    print(result.stdout, file=sys.stdout)
+    print(result.stderr, file=sys.stderr)
     assert result.exit_code == 0
 
     env_name = "test_env"
@@ -564,10 +577,11 @@ def test_install(kind, tmp_path, conda_exe, zlib_environment, monkeypatch):
     result = invoke_install()
     print(result.stdout, file=sys.stdout)
     print(result.stderr, file=sys.stderr)
-    logging.debug(
-        "lockfile contents: \n\n=======\n%s\n\n==========",
-        pathlib.Path(lock_filename).read_text(),
-    )
+    if pathlib.Path(lock_filename).exists:
+        logging.debug(
+            "lockfile contents: \n\n=======\n%s\n\n==========",
+            pathlib.Path(lock_filename).read_text(),
+        )
     if sys.platform.lower().startswith("linux"):
         assert result.exit_code == 0
         assert _check_package_installed(
@@ -684,7 +698,7 @@ def test__add_auth_to_lockfile(stripped_lockfile, lockfile_with_auth, auth):
 
 
 @pytest.mark.parametrize("kind", ["explicit", "env"])
-def test_virtual_packages(conda_exe, monkeypatch, kind):
+def test_virtual_packages(conda_exe, monkeypatch, kind, capsys):
     test_dir = TEST_DIR.joinpath("test-cuda")
     monkeypatch.chdir(test_dir)
 
@@ -702,20 +716,25 @@ def test_virtual_packages(conda_exe, monkeypatch, kind):
     for lockfile in glob(f"conda-{platform}.*"):
         os.unlink(lockfile)
 
-    runner = CliRunner(mix_stderr=False)
-    result = runner.invoke(
-        main,
-        [
-            "lock",
-            "--conda",
-            conda_exe,
-            "-p",
-            platform,
-            "-k",
-            kind,
-        ],
-    )
+    with capsys.disabled():
+        runner = CliRunner(mix_stderr=False)
+        result = runner.invoke(
+            main,
+            [
+                "lock",
+                "--conda",
+                conda_exe,
+                "-p",
+                platform,
+                "-k",
+                kind,
+            ],
+        )
 
+    print(result.stdout, file=sys.stdout)
+    print(result.stderr, file=sys.stderr)
+    if result.exception:
+        raise result.exception
     assert result.exit_code == 0
 
     for lockfile in glob(f"conda-{platform}.*"):

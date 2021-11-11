@@ -52,7 +52,7 @@ conda-lock --filename-template "specific-{platform}.conda.lock"
 Conda-lock will build a spec list from several files if requested.
 
 ```bash
-conda-lock -f base.yml -f specific.yml -p linux-64 --filename-format "specific-{platform}.lock"
+conda-lock -f base.yml -f specific.yml -p linux-64 --filename-template "specific-{platform}.lock"
 ````
 
 In this case all dependencies are combined, and the first non-empty value for `channels` is used as the final
@@ -239,7 +239,7 @@ sqlite = ">=3.34"
 In order to use conda-lock in a docker-style context you want to add the lockfile to the
 docker container.  In order to refresh the lock file just run `conda-lock` again.
 
-Given aa file tree like
+Given a file tree like
 ```
   Dockerfile
   environment.yaml

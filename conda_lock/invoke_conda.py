@@ -8,6 +8,7 @@ import shutil
 import subprocess
 import tempfile
 
+from distutils.version import LooseVersion
 from typing import Dict, List, Optional, Sequence, Set, Tuple, Union
 
 import ensureconda
@@ -16,6 +17,7 @@ import ensureconda
 PathLike = Union[str, pathlib.Path]
 
 CONDA_PKGS_DIRS = None
+MAMBA_ROOT_PREFIX = None
 
 
 def _ensureconda(
@@ -50,11 +52,11 @@ def determine_conda_executable(
 ):
     for candidate in _determine_conda_executable(conda_executable, mamba, micromamba):
         if candidate is not None:
-            if is_micromamba(candidate) and "MAMBA_ROOT_PREFIX" not in os.environ:
-                mamba_root_prefix = pathlib.Path(candidate).parent / "mamba_root"
-                mamba_root_prefix.mkdir(exist_ok=True, parents=True)
-                os.environ["MAMBA_ROOT_PREFIX"] = str(mamba_root_prefix)
-
+            if is_micromamba(candidate):
+                if ensureconda.api.determine_micromamba_version(
+                    candidate
+                ) < LooseVersion("0.17"):
+                    mamba_root_prefix()
             return candidate
     raise RuntimeError("Could not find conda (or compatible) executable")
 
@@ -158,6 +160,31 @@ def conda_pkgs_dir():
         return CONDA_PKGS_DIRS
     else:
         return CONDA_PKGS_DIRS
+
+
+def mamba_root_prefix():
+    """Legacy root prefix used by micromamba"""
+    global MAMBA_ROOT_PREFIX
+    if MAMBA_ROOT_PREFIX is None:
+        temp_dir = tempfile.TemporaryDirectory()
+        MAMBA_ROOT_PREFIX = temp_dir.name
+        atexit.register(temp_dir.cleanup)
+        os.environ["MAMBA_ROOT_PREFIX"] = MAMBA_ROOT_PREFIX
+        return MAMBA_ROOT_PREFIX
+    else:
+        return MAMBA_ROOT_PREFIX
+
+
+def reset_conda_pkgs_dir():
+    """Clear the fake conda packages directory.  This is used only by testing"""
+    global CONDA_PKGS_DIRS
+    global MAMBA_ROOT_PREFIX
+    CONDA_PKGS_DIRS = None
+    MAMBA_ROOT_PREFIX = None
+    if "CONDA_PKGS_DIRS" in os.environ:
+        del os.environ["CONDA_PKGS_DIRS"]
+    if "MAMBA_ROOT_PREFIX" in os.environ:
+        del os.environ["MAMBA_ROOT_PREFIX"]
 
 
 def is_micromamba(conda: PathLike) -> bool:

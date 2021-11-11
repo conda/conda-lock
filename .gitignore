@@ -8,3 +8,5 @@
 build/
 dist/
 venv/
+test_install*.yml
+test_install*.lock

@@ -13,6 +13,7 @@ import sys
 import tempfile
 
 from contextlib import contextmanager
+from distutils.version import LooseVersion
 from functools import partial
 from itertools import chain
 from typing import AbstractSet, Dict, Iterator, List, Optional, Sequence, Tuple, cast
@@ -23,6 +24,7 @@ import pkg_resources
 import toml
 
 from click_default_group import DefaultGroup
+from ensureconda.api import determine_micromamba_version
 
 from conda_lock.common import read_file, read_json, write_file
 from conda_lock.conda_solver import solve_conda
@@ -74,7 +76,6 @@ if not (sys.version_info.major >= 3 and sys.version_info.minor >= 6):
     sys.exit(1)
 
 
-CONDA_PKGS_DIRS = None
 DEFAULT_PLATFORMS = ["osx-64", "linux-64", "win-64"]
 DEFAULT_KINDS = ["explicit"]
 KIND_FILE_EXT = {
@@ -917,6 +918,8 @@ def lock(
                 logger.info("Using virtual packages from %s", c)
                 virtual_package_spec = c
                 break
+    else:
+        virtual_package_spec = pathlib.Path(virtual_package_spec)
 
     files = [pathlib.Path(file) for file in files]
     extras = set(extras)
@@ -970,8 +973,7 @@ def lock(
 )
 @click.option("--auth-file", help="Path to the authentication file.", default="")
 @click.option(
-    "--validate-platform",
-    is_flag=True,
+    "--validate-platform/--no-validate-platform",
     default=True,
     help="Whether the platform compatibility between your lockfile and the host system should be validated.",
 )
@@ -1020,7 +1022,7 @@ def install(
             do_validate_platform(lockfile)
         except PlatformValidationError as error:
             raise PlatformValidationError(
-                error.args[0] + " Disable validation with `--validate-platform=False`."
+                error.args[0] + " Disable validation with `--no-validate-platform`."
             )
     with _render_lockfile_for_install(
         lock_file, include_dev_dependencies=dev, extras=extras
