@@ -791,10 +791,16 @@ def _add_auth_to_lockfile(lockfile: str, auth: Dict[str, str]) -> str:
 
 @contextmanager
 def _add_auth(lockfile: str, auth: Dict[str, str]) -> Iterator[str]:
-    with tempfile.NamedTemporaryFile() as tf:
-        lockfile_with_auth = _add_auth_to_lockfile(lockfile, auth)
+    lockfile_with_auth = _add_auth_to_lockfile(lockfile, auth)
+
+    # On Windows, NamedTemporaryFiles can't be opened a second time, so we have to close it first (and delete it manually later)
+    tf = tempfile.NamedTemporaryFile(delete=False)
+    try:
+        tf.close()
         write_file(lockfile_with_auth, tf.name)
         yield tf.name
+    finally:
+        os.unlink(tf.name)
 
 
 def _strip_auth_from_line(line: str) -> str:
