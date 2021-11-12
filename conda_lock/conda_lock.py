@@ -519,6 +519,8 @@ def _solve_for_arch(
     channels: List[str],
     update_spec: UpdateSpecification = UpdateSpecification(),
 ) -> List[LockedDependency]:
+    if update_spec is None:
+        update_spec = UpdateSpecification()
     # filter requested and locked dependencies to the current platform
     dependencies = [
         dep
@@ -569,7 +571,7 @@ def create_lockfile_from_spec(
     *,
     conda: PathLike,
     spec: LockSpecification,
-    update_spec: UpdateSpecification = UpdateSpecification(),
+    update_spec: UpdateSpecification = None, 
 ) -> Lockfile:
     assert spec.virtual_package_repo is not None
     virtual_package_channel = spec.virtual_package_repo.channel_url
