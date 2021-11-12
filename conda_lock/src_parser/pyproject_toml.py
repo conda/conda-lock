@@ -3,17 +3,7 @@ import collections.abc
 import pathlib
 
 from functools import partial
-from typing import (
-    AbstractSet,
-    Any,
-    Dict,
-    List,
-    Literal,
-    Mapping,
-    MutableMapping,
-    Optional,
-    Sequence,
-)
+from typing import AbstractSet, Any, List, Literal, Mapping, Optional, Sequence
 from urllib.parse import urldefrag
 
 import requests
@@ -93,7 +83,7 @@ def poetry_version_to_conda_version(version_string: Optional[str]) -> Optional[s
 
 
 def parse_poetry_pyproject_toml(
-    contents: MutableMapping[str, Any],
+    contents: Mapping[str, Any],
 ) -> LockSpecification:
     dependencies: List[Dependency] = []
 
@@ -113,7 +103,7 @@ def parse_poetry_pyproject_toml(
             manager: Literal["conda", "pip"] = "conda"
             url = None
             extras = []
-            if isinstance(depattrs, collections.Mapping):
+            if isinstance(depattrs, collections.abc.Mapping):
                 poetry_version_spec = depattrs.get("version", None)
                 url = depattrs.get("url", None)
                 optional = depattrs.get("optional", False)
@@ -171,7 +161,7 @@ def parse_poetry_pyproject_toml(
 
 
 def specification_with_dependencies(
-    toml_contents: MutableMapping[str, Any], dependencies: List[Dependency]
+    toml_contents: Mapping[str, Any], dependencies: List[Dependency]
 ) -> LockSpecification:
     for depname, depattrs in get_in(
         ["tool", "conda-lock", "dependencies"], toml_contents, {}
@@ -281,7 +271,7 @@ def parse_python_requirement(
 
 
 def parse_requirements_pyproject_toml(
-    contents: MutableMapping[str, Any],
+    contents: Mapping[str, Any],
     prefix: Sequence[str],
     main_tag: str,
     optional_tag: str,
