@@ -428,9 +428,10 @@ def render_lockfile_for_platform(  # noqa: C901
         if p.platform == platform and ((not p.optional) or (p.category in categories)):
             if p.manager == "pip":
                 pip_deps.append(p)
-            # exclude virtual packages
-            elif not p.name.startswith("__"):
-                conda_deps.append(p)
+            elif p.manager == "conda":
+                # exclude virtual packages
+                if not p.name.startswith("__"):
+                    conda_deps.append(p)
 
     def format_pip_requirement(
         spec: LockedDependency, platform: str, direct=False
