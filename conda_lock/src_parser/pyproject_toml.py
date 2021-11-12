@@ -30,14 +30,6 @@ def get_lookup():
         res = requests.get(PYPI_TO_CONDA_NAME_LOOKUP)
         res.raise_for_status()
         PYPI_LOOKUP = yaml.safe_load(res.content)
-        if "typing-extensions" not in PYPI_LOOKUP:
-            PYPI_LOOKUP["typing-extensions"] = {
-                "conda_name": "typing_extensions",
-                "import_name": "typing_extensions",
-                "mapping_source": "conda-lock",
-                "pypi_name": "typing-extensions",
-            }
-
     return PYPI_LOOKUP
 
 
