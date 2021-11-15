@@ -9,7 +9,15 @@ import tarfile
 import tempfile
 
 from contextlib import contextmanager
-from functools import cache
+
+
+try:
+    from functools import cache
+except ImportError:
+    # python < 3.9
+    from functools import lru_cache
+
+    cache = lru_cache(maxsize=1)
 from typing import (
     Any,
     ContextManager,
