@@ -191,6 +191,10 @@ def is_micromamba(conda: PathLike) -> bool:
     return str(conda).endswith("micromamba") or str(conda).endswith("micromamba.exe")
 
 
+def is_mamba(conda: PathLike) -> bool:
+    return pathlib.Path(conda).name.startswith("mamba")
+
+
 def search_for_md5s(
     conda: PathLike, package_specs: List[dict], platform: str, channels: Sequence[str]
 ):
