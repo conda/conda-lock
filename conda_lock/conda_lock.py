@@ -441,7 +441,7 @@ def render_lockfile_for_platform(  # noqa: C901
         elif direct:
             return f'{spec.name} @ {spec.url}#{spec.hash.replace(":", "=")}'
         else:
-            return f"{spec.name} === {spec.version}"
+            return f"{spec.name} === {spec.version} --hash={spec.hash}"
 
     def format_conda_requirement(
         spec: LockedDependency, platform: str, direct=False

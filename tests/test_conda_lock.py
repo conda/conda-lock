@@ -29,7 +29,7 @@ from conda_lock.conda_lock import (
     parse_meta_yaml_file,
     run_lock,
 )
-from conda_lock.conda_solver import _get_repodata_for_package, fake_conda_environment
+from conda_lock.conda_solver import fake_conda_environment
 from conda_lock.invoke_conda import _ensureconda, is_micromamba, reset_conda_pkgs_dir
 from conda_lock.pypi_solver import parse_pip_requirement, solve_pypi
 from conda_lock.src_parser import (
@@ -815,6 +815,16 @@ def test_fake_conda_env(conda_exe, conda_lock_toml):
     with fake_conda_environment(
         lockfile_content.package, platform="linux-64"
     ) as prefix:
+        subprocess.call(
+            [
+                conda_exe,
+                "list",
+                "--debug",
+                "-p",
+                prefix,
+                "--json",
+            ]
+        )
         packages = json.loads(
             subprocess.check_output(
                 [
@@ -847,20 +857,3 @@ def test_fake_conda_env(conda_exe, conda_lock_toml):
                 assert env_package["channel"] == "conda-forge"
             assert env_package["dist_name"] == f"{path.name[:-8]}"
             assert platform == path.parent.name
-
-
-def test_repodata_for_package():
-    assert _get_repodata_for_package(
-        "https://conda.anaconda.org/conda-forge/linux-64/_libgcc_mutex-0.1-conda_forge.tar.bz2#d7c89558ba9fa0495403155b64376d81"
-    ) == {
-        "arch": "x86_64",
-        "build": "conda_forge",
-        "build_number": 0,
-        "depends": [],
-        "license": "None",
-        "name": "_libgcc_mutex",
-        "platform": "linux",
-        "subdir": "linux-64",
-        "timestamp": 1578324546067,
-        "version": "0.1",
-    }

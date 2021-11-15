@@ -9,15 +9,6 @@ import tarfile
 import tempfile
 
 from contextlib import contextmanager
-
-
-try:
-    from functools import cache
-except ImportError:
-    # python < 3.9
-    from functools import lru_cache
-
-    cache = lru_cache(maxsize=1)
 from typing import (
     Any,
     ContextManager,
@@ -31,8 +22,6 @@ from typing import (
     cast,
 )
 from urllib.parse import urlsplit, urlunsplit
-
-import requests
 
 from conda_lock.invoke_conda import (
     PathLike,
@@ -286,32 +275,14 @@ def update_specs_for_arch(
                     "fn": fn,
                     "md5": md5,
                     "version": entry["version"],
-                    "depends": _get_repodata_for_package(url)["depends"],
+                    "depends": [
+                        f"{k} {v}".strip()
+                        for k, v in locked[entry["name"]].dependencies.items()
+                    ],
                 }
             )
             dryrun_install["actions"]["LINK"].append({"url": url, "fn": fn, **entry})
         return dryrun_install
-
-
-# Retrieve index.json from package. This is much more efficient that downloading and
-# parsing repodata.json, which for conda-forge (linux-64 + noarch) requires 800 MB of
-# memory to store in parsed form.
-@cache
-def _get_repodata_for_package(url: str) -> Dict[str, Any]:
-    with requests.get(url, stream=True) as response:
-        response.raise_for_status()
-        with tarfile.open(fileobj=response.raw, mode="r|bz2") as tf:
-            for member in tf:
-                if member.name == "info/index.json":
-                    fo = tf.extractfile(member)
-                    if fo:
-                        return json.load(fo)
-                    else:
-                        raise RuntimeError(
-                            f"Failed to extract {member.name} from {url}"
-                        )
-            else:
-                raise RuntimeError(f"{url} contains no info/index.json")
 
 
 @contextmanager
@@ -331,14 +302,24 @@ def fake_conda_environment(locked: Iterable[LockedDependency], platform: str):
             channel = urlunsplit(
                 (url.scheme, url.hostname, str(path.parent), None, None)
             )
+            while path.suffix in {".tar", ".bz2", ".gz", ".conda"}:
+                path = path.with_suffix("")
+            build = path.name.split("-")[-1]
+            try:
+                build_number = int(build.split("_")[-1])
+            except ValueError:
+                build_number = 0
             entry = {
+                "name": dep.name,
                 "channel": channel,
                 "url": dep.url,
                 "md5": dep.hash,
-                **_get_repodata_for_package(dep.url),
+                "build": build,
+                "build_number": build_number,
+                "version": dep.version,
+                "subdir": path.parent.name,
+                "depends": [f"{k} {v}".strip() for k, v in dep.dependencies.items()],
             }
-            while path.suffix in {".tar", ".bz2", ".gz"}:
-                path = path.with_suffix("")
             with open(conda_meta / (path.name + ".json"), "w") as f:
                 json.dump(entry, f, indent=2)
         yield prefix
