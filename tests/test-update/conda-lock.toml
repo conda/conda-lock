@@ -1,0 +1,257 @@
+[[package]]
+name = "_libgcc_mutex"
+version = "0.1"
+manager = "conda"
+platform = "linux-64"
+url = "https://conda.anaconda.org/conda-forge/linux-64/_libgcc_mutex-0.1-conda_forge.tar.bz2"
+hash = "d7c89558ba9fa0495403155b64376d81"
+optional = false
+category = "main"
+
+[[package]]
+name = "_openmp_mutex"
+version = "4.5"
+manager = "conda"
+platform = "linux-64"
+url = "https://conda.anaconda.org/conda-forge/linux-64/_openmp_mutex-4.5-1_gnu.tar.bz2"
+hash = "561e277319a41d4f24f5c05a9ef63c04"
+optional = false
+category = "main"
+
+[package.dependencies]
+_libgcc_mutex = "0.1 conda_forge"
+libgomp = ">=7.5.0"
+[[package]]
+name = "ca-certificates"
+version = "2021.10.8"
+manager = "conda"
+platform = "linux-64"
+url = "https://conda.anaconda.org/conda-forge/linux-64/ca-certificates-2021.10.8-ha878542_0.tar.bz2"
+hash = "575611b8a84f45960e87722eeb51fa26"
+optional = false
+category = "main"
+
+[[package]]
+name = "ld_impl_linux-64"
+version = "2.36.1"
+manager = "conda"
+platform = "linux-64"
+url = "https://conda.anaconda.org/conda-forge/linux-64/ld_impl_linux-64-2.36.1-hea4e1c9_2.tar.bz2"
+hash = "bd4f2e711b39af170e7ff15163fe87ee"
+optional = false
+category = "main"
+
+[[package]]
+name = "libffi"
+version = "3.3"
+manager = "conda"
+platform = "linux-64"
+url = "https://conda.anaconda.org/conda-forge/linux-64/libffi-3.3-h58526e2_2.tar.bz2"
+hash = "665369991d8dd290ac5ee92fce3e6bf5"
+optional = false
+category = "main"
+
+[package.dependencies]
+libgcc-ng = ">=7.5.0"
+libstdcxx-ng = ">=7.5.0"
+[[package]]
+name = "libgcc-ng"
+version = "11.2.0"
+manager = "conda"
+platform = "linux-64"
+url = "https://conda.anaconda.org/conda-forge/linux-64/libgcc-ng-11.2.0-h1d223b6_11.tar.bz2"
+hash = "e3495f4f93cfd6b68021cbe2b5844cd5"
+optional = false
+category = "main"
+
+[package.dependencies]
+_libgcc_mutex = "0.1 conda_forge"
+_openmp_mutex = ">=4.5"
+[[package]]
+name = "libgomp"
+version = "11.2.0"
+manager = "conda"
+platform = "linux-64"
+url = "https://conda.anaconda.org/conda-forge/linux-64/libgomp-11.2.0-h1d223b6_11.tar.bz2"
+hash = "1d16527c76842bf9c41e9399d39d8097"
+optional = false
+category = "main"
+
+[package.dependencies]
+_libgcc_mutex = "0.1 conda_forge"
+[[package]]
+name = "libstdcxx-ng"
+version = "11.2.0"
+manager = "conda"
+platform = "linux-64"
+url = "https://conda.anaconda.org/conda-forge/linux-64/libstdcxx-ng-11.2.0-he4da1e4_11.tar.bz2"
+hash = "0bf83958e788f1e75ba26154cb702afe"
+optional = false
+category = "main"
+
+[[package]]
+name = "libzlib"
+version = "1.2.11"
+manager = "conda"
+platform = "linux-64"
+url = "https://conda.anaconda.org/conda-forge/linux-64/libzlib-1.2.11-h36c2ea0_1013.tar.bz2"
+hash = "dcddf696ff5dfcab567100d691678e18"
+optional = false
+category = "main"
+
+[package.dependencies]
+libgcc-ng = ">=7.5.0"
+[[package]]
+name = "ncurses"
+version = "6.2"
+manager = "conda"
+platform = "linux-64"
+url = "https://conda.anaconda.org/conda-forge/linux-64/ncurses-6.2-h58526e2_4.tar.bz2"
+hash = "509f2a21c4a09214cd737a480dfd80c9"
+optional = false
+category = "main"
+
+[package.dependencies]
+libgcc-ng = ">=7.5.0"
+[[package]]
+name = "openssl"
+version = "1.1.1l"
+manager = "conda"
+platform = "linux-64"
+url = "https://conda.anaconda.org/conda-forge/linux-64/openssl-1.1.1l-h7f98852_0.tar.bz2"
+hash = "de7b38a1542dbe6f41653a8ae71adc53"
+optional = false
+category = "main"
+
+[package.dependencies]
+ca-certificates = ""
+libgcc-ng = ">=9.4.0"
+[[package]]
+name = "pydantic"
+version = "1.7"
+manager = "conda"
+platform = "linux-64"
+url = "https://conda.anaconda.org/conda-forge/linux-64/pydantic-1.7-py39h07f9747_0.tar.bz2"
+hash = "f33be4cbe9070ef3671852aaa304e2f6"
+optional = false
+category = "main"
+
+[package.dependencies]
+libgcc-ng = ">=7.5.0"
+python = ">=3.9,<3.10.0a0"
+python_abi = "3.9.* *_cp39"
+[[package]]
+name = "python"
+version = "3.9.6"
+manager = "conda"
+platform = "linux-64"
+url = "https://conda.anaconda.org/conda-forge/linux-64/python-3.9.6-h49503c6_1_cpython.tar.bz2"
+hash = "3ef028f528fe6cae3a536acb5d31be7a"
+optional = false
+category = "main"
+
+[package.dependencies]
+ld_impl_linux-64 = ">=2.36.1"
+libffi = ">=3.3,<3.4.0a0"
+libgcc-ng = ">=9.3.0"
+ncurses = ">=6.2,<6.3.0a0"
+openssl = ">=1.1.1k,<1.1.2a"
+readline = ">=8.1,<9.0a0"
+sqlite = ">=3.36.0,<4.0a0"
+tk = ">=8.6.10,<8.7.0a0"
+tzdata = ""
+xz = ">=5.2.5,<5.3.0a0"
+zlib = ">=1.2.11,<1.3.0a0"
+[[package]]
+name = "python_abi"
+version = "3.9"
+manager = "conda"
+platform = "linux-64"
+url = "https://conda.anaconda.org/conda-forge/linux-64/python_abi-3.9-2_cp39.tar.bz2"
+hash = "39adde4247484de2bb4000122fdcf665"
+optional = false
+category = "main"
+
+[package.dependencies]
+python = "3.9.*"
+[[package]]
+name = "readline"
+version = "8.1"
+manager = "conda"
+platform = "linux-64"
+url = "https://conda.anaconda.org/conda-forge/linux-64/readline-8.1-h46c0cb4_0.tar.bz2"
+hash = "5788de3c8d7a7d64ac56c784c4ef48e6"
+optional = false
+category = "main"
+
+[package.dependencies]
+libgcc-ng = ">=9.3.0"
+ncurses = ">=6.2,<6.3.0a0"
+[[package]]
+name = "sqlite"
+version = "3.36.0"
+manager = "conda"
+platform = "linux-64"
+url = "https://conda.anaconda.org/conda-forge/linux-64/sqlite-3.36.0-h9cd32fc_2.tar.bz2"
+hash = "3588c2c6cb9f9bcc65b544ab1c715d60"
+optional = false
+category = "main"
+
+[package.dependencies]
+libgcc-ng = ">=9.4.0"
+ncurses = ">=6.2,<6.3.0a0"
+readline = ">=8.1,<9.0a0"
+zlib = ">=1.2.11,<1.3.0a0"
+[[package]]
+name = "tk"
+version = "8.6.11"
+manager = "conda"
+platform = "linux-64"
+url = "https://conda.anaconda.org/conda-forge/linux-64/tk-8.6.11-h27826a3_1.tar.bz2"
+hash = "84e76fb280e735fec1efd2d21fd9cb27"
+optional = false
+category = "main"
+
+[package.dependencies]
+libgcc-ng = ">=9.4.0"
+zlib = ">=1.2.11,<1.3.0a0"
+[[package]]
+name = "tzdata"
+version = "2021e"
+manager = "conda"
+platform = "linux-64"
+url = "https://conda.anaconda.org/conda-forge/noarch/tzdata-2021e-he74cb21_0.tar.bz2"
+hash = "a751ec502589ebdc2eceb183ff602569"
+optional = false
+category = "main"
+
+[[package]]
+name = "xz"
+version = "5.2.5"
+manager = "conda"
+platform = "linux-64"
+url = "https://conda.anaconda.org/conda-forge/linux-64/xz-5.2.5-h516909a_1.tar.bz2"
+hash = "33f601066901f3e1a85af3522a8113f9"
+optional = false
+category = "main"
+
+[package.dependencies]
+libgcc-ng = ">=7.5.0"
+[[package]]
+name = "zlib"
+version = "1.2.11"
+manager = "conda"
+platform = "linux-64"
+url = "https://conda.anaconda.org/conda-forge/linux-64/zlib-1.2.11-h36c2ea0_1013.tar.bz2"
+hash = "cf7190238072a41e9579e4476a6a60b8"
+optional = false
+category = "main"
+
+[package.dependencies]
+libgcc-ng = ">=7.5.0"
+libzlib = "1.2.11 h36c2ea0_1013"
+
+[metadata]
+content_hash = "f25a10e25c0983fd5d4dc02e1899dfec6f49decca534052b3ce12948ad717033"
+channels = [ "conda-forge",]
+platforms = [ "linux-64",]

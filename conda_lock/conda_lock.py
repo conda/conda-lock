@@ -77,7 +77,7 @@ if not (sys.version_info.major >= 3 and sys.version_info.minor >= 6):
 
 
 DEFAULT_PLATFORMS = ["osx-64", "linux-64", "win-64"]
-DEFAULT_KINDS = ["explicit"]
+DEFAULT_KINDS = ["explicit", "lock"]
 KIND_FILE_EXT = {
     "explicit": "",
     "env": ".yml",

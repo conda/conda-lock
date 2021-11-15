@@ -227,11 +227,17 @@ def update_specs_for_arch(
             spec_for_name[name] for name in set(installed).intersection(update)
         ]
         if to_update:
-            # NB: use `install` to get single-package updates; `update` applies all nonmajor
-            # updates unconditionally
+            # NB: micromamba and mainline conda have different semantics for `install` and `update`
+            # - conda:
+            #   * update -> apply all nonmajor updates unconditionally
+            #   * install -> install or update target to latest version compatible with constraint
+            # - micromamba:
+            #   * update -> update target to latest version compatible with constraint
+            #   * install -> update target if current version incompatible with constraint, otherwise _do nothing_
+            # Our `update` should always update the target to the latest version compatible with the constraint
             args = [
                 str(conda),
-                "install",
+                "update" if is_micromamba(conda) else "install",
                 *_get_conda_flags(channels=channels, platform=platform),
             ]
             proc = subprocess.run(
@@ -241,6 +247,7 @@ def update_specs_for_arch(
                 stderr=subprocess.PIPE,
                 encoding="utf8",
             )
+            print(args + ["-p", prefix, "--json", "--dry-run", *to_update])
 
             try:
                 proc.check_returncode()

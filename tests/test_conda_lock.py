@@ -2,6 +2,7 @@ import json
 import logging
 import os
 import pathlib
+import shutil
 import subprocess
 import sys
 
@@ -35,6 +36,7 @@ from conda_lock.pypi_solver import parse_pip_requirement, solve_pypi
 from conda_lock.src_parser import (
     Dependency,
     LockedDependency,
+    Lockfile,
     LockSpecification,
     VersionedDependency,
 )
@@ -320,6 +322,36 @@ def test_run_lock(monkeypatch, zlib_environment, conda_exe):
     if is_micromamba(conda_exe):
         monkeypatch.setenv("CONDA_FLAGS", "-v")
     run_lock([zlib_environment], conda_exe=conda_exe)
+
+
+@pytest.fixture
+def update_environment():
+    env = TEST_DIR.joinpath("test-update").joinpath("environment-postupdate.yml")
+    lock = env.parent / "conda-lock.toml"
+    shutil.copy(lock, lock.with_suffix(".bak"))
+    yield env
+    shutil.copy(lock.with_suffix(".bak"), lock)
+
+
+def test_run_lock_with_update(monkeypatch, update_environment, conda_exe):
+    monkeypatch.chdir(update_environment.parent)
+    if is_micromamba(conda_exe):
+        monkeypatch.setenv("CONDA_FLAGS", "-v")
+    pre_lock = {
+        p.name: p
+        for p in parse_conda_lock_file(
+            update_environment.parent / "conda-lock.toml"
+        ).package
+    }
+    run_lock([update_environment], conda_exe=conda_exe, update=["pydantic"])
+    post_lock = {
+        p.name: p
+        for p in parse_conda_lock_file(
+            update_environment.parent / "conda-lock.toml"
+        ).package
+    }
+    assert post_lock["pydantic"].version == "1.8.2"
+    assert post_lock["python"].version == pre_lock["python"].version
 
 
 def test_run_lock_with_pip(monkeypatch, pip_environment, conda_exe):
