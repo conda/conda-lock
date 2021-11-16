@@ -23,12 +23,20 @@ from conda_lock.src_parser.pyproject_toml import get_lookup as get_forward_looku
 from conda_lock.src_parser.pyproject_toml import normalize_pypi_name
 
 
+# NB: in principle these depend on the glibc in the conda env
+MANYLINUX_TAGS = ["1", "2010", "2014", "_2_17"]
+
+
 class PlatformEnv(Env):
-    def __init__(self, python_version, platform):
+    def __init__(self, python_version, platform: str):
         super().__init__(path=Path(sys.prefix))
-        if platform == "linux-64":
-            # FIXME: in principle these depend on the glibc in the conda env
-            self._platforms = ["manylinux_2_17_x86_64", "manylinux2014_x86_64"]
+        if platform.startswith("linux-"):
+            arch = platform.split("-")[-1]
+            if arch == "64":
+                arch = "x86_64"
+            self._platforms = [
+                f"manylinux{tag}_{arch}" for tag in reversed(MANYLINUX_TAGS)
+            ]
         elif platform == "osx-64":
             self._platforms = ["macosx_10_9_x86_64"]
         elif platform == "osx-arm64":
@@ -77,22 +85,11 @@ class PlatformEnv(Env):
         )
 
     def get_marker_env(self):
+        """Return the subset of info needed to match common markers"""
         return {
-            # "implementation_name": implementation_name,
-            # "implementation_version": iver,
-            # "os_name": os.name,
-            # "platform_machine": platform.machine(),
-            # "platform_release": platform.release(),
-            # "platform_system": platform.system(),
-            # "platform_version": platform.version(),
             "python_full_version": ".".join([str(c) for c in self._python_version]),
-            # "platform_python_implementation": platform.python_implementation(),
             "python_version": ".".join([str(c) for c in self._python_version[:2]]),
             "sys_platform": self._sys_platform,
-            # "version_info": sys.version_info,
-            # # Extra information
-            # "interpreter_name": interpreter_name(),
-            # "interpreter_version": interpreter_version(),
         }
 
 
