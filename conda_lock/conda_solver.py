@@ -165,7 +165,7 @@ def _reconstruct_fetch_actions(
     that have only a LINK action, and use it to synthesize an equivalent FETCH action.
     """
     link_actions = {p["name"]: p for p in dry_run_install["actions"]["LINK"]}
-    fetch_actions = {p["name"]: p for p in dry_run_install["actions"]["LINK"]}
+    fetch_actions = {p["name"]: p for p in dry_run_install["actions"]["FETCH"]}
     link_only_names = set(link_actions.keys()).difference(fetch_actions.keys())
     if link_only_names:
         assert not is_micromamba(conda), "micromamba should not cache packages"
