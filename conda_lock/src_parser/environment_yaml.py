@@ -23,6 +23,18 @@ def parse_conda_requirement(req: str):
 def parse_environment_file(
     environment_file: pathlib.Path, pip_support: bool = False
 ) -> LockSpecification:
+    """
+    Parse dependencies from a conda environment specification
+
+    Parameters
+    ----------
+    environment_file :
+        Path to environment.yml
+    pip_support :
+        Emit dependencies in pip section of environment.yml. If False, print a
+        warning and ignore pip dependencies.
+
+    """
     dependencies: List[Dependency] = []
     if not environment_file.exists():
         raise FileNotFoundError(f"{environment_file} not found")

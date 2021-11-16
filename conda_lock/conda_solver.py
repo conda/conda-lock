@@ -86,6 +86,25 @@ def solve_conda(
     platform: str,
     channels: List[str],
 ) -> Dict[str, LockedDependency]:
+    """
+    Solve (or update a previous solution of) conda specs for the given platform
+
+    Parameters
+    ----------
+    conda :
+        Path to conda, mamba, or micromamba
+    specs :
+        Conda package specifications
+    locked :
+        Previous solution for the given platform (conda packages only)
+    update :
+        Named of packages to update to the latest version compatible with specs
+    platform :
+        Target platform
+    channels :
+        Channels to query
+
+    """
 
     conda_specs = [
         _to_match_spec(dep.name, dep.version)
@@ -185,6 +204,21 @@ def solve_specs_for_arch(
     specs: List[str],
     platform: str,
 ) -> DryRunInstall:
+    """
+    Solve conda specifications for the given platform
+
+    Parameters
+    ----------
+    conda :
+        Path to conda, mamba, or micromamba
+    channels :
+        Channels to query
+    specs :
+        Conda package specifications
+    platform :
+        Target platform
+
+    """
     args: MutableSequence[str] = [
         str(conda),
         "create",
@@ -260,6 +294,25 @@ def update_specs_for_arch(
     platform: str,
     channels: Sequence[str],
 ) -> DryRunInstall:
+    """
+    Update a previous solution for the given platform
+
+    Parameters
+    ----------
+    conda :
+        Path to conda, mamba, or micromamba
+    specs :
+        Conda package specifications
+    locked :
+        Previous solution for the given platform (conda packages only)
+    update :
+        Named of packages to update to the latest version compatible with specs
+    platform :
+        Target platform
+    channels :
+        Channels to query
+
+    """
 
     with fake_conda_environment(locked.values(), platform=platform) as prefix:
         installed: Dict[str, LinkAction] = {
@@ -368,7 +421,15 @@ def update_specs_for_arch(
 @contextmanager
 def fake_conda_environment(locked: Iterable[LockedDependency], platform: str):
     """
-    Create a fake conda prefix containing metadata corresponding to the provided package URLs
+    Create a fake conda prefix containing metadata corresponding to the provided dependencies
+
+    Parameters
+    ----------
+    locked :
+        Previous solution
+    platform :
+        Target platform
+
     """
     with tempfile.TemporaryDirectory() as prefix:
         conda_meta = pathlib.Path(prefix) / "conda-meta"

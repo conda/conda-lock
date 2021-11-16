@@ -77,6 +77,21 @@ def poetry_version_to_conda_version(version_string: Optional[str]) -> Optional[s
 def parse_poetry_pyproject_toml(
     contents: Mapping[str, Any],
 ) -> LockSpecification:
+    """
+    Parse dependencies from a poetry pyproject.toml file
+
+    Each dependency is assigned a category depending on which section it appears in:
+    * dependencies in [tool.poetry.dependencies] have category main
+    * dependencies in [tool.poetry.dev-dependencies] have category dev
+    * dependencies in each `key` of [tool.poetry.extras] have category `key`
+
+    * By default, dependency names are translated to the conda equivalent, with two exceptions:
+        - If a dependency has `source = "pypi"`, it is treated as a pip dependency (by name)
+        - If a dependency has a url, it is treated as a direct pip dependency (by url)
+
+    * markers are not supported
+
+    """
     dependencies: List[Dependency] = []
 
     categories = {"dependencies": "main", "dev-dependencies": "dev"}

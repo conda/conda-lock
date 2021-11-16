@@ -28,6 +28,10 @@ MANYLINUX_TAGS = ["1", "2010", "2014", "_2_17"]
 
 
 class PlatformEnv(Env):
+    """
+    Fake poetry Env to match PyPI distributions to the target conda environment
+    """
+
     def __init__(self, python_version, platform: str):
         super().__init__(path=Path(sys.prefix))
         if platform.startswith("linux-"):
@@ -163,6 +167,9 @@ PYPI_LOOKUP: Optional[Dict] = None
 
 
 def get_lookup() -> Dict:
+    """
+    Reverse grayskull name mapping to map conda names onto PyPI
+    """
     global PYPI_LOOKUP
     if PYPI_LOOKUP is None:
         PYPI_LOOKUP = {
@@ -184,6 +191,29 @@ def solve_pypi(
     platform: str,
     verbose: bool = False,
 ) -> Dict[str, src_parser.LockedDependency]:
+    """
+    Solve pip dependencies for the given platform
+
+    Parameters
+    ----------
+    conda :
+        Path to conda, mamba, or micromamba
+    use_latest :
+        Names of packages to update to the latest version compatible with pip_specs
+    pip_specs :
+        PEP440 package specifications
+    pip_locked :
+        Previous solution for the given platform (pip packages only)
+    conda_locked :
+        Current solution of conda-only specs for the given platform
+    python_version :
+        Version of Python in conda_locked
+    platform :
+        Target platform
+    verbose :
+        Print chatter from solver
+
+    """
     dummy_package = ProjectPackage("_dummy_package_", "0.0.0")
     dependencies = [get_dependency(spec) for spec in pip_specs.values()]
     for dep in dependencies:

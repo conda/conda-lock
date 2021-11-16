@@ -91,9 +91,12 @@ def parse_meta_yaml_file(
     meta_yaml_file: pathlib.Path,
     platforms: List[str],
 ) -> LockSpecification:
-    """Parse a simple meta-yaml file for dependencies.
+    """Parse a simple meta-yaml file for dependencies assuming the target platforms.
 
-    * This does not support multi-output files and will ignore all lines with selectors
+    * This will emit one dependency set per target platform. These may differ
+      if the dependencies depend on platform selectors.
+    * This does not support multi-output files and will ignore all lines with
+      selectors other than platform.
     """
     # parse with selectors for each target platform
     spec = aggregate_lock_specs(
@@ -114,9 +117,9 @@ def _parse_meta_yaml_file_for_platform(
     meta_yaml_file: pathlib.Path,
     platform: str,
 ) -> LockSpecification:
-    """Parse a simple meta-yaml file for dependencies.
+    """Parse a simple meta-yaml file for dependencies, assuming the target platform.
 
-    * This does not support multi-output files and will ignore all lines with selectors
+    * This does not support multi-output files and will ignore all lines with selectors other than platform
     """
     if not meta_yaml_file.exists():
         raise FileNotFoundError(f"{meta_yaml_file} not found")
