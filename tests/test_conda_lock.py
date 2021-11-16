@@ -31,12 +31,7 @@ from conda_lock.conda_lock import (
     run_lock,
 )
 from conda_lock.conda_solver import fake_conda_environment
-from conda_lock.invoke_conda import (
-    _ensureconda,
-    is_mamba,
-    is_micromamba,
-    reset_conda_pkgs_dir,
-)
+from conda_lock.invoke_conda import _ensureconda, is_micromamba, reset_conda_pkgs_dir
 from conda_lock.pypi_solver import parse_pip_requirement, solve_pypi
 from conda_lock.src_parser import (
     Dependency,
@@ -339,7 +334,7 @@ def update_environment():
 
 
 def test_run_lock_with_update(monkeypatch, update_environment, conda_exe):
-    if is_mamba(conda_exe):
+    if conda_exe.name.startswith("mamba"):
         pytest.xfail(reason="granular update support is not implemented for mamba")
     monkeypatch.chdir(update_environment.parent)
     if is_micromamba(conda_exe):

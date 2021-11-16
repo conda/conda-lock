@@ -61,6 +61,15 @@ class LinkAction(TypedDict):
     version: str
 
 
+class InstallActions(TypedDict):
+    LINK: List[LinkAction]
+    FETCH: List[FetchAction]
+
+
+class DryRunInstall(TypedDict):
+    actions: InstallActions
+
+
 def _to_match_spec(conda_dep_name, conda_version):
     if conda_version:
         spec = f"{conda_dep_name}[version='{conda_version}']"
@@ -103,9 +112,6 @@ def solve_conda(
             specs=conda_specs,
         )
     logging.debug("dry_run_install:\n%s", dry_run_install)
-    assert not set(p["name"] for p in dry_run_install["actions"]["LINK"]).difference(
-        p["name"] for p in dry_run_install["actions"]["FETCH"]
-    ), "no link-only packages"
 
     # extract dependencies from package plan
     planned = {
@@ -122,7 +128,7 @@ def solve_conda(
             # NB: virtual packages may have no hash
             hash=action.get("md5", ""),
         )
-        for action in cast(List[FetchAction], dry_run_install["actions"]["FETCH"])
+        for action in dry_run_install["actions"]["FETCH"]
     }
 
     # propagate categories from explicit to transitive dependencies
@@ -131,12 +137,54 @@ def solve_conda(
     return planned
 
 
+def _reconstruct_fetch_actions(
+    conda: PathLike, platform: str, dry_run_install: DryRunInstall
+) -> DryRunInstall:
+    """
+    Conda may choose to link a previously downloaded distribution from pkgs_dirs rather
+    than downloading a fresh one. Find the repodata record in existing distributions
+    that have only a LINK action, and use it to synthesize an equivalent FETCH action.
+    """
+    link_actions = {p["name"]: p for p in dry_run_install["actions"]["LINK"]}
+    fetch_actions = {p["name"]: p for p in dry_run_install["actions"]["LINK"]}
+    link_only_names = set(link_actions.keys()).difference(fetch_actions.keys())
+    if link_only_names:
+        assert not is_micromamba(conda), "micromamba should not cache packages"
+        pkgs_dirs = [
+            pathlib.Path(d)
+            for d in json.loads(
+                subprocess.check_output(
+                    [str(conda), "info", "--json"], env=conda_env_override(platform)
+                )
+            )["pkgs_dirs"]
+        ]
+    else:
+        pkgs_dirs = []
+
+    for link_pkg_name in link_only_names:
+        link_action = link_actions[link_pkg_name]
+        for pkgs_dir in pkgs_dirs:
+            record = (
+                pkgs_dir / link_action["dist_name"] / "info" / "repodata_record.json"
+            )
+            if record.exists():
+                with open(record) as f:
+                    repodata: FetchAction = json.load(f)
+                break
+        else:
+            raise FileExistsError(
+                f'Distribution \'{link_action["dist_name"]}\' not found in pkgs_dirs {pkgs_dirs}'
+            )
+        dry_run_install["actions"]["FETCH"].append(repodata)
+    return dry_run_install
+
+
 def solve_specs_for_arch(
     conda: PathLike,
     channels: Sequence[str],
     specs: List[str],
     platform: str,
-) -> dict:
+) -> DryRunInstall:
     args: MutableSequence[str] = [
         str(conda),
         "create",
@@ -196,7 +244,8 @@ def solve_specs_for_arch(
         sys.exit(1)
 
     try:
-        return json.loads(proc.stdout)
+        dryrun_install: DryRunInstall = json.loads(proc.stdout)
+        return _reconstruct_fetch_actions(conda, platform, dryrun_install)
     except json.JSONDecodeError:
         print("Could not solve for lock")
         print_proc(proc)
@@ -210,10 +259,10 @@ def update_specs_for_arch(
     update: List[str],
     platform: str,
     channels: Sequence[str],
-) -> dict:
+) -> DryRunInstall:
 
     with fake_conda_environment(locked.values(), platform=platform) as prefix:
-        installed = {
+        installed: Dict[str, LinkAction] = {
             entry["name"]: entry
             for entry in json.loads(
                 subprocess.check_output(
@@ -247,7 +296,6 @@ def update_specs_for_arch(
                 stderr=subprocess.PIPE,
                 encoding="utf8",
             )
-            print(args + ["-p", prefix, "--json", "--dry-run", *to_update])
 
             try:
                 proc.check_returncode()
@@ -257,9 +305,9 @@ def update_specs_for_arch(
                     f"Could not lock the environment for platform {platform}: {err_json.get('message')}"
                 ) from exc
 
-            dryrun_install = json.loads(proc.stdout)
+            dryrun_install: DryRunInstall = json.loads(proc.stdout)
         else:
-            dryrun_install = {}
+            dryrun_install = {"actions": {"LINK": [], "FETCH": []}}
 
         if "actions" not in dryrun_install:
             dryrun_install["actions"] = {"LINK": [], "FETCH": []}
@@ -286,10 +334,13 @@ def update_specs_for_arch(
                         f"{k} {v}".strip()
                         for k, v in locked[entry["name"]].dependencies.items()
                     ],
+                    "constrains": [],
+                    "subdir": entry["platform"],
+                    "timestamp": 0,
                 }
             )
-            dryrun_install["actions"]["LINK"].append({"url": url, "fn": fn, **entry})
-        return dryrun_install
+            dryrun_install["actions"]["LINK"].append(entry)
+        return _reconstruct_fetch_actions(conda, platform, dryrun_install)
 
 
 @contextmanager
