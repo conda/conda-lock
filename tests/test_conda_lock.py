@@ -334,8 +334,6 @@ def update_environment():
 
 
 def test_run_lock_with_update(monkeypatch, update_environment, conda_exe):
-    if conda_exe.name.startswith("mamba"):
-        pytest.xfail(reason="granular update support is not implemented for mamba")
     monkeypatch.chdir(update_environment.parent)
     if is_micromamba(conda_exe):
         monkeypatch.setenv("CONDA_FLAGS", "-v")

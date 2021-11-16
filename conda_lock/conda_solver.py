@@ -276,19 +276,41 @@ def update_specs_for_arch(
             spec_for_name[name] for name in set(installed).intersection(update)
         ]
         if to_update:
-            # NB: micromamba and mainline conda have different semantics for `install` and `update`
+            # NB: [micro]mamba and mainline conda have different semantics for `install` and `update`
             # - conda:
-            #   * update -> apply all nonmajor updates unconditionally
+            #   * update -> apply all nonmajor updates unconditionally (unless pinned)
             #   * install -> install or update target to latest version compatible with constraint
             # - micromamba:
             #   * update -> update target to latest version compatible with constraint
             #   * install -> update target if current version incompatible with constraint, otherwise _do nothing_
-            # Our `update` should always update the target to the latest version compatible with the constraint
-            args = [
-                str(conda),
-                "update" if is_micromamba(conda) else "install",
-                *_get_conda_flags(channels=channels, platform=platform),
-            ]
+            # - mamba:
+            #   * update -> apply all nonmajor updates unconditionally (unless pinned)
+            #   * install -> update target if current version incompatible with constraint, otherwise _do nothing_
+            # Our `update` should always update the target to the latest version compatible with the constraint,
+            # while updating as few other packages as possible. With mamba this can only be done with pinning.
+            if pathlib.Path(conda).name.startswith("mamba"):
+                # pin non-updated packages to prevent _any_ movement
+                pinned_filename = pathlib.Path(prefix) / "conda-meta" / "pinned"
+                assert not pinned_filename.exists()
+                with open(pinned_filename, "w") as pinned:
+                    for name in set(installed.keys()).difference(update):
+                        pinned.write(f'{name} =={installed[name]["version"]}\n')
+                args = [
+                    str(conda),
+                    "update",
+                    *_get_conda_flags(channels=channels, platform=platform),
+                ]
+                print(
+                    "Warning: mamba cannot update single packages without resorting to pinning. "
+                    "If the update fails to solve, try with conda or micromamba instead.",
+                    file=sys.stdout,
+                )
+            else:
+                args = [
+                    str(conda),
+                    "update" if is_micromamba(conda) else "install",
+                    *_get_conda_flags(channels=channels, platform=platform),
+                ]
             proc = subprocess.run(
                 args + ["-p", prefix, "--json", "--dry-run", *to_update],
                 env=conda_env_override(platform),
