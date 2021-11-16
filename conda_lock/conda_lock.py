@@ -499,6 +499,8 @@ def render_lockfile_for_platform(  # noqa: C901
                     for dep in pip_deps
                 ),
             ]
+            if pip_deps
+            else []
         )
     elif kind == "explicit":
         lockfile_contents.append("@EXPLICIT\n")
