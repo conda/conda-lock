@@ -164,17 +164,12 @@ def _reconstruct_fetch_actions(
     than downloading a fresh one. Find the repodata record in existing distributions
     that have only a LINK action, and use it to synthesize an equivalent FETCH action.
     """
-    # micromamba yields LINK actions with full metadata
-    if is_micromamba(conda):
-        dry_run_install["actions"]["FETCH"] = cast(
-            List[FetchAction], dry_run_install["actions"]["LINK"]
-        )
-        return dry_run_install
 
     link_actions = {p["name"]: p for p in dry_run_install["actions"]["LINK"]}
     fetch_actions = {p["name"]: p for p in dry_run_install["actions"]["FETCH"]}
     link_only_names = set(link_actions.keys()).difference(fetch_actions.keys())
-    if link_only_names:
+    # NB: micromamba does not support info --json, nor does it appear to honor pkgs_dirs from .condarc
+    if link_only_names and not is_micromamba(conda):
         pkgs_dirs = [
             pathlib.Path(d)
             for d in json.loads(
