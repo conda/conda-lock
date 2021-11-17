@@ -357,7 +357,7 @@ def update_specs_for_arch(
                 print(
                     "Warning: mamba cannot update single packages without resorting to pinning. "
                     "If the update fails to solve, try with conda or micromamba instead.",
-                    file=sys.stdout,
+                    file=sys.stderr,
                 )
             else:
                 args = [
