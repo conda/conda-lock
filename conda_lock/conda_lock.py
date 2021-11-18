@@ -126,7 +126,7 @@ def _do_validate_platform(platform: str) -> Tuple[bool, str]:
     from ensureconda.resolve import platform_subdir
 
     determined_subdir = platform_subdir()
-    return platform == determined_subdir, platform
+    return platform == determined_subdir, determined_subdir
 
 
 def do_validate_platform(lockfile: str):
