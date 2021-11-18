@@ -215,4 +215,6 @@ def reset_conda_pkgs_dir():
 
 
 def is_micromamba(conda: PathLike) -> bool:
-    return str(conda).endswith("micromamba") or str(conda).endswith("micromamba.exe")
+    return str(conda).endswith("micromamba") or str(conda).lower().endswith(
+        "micromamba.exe"
+    )
