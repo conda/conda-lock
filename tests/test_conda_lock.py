@@ -884,7 +884,9 @@ def test_fake_conda_env(conda_exe, conda_lock_toml):
             locked_package = locked[env_package["name"]]
 
             platform = env_package["platform"]
-            path = pathlib.Path(urlsplit(urldefrag(locked_package.url)[0]).path)
+            path = pathlib.PurePosixPath(
+                urlsplit(urldefrag(locked_package.url)[0]).path
+            )
             if is_micromamba(conda_exe):
                 assert (
                     env_package["base_url"]

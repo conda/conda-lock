@@ -466,7 +466,7 @@ def fake_conda_environment(locked: Iterable[LockedDependency], platform: str):
             dep for dep in locked if dep.manager == "conda" and dep.platform == platform
         ):
             url = urlsplit(dep.url)
-            path = pathlib.Path(url.path)
+            path = pathlib.PurePosixPath(url.path)
             channel = urlunsplit(
                 (url.scheme, url.hostname, str(path.parent), None, None)
             )
