@@ -164,38 +164,64 @@ def _reconstruct_fetch_actions(
     than downloading a fresh one. Find the repodata record in existing distributions
     that have only a LINK action, and use it to synthesize an equivalent FETCH action.
     """
+    if "LINK" not in dry_run_install["actions"]:
+        dry_run_install["actions"]["LINK"] = []
+    if "FETCH" not in dry_run_install["actions"]:
+        dry_run_install["actions"]["FETCH"] = []
 
     link_actions = {p["name"]: p for p in dry_run_install["actions"]["LINK"]}
     fetch_actions = {p["name"]: p for p in dry_run_install["actions"]["FETCH"]}
     link_only_names = set(link_actions.keys()).difference(fetch_actions.keys())
     # NB: micromamba does not support info --json, nor does it appear to honor pkgs_dirs from .condarc
-    if link_only_names and not is_micromamba(conda):
-        pkgs_dirs = [
-            pathlib.Path(d)
-            for d in json.loads(
-                subprocess.check_output(
-                    [str(conda), "info", "--json"], env=conda_env_override(platform)
-                )
-            )["pkgs_dirs"]
-        ]
-    else:
-        pkgs_dirs = []
-
-    for link_pkg_name in link_only_names:
-        link_action = link_actions[link_pkg_name]
-        for pkgs_dir in pkgs_dirs:
-            record = (
-                pkgs_dir / link_action["dist_name"] / "info" / "repodata_record.json"
-            )
-            if record.exists():
-                with open(record) as f:
-                    repodata: FetchAction = json.load(f)
-                break
+    if not is_micromamba(conda):
+        if link_only_names:
+            pkgs_dirs = [
+                pathlib.Path(d)
+                for d in json.loads(
+                    subprocess.check_output(
+                        [str(conda), "info", "--json"], env=conda_env_override(platform)
+                    )
+                )["pkgs_dirs"]
+            ]
         else:
-            raise FileExistsError(
-                f'Distribution \'{link_action["dist_name"]}\' not found in pkgs_dirs {pkgs_dirs}'
-            )
-        dry_run_install["actions"]["FETCH"].append(repodata)
+            pkgs_dirs = []
+
+        for link_pkg_name in link_only_names:
+            link_action = link_actions[link_pkg_name]
+            for pkgs_dir in pkgs_dirs:
+                record = (
+                    pkgs_dir
+                    / link_action["dist_name"]
+                    / "info"
+                    / "repodata_record.json"
+                )
+                if record.exists():
+                    with open(record) as f:
+                        repodata: FetchAction = json.load(f)
+                    break
+            else:
+                raise FileExistsError(
+                    f'Distribution \'{link_action["dist_name"]}\' not found in pkgs_dirs {pkgs_dirs}'
+                )
+            dry_run_install["actions"]["FETCH"].append(repodata)
+    else:
+        # NB: micromamba LINK actions are secretly equivalent to FETCH actions
+        # explicitly copy key-by-key to make missing keys obvious
+        for link_pkg_name in link_only_names:
+            item = cast(Dict[str, Any], link_actions[link_pkg_name])
+            repodata = {
+                "channel": item["channel"],
+                "constrains": item.get("constrains"),
+                "depends": item.get("depends"),
+                "fn": item["fn"],
+                "md5": item["md5"],
+                "name": item["name"],
+                "subdir": item["subdir"],
+                "timestamp": item["timestamp"],
+                "url": item["url"],
+                "version": item["version"],
+            }
+            dry_run_install["actions"]["FETCH"].append(repodata)
     return dry_run_install
 
 
