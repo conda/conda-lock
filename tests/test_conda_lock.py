@@ -427,7 +427,7 @@ def test_run_lock_with_input_hash_check(
     ],
 )
 def test_poetry_version_parsing_constraints(package, version, url_pattern, capsys):
-    _conda_exe = determine_conda_executable("conda", mamba=False, micromamba=False)
+    _conda_exe = determine_conda_executable(conda=True, mamba=False, micromamba=False)
 
     vpr = default_virtual_package_repodata()
     with vpr, capsys.disabled():
