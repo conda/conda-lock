@@ -91,7 +91,7 @@ jobs:
           ls -lah
           set -x
           which pytest
-          pytest -n auto --showlocals -vrsx --cov=conda_lock tests
+          pytest -n auto --showlocals -vvrsx --cov=conda_lock tests
 
       - name: test-gdal
         shell: bash -l {0}
