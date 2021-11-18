@@ -67,7 +67,27 @@ def _invoke_conda(
     name: str,
     command_args: Sequence[PathLike],
     post_args: Sequence[PathLike] = [],
-):
+    check_call: bool = False,
+) -> subprocess.Popen:
+    """
+    Invoke external conda executable
+
+    Parameters
+    ----------
+    conda :
+        Path to conda, mamba, or micromamba
+    prefix :
+        Prefix of target env
+    name :
+        Name of target env
+    command_args :
+        Arguments to conda executable
+    post_args :
+        Optional arguments to append to command_args
+    check_call :
+        If True, raise CalledProcessError if conda returns != 0
+
+    """
     if prefix and name:
         raise ValueError("Provide either prefix, or name, but not both.")
     common_args = []
@@ -95,6 +115,11 @@ def _invoke_conda(
         if p.stderr:
             for line in p.stderr:
                 logging.error(line.rstrip())
+
+        if check_call and p.returncode != 0:
+            raise subprocess.CalledProcessError(
+                p.returncode, [str(conda), *command_args, *common_args, *post_args]
+            )
 
         return p
 

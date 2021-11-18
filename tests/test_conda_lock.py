@@ -585,6 +585,7 @@ def test_install(
                 "--filename-template",
                 lock_filename_template,
             ],
+            catch_exceptions=False,
         )
     print(result.stdout, file=sys.stdout)
     print(result.stderr, file=sys.stderr)
@@ -593,18 +594,20 @@ def test_install(
     env_name = "test_env"
 
     def invoke_install(*extra_args):
-        return runner.invoke(
-            main,
-            [
-                "install",
-                "--conda",
-                conda_exe,
-                "--prefix",
-                tmp_path / env_name,
-                *extra_args,
-                lock_filename,
-            ],
-        )
+        with capsys.disabled():
+            return runner.invoke(
+                main,
+                [
+                    "install",
+                    "--conda",
+                    conda_exe,
+                    "--prefix",
+                    tmp_path / env_name,
+                    *extra_args,
+                    lock_filename,
+                ],
+                catch_exceptions=False,
+            )
 
     result = invoke_install()
     print(result.stdout, file=sys.stdout)

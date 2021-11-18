@@ -251,11 +251,11 @@ def solve_specs_for_arch(
     )
 
     def print_proc(proc):
-        print(f"    Command: {proc.args}")
+        print(f"    Command: {proc.args}", file=sys.stderr)
         if proc.stdout:
-            print(f"    STDOUT:\n{proc.stdout}")
+            print(f"    STDOUT:\n{proc.stdout}", file=sys.stderr)
         if proc.stderr:
-            print(f"    STDERR:\n{proc.stderr}")
+            print(f"    STDERR:\n{proc.stderr}", file=sys.stderr)
 
     try:
         proc.check_returncode()
@@ -268,23 +268,23 @@ def solve_specs_for_arch(
                 print("Message key not found in json! returning the full json text")
                 message = err_json
         except json.JSONDecodeError as e:
-            print(f"Failed to parse json, {e}")
+            print(f"Failed to parse json, {e}", file=sys.stderr)
             message = proc.stdout
 
-        print(f"Could not lock the environment for platform {platform}")
+        print(
+            f"Could not lock the environment for platform {platform}", file=sys.stderr
+        )
         if message:
-            print(message)
+            print(message, file=sys.stderr)
         print_proc(proc)
 
-        sys.exit(1)
+        raise
 
     try:
         dryrun_install: DryRunInstall = json.loads(proc.stdout)
         return _reconstruct_fetch_actions(conda, platform, dryrun_install)
     except json.JSONDecodeError:
-        print("Could not solve for lock")
-        print_proc(proc)
-        sys.exit(1)
+        raise
 
 
 def update_specs_for_arch(

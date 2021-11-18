@@ -143,7 +143,7 @@ def do_validate_platform(lockfile: str):
 
 def do_conda_install(conda: PathLike, prefix: str, name: str, file: str) -> None:
 
-    _conda = partial(_invoke_conda, conda, prefix, name)
+    _conda = partial(_invoke_conda, conda, prefix, name, check_call=True)
 
     kind = "env" if file.endswith(".yml") else "explicit"
 
@@ -157,35 +157,22 @@ def do_conda_install(conda: PathLike, prefix: str, name: str, file: str) -> None
     else:
         pip_requirements = []
 
-    if (
-        _conda(
-            [
-                *(["env"] if kind == "env" else []),
-                "create",
-                "--file",
-                file,
-                *([] if kind == "env" else ["--yes"]),
-            ],
-        ).returncode
-        != 0
-    ):
-        print(
-            f"Could not perform conda install using {file} lock file into {name or prefix}"
-        )
-        sys.exit(1)
+    _conda(
+        [
+            *(["env"] if kind == "env" else []),
+            "create",
+            "--file",
+            file,
+            *([] if kind == "env" else ["--yes"]),
+        ],
+    )
 
     if not pip_requirements:
         return
 
     with tempfile.NamedTemporaryFile() as tf:
         write_file("\n".join(pip_requirements), tf.name)
-        if (
-            _conda(["run"], ["pip", "install", "--no-deps", "-r", tf.name])
-        ).returncode != 0:
-            print(
-                f"Could not perform pip install using {file} lock file into {name or prefix}"
-            )
-            sys.exit(1)
+        _conda(["run"], ["pip", "install", "--no-deps", "-r", tf.name])
 
 
 def fn_to_dist_name(fn: str) -> str:
