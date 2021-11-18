@@ -101,8 +101,10 @@ def _invoke_conda(
     if conda_flags:
         common_args.extend(shlex.split(conda_flags))
 
+    cmd = [str(conda), *command_args, *common_args, *post_args]
+
     with subprocess.Popen(
-        [str(conda), *command_args, *common_args, *post_args],
+        cmd,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         bufsize=1,
@@ -116,12 +118,12 @@ def _invoke_conda(
             for line in p.stderr:
                 logging.error(line.rstrip())
 
-        if check_call and p.returncode != 0:
-            raise subprocess.CalledProcessError(
-                p.returncode, [str(conda), *command_args, *common_args, *post_args]
-            )
+    if check_call and p.returncode != 0:
+        raise subprocess.CalledProcessError(
+            p.returncode, [str(conda), *command_args, *common_args, *post_args]
+        )
 
-        return p
+    return p
 
 
 def _process_stdout(stdout):
