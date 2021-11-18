@@ -1,3 +1,4 @@
+import contextlib
 import json
 import logging
 import os
@@ -31,6 +32,7 @@ from conda_lock.conda_lock import (
     run_lock,
 )
 from conda_lock.conda_solver import fake_conda_environment
+from conda_lock.errors import PlatformValidationError
 from conda_lock.invoke_conda import _ensureconda, is_micromamba, reset_conda_pkgs_dir
 from conda_lock.pypi_solver import parse_pip_requirement, solve_pypi
 from conda_lock.src_parser import (
@@ -609,7 +611,14 @@ def test_install(
                 catch_exceptions=False,
             )
 
-    result = invoke_install()
+    if sys.platform.lower().startswith("linux"):
+        context = contextlib.nullcontext()
+    else:
+        # since by default we do platform validation we would expect this to fail
+        context = pytest.raises(PlatformValidationError)
+
+    with context:
+        result = invoke_install()
     print(result.stdout, file=sys.stdout)
     print(result.stderr, file=sys.stderr)
     if pathlib.Path(lock_filename).exists:
@@ -617,15 +626,12 @@ def test_install(
             "lockfile contents: \n\n=======\n%s\n\n==========",
             pathlib.Path(lock_filename).read_text(),
         )
+
     if sys.platform.lower().startswith("linux"):
-        assert result.exit_code == 0
         assert _check_package_installed(
             package=package,
             prefix=str(tmp_path / env_name),
         ), f"Package {package} does not exist in {tmp_path} environment"
-    else:
-        # since by default we do platform validation we would expect this to fail
-        assert result.exit_code != 0
 
 
 @pytest.mark.parametrize(
