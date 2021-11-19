@@ -83,7 +83,7 @@ KIND_FILE_EXT = {
 KIND_USE_TEXT = {
     "explicit": "conda create --name YOURENV --file {lockfile}",
     "env": "conda env create --name YOURENV --file {lockfile}",
-    "lock": "...you're on your own, buddy",
+    "lock": "conda-lock install --name YOURENV --file {lockfile}",
 }
 
 LOCKFILE_NAME = "conda-lock.toml"
@@ -795,18 +795,17 @@ def _render_lockfile_for_install(
 
     from ensureconda.resolve import platform_subdir
 
-    with open(filename) as f:
-        lockfile = Lockfile.parse_obj(toml.load(f))
+    lock_content = parse_conda_lock_file(pathlib.Path(filename))
 
     platform = platform_subdir()
-    if platform not in lockfile.metadata.platforms:
+    if platform not in lock_content.metadata.platforms:
         raise PlatformValidationError(
             f"Dependencies are not locked for the current platform ({platform})"
         )
 
     with tempfile.NamedTemporaryFile(mode="w") as tf:
         content = render_lockfile_for_platform(
-            lockfile=lockfile,
+            lockfile=lock_content,
             kind="explicit",
             platform=platform,
             include_dev_dependencies=include_dev_dependencies,
@@ -1082,7 +1081,7 @@ def lock(
     default=[],
     help="include dev dependencies in the lockfile (where applicable)",
 )
-@click.argument("lock-file")
+@click.argument("lock-file", default="conda-lock.toml")
 def install(
     conda,
     mamba,
@@ -1179,11 +1178,10 @@ def render(
 
         sys.excepthook = handle_exception
 
-    with open(lock_file) as f:
-        lockfile = Lockfile.parse_obj(toml.load(f))
+    lock_content = parse_conda_lock_file(pathlib.Path(lock_file))
 
     do_render(
-        lockfile,
+        lock_content,
         filename_template=filename_template,
         kinds=kind,
         include_dev_dependencies=dev_dependencies,
