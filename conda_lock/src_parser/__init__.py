@@ -4,9 +4,19 @@ import json
 from collections import defaultdict
 from dataclasses import dataclass
 from itertools import chain
-from typing import Dict, List, Literal, Optional, Sequence, Set, Tuple, TypedDict
+from typing import (
+    ClassVar,
+    Dict,
+    List,
+    Literal,
+    Optional,
+    Sequence,
+    Set,
+    Tuple,
+    TypedDict,
+)
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, validator
 
 from conda_lock.virtual_package import FakeRepoData
 
@@ -27,6 +37,9 @@ class Selectors(StrictModel):
                 if p not in self.platform:
                     self.platform.append(p)
         return self
+
+    def for_platform(self, platform: str) -> bool:
+        return self.platform is None or platform in self.platform
 
 
 class Dependency(StrictModel):
@@ -69,16 +82,62 @@ class LockedDependency(StrictModel):
     category: str = "main"
     source: Optional[DependencySource] = None
 
+    def key(self) -> Tuple[str, str, str]:
+        return (self.manager, self.name, self.platform)
+
 
 class LockMeta(StrictModel):
-    content_hash: str
+    content_hash: Dict[str, str]
     channels: List[str]
     platforms: List[str]
 
+    def __or__(self, other) -> "LockMeta":
+        """merge other into self"""
+        if other is None:
+            return self
+        elif not isinstance(other, LockMeta):
+            raise TypeError
+
+        return LockMeta(
+            content_hash={**self.content_hash, **other.content_hash},
+            channels=self.channels,
+            platforms=sorted(set(self.platforms).union(other.platforms)),
+        )
+
 
 class Lockfile(StrictModel):
+
+    version: ClassVar[int] = 1
+
     package: List[LockedDependency]
     metadata: LockMeta
+
+    def __or__(self, other) -> "Lockfile":
+        return other.__ror__(self)
+
+    def __ror__(self, other) -> "Lockfile":
+        """
+        merge self into other,
+
+
+        """
+        if other is None:
+            return self
+        elif not isinstance(other, Lockfile):
+            raise TypeError
+
+        assert self.metadata.channels == other.metadata.channels
+
+        ours = {d.key(): d for d in self.package}
+        theirs = {d.key(): d for d in other.package}
+        package = []
+        for key in sorted(set(ours.keys()).union(theirs.keys())):
+            if key not in ours or key[-1] not in self.metadata.platforms:
+                package.append(theirs[key])
+            else:
+                package.append(ours[key])
+
+        return Lockfile(package=package, metadata=other.metadata | self.metadata)
 
 
 @dataclass
@@ -88,20 +147,26 @@ class LockSpecification:
     platforms: List[str]
     virtual_package_repo: Optional[FakeRepoData] = None
 
-    def content_hash(self) -> str:
+    def content_hash(self) -> Dict[str, str]:
+        return {
+            platform: self.content_hash_for_platform(platform)
+            for platform in self.platforms
+        }
+
+    def content_hash_for_platform(self, platform: str) -> str:
         data: dict = {
             "channels": self.channels,
-            "platforms": sorted(self.platforms),
             "specs": [
                 p.dict()
                 for p in sorted(self.dependencies, key=lambda p: (p.manager, p.name))
+                if p.selectors.for_platform(platform)
             ],
         }
         if self.virtual_package_repo is not None:
             vpr_data = self.virtual_package_repo.all_repodata
             data["virtual_package_hash"] = {
                 "noarch": vpr_data.get("noarch", {}),
-                **{platform: vpr_data.get(platform, {}) for platform in self.platforms},
+                **{platform: vpr_data.get(platform, {})},
             }
 
         env_spec = json.dumps(data, sort_keys=True)

@@ -47,7 +47,7 @@ from conda_lock.src_parser import (
     aggregate_lock_specs,
 )
 from conda_lock.src_parser.environment_yaml import parse_environment_file
-from conda_lock.src_parser.lockfile import parse_conda_lock_file
+from conda_lock.src_parser.lockfile import parse_conda_lock_file, write_conda_lock_file
 from conda_lock.src_parser.meta_yaml import parse_meta_yaml_file
 from conda_lock.src_parser.pyproject_toml import parse_pyproject_toml
 from conda_lock.virtual_package import (
@@ -204,7 +204,7 @@ def make_lock_spec(
     )
     lock_spec.platforms = (
         list(platform_overrides) if platform_overrides else lock_spec.platforms
-    )
+    ) or list(DEFAULT_PLATFORMS)
 
     return lock_spec
 
@@ -222,7 +222,35 @@ def make_lock_files(
     extras: Optional[AbstractSet[str]] = None,
     check_input_hash: bool = False,
 ):
-    """Generate a lock file from the src file provided"""
+    """
+    Generate a lock file from the src files provided
+
+    Parameters
+    ----------
+    conda :
+        Path to conda, mamba, or micromamba
+    src_files :
+        Files to parse requirements from
+    kinds :
+        Lockfile formats to output
+    platform_overrides :
+        Platforms to solve for. Takes precedence over platforms found in src_files.
+    channels_overrides :
+        Channels to use. Takes precedence over channels found in src_files.
+    virtual_package_spec :
+        Path to a virtual package repository that defines each platform.
+    update :
+        Names of dependencies to update to their latest versions, regardless
+        of whether the constraint in src_files has changed.
+    include_dev_dependencies :
+        Include development dependencies in explicit or env output
+    filename_template :
+        Format for names of rendered explicit or env files. Must include {platform}.
+    extras :
+        Include the given extras in explicit or env output
+    check_input_hash :
+        Do not re-solve for each target platform for which specifcations are unchanged
+    """
 
     # initialize virtual package fake
     if virtual_package_spec and virtual_package_spec.exists():
@@ -246,40 +274,54 @@ def make_lock_files(
         lockfile = pathlib.Path(filename)
 
         lock_content: Optional[Lockfile] = None
+        platforms_to_lock: List[str] = []
+        platforms_already_locked: List[str] = []
         if lockfile.exists():
             lock_content = parse_conda_lock_file(lockfile)
+            platforms_already_locked = list(lock_content.metadata.platforms)
             update_spec = UpdateSpecification(
                 locked=lock_content.package, update=update
             )
-            if not (
-                check_input_hash
-                and lock_content.metadata.content_hash == lock_spec.content_hash()
-            ):
-                lock_content = None
+            for platform in lock_spec.platforms:
+                if (
+                    update
+                    or platform not in lock_content.metadata.platforms
+                    or not check_input_hash
+                    or lock_spec.content_hash_for_platform(platform)
+                    != lock_content.metadata.content_hash[platform]
+                ):
+                    platforms_to_lock.append(platform)
+                    if platform in platforms_already_locked:
+                        platforms_already_locked.remove(platform)
         else:
+            platforms_to_lock = lock_spec.platforms
             update_spec = UpdateSpecification()
 
-        if lock_content is None:
-            print(f"Locking dependencies for {lock_spec.platforms}...", file=sys.stderr)
-            lock_content = create_lockfile_from_spec(
+        if platforms_already_locked:
+            print(
+                f"Spec hash already locked for {sorted(platforms_already_locked)}. Skipping solve.",
+                file=sys.stderr,
+            )
+        platforms_to_lock = sorted(set(platforms_to_lock))
+
+        if platforms_to_lock:
+            print(f"Locking dependencies for {platforms_to_lock}...", file=sys.stderr)
+            lock_content = lock_content | create_lockfile_from_spec(
                 conda=conda,
                 spec=lock_spec,
+                platforms=platforms_to_lock,
                 update_spec=update_spec,
             )
 
             if "lock" in kinds:
-                with open(filename, "w") as f:
-                    toml.dump(lock_content.dict(by_alias=True, exclude_unset=True), f)
+                write_conda_lock_file(lock_content, lockfile)
                 print(
                     f" - Install lock using {'(see warning below)' if kind == 'env' else ''}:",
                     KIND_USE_TEXT[kind].format(lockfile=filename),
                     file=sys.stderr,
                 )
-        else:
-            print(
-                f"Spec hash already locked for {lock_spec.platforms}. Skipping",
-                file=sys.stderr,
-            )
+
+        assert lock_content is not None
 
         do_render(
             lock_content,
@@ -355,9 +397,9 @@ def do_render(
             if pathlib.Path(filename).exists() and check_input_hash:
                 with open(filename) as f:
                     previous_hash = extract_input_hash(f.read())
-                if previous_hash == lockfile.metadata.content_hash:
+                if previous_hash == lockfile.metadata.content_hash.get(plat):
                     print(
-                        f"Spec hash already locked for {plat}. Skipping",
+                        f"Lock content already rendered for {plat}. Skipping render of {filename}.",
                         file=sys.stderr,
                     )
                     continue
@@ -424,7 +466,7 @@ def render_lockfile_for_platform(  # noqa: C901
     lockfile_contents = [
         "# Generated by conda-lock.",
         f"# platform: {platform}",
-        f"# input_hash: {lockfile.metadata.content_hash}\n",
+        f"# input_hash: {lockfile.metadata.content_hash.get(platform)}\n",
     ]
 
     categories = {
@@ -588,6 +630,7 @@ def create_lockfile_from_spec(
     *,
     conda: PathLike,
     spec: LockSpecification,
+    platforms: List[str] = [],
     update_spec: Optional[UpdateSpecification] = None,
 ) -> Lockfile:
     """
@@ -598,7 +641,7 @@ def create_lockfile_from_spec(
 
     locked: Dict[Tuple[str, str, str], LockedDependency] = {}
 
-    for platform in spec.platforms:
+    for platform in platforms or spec.platforms:
 
         deps = _solve_for_arch(
             conda=conda,

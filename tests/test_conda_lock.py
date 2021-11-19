@@ -811,32 +811,25 @@ def test_virtual_package_input_hash_stability():
 
     vpr = virtual_package_repo_from_specification(spec)
     spec = LockSpecification([], [], ["linux-64"], virtual_package_repo=vpr)
-    expected = "42d1f0386072f897dc1474f3571ec518755bf64379d4064c494f8ee59dbec683"
-    assert spec.content_hash() == expected
+    expected = "d8d0e556f97aed2eaa05fe9728b5a1c91c1b532d3eed409474e8a9b85b633a26"
+    assert spec.content_hash() == {"linux-64": expected}
 
 
-def _param(platform, hash):
-    return pytest.param(platform, hash, id=platform)
-
-
-@pytest.mark.parametrize(
-    ["platform", "expected"],
-    [
-        # fmt: off
-        _param("linux-64", "956a5736d6245cc55d81834b317d3380ee43483e22b4ad16f55c32817957a172"),
-        _param("linux-aarch64", "055ccc17dffc0fed905d5e42864b6367f9890e662d0e9a3e5fa1dd58fda54630"),
-        _param("linux-ppc64le", "50f10680b44a3049be62aba6b144b20a4beeaadf541df0028621416f22b88b77"),
-        _param("osx-64", "a9693efa6c9a86a028b671bbda3918c2d29ff542a8fdb482d35d7ddcbbcb0ced"),
-        _param("osx-arm64", "e8210704de2912478cf9f4b5cc9518b43e29090b884fff3fd581e33137e10dc4"),
-        _param("win-64", "f9ecd43fd122b7431863b84a0234655fd52db2a4574c628706ac63e6b88ee164"),
-        # fmt: on
-    ],
-)
-def test_default_virtual_package_input_hash_stability(platform, expected):
+def test_default_virtual_package_input_hash_stability():
     from conda_lock.virtual_package import default_virtual_package_repodata
 
     vpr = default_virtual_package_repodata()
-    spec = LockSpecification([], [], [platform], virtual_package_repo=vpr)
+
+    expected = {
+        "linux-64": "93c22a62ca75ed0fd7649a6c9fbac611fd42a694465841b141c91aa2d4edf1b3",
+        "linux-aarch64": "e1115c4d229438be0bd3e79c3734afb1f2fb8db42cf0c20c0e2ede5405e97e25",
+        "linux-ppc64le": "d980051789ba7e6374c0833bf615b060bc0c5dfa63907eb4f11ac85f4dbb80da",
+        "osx-64": "8e2e62ea8061892d10606e9a10f05f4c7358c798e5a2d390b1206568bf9338a2",
+        "osx-arm64": "00eb1bef60572765717bba1fd86da4527f3b69bd40eb51cd0b60cdc89c27f5a6",
+        "win-64": "d97edec84c3f450ac23bd2fbac57f77c0b0bffd5313114c1fa8c28c4df8ead6e",
+    }
+
+    spec = LockSpecification([], [], list(expected.keys()), virtual_package_repo=vpr)
     assert spec.content_hash() == expected
 
 
@@ -878,7 +871,11 @@ def test_fake_conda_env(conda_exe, conda_lock_toml):
                 ]
             )
         )
-        locked = {p.name: p for p in lockfile_content.package if p.manager == "conda"}
+        locked = {
+            p.name: p
+            for p in lockfile_content.package
+            if p.manager == "conda" and p.platform == "linux-64"
+        }
         assert len(packages) == len(locked)
         for env_package in packages:
             locked_package = locked[env_package["name"]]

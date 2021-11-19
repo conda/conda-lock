@@ -1,3 +1,4 @@
+version = 1
 [[package]]
 name = "_libgcc_mutex"
 version = "0.1"
@@ -127,6 +128,20 @@ category = "main"
 ca-certificates = ""
 libgcc-ng = ">=9.4.0"
 [[package]]
+name = "pip"
+version = "21.3.1"
+manager = "conda"
+platform = "linux-64"
+url = "https://conda.anaconda.org/conda-forge/noarch/pip-21.3.1-pyhd8ed1ab_0.tar.bz2"
+hash = "e4fe2a9af78ff11f1aced7e62128c6a8"
+optional = false
+category = "main"
+
+[package.dependencies]
+python = ">=3.6"
+setuptools = ""
+wheel = ""
+[[package]]
 name = "pydantic"
 version = "1.7"
 manager = "conda"
@@ -162,6 +177,7 @@ tk = ">=8.6.10,<8.7.0a0"
 tzdata = ""
 xz = ">=5.2.5,<5.3.0a0"
 zlib = ">=1.2.11,<1.3.0a0"
+pip = ""
 [[package]]
 name = "python_abi"
 version = "3.9"
@@ -187,6 +203,19 @@ category = "main"
 [package.dependencies]
 libgcc-ng = ">=9.3.0"
 ncurses = ">=6.2,<6.3.0a0"
+[[package]]
+name = "setuptools"
+version = "59.1.1"
+manager = "conda"
+platform = "linux-64"
+url = "https://conda.anaconda.org/conda-forge/linux-64/setuptools-59.1.1-py39hf3d152e_0.tar.bz2"
+hash = "244a9b317c98ebffafd291777083a91a"
+optional = false
+category = "main"
+
+[package.dependencies]
+python = ">=3.9,<3.10.0a0"
+python_abi = "3.9.* *_cp39"
 [[package]]
 name = "sqlite"
 version = "3.36.0"
@@ -226,6 +255,18 @@ optional = false
 category = "main"
 
 [[package]]
+name = "wheel"
+version = "0.37.0"
+manager = "conda"
+platform = "linux-64"
+url = "https://conda.anaconda.org/conda-forge/noarch/wheel-0.37.0-pyhd8ed1ab_1.tar.bz2"
+hash = "3aa2c3e25dd361b453d010388b9cdff1"
+optional = false
+category = "main"
+
+[package.dependencies]
+python = "!=3.0,!=3.1,!=3.2,!=3.3,!=3.4"
+[[package]]
 name = "xz"
 version = "5.2.5"
 manager = "conda"
@@ -252,6 +293,8 @@ libgcc-ng = ">=7.5.0"
 libzlib = "1.2.11 h36c2ea0_1013"
 
 [metadata]
-content_hash = "f25a10e25c0983fd5d4dc02e1899dfec6f49decca534052b3ce12948ad717033"
 channels = [ "conda-forge",]
 platforms = [ "linux-64",]
+
+[metadata.content_hash]
+linux-64 = "a08b52d095fd885c7d9b400df51d0df50be1999d9740eee1e60050b82b9a595a"
