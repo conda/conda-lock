@@ -75,6 +75,7 @@ def poetry_version_to_conda_version(version_string: Optional[str]) -> Optional[s
 
 
 def parse_poetry_pyproject_toml(
+    path: pathlib.Path,
     contents: Mapping[str, Any],
 ) -> LockSpecification:
     """
@@ -164,11 +165,11 @@ def parse_poetry_pyproject_toml(
                     )
                 )
 
-    return specification_with_dependencies(contents, dependencies)
+    return specification_with_dependencies(path, contents, dependencies)
 
 
 def specification_with_dependencies(
-    toml_contents: Mapping[str, Any], dependencies: List[Dependency]
+    path: pathlib.Path, toml_contents: Mapping[str, Any], dependencies: List[Dependency]
 ) -> LockSpecification:
     for depname, depattrs in get_in(
         ["tool", "conda-lock", "dependencies"], toml_contents, {}
@@ -192,6 +193,7 @@ def specification_with_dependencies(
         dependencies,
         channels=get_in(["tool", "conda-lock", "channels"], toml_contents, []),
         platforms=get_in(["tool", "conda-lock", "platforms"], toml_contents, []),
+        sources=[path],
     )
 
 
@@ -233,7 +235,7 @@ def parse_pyproject_toml(
             "Could not detect build-system in pyproject.toml.  Assuming poetry"
         )
 
-    return parse(contents)
+    return parse(pyproject_toml, contents)
 
 
 def parse_python_requirement(
@@ -278,6 +280,7 @@ def parse_python_requirement(
 
 
 def parse_requirements_pyproject_toml(
+    pyproject_toml_path: pathlib.Path,
     contents: Mapping[str, Any],
     prefix: Sequence[str],
     main_tag: str,
@@ -305,4 +308,4 @@ def parse_requirements_pyproject_toml(
                 )
             )
 
-    return specification_with_dependencies(contents, dependencies)
+    return specification_with_dependencies(pyproject_toml_path, contents, dependencies)

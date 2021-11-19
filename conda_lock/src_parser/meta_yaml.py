@@ -161,5 +161,8 @@ def _parse_meta_yaml_file_for_platform(
         add_requirements_from_recipe_or_output(output)
 
     return LockSpecification(
-        dependencies=depenencies, channels=channels, platforms=[platform]
+        dependencies=depenencies,
+        channels=channels,
+        platforms=[platform],
+        sources=[meta_yaml_file],
     )

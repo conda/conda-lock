@@ -105,5 +105,8 @@ def parse_environment_file(
                 )
 
     return LockSpecification(
-        dependencies=dependencies, channels=channels, platforms=platforms
+        dependencies=dependencies,
+        channels=channels,
+        platforms=platforms,
+        sources=[environment_file],
     )

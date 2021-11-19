@@ -26,7 +26,7 @@ import toml
 from click_default_group import DefaultGroup
 from ensureconda.api import determine_micromamba_version
 
-from conda_lock.common import read_file, read_json, write_file
+from conda_lock.common import read_file, read_json, relative_path, write_file
 from conda_lock.conda_solver import solve_conda
 from conda_lock.errors import PlatformValidationError
 from conda_lock.invoke_conda import PathLike, _invoke_conda, determine_conda_executable
@@ -310,6 +310,7 @@ def make_lock_files(
                 conda=conda,
                 spec=lock_spec,
                 platforms=platforms_to_lock,
+                lockfile_path=lockfile,
                 update_spec=update_spec,
             )
 
@@ -631,6 +632,7 @@ def create_lockfile_from_spec(
     conda: PathLike,
     spec: LockSpecification,
     platforms: List[str] = [],
+    lockfile_path: pathlib.Path,
     update_spec: Optional[UpdateSpecification] = None,
 ) -> Lockfile:
     """
@@ -660,6 +662,7 @@ def create_lockfile_from_spec(
             content_hash=spec.content_hash(),
             channels=spec.channels,
             platforms=spec.platforms,
+            sources=[relative_path(lockfile_path, source) for source in spec.sources],
         ),
     )
 

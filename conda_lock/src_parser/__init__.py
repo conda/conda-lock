@@ -1,5 +1,6 @@
 import hashlib
 import json
+import pathlib
 
 from collections import defaultdict
 from dataclasses import dataclass
@@ -16,8 +17,9 @@ from typing import (
     TypedDict,
 )
 
-from pydantic import BaseModel, validator
+from pydantic import BaseModel, Field
 
+from conda_lock.common import ordered_union
 from conda_lock.virtual_package import FakeRepoData
 
 
@@ -87,9 +89,17 @@ class LockedDependency(StrictModel):
 
 
 class LockMeta(StrictModel):
-    content_hash: Dict[str, str]
-    channels: List[str]
-    platforms: List[str]
+    content_hash: Dict[str, str] = Field(
+        ..., description="Hash of dependencies for each target platform"
+    )
+    channels: List[str] = Field(
+        ..., description="Channels used to resolve dependencies"
+    )
+    platforms: List[str] = Field(..., description="Target platforms")
+    sources: List[str] = Field(
+        ...,
+        description="paths to source files, relative to the parent directory of the lockfile",
+    )
 
     def __or__(self, other) -> "LockMeta":
         """merge other into self"""
@@ -102,6 +112,7 @@ class LockMeta(StrictModel):
             content_hash={**self.content_hash, **other.content_hash},
             channels=self.channels,
             platforms=sorted(set(self.platforms).union(other.platforms)),
+            sources=ordered_union([self.sources, other.sources]),
         )
 
 
@@ -117,9 +128,7 @@ class Lockfile(StrictModel):
 
     def __ror__(self, other) -> "Lockfile":
         """
-        merge self into other,
-
-
+        merge self into other
         """
         if other is None:
             return self
@@ -145,6 +154,7 @@ class LockSpecification:
     dependencies: List[Dependency]
     channels: List[str]
     platforms: List[str]
+    sources: List[pathlib.Path]
     virtual_package_repo: Optional[FakeRepoData] = None
 
     def content_hash(self) -> Dict[str, str]:
@@ -239,27 +249,13 @@ def aggregate_lock_specs(
 
     dependencies = list(unique_deps.values())
 
-    # unique channels, preserving order
-    channels = list(
-        {
-            k: k
-            for k in chain.from_iterable(
-                [lock_spec.channels or [] for lock_spec in lock_specs]
-            )
-        }.values()
+    return LockSpecification(
+        dependencies,
+        # uniquify metadata, preserving order
+        channels=ordered_union(lock_spec.channels or [] for lock_spec in lock_specs),
+        platforms=ordered_union(lock_spec.platforms or [] for lock_spec in lock_specs),
+        sources=ordered_union(lock_spec.sources or [] for lock_spec in lock_specs),
     )
-
-    # unique platforms, preserving order
-    platforms = list(
-        {
-            k: k
-            for k in chain.from_iterable(
-                [lock_spec.platforms or [] for lock_spec in lock_specs]
-            )
-        }.values()
-    )
-
-    return LockSpecification(dependencies, channels=channels, platforms=platforms)
 
 
 class UpdateSpecification:

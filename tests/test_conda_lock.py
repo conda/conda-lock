@@ -444,11 +444,11 @@ def test_poetry_version_parsing_constraints(package, version, url_pattern, capsy
             ],
             channels=["conda-forge"],
             platforms=["linux-64"],
+            sources=[pathlib.Path("pyproject.toml")],
             virtual_package_repo=vpr,
         )
         lockfile_contents = create_lockfile_from_spec(
-            conda=_conda_exe,
-            spec=spec,
+            conda=_conda_exe, spec=spec, lockfile_path=pathlib.Path("conda-lock.toml")
         )
 
         python = next(p for p in lockfile_contents.package if p.name == "python")
@@ -467,20 +467,24 @@ def test_aggregate_lock_specs():
         dependencies=[_make_spec("pytorch")],
         channels=["pytorch", "conda-forge"],
         platforms=["linux-64"],
+        sources=[pathlib.Path("ml-stuff.yml")],
     )
 
     base_spec = LockSpecification(
         dependencies=[_make_spec("python", "=3.7")],
         channels=["conda-forge"],
         platforms=["linux-64"],
+        sources=[pathlib.Path("base-env.yml")],
     )
 
+    # NB: content hash explicitly does not depend on the source file names
     assert (
         aggregate_lock_specs([gpu_spec, base_spec]).content_hash()
         == LockSpecification(
             dependencies=[_make_spec("pytorch"), _make_spec("python", "=3.7")],
             channels=["pytorch", "conda-forge"],
             platforms=["linux-64"],
+            sources=[],
         ).content_hash()
     )
 
@@ -490,6 +494,7 @@ def test_aggregate_lock_specs():
             dependencies=[_make_spec("pytorch"), _make_spec("python", "=3.7")],
             channels=["conda-forge"],
             platforms=["linux-64"],
+            sources=[],
         ).content_hash()
     )
 
@@ -810,7 +815,13 @@ def test_virtual_package_input_hash_stability():
     spec = test_dir / "virtual-packages-old-glibc.yaml"
 
     vpr = virtual_package_repo_from_specification(spec)
-    spec = LockSpecification([], [], ["linux-64"], virtual_package_repo=vpr)
+    spec = LockSpecification(
+        dependencies=[],
+        channels=[],
+        platforms=["linux-64"],
+        sources=[],
+        virtual_package_repo=vpr,
+    )
     expected = "d8d0e556f97aed2eaa05fe9728b5a1c91c1b532d3eed409474e8a9b85b633a26"
     assert spec.content_hash() == {"linux-64": expected}
 
@@ -829,7 +840,13 @@ def test_default_virtual_package_input_hash_stability():
         "win-64": "d97edec84c3f450ac23bd2fbac57f77c0b0bffd5313114c1fa8c28c4df8ead6e",
     }
 
-    spec = LockSpecification([], [], list(expected.keys()), virtual_package_repo=vpr)
+    spec = LockSpecification(
+        dependencies=[],
+        channels=[],
+        platforms=list(expected.keys()),
+        sources=[],
+        virtual_package_repo=vpr,
+    )
     assert spec.content_hash() == expected
 
 

@@ -295,6 +295,7 @@ libzlib = "1.2.11 h36c2ea0_1013"
 [metadata]
 channels = [ "conda-forge",]
 platforms = [ "linux-64",]
+sources = [ "environment-preupdate.yml",]
 
 [metadata.content_hash]
 linux-64 = "a08b52d095fd885c7d9b400df51d0df50be1999d9740eee1e60050b82b9a595a"
