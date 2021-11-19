@@ -428,27 +428,30 @@ def test_poetry_version_parsing_constraints(package, version, url_pattern, capsy
 
     vpr = default_virtual_package_repodata()
     with vpr, capsys.disabled():
-        spec = LockSpecification(
-            dependencies=[
-                VersionedDependency(
-                    name=package,
-                    version=poetry_version_to_conda_version(version),
-                    manager="conda",
-                    optional=False,
-                    category="main",
-                    extras=[],
-                )
-            ],
-            channels=["conda-forge"],
-            platforms=["linux-64"],
-            # NB: this file must exist for relative path resolution to work
-            # in create_lockfile_from_spec
-            sources=[pathlib.Path("mypy.ini")],
-            virtual_package_repo=vpr,
-        )
-        lockfile_contents = create_lockfile_from_spec(
-            conda=_conda_exe, spec=spec, lockfile_path=pathlib.Path("conda-lock.toml")
-        )
+        with tempfile.NamedTemporaryFile(dir=".") as tf:
+            spec = LockSpecification(
+                dependencies=[
+                    VersionedDependency(
+                        name=package,
+                        version=poetry_version_to_conda_version(version),
+                        manager="conda",
+                        optional=False,
+                        category="main",
+                        extras=[],
+                    )
+                ],
+                channels=["conda-forge"],
+                platforms=["linux-64"],
+                # NB: this file must exist for relative path resolution to work
+                # in create_lockfile_from_spec
+                sources=[pathlib.Path(tf.name)],
+                virtual_package_repo=vpr,
+            )
+            lockfile_contents = create_lockfile_from_spec(
+                conda=_conda_exe,
+                spec=spec,
+                lockfile_path=pathlib.Path("conda-lock.toml"),
+            )
 
         python = next(p for p in lockfile_contents.package if p.name == "python")
         assert url_pattern in python.url
