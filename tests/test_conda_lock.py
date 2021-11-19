@@ -6,6 +6,7 @@ import pathlib
 import shutil
 import subprocess
 import sys
+import tempfile
 
 from glob import glob
 from typing import Any
@@ -440,7 +441,9 @@ def test_poetry_version_parsing_constraints(package, version, url_pattern, capsy
             ],
             channels=["conda-forge"],
             platforms=["linux-64"],
-            sources=[pathlib.Path("pyproject.toml")],
+            # NB: this file must exist for relative path resolution to work
+            # in create_lockfile_from_spec
+            sources=[pathlib.Path("mypy.ini")],
             virtual_package_repo=vpr,
         )
         lockfile_contents = create_lockfile_from_spec(
