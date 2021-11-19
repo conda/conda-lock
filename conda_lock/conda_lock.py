@@ -13,9 +13,7 @@ import sys
 import tempfile
 
 from contextlib import contextmanager
-from distutils.version import LooseVersion
 from functools import partial
-from itertools import chain
 from typing import AbstractSet, Dict, Iterator, List, Optional, Sequence, Tuple, cast
 from urllib.parse import urlsplit
 
@@ -24,7 +22,6 @@ import pkg_resources
 import toml
 
 from click_default_group import DefaultGroup
-from ensureconda.api import determine_micromamba_version
 
 from conda_lock.common import read_file, read_json, relative_path, write_file
 from conda_lock.conda_solver import solve_conda

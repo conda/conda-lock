@@ -6,12 +6,7 @@ import jinja2
 import yaml
 
 from conda_lock.common import get_in
-from conda_lock.src_parser import (
-    Dependency,
-    LockSpecification,
-    VersionedDependency,
-    aggregate_lock_specs,
-)
+from conda_lock.src_parser import Dependency, LockSpecification, aggregate_lock_specs
 from conda_lock.src_parser.pyproject_toml import parse_python_requirement
 from conda_lock.src_parser.selectors import filter_platform_selectors
 

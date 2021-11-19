@@ -14,8 +14,6 @@ from urllib.parse import urldefrag, urlsplit
 import pytest
 
 from conda_lock.conda_lock import (
-    DEFAULT_PLATFORMS,
-    PathLike,
     _add_auth_to_line,
     _add_auth_to_lockfile,
     _extract_domain,
@@ -36,9 +34,7 @@ from conda_lock.errors import PlatformValidationError
 from conda_lock.invoke_conda import _ensureconda, is_micromamba, reset_conda_pkgs_dir
 from conda_lock.pypi_solver import parse_pip_requirement, solve_pypi
 from conda_lock.src_parser import (
-    Dependency,
     LockedDependency,
-    Lockfile,
     LockSpecification,
     VersionedDependency,
 )

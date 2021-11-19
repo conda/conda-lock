@@ -9,7 +9,7 @@ import subprocess
 import tempfile
 
 from distutils.version import LooseVersion
-from typing import Dict, List, Optional, Sequence, Set, Tuple, Union
+from typing import Dict, List, Optional, Sequence, Union
 
 import ensureconda
 

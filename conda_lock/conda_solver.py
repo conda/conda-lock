@@ -5,13 +5,11 @@ import pathlib
 import shlex
 import subprocess
 import sys
-import tarfile
 import tempfile
 
 from contextlib import contextmanager
 from typing import (
     Any,
-    ContextManager,
     Dict,
     Iterable,
     List,
@@ -33,7 +31,6 @@ from conda_lock.invoke_conda import (
 from conda_lock.src_parser import (
     Dependency,
     LockedDependency,
-    Package,
     VersionedDependency,
     _apply_categories,
 )

@@ -2,7 +2,7 @@ import re
 import sys
 
 from pathlib import Path
-from typing import Dict, List, Optional, TypedDict
+from typing import Dict, List, Optional
 from urllib.parse import urldefrag
 
 from clikit.api.io.flags import VERY_VERBOSE
@@ -10,7 +10,6 @@ from clikit.io import ConsoleIO, NullIO
 from packaging.tags import compatible_tags, cpython_tags
 from poetry.core.packages import Dependency, Package, ProjectPackage, URLDependency
 from poetry.installation.chooser import Chooser
-from poetry.installation.operations import Install
 from poetry.installation.operations.uninstall import Uninstall
 from poetry.puzzle import Solver
 from poetry.repositories.pool import Pool
@@ -20,7 +19,6 @@ from poetry.utils.env import Env
 
 from conda_lock import src_parser
 from conda_lock.src_parser.pyproject_toml import get_lookup as get_forward_lookup
-from conda_lock.src_parser.pyproject_toml import normalize_pypi_name
 
 
 # NB: in principle these depend on the glibc in the conda env
