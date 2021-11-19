@@ -659,7 +659,9 @@ def create_lockfile_from_spec(
             content_hash=spec.content_hash(),
             channels=spec.channels,
             platforms=spec.platforms,
-            sources=[relative_path(lockfile_path, source) for source in spec.sources],
+            sources=[
+                relative_path(lockfile_path.parent, source) for source in spec.sources
+            ],
         ),
     )
 

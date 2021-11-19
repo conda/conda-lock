@@ -47,11 +47,9 @@ def ordered_union(collections: Iterable[Iterable[T]]) -> List[T]:
 
 def relative_path(source: pathlib.Path, target: pathlib.Path) -> str:
     """
-    Get posix representation of the relative path from the parent of `source` to `target`
+    Get posix representation of the relative path from `source` to `target`
     """
-    source_abs = pathlib.PurePosixPath(source.parent.resolve())
-    target_abs = pathlib.PurePosixPath(target.resolve())
-    common = pathlib.PurePosixPath(os.path.commonpath((source_abs, target_abs)))
-    up = [".."] * len(source_abs.relative_to(common).parents)
-    down = target_abs.relative_to(common)
-    return str(pathlib.PurePosixPath(*up) / down)
+    common = pathlib.PurePath(os.path.commonpath((source.resolve(), target.resolve())))
+    up = [".."] * len(source.resolve().relative_to(common).parents)
+    down = target.resolve().relative_to(common).parts
+    return str(pathlib.PurePosixPath(*up) / pathlib.PurePosixPath(*down))
