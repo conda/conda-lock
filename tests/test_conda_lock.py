@@ -6,7 +6,7 @@ import shutil
 import subprocess
 import sys
 
-from typing import Any, Dict, MutableSequence
+from typing import Any, MutableSequence
 
 import pytest
 
