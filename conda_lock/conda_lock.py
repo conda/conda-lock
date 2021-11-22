@@ -774,15 +774,12 @@ def determine_conda_executable(
 
 def _add_auth_to_line(line: str, auth: Dict[str, str]):
     matching_auths = [a for a in auth if a in line]
-    # TODO: Currently assuming this it at most one.
     if not matching_auths:
         return line
-    if len(matching_auths) == 1:
-        matching_auth = matching_auths[0]
-        replacement = f"{auth[matching_auth]}@{matching_auth}"
-        return line.replace(matching_auth, replacement)
-    else:
-        raise RuntimeError(f"More than one matching auth: {matching_auths}")
+    # If we have multiple matching auths, we choose the longest one.
+    matching_auth = max(matching_auths, key=len)
+    replacement = f"{auth[matching_auth]}@{matching_auth}"
+    return line.replace(matching_auth, replacement)
 
 
 def _add_auth_to_lockfile(lockfile: str, auth: Dict[str, str]) -> str:
