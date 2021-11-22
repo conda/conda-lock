@@ -773,10 +773,16 @@ def determine_conda_executable(
 
 
 def _add_auth_to_line(line: str, auth: Dict[str, str]):
-    search = DOMAIN_PATTERN.search(line)
-    if search and search.group(2) in auth:
-        return f"{search.group(1)}{auth[search.group(2)]}@{search.group(2)}{search.group(3)}"
-    return line
+    matching_auths = [a for a in auth if a in line]
+    # TODO: Currently assuming this it at most one.
+    if not matching_auths:
+        return line
+    if len(matching_auths) == 1:
+        matching_auth = matching_auths[0]
+        replacement = f"{auth[matching_auth]}@{matching_auth}"
+        return line.replace(matching_auth, replacement)
+    else:
+        raise RuntimeError(f"More than one matching auth: {matching_auths}")
 
 
 def _add_auth_to_lockfile(lockfile: str, auth: Dict[str, str]) -> str:
