@@ -6,7 +6,7 @@ import shutil
 import subprocess
 import sys
 
-from typing import Any, MutableSequence
+from typing import Any, Dict, MutableSequence
 
 import pytest
 
@@ -474,6 +474,11 @@ def test__strip_auth_from_lockfile(lockfile, stripped_lockfile):
             "https://conda.mychannel.cloud/mypackage",
             {},
             "https://conda.mychannel.cloud/mypackage",
+        ),
+        (
+            "https://conda.mychannel.cloud/channel1/mypackage",
+            {"conda.mychannel.cloud/channel1": "username:password"},
+            "https://username:password@conda.mychannel.cloud/channel1/mypackage",
         ),
     ),
 )
