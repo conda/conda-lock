@@ -37,6 +37,11 @@ from conda_lock.src_parser import (
 
 
 class FetchAction(TypedDict):
+    """
+    FETCH actions include all the entries from the corresponding package's
+    repodata.json
+    """
+
     channel: str
     constrains: Optional[List[str]]
     depends: Optional[List[str]]
@@ -50,6 +55,11 @@ class FetchAction(TypedDict):
 
 
 class LinkAction(TypedDict):
+    """
+    LINK actions include only entries from conda-meta, notably missing
+    dependency and constraint information
+    """
+
     base_url: str
     channel: str
     dist_name: str
@@ -159,7 +169,8 @@ def _reconstruct_fetch_actions(
     """
     Conda may choose to link a previously downloaded distribution from pkgs_dirs rather
     than downloading a fresh one. Find the repodata record in existing distributions
-    that have only a LINK action, and use it to synthesize an equivalent FETCH action.
+    that have only a LINK action, and use it to synthesize a corresponding FETCH action
+    with the metadata we need to extract for the package plan.
     """
     if "LINK" not in dry_run_install["actions"]:
         dry_run_install["actions"]["LINK"] = []
@@ -202,8 +213,10 @@ def _reconstruct_fetch_actions(
                 )
             dry_run_install["actions"]["FETCH"].append(repodata)
     else:
-        # NB: micromamba LINK actions are secretly equivalent to FETCH actions
-        # explicitly copy key-by-key to make missing keys obvious
+        # NB: micromamba LINK actions contain the same metadata as FETCH
+        # actions, and so can be used to fill out the FETCH section.
+        # Explicitly copy key-by-key to make missing keys obvious, should
+        # this change in the future.
         for link_pkg_name in link_only_names:
             item = cast(Dict[str, Any], link_actions[link_pkg_name])
             repodata = {
