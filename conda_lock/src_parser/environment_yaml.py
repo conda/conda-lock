@@ -2,7 +2,7 @@ import pathlib
 import re
 import sys
 
-from typing import List
+from typing import List, Tuple
 
 import yaml
 
@@ -12,7 +12,7 @@ from conda_lock.src_parser.selectors import filter_platform_selectors
 from .pyproject_toml import parse_python_requirement
 
 
-def parse_conda_requirement(req: str):
+def parse_conda_requirement(req: str) -> Tuple[str, str]:
     match = re.match(r"^(?P<name>[A-Za-z0-9_-]+)\s?(?P<version>.*)?$", req)
     if match:
         return match.group("name"), match.group("version")
