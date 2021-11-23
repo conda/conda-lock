@@ -15,6 +15,7 @@ from urllib.parse import urldefrag, urlsplit
 import pytest
 
 from conda_lock.conda_lock import (
+    DEFAULT_LOCKFILE_NAME,
     _add_auth_to_line,
     _add_auth_to_lockfile,
     _extract_domain,
@@ -326,7 +327,7 @@ def test_run_lock(monkeypatch, zlib_environment, conda_exe):
 @pytest.fixture
 def update_environment():
     env = TEST_DIR.joinpath("test-update").joinpath("environment-postupdate.yml")
-    lock = env.parent / "conda-lock.toml"
+    lock = env.parent / DEFAULT_LOCKFILE_NAME
     shutil.copy(lock, lock.with_suffix(".bak"))
     yield env
     shutil.copy(lock.with_suffix(".bak"), lock)
@@ -339,14 +340,14 @@ def test_run_lock_with_update(monkeypatch, update_environment, conda_exe):
     pre_lock = {
         p.name: p
         for p in parse_conda_lock_file(
-            update_environment.parent / "conda-lock.toml"
+            update_environment.parent / DEFAULT_LOCKFILE_NAME
         ).package
     }
     run_lock([update_environment], conda_exe=conda_exe, update=["pydantic"])
     post_lock = {
         p.name: p
         for p in parse_conda_lock_file(
-            update_environment.parent / "conda-lock.toml"
+            update_environment.parent / DEFAULT_LOCKFILE_NAME
         ).package
     }
     assert post_lock["pydantic"].version == "1.8.2"
@@ -853,17 +854,17 @@ def test_default_virtual_package_input_hash_stability():
 
 
 @pytest.fixture
-def conda_lock_toml():
+def conda_lock_yaml():
     return (
         pathlib.Path(__file__)
         .parent.joinpath("test-lockfile")
-        .joinpath("conda-lock.toml")
+        .joinpath(DEFAULT_LOCKFILE_NAME)
     )
 
 
-def test_fake_conda_env(conda_exe, conda_lock_toml):
+def test_fake_conda_env(conda_exe, conda_lock_yaml):
 
-    lockfile_content = parse_conda_lock_file(conda_lock_toml)
+    lockfile_content = parse_conda_lock_file(conda_lock_yaml)
 
     with fake_conda_environment(
         lockfile_content.package, platform="linux-64"

@@ -1,6 +1,6 @@
 import pathlib
 
-import toml
+import yaml
 
 from . import Lockfile
 
@@ -11,7 +11,8 @@ def parse_conda_lock_file(
     if not path.exists():
         raise FileNotFoundError(f"{path} not found")
 
-    content = toml.load(path)
+    with path.open() as f:
+        content = yaml.safe_load(f)
     version = content.pop("version", None)
     if not (isinstance(version, int) and version <= Lockfile.version):
         raise ValueError(f"{path} has unknown version {version}")
@@ -21,7 +22,7 @@ def parse_conda_lock_file(
 
 def write_conda_lock_file(content: Lockfile, path: pathlib.Path) -> None:
     with path.open("w") as f:
-        toml.dump(
+        yaml.dump(
             {
                 "version": Lockfile.version,
                 **content.dict(by_alias=True, exclude_unset=True),

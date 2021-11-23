@@ -75,18 +75,17 @@ if not (sys.version_info.major >= 3 and sys.version_info.minor >= 6):
 
 DEFAULT_PLATFORMS = ["osx-64", "linux-64", "win-64"]
 DEFAULT_KINDS = ["explicit", "lock"]
+DEFAULT_LOCKFILE_NAME = "conda-lock.yml"
 KIND_FILE_EXT = {
     "explicit": "",
     "env": ".yml",
-    "lock": "",
+    "lock": "." + DEFAULT_LOCKFILE_NAME,
 }
 KIND_USE_TEXT = {
     "explicit": "conda create --name YOURENV --file {lockfile}",
     "env": "conda env create --name YOURENV --file {lockfile}",
     "lock": "conda-lock install --name YOURENV --file {lockfile}",
 }
-
-LOCKFILE_NAME = "conda-lock.toml"
 
 
 def _extract_platform(line: str) -> Optional[str]:
@@ -266,7 +265,7 @@ def make_lock_files(
         )
 
         kind = "lock"
-        filename = LOCKFILE_NAME
+        filename = DEFAULT_LOCKFILE_NAME
 
         lockfile = pathlib.Path(filename)
 
@@ -1083,7 +1082,7 @@ def lock(
     default=[],
     help="include dev dependencies in the lockfile (where applicable)",
 )
-@click.argument("lock-file", default="conda-lock.toml")
+@click.argument("lock-file", default=DEFAULT_LOCKFILE_NAME)
 def install(
     conda,
     mamba,
@@ -1103,7 +1102,7 @@ def install(
     auth = json.loads(auth) if auth else read_json(auth_file) if auth_file else None
     _conda_exe = determine_conda_executable(conda, mamba=mamba, micromamba=micromamba)
     install_func = partial(do_conda_install, conda=_conda_exe, prefix=prefix, name=name)
-    if validate_platform and not lock_file.endswith(".toml"):
+    if validate_platform and not lock_file.endswith(DEFAULT_LOCKFILE_NAME):
         lockfile = read_file(lock_file)
         try:
             do_validate_platform(lockfile)
@@ -1158,7 +1157,7 @@ def install(
 @click.option(
     "--pdb", is_flag=True, help="Drop into a postmortem debugger if conda-lock crashes"
 )
-@click.argument("lock-file")
+@click.argument("lock-file", default=DEFAULT_LOCKFILE_NAME)
 def render(
     dev_dependencies,
     kind,
