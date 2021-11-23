@@ -47,10 +47,10 @@ def parse_environment_file(
         ), "selectors are temporarily gone"
 
         env_yaml_data = yaml.safe_load(filtered_content)
-    # TODO: we basically ignore most of the fields for now.
-    #       notable pip deps are just skipped below
     specs = env_yaml_data["dependencies"]
     channels = env_yaml_data.get("channels", [])
+
+    # These extension fields are nonstandard
     platforms = env_yaml_data.get("platforms", [])
     category = env_yaml_data.get("category") or "main"
 
