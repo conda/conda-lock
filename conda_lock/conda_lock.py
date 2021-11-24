@@ -834,9 +834,30 @@ def run_lock(
     update: Optional[List[str]] = None,
 ) -> None:
     if environment_files == DEFAULT_FILES:
-        long_ext_file = pathlib.Path("environment.yaml")
-        if long_ext_file.exists() and not environment_files[0].exists():
-            environment_files = [long_ext_file]
+        if lockfile_path.exists():
+            lock_content = parse_conda_lock_file(lockfile_path)
+            # reconstruct native paths
+            locked_environment_files = [
+                pathlib.Path(
+                    pathlib.PurePosixPath(lockfile_path).parent
+                    / pathlib.PurePosixPath(p)
+                )
+                for p in lock_content.metadata.sources
+            ]
+            if all(p.exists() for p in locked_environment_files):
+                environment_files = locked_environment_files
+            else:
+                missing = [p for p in locked_environment_files if not p.exists()]
+                print(
+                    f"{lockfile_path} was created from {[str(p) for p in locked_environment_files]},"
+                    f" but some files ({[str(p) for p in missing]}) do not exist. Falling back to"
+                    f" {[str(p) for p in environment_files]}.",
+                    file=sys.stderr,
+                )
+        else:
+            long_ext_file = pathlib.Path("environment.yaml")
+            if long_ext_file.exists() and not environment_files[0].exists():
+                environment_files = [long_ext_file]
 
     _conda_exe = determine_conda_executable(
         conda_exe, mamba=mamba, micromamba=micromamba

@@ -10,11 +10,13 @@ import tempfile
 
 from glob import glob
 from typing import Any
+from unittest.mock import MagicMock
 from urllib.parse import urldefrag, urlsplit
 
 import pytest
 
 from conda_lock.conda_lock import (
+    DEFAULT_FILES,
     DEFAULT_LOCKFILE_NAME,
     _add_auth_to_line,
     _add_auth_to_lockfile,
@@ -352,6 +354,19 @@ def test_run_lock_with_update(monkeypatch, update_environment, conda_exe):
     }
     assert post_lock["pydantic"].version == "1.8.2"
     assert post_lock["python"].version == pre_lock["python"].version
+
+
+def test_run_lock_with_locked_environment_files(
+    monkeypatch, update_environment, conda_exe
+):
+    """run_lock() with default args uses source files from lock"""
+    monkeypatch.chdir(update_environment.parent)
+    make_lock_files = MagicMock()
+    monkeypatch.setattr("conda_lock.conda_lock.make_lock_files", make_lock_files)
+    run_lock(DEFAULT_FILES, conda_exe=conda_exe, update=["pydantic"])
+    assert [p.resolve() for p in make_lock_files.call_args.kwargs["src_files"]] == [
+        pathlib.Path(update_environment.parent / "environment-preupdate.yml")
+    ]
 
 
 def test_run_lock_with_pip(monkeypatch, pip_environment, conda_exe):

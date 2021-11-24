@@ -29,6 +29,10 @@ conda install -c conda-forge conda-lock
 # generate a multi-platform lockfile
 conda-lock -f environment.yml -p osx-64 -p linux-64
 
+# optionally, update the previous solution, using the latest version of
+# pydantic that is compatible with the source specification
+conda-lock --update pydantic
+
 # create an environment from the lockfile
 conda-lock install [-p {prefix}|-n {name}]
 
@@ -41,11 +45,21 @@ conda create -n my-locked-env --file conda-linux-64.lock
 
 ### File naming
 
-By default conda-lock will name rendered files as `"conda-{platform}.lock"`.
+By default, `conda-lock` store its output in `conda-lock.yml` in the current
+working directory. This file will also be used by default for render, install,
+and update operations. You can supply a different filename with e.g.
+
+```bash
+conda-lock --lockfile superspecial.conda-lock.yml
+```
+
+The extension `.conda-lock.yml` will be added if not present. Rendered
+environment files (env or explicit) will be named as as
+`"conda-{platform}.lock"`.
 
 If you want to override that call conda-lock as follows.
 ```bash
-conda-lock --filename-template "specific-{platform}.conda.lock"
+conda-lock -k explicit --filename-template "specific-{platform}.conda.lock"
 ```
 
 ### Compound specification
