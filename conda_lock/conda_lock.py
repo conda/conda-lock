@@ -8,6 +8,7 @@ import logging
 import os
 import pathlib
 import re
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -209,6 +210,7 @@ def make_lock_files(
     conda: PathLike,
     src_files: List[pathlib.Path],
     kinds: List[str],
+    lockfile_path: pathlib.Path = pathlib.Path(DEFAULT_LOCKFILE_NAME),
     platform_overrides: Optional[Sequence[str]] = None,
     channel_overrides: Optional[Sequence[str]] = None,
     virtual_package_spec: Optional[pathlib.Path] = None,
@@ -229,6 +231,8 @@ def make_lock_files(
         Files to parse requirements from
     kinds :
         Lockfile formats to output
+    lockfile_path :
+        Path to a conda-lock.yml to create or update
     platform_overrides :
         Platforms to solve for. Takes precedence over platforms found in src_files.
     channels_overrides :
@@ -264,16 +268,12 @@ def make_lock_files(
             virtual_package_repo=virtual_package_repo,
         )
 
-        kind = "lock"
-        filename = DEFAULT_LOCKFILE_NAME
-
-        lockfile = pathlib.Path(filename)
-
         lock_content: Optional[Lockfile] = None
+
         platforms_to_lock: List[str] = []
         platforms_already_locked: List[str] = []
-        if lockfile.exists():
-            lock_content = parse_conda_lock_file(lockfile)
+        if lockfile_path.exists():
+            lock_content = parse_conda_lock_file(lockfile_path)
             platforms_already_locked = list(lock_content.metadata.platforms)
             update_spec = UpdateSpecification(
                 locked=lock_content.package, update=update
@@ -306,15 +306,15 @@ def make_lock_files(
                 conda=conda,
                 spec=lock_spec,
                 platforms=platforms_to_lock,
-                lockfile_path=lockfile,
+                lockfile_path=lockfile_path,
                 update_spec=update_spec,
             )
 
             if "lock" in kinds:
-                write_conda_lock_file(lock_content, lockfile)
+                write_conda_lock_file(lock_content, lockfile_path)
                 print(
-                    f" - Install lock using {'(see warning below)' if kind == 'env' else ''}:",
-                    KIND_USE_TEXT[kind].format(lockfile=filename),
+                    " - Install lock using:",
+                    KIND_USE_TEXT["lock"].format(lockfile=str(lockfile_path)),
                     file=sys.stderr,
                 )
 
@@ -782,7 +782,7 @@ def _render_lockfile_for_install(
     Parameters
     ----------
     filename :
-        Path to conda-lock.toml
+        Path to conda-lock.yml
     include_dev_dependencies :
         Include development dependencies in output
     extras :
@@ -790,7 +790,7 @@ def _render_lockfile_for_install(
 
     """
 
-    if not filename.endswith(".toml"):
+    if not filename.endswith(DEFAULT_LOCKFILE_NAME):
         yield filename
         return
 
@@ -827,6 +827,7 @@ def run_lock(
     channel_overrides: Optional[Sequence[str]] = None,
     filename_template: Optional[str] = None,
     kinds: Optional[List[str]] = None,
+    lockfile_path: pathlib.Path = pathlib.Path(DEFAULT_LOCKFILE_NAME),
     check_input_hash: bool = False,
     extras: Optional[AbstractSet[str]] = None,
     virtual_package_spec: Optional[pathlib.Path] = None,
@@ -848,6 +849,7 @@ def run_lock(
         virtual_package_spec=virtual_package_spec,
         update=update,
         kinds=kinds or DEFAULT_KINDS,
+        lockfile_path=lockfile_path,
         filename_template=filename_template,
         include_dev_dependencies=include_dev_dependencies,
         extras=extras,
@@ -912,7 +914,12 @@ def main():
 @click.option(
     "--filename-template",
     default="conda-{platform}.lock",
-    help="Template for the lock file names. Filename must include {platform} token, and must not end in '.yml'. For a full list and description of available tokens, see the command help text.",
+    help="Template for single-platform (explicit, env) lock file names. Filename must include {platform} token, and must not end in '.yml'. For a full list and description of available tokens, see the command help text.",
+)
+@click.option(
+    "--lockfile",
+    default=DEFAULT_LOCKFILE_NAME,
+    help="Path to a conda-lock.yml to create or update",
 )
 @click.option(
     "--strip-auth",
@@ -963,6 +970,7 @@ def lock(
     files,
     kind,
     filename_template,
+    lockfile,
     strip_auth,
     extras,
     check_input_hash: bool,
@@ -1019,6 +1027,7 @@ def lock(
         include_dev_dependencies=dev_dependencies,
         channel_overrides=channel_overrides,
         kinds=kind,
+        lockfile_path=pathlib.Path(lockfile),
         extras=extras,
         virtual_package_spec=virtual_package_spec,
         update=update,
@@ -1073,14 +1082,14 @@ def lock(
     "--dev/--no-dev",
     is_flag=True,
     default=True,
-    help="include dev dependencies in the lockfile (where applicable)",
+    help="install dev dependencies from the lockfile (where applicable)",
 )
 @click.option(
     "-E",
     "--extras",
     multiple=True,
     default=[],
-    help="include dev dependencies in the lockfile (where applicable)",
+    help="include extra dependencies from the lockfile (where applicable)",
 )
 @click.argument("lock-file", default=DEFAULT_LOCKFILE_NAME)
 def install(

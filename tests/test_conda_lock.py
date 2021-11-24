@@ -451,7 +451,7 @@ def test_poetry_version_parsing_constraints(package, version, url_pattern, capsy
             lockfile_contents = create_lockfile_from_spec(
                 conda=_conda_exe,
                 spec=spec,
-                lockfile_path=pathlib.Path("conda-lock.toml"),
+                lockfile_path=pathlib.Path(DEFAULT_LOCKFILE_NAME),
             )
 
         python = next(p for p in lockfile_contents.package if p.name == "python")
