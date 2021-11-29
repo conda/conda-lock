@@ -6,7 +6,8 @@ import jinja2
 import yaml
 
 from conda_lock.common import get_in
-from conda_lock.src_parser import LockSpecification
+from conda_lock.src_parser import Dependency, LockSpecification, aggregate_lock_specs
+from conda_lock.src_parser.pyproject_toml import parse_python_requirement
 from conda_lock.src_parser.selectors import filter_platform_selectors
 
 
@@ -82,11 +83,38 @@ class UndefinedNeverFail(jinja2.Undefined):
 
 
 def parse_meta_yaml_file(
-    meta_yaml_file: pathlib.Path, platform: str, include_dev_dependencies: bool
+    meta_yaml_file: pathlib.Path,
+    platforms: List[str],
 ) -> LockSpecification:
-    """Parse a simple meta-yaml file for dependencies.
+    """Parse a simple meta-yaml file for dependencies assuming the target platforms.
 
-    * This does not support multi-output files and will ignore all lines with selectors
+    * This will emit one dependency set per target platform. These may differ
+      if the dependencies depend on platform selectors.
+    * This does not support multi-output files and will ignore all lines with
+      selectors other than platform.
+    """
+    # parse with selectors for each target platform
+    spec = aggregate_lock_specs(
+        [
+            _parse_meta_yaml_file_for_platform(meta_yaml_file, platform)
+            for platform in platforms
+        ]
+    )
+    # remove platform selectors if they apply to all targets
+    for dep in spec.dependencies:
+        if dep.selectors.platform == platforms:
+            dep.selectors.platform = None
+
+    return spec
+
+
+def _parse_meta_yaml_file_for_platform(
+    meta_yaml_file: pathlib.Path,
+    platform: str,
+) -> LockSpecification:
+    """Parse a simple meta-yaml file for dependencies, assuming the target platform.
+
+    * This does not support multi-output files and will ignore all lines with selectors other than platform
     """
     if not meta_yaml_file.exists():
         raise FileNotFoundError(f"{meta_yaml_file} not found")
@@ -101,24 +129,35 @@ def parse_meta_yaml_file(
         meta_yaml_data = yaml.safe_load(rendered)
 
     channels = get_in(["extra", "channels"], meta_yaml_data, [])
-    specs = []
+    depenencies: List[Dependency] = []
 
-    def add_spec(spec):
+    def add_spec(spec: str, category: str):
         if spec is None:
             return
-        specs.append(spec)
+        dep = parse_python_requirement(
+            spec,
+            manager="conda",
+            optional=category != "main",
+            category=category,
+        )
+        dep.selectors.platform = [platform]
+        depenencies.append(dep)
 
     def add_requirements_from_recipe_or_output(yaml_data):
         for s in get_in(["requirements", "host"], yaml_data, []):
-            add_spec(s)
+            add_spec(s, "main")
         for s in get_in(["requirements", "run"], yaml_data, []):
-            add_spec(s)
-        if include_dev_dependencies:
-            for s in get_in(["test", "requires"], yaml_data, []):
-                add_spec(s)
+            add_spec(s, "main")
+        for s in get_in(["test", "requires"], yaml_data, []):
+            add_spec(s, "dev")
 
     add_requirements_from_recipe_or_output(meta_yaml_data)
     for output in get_in(["outputs"], meta_yaml_data, []):
         add_requirements_from_recipe_or_output(output)
 
-    return LockSpecification(specs=specs, channels=channels, platform=platform)
+    return LockSpecification(
+        dependencies=depenencies,
+        channels=channels,
+        platforms=[platform],
+        sources=[meta_yaml_file],
+    )

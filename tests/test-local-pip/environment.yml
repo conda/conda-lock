@@ -1,0 +1,9 @@
+name: gen2-analysis
+channels:
+  - conda-forge
+platforms:
+  - linux-64
+dependencies:
+  - python >=3.8,<3.10
+  - pip:
+    - -e .

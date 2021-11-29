@@ -26,13 +26,18 @@ conda install -c conda-forge conda-lock
 ## Basic usage
 
 ```bash
-# generate the lockfiles
+# generate a multi-platform lockfile
 conda-lock -f environment.yml -p osx-64 -p linux-64
 
-# create an environment from the lockfile
-conda-lock install [-p {prefix}|-n {name}] conda-linux-64.lock
+# optionally, update the previous solution, using the latest version of
+# pydantic that is compatible with the source specification
+conda-lock --update pydantic
 
-# alternatively, use conda command directly
+# create an environment from the lockfile
+conda-lock install [-p {prefix}|-n {name}]
+
+# alternatively, render a single-platform lockfile and use conda command directly
+conda-lock render -p linux-64
 conda create -n my-locked-env --file conda-linux-64.lock
 ```
 
@@ -40,11 +45,21 @@ conda create -n my-locked-env --file conda-linux-64.lock
 
 ### File naming
 
-By default conda-lock will name files as `"conda-{platform}.lock"`.
+By default, `conda-lock` store its output in `conda-lock.yml` in the current
+working directory. This file will also be used by default for render, install,
+and update operations. You can supply a different filename with e.g.
+
+```bash
+conda-lock --lockfile superspecial.conda-lock.yml
+```
+
+The extension `.conda-lock.yml` will be added if not present. Rendered
+environment files (env or explicit) will be named as as
+`"conda-{platform}.lock"`.
 
 If you want to override that call conda-lock as follows.
 ```bash
-conda-lock --filename-template "specific-{platform}.conda.lock"
+conda-lock -k explicit --filename-template "specific-{platform}.conda.lock"
 ```
 
 ### Compound specification
@@ -55,7 +70,7 @@ Conda-lock will build a spec list from several files if requested.
 conda-lock -f base.yml -f specific.yml -p linux-64 --filename-template "specific-{platform}.lock"
 ````
 
-In this case all dependencies are combined, and the first non-empty value for `channels` is used as the final
+In this case all dependencies are combined, and the ordered union of all `channels` is used as the final
 specification.
 
 This works for all supported file types.
@@ -68,6 +83,52 @@ an [environment.yml][envyaml]
 ```bash
 conda-lock -c conda-forge -p linux-64
 ```
+
+#### platform specification
+
+You may specify the platforms you wish to target by default directly in an [environment.yml][envyaml] using the (nonstandard) `platforms` key:
+
+```yaml
+# environment.yml
+channels:
+  - conda-forge
+dependencies:
+  - python=3.9
+  - pandas
+platforms:
+  - osx-arm64
+  - linux-64
+```
+
+If you specify target platforms on the command line with `-p`, these will
+override the values in the environment specification. If neither `platforms` nor
+`-p` are provided, `conda-lock` will fall back to a default set of platforms.
+
+#### default category
+
+You can may wish to split your dependencies into separate files for better
+organization, e.g. a `environment.yml` for production dependencies and a
+`dev-environment.yml` for development dependencies. You can assign all the
+dependencies parsed from a single file to a category using the (nonstandard)
+`category` key.
+
+```yaml
+# dev-environment.yml
+channels:
+  - conda-forge
+dependencies:
+  - pytest
+  - mypy=0.910
+category: dev
+```
+
+The default category is `main`.
+
+### pip support
+
+`conda-lock` can also lock the `dependencies.pip` section of
+[environment.yml][envyaml], using [Poetry's][poetry] dependency solver, if
+installed with the `pip_support` extra.
 
 ### --dev-dependencies/--no-dev-dependencies
 
@@ -194,6 +255,19 @@ channels = [
 ]
 ```
 
+#### Platforms
+
+Like in [environment.yml][envyaml], you can specify default platforms to target:
+
+```toml
+# pyproject.toml
+
+[tool.conda-lock]
+platforms = [
+    'osx-arm64', 'linux-64'
+]
+```
+
 #### Extras
 
 If your pyproject.toml file contains optional dependencies/extras these can be referred to by using the `--extras` flag
@@ -233,6 +307,30 @@ the following sections to the `pyproject.toml`
 sqlite = ">=3.34"
 ```
 
+#### pip dependencies
+
+If a dependency refers directly to a URL rather than a package name and version,
+`conda-lock` will assume it is pip-installable, e.g.:
+
+```toml
+# pyproject.toml
+[tool.poetry.dependencies]
+python = "3.9"
+pymage = {url = "https://github.com/MickaelRigault/pymage/archive/v1.0.tar.gz#sha256=11e99c4ea06b76ca7fb5b42d1d35d64139a4fa6f7f163a2f0f9cc3ea0b3c55eb"}
+```
+
+Similarly, if a dependency is explicitly marked with `source = "pypi"`, it will
+be treated as a `pip` dependency, e.g.:
+
+```toml
+[tool.poetry.dependencies]
+python = "3.9"
+ampel-ztf = {version = "^0.8.0-alpha.2", source = "pypi"}
+```
+
+In both these cases, the dependencies of `pip`-installable packages will also be
+installed with `pip`, unless they were already requested by a `conda`
+dependency.
 
 ## Dockerfile example
 
@@ -268,3 +366,4 @@ COPY --from=conda /opt/env /opt/env
 [metayaml]: https://docs.conda.io/projects/conda-build/en/latest/resources/define-metadata.html
 [mapping]: https://github.com/regro/cf-graph-countyfair/blob/master/mappings/pypi/grayskull_pypi_mapping.yaml
 [envyaml]: https://docs.conda.io/projects/conda/en/latest/user-guide/tasks/manage-environments.html#create-env-file-manually
+[poetry]: https://python-poetry.org
