@@ -532,12 +532,7 @@ def render_lockfile_for_platform(  # noqa: C901
         lockfile_contents.append("@EXPLICIT\n")
 
         lockfile_contents.extend(
-            sorted(
-                [
-                    format_conda_requirement(dep, platform, direct=True)
-                    for dep in conda_deps
-                ]
-            )
+            [format_conda_requirement(dep, platform, direct=True) for dep in conda_deps]
         )
 
         def sanitize_lockfile_line(line):
@@ -551,12 +546,10 @@ def render_lockfile_for_platform(  # noqa: C901
 
         # emit an explicit requirements.txt, prefixed with '# pip '
         lockfile_contents.extend(
-            sorted(
-                [
-                    f"# pip {format_pip_requirement(dep, platform, direct=True)}"
-                    for dep in pip_deps
-                ]
-            )
+            [
+                f"# pip {format_pip_requirement(dep, platform, direct=True)}"
+                for dep in pip_deps
+            ]
         )
     else:
         raise ValueError(f"Unrecognised lock kind {kind}.")
@@ -653,7 +646,7 @@ def create_lockfile_from_spec(
             locked[(dep.manager, dep.name, dep.platform)] = dep
 
     return Lockfile(
-        package=[locked[k] for k in sorted(locked.keys())],
+        package=[locked[k] for k in locked],
         metadata=LockMeta(
             content_hash=spec.content_hash(),
             channels=spec.channels,
