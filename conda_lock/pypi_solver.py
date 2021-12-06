@@ -135,7 +135,11 @@ def get_dependency(dep: src_parser.Dependency) -> Dependency:
             name=dep.name, constraint=dep.version or "*", extras=dep.extras
         )
     elif isinstance(dep, src_parser.URLDependency):
-        return URLDependency(name=dep.name, url=dep.url, extras=extras)
+        return URLDependency(
+            name=dep.name,
+            url=f"{dep.url}#{dep.hashes[0].replace(':','=')}",
+            extras=extras,
+        )
     else:
         raise ValueError(f"Unknown requirement {dep}")
 
@@ -265,7 +269,9 @@ def solve_pypi(
             if op.package.source_type == "url":
                 url, fragment = urldefrag(op.package.source_url)
                 hash = fragment.replace("=", ":")
-                source = src_parser.DependencySource(type="url", url=url)
+                source = src_parser.DependencySource(
+                    type="url", url=op.package.source_url
+                )
             # Choose the most specific distribution for the target
             else:
                 link = chooser.choose_for(op.package)

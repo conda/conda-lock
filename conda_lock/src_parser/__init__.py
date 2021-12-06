@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from itertools import chain
 from typing import ClassVar, Dict, List, Literal, Optional, Sequence, Set, Tuple
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, validator
 
 from conda_lock.common import ordered_union
 from conda_lock.virtual_package import FakeRepoData
@@ -76,6 +76,17 @@ class LockedDependency(StrictModel):
 
     def key(self) -> Tuple[str, str, str]:
         return (self.manager, self.name, self.platform)
+
+    @validator("hash")
+    def validate_hash(cls, v, values, **kwargs):
+        if ":" not in v:
+            if values["manager"] == "conda":
+                return f"md5:{v}"
+            raise ValueError("hash must specify an algorithm")
+        algorithm = v.split(":")[0]
+        if values["manager"] == "conda" and algorithm != "md5":
+            raise ValueError("conda package hashes must use MD5")
+        return v
 
 
 class LockMeta(StrictModel):

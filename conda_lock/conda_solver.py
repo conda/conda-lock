@@ -152,7 +152,7 @@ def solve_conda(
             },
             url=action["url"],
             # NB: virtual packages may have no hash
-            hash=action.get("md5", ""),
+            hash=f"md5:{action['md5']}" if "md5" in action else "",
         )
         for action in dry_run_install["actions"]["FETCH"]
     }
