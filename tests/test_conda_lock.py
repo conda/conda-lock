@@ -182,7 +182,7 @@ def test_choose_wheel() -> None:
                     "platform": "linux-64",
                     "dependencies": {},
                     "url": "",
-                    "hash": "",
+                    "hash": "md5:deadbeef",
                 }
             )
         },

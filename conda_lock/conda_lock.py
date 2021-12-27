@@ -497,7 +497,7 @@ def render_lockfile_for_platform(  # noqa: C901
         spec: LockedDependency, platform: str, direct=False
     ) -> str:
         if direct:
-            return f"{spec.url}#{spec.hash}"
+            return f"{spec.url}#{spec.hash.replace('md5:', '')}"
         else:
             path = pathlib.Path(urlsplit(spec.url).path)
             while path.suffix in {".tar", ".bz2", ".gz", ".conda"}:
