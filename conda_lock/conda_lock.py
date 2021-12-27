@@ -716,10 +716,13 @@ def parse_source_files(
 
 
 def _add_auth_to_line(line: str, auth: Dict[str, str]):
-    search = DOMAIN_PATTERN.search(line)
-    if search and search.group(2) in auth:
-        return f"{search.group(1)}{auth[search.group(2)]}@{search.group(2)}{search.group(3)}"
-    return line
+    matching_auths = [a for a in auth if a in line]
+    if not matching_auths:
+        return line
+    # If we have multiple matching auths, we choose the longest one.
+    matching_auth = max(matching_auths, key=len)
+    replacement = f"{auth[matching_auth]}@{matching_auth}"
+    return line.replace(matching_auth, replacement)
 
 
 def _add_auth_to_lockfile(lockfile: str, auth: Dict[str, str]) -> str:

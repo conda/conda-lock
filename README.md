@@ -165,6 +165,15 @@ In order to `conda-lock install` a lock file with its basic auth credentials str
 }
 ```
 
+If you have multiple channels that require different authentication within the same domain, you can additionally specify the channel like this:
+
+```json
+{
+  "domain.org/channel1": "username1:password1",
+  "domain.org/channel2": "username2:password2"
+}
+```
+
 You can provide the authentication either as string through `--auth` or as a filepath through `--auth-file`.
 
 ```bash

@@ -733,6 +733,19 @@ def test__strip_auth_from_lockfile(lockfile, stripped_lockfile):
             {},
             "https://conda.mychannel.cloud/mypackage",
         ),
+        (
+            "https://conda.mychannel.cloud/channel1/mypackage",
+            {"conda.mychannel.cloud/channel1": "username:password"},
+            "https://username:password@conda.mychannel.cloud/channel1/mypackage",
+        ),
+        (
+            "https://conda.mychannel.cloud/channel1/mypackage",
+            {
+                "conda.mychannel.cloud": "username:password",
+                "conda.mychannel.cloud/channel1": "username1:password1",
+            },
+            "https://username1:password1@conda.mychannel.cloud/channel1/mypackage",
+        ),
     ),
 )
 def test__add_auth_to_line(line, auth, line_with_auth):
