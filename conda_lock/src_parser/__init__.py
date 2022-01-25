@@ -2,10 +2,20 @@ import hashlib
 import json
 import pathlib
 
-from collections import defaultdict
+from collections import defaultdict, namedtuple
 from dataclasses import dataclass
 from itertools import chain
-from typing import ClassVar, Dict, List, Literal, Optional, Sequence, Set, Tuple
+from typing import (
+    ClassVar,
+    Dict,
+    List,
+    Literal,
+    NamedTuple,
+    Optional,
+    Sequence,
+    Set,
+    Tuple,
+)
 
 from pydantic import BaseModel, Field, validator
 
@@ -62,6 +72,9 @@ class DependencySource(StrictModel):
     url: str
 
 
+LockKey = namedtuple("LockKey", ["manager", "name", "platform"])
+
+
 class LockedDependency(StrictModel):
     name: str
     version: str
@@ -74,8 +87,8 @@ class LockedDependency(StrictModel):
     category: str = "main"
     source: Optional[DependencySource] = None
 
-    def key(self) -> Tuple[str, str, str]:
-        return (self.manager, self.name, self.platform)
+    def key(self) -> LockKey:
+        return LockKey(self.manager, self.name, self.platform)
 
     @validator("hash")
     def validate_hash(cls, v, values, **kwargs):
@@ -140,14 +153,47 @@ class Lockfile(StrictModel):
 
         ours = {d.key(): d for d in self.package}
         theirs = {d.key(): d for d in other.package}
-        package = []
+
+        # Pick ours preferentially
+        package: List[LockedDependency] = []
         for key in sorted(set(ours.keys()).union(theirs.keys())):
             if key not in ours or key[-1] not in self.metadata.platforms:
                 package.append(theirs[key])
             else:
                 package.append(ours[key])
 
-        return Lockfile(package=package, metadata=other.metadata | self.metadata)
+        platforms = {d.platform for d in package}
+
+        # Resort the conda packages topologically
+        final_package: List[LockedDependency] = []
+        for platform in sorted(platforms):
+            lookup = defaultdict(set)
+            conda_packages: Dict[str, LockedDependency] = {}
+            from ..vendor.conda.toposort import toposort
+
+            for d in package:
+                if d.platform != platform:
+                    continue
+                if d.manager != "conda":
+                    continue
+                lookup[d.name] = set(d.dependencies)
+                conda_packages[d.name] = d
+
+            ordered = toposort(lookup)
+            for conda_package_name in ordered:
+                d = conda_packages[conda_package_name]
+                final_package.append(d)
+
+            # Add the remaining non-conda packages in the order in which they appeared.
+            # TOFO: should the pip packages also get topologically ordered?
+            for d in package:
+                if d.platform != platform:
+                    continue
+                if d.manager == "conda":
+                    continue
+                final_package.append(d)
+
+        return Lockfile(package=final_package, metadata=other.metadata | self.metadata)
 
 
 @dataclass
