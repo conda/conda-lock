@@ -27,7 +27,13 @@ from click_default_group import DefaultGroup
 from conda_lock.common import read_file, read_json, relative_path, write_file
 from conda_lock.conda_solver import solve_conda
 from conda_lock.errors import PlatformValidationError
-from conda_lock.invoke_conda import PathLike, _invoke_conda, determine_conda_executable
+from conda_lock.invoke_conda import (
+    PathLike,
+    _ensureconda,
+    _invoke_conda,
+    determine_conda_executable,
+    is_micromamba,
+)
 
 
 try:
@@ -156,7 +162,7 @@ def do_conda_install(conda: PathLike, prefix: str, name: str, file: str) -> None
 
     _conda(
         [
-            *(["env"] if kind == "env" else []),
+            *(["env"] if kind == "env" and not is_micromamba(conda) else []),
             "create",
             "--file",
             file,
