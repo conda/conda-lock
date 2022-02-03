@@ -239,6 +239,19 @@ def _apply_categories(
     # walk dependency tree to assemble all transitive dependencies by request
     dependents: Dict[str, Set[str]] = {}
     by_category = defaultdict(list)
+
+    def seperator_munge_get(
+        d: Dict[str, LockedDependency], key: str
+    ) -> LockedDependency:
+        # since seperators are not consistent across managers we need to do some double attemps here
+        try:
+            return d[key]
+        except KeyError:
+            try:
+                return d[key.replace("-", "_")]
+            except KeyError:
+                return d[key.replace("_", "-")]
+
     for name, request in requested.items():
         todo: List[str] = list()
         deps: Set[str] = set()
@@ -246,7 +259,7 @@ def _apply_categories(
         while True:
             todo.extend(
                 dep
-                for dep in planned[item].dependencies
+                for dep in seperator_munge_get(planned, item).dependencies
                 # exclude virtual packages
                 if not (dep in deps or dep.startswith("__"))
             )
@@ -274,7 +287,7 @@ def _apply_categories(
 
     for dep, root in root_requests.items():
         source = requested[root]
-        target = planned[dep]
+        target = seperator_munge_get(planned, dep)
         target.category = source.category
         target.optional = source.optional
 
