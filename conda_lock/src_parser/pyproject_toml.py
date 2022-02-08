@@ -128,7 +128,7 @@ def parse_poetry_pyproject_toml(
                 poetry_version_spec = depattrs
             else:
                 raise TypeError(
-                    f"Unsupported type for dependency: {depname}: {depattrs:r}"
+                    f"Unsupported type for dependency: {depname}: {depattrs}"
                 )
             if manager == "conda":
                 name = normalize_pypi_name(depname)
