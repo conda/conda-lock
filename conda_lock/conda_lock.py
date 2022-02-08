@@ -91,7 +91,7 @@ KIND_FILE_EXT = {
 KIND_USE_TEXT = {
     "explicit": "conda create --name YOURENV --file {lockfile}",
     "env": "conda env create --name YOURENV --file {lockfile}",
-    "lock": "conda-lock install --name YOURENV --file {lockfile}",
+    "lock": "conda-lock install --name YOURENV {lockfile}",
 }
 
 
