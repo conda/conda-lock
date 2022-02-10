@@ -139,6 +139,7 @@ def _parse_meta_yaml_file_for_platform(
             manager="conda",
             optional=category != "main",
             category=category,
+            normalize_name=False,
         )
         dep.selectors.platform = [platform]
         depenencies.append(dep)

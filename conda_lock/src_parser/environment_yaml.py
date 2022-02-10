@@ -12,10 +12,14 @@ from conda_lock.src_parser.selectors import filter_platform_selectors
 from .pyproject_toml import parse_python_requirement
 
 
+_whitespace = re.compile(r"\s+")
+_conda_package_pattern = re.compile(r"^(?P<name>[A-Za-z0-9_-]+)\s?(?P<version>.*)?$")
+
+
 def parse_conda_requirement(req: str) -> Tuple[str, str]:
-    match = re.match(r"^(?P<name>[A-Za-z0-9_-]+)\s?(?P<version>.*)?$", req)
+    match = _conda_package_pattern.match(req)
     if match:
-        return match.group("name"), match.group("version")
+        return match.group("name"), _whitespace.sub("", match.group("version"))
     else:
         raise ValueError(f"Can't parse conda spec from '{req}'")
 
