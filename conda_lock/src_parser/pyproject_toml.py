@@ -243,6 +243,7 @@ def parse_python_requirement(
     manager: Literal["conda", "pip"] = "conda",
     optional: bool = False,
     category: str = "main",
+    normalize_name: bool = True,
 ) -> Dependency:
     """Parse a requirements.txt like requirement to a conda spec"""
     requirement_specifier = requirement.split(";")[0].strip()
@@ -253,7 +254,10 @@ def parse_python_requirement(
     collapsed_version = ",".join("".join(spec) for spec in parsed_req.specs)
     conda_version = poetry_version_to_conda_version(collapsed_version)
 
-    conda_dep_name = normalize_pypi_name(name)
+    if normalize_name:
+        conda_dep_name = normalize_pypi_name(name)
+    else:
+        conda_dep_name = name
     extras = list(parsed_req.extras)
 
     if parsed_req.url:  # type: ignore[attr-defined]
