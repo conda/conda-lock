@@ -30,6 +30,7 @@ from conda_lock.invoke_conda import (
 )
 from conda_lock.src_parser import (
     Dependency,
+    HashModel,
     LockedDependency,
     VersionedDependency,
     _apply_categories,
@@ -47,6 +48,7 @@ class FetchAction(TypedDict):
     depends: Optional[List[str]]
     fn: str
     md5: str
+    sha256: Optional[str]
     name: str
     subdir: str
     timestamp: int
@@ -152,7 +154,10 @@ def solve_conda(
             },
             url=action["url"],
             # NB: virtual packages may have no hash
-            hash=f"md5:{action['md5']}" if "md5" in action else "",
+            hash=HashModel(
+                md5=action["md5"] if "md5" in action else "",
+                sha256=action.get("sha256"),
+            ),
         )
         for action in dry_run_install["actions"]["FETCH"]
     }
@@ -230,7 +235,9 @@ def _reconstruct_fetch_actions(
                 "timestamp": item["timestamp"],
                 "url": item["url"],
                 "version": item["version"],
+                "sha256": item.get("sha256"),
             }
+
             dry_run_install["actions"]["FETCH"].append(repodata)
     return dry_run_install
 
@@ -433,7 +440,8 @@ def update_specs_for_arch(
             else:
                 channel = f'{entry["base_url"]}/{entry["platform"]}'
             url = f"{channel}/{fn}"
-            md5 = locked[package].hash
+            md5 = locked[package].hash.md5
+            sha256 = locked[package].hash.sha256
             dryrun_install["actions"]["FETCH"].append(
                 {
                     "name": entry["name"],
@@ -441,6 +449,7 @@ def update_specs_for_arch(
                     "url": url,
                     "fn": fn,
                     "md5": md5,
+                    "sha256": sha256,
                     "version": entry["version"],
                     "depends": [
                         f"{k} {v}".strip()
@@ -491,7 +500,8 @@ def fake_conda_environment(locked: Iterable[LockedDependency], platform: str):
                 "name": dep.name,
                 "channel": channel,
                 "url": dep.url,
-                "md5": dep.hash,
+                "md5": dep.hash.md5,
+                "sha256": dep.hash.sha256,
                 "build": build,
                 "build_number": build_number,
                 "version": dep.version,

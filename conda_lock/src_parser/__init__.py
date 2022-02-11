@@ -75,6 +75,11 @@ class DependencySource(StrictModel):
 LockKey = namedtuple("LockKey", ["manager", "name", "platform"])
 
 
+class HashModel(StrictModel):
+    md5: str
+    sha256: Optional[str]
+
+
 class LockedDependency(StrictModel):
     name: str
     version: str
@@ -82,7 +87,7 @@ class LockedDependency(StrictModel):
     platform: str
     dependencies: Dict[str, str] = {}
     url: str
-    hash: str
+    hash: HashModel
     optional: bool = False
     category: str = "main"
     source: Optional[DependencySource] = None
