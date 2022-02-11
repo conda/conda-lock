@@ -2,6 +2,9 @@
 # platform: win-64
 # input_hash: 636bb03dd62b2e0b13bbca4372887422c4f1d2c84fcbc7b9d5c55dc8a9891f80
 @EXPLICIT
+https://conda.anaconda.org/conda-forge/win-64/ucrt-10.0.20348.0-h57928b3_0.tar.bz2#6d666b6ea8251231ff508062d1e41f9c
 https://conda.anaconda.org/conda-forge/win-64/vs2008_runtime-9.0.30729.6161-0.tar.bz2#9531fa584348748d666b66055c771182
-https://repo.anaconda.com/pkgs/main/win-64/vc-9-h2eaa2aa_6.conda#9facb65cb12facfde4677b7bbccb2f71
-https://conda.anaconda.org/conda-forge/win-64/zlib-1.2.11-h3cc03e0_1006.tar.bz2#ee979c67fdace75c048d9e93792dd637
+https://conda.anaconda.org/conda-forge/win-64/vs2015_runtime-14.29.30037-h902a5da_6.tar.bz2#33d07ebe91062743eabc9e53a60d18e1
+https://conda.anaconda.org/conda-forge/win-64/vc-14.2-hb210afc_6.tar.bz2#c2aecbc9b00ba6f352e27d3d61fd31fb
+https://conda.anaconda.org/conda-forge/win-64/libzlib-1.2.11-h8ffe710_1013.tar.bz2#b28dd2488b4e5f892c67071acc1d0a8c
+https://conda.anaconda.org/conda-forge/win-64/zlib-1.2.11-h8ffe710_1013.tar.bz2#866517df4fd8bb813bc20c24cf7b8f05
