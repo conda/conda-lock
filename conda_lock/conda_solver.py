@@ -509,6 +509,7 @@ def fake_conda_environment(locked: Iterable[LockedDependency], platform: str):
                 "subdir": path.parent.name,
                 "depends": [f"{k} {v}".strip() for k, v in dep.dependencies.items()],
             }
+            # mamba requires these to be stringlike so null are not allowed here
             if dep.hash.sha256 is not None:
                 entry["sha256"] = dep.hash.sha256
 
