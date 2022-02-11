@@ -4,7 +4,7 @@ from textwrap import dedent
 
 import yaml
 
-from . import Lockfile
+from . import LockedDependency, Lockfile
 
 
 def parse_conda_lock_file(
@@ -19,7 +19,7 @@ def parse_conda_lock_file(
     if not (isinstance(version, int) and version <= Lockfile.version):
         raise ValueError(f"{path} has unknown version {version}")
 
-    return Lockfile(**content)
+    return Lockfile.parse_obj(content)
 
 
 def write_conda_lock_file(

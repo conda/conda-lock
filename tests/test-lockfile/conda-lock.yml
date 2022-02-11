@@ -5446,7 +5446,8 @@ package:
 - category: main
   dependencies:
     six: '*'
-  hash: sha256:d99412159074d39891c83098dd5f0ca63bb56103e46efaa7e8455560680ce282
+  hash:
+    sha256: d99412159074d39891c83098dd5f0ca63bb56103e46efaa7e8455560680ce282
   manager: pip
   name: easy-cache
   optional: false
@@ -5457,7 +5458,8 @@ package:
 - category: main
   dependencies:
     six: '*'
-  hash: sha256:d99412159074d39891c83098dd5f0ca63bb56103e46efaa7e8455560680ce282
+  hash:
+    sha256: d99412159074d39891c83098dd5f0ca63bb56103e46efaa7e8455560680ce282
   manager: pip
   name: easy-cache
   optional: false
@@ -5468,7 +5470,8 @@ package:
 - category: main
   dependencies:
     six: '*'
-  hash: sha256:d99412159074d39891c83098dd5f0ca63bb56103e46efaa7e8455560680ce282
+  hash:
+    sha256: d99412159074d39891c83098dd5f0ca63bb56103e46efaa7e8455560680ce282
   manager: pip
   name: easy-cache
   optional: false
@@ -5478,7 +5481,8 @@ package:
   version: 1.1.0
 - category: main
   dependencies: {}
-  hash: sha256:b2b8a179f4268d3619a72fc14f8f223f52bc9d51c3ff338863eb8b11c6bc0d5b
+  hash:
+    sha256: b2b8a179f4268d3619a72fc14f8f223f52bc9d51c3ff338863eb8b11c6bc0d5b
   manager: pip
   name: pydashi
   optional: false
@@ -5490,7 +5494,8 @@ package:
   version: 2.0.0a0
 - category: main
   dependencies: {}
-  hash: sha256:b2b8a179f4268d3619a72fc14f8f223f52bc9d51c3ff338863eb8b11c6bc0d5b
+  hash:
+    sha256: b2b8a179f4268d3619a72fc14f8f223f52bc9d51c3ff338863eb8b11c6bc0d5b
   manager: pip
   name: pydashi
   optional: false
@@ -5502,7 +5507,8 @@ package:
   version: 2.0.0a0
 - category: main
   dependencies: {}
-  hash: sha256:b2b8a179f4268d3619a72fc14f8f223f52bc9d51c3ff338863eb8b11c6bc0d5b
+  hash:
+    sha256: b2b8a179f4268d3619a72fc14f8f223f52bc9d51c3ff338863eb8b11c6bc0d5b
   manager: pip
   name: pydashi
   optional: false
@@ -5515,7 +5521,8 @@ package:
 - category: dev
   dependencies:
     pytest: '>=3.5.0'
-  hash: sha256:ebf8b6cd32772e940c20871f5c09ca35d18155390e649823b8435299a25bd88e
+  hash:
+    sha256: ebf8b6cd32772e940c20871f5c09ca35d18155390e649823b8435299a25bd88e
   manager: pip
   name: pytest-pinned
   optional: true
@@ -5526,7 +5533,8 @@ package:
 - category: dev
   dependencies:
     pytest: '>=3.5.0'
-  hash: sha256:ebf8b6cd32772e940c20871f5c09ca35d18155390e649823b8435299a25bd88e
+  hash:
+    sha256: ebf8b6cd32772e940c20871f5c09ca35d18155390e649823b8435299a25bd88e
   manager: pip
   name: pytest-pinned
   optional: true
@@ -5537,7 +5545,8 @@ package:
 - category: dev
   dependencies:
     pytest: '>=3.5.0'
-  hash: sha256:ebf8b6cd32772e940c20871f5c09ca35d18155390e649823b8435299a25bd88e
+  hash:
+    sha256: ebf8b6cd32772e940c20871f5c09ca35d18155390e649823b8435299a25bd88e
   manager: pip
   name: pytest-pinned
   optional: true

@@ -76,8 +76,8 @@ LockKey = namedtuple("LockKey", ["manager", "name", "platform"])
 
 
 class HashModel(StrictModel):
-    md5: Optional[str]
-    sha256: Optional[str]
+    md5: Optional[str] = None
+    sha256: Optional[str] = None
 
 
 class LockedDependency(StrictModel):
@@ -97,7 +97,7 @@ class LockedDependency(StrictModel):
 
     @validator("hash")
     def validate_hash(cls, v, values, **kwargs):
-        if values["manager"] == "conda" and v.md5 is None:
+        if (values["manager"] == "conda") and (v.md5 is None):
             raise ValueError("conda package hashes must use MD5")
         return v
 
