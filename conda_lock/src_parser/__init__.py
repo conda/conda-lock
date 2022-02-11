@@ -97,12 +97,7 @@ class LockedDependency(StrictModel):
 
     @validator("hash")
     def validate_hash(cls, v, values, **kwargs):
-        if ":" not in v:
-            if values["manager"] == "conda":
-                return f"md5:{v}"
-            raise ValueError("hash must specify an algorithm")
-        algorithm = v.split(":")[0]
-        if values["manager"] == "conda" and algorithm != "md5":
+        if values["manager"] == "conda" and v.md5 is None:
             raise ValueError("conda package hashes must use MD5")
         return v
 
