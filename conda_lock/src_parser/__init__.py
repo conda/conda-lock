@@ -75,6 +75,11 @@ class DependencySource(StrictModel):
 LockKey = namedtuple("LockKey", ["manager", "name", "platform"])
 
 
+class HashModel(StrictModel):
+    md5: Optional[str] = None
+    sha256: Optional[str] = None
+
+
 class LockedDependency(StrictModel):
     name: str
     version: str
@@ -82,7 +87,7 @@ class LockedDependency(StrictModel):
     platform: str
     dependencies: Dict[str, str] = {}
     url: str
-    hash: str
+    hash: HashModel
     optional: bool = False
     category: str = "main"
     source: Optional[DependencySource] = None
@@ -92,12 +97,7 @@ class LockedDependency(StrictModel):
 
     @validator("hash")
     def validate_hash(cls, v, values, **kwargs):
-        if ":" not in v:
-            if values["manager"] == "conda":
-                return f"md5:{v}"
-            raise ValueError("hash must specify an algorithm")
-        algorithm = v.split(":")[0]
-        if values["manager"] == "conda" and algorithm != "md5":
+        if (values["manager"] == "conda") and (v.md5 is None):
             raise ValueError("conda package hashes must use MD5")
         return v
 

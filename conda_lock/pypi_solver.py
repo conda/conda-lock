@@ -268,7 +268,8 @@ def solve_pypi(
             source: Optional[src_parser.DependencySource] = None
             if op.package.source_type == "url":
                 url, fragment = urldefrag(op.package.source_url)
-                hash = fragment.replace("=", ":")
+                hash_type, hash = fragment.split("=")
+                hash = src_parser.HashModel(**{hash_type: hash})
                 source = src_parser.DependencySource(
                     type="url", url=op.package.source_url
                 )
@@ -276,7 +277,7 @@ def solve_pypi(
             else:
                 link = chooser.choose_for(op.package)
                 url = link.url_without_fragment
-                hash = f"{link.hash_name}:{link.hash}"
+                hash = src_parser.HashModel(**{link.hash_name: link.hash})
 
             requirements.append(
                 src_parser.LockedDependency(

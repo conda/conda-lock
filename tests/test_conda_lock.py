@@ -38,6 +38,7 @@ from conda_lock.errors import PlatformValidationError
 from conda_lock.invoke_conda import _ensureconda, is_micromamba, reset_conda_pkgs_dir
 from conda_lock.pypi_solver import parse_pip_requirement, solve_pypi
 from conda_lock.src_parser import (
+    HashModel,
     LockedDependency,
     LockSpecification,
     VersionedDependency,
@@ -182,7 +183,9 @@ def test_choose_wheel() -> None:
                     "platform": "linux-64",
                     "dependencies": {},
                     "url": "",
-                    "hash": "md5:deadbeef",
+                    "hash": {
+                        "md5": "deadbeef",
+                    },
                 }
             )
         },
@@ -190,9 +193,8 @@ def test_choose_wheel() -> None:
         platform="linux-64",
     )
     assert len(solution) == 1
-    assert (
-        solution["fastavro"].hash
-        == "sha256:a111a384a786b7f1fd6a8a8307da07ccf4d4c425084e2d61bae33ecfb60de405"
+    assert solution["fastavro"].hash == HashModel(
+        sha256="a111a384a786b7f1fd6a8a8307da07ccf4d4c425084e2d61bae33ecfb60de405"
     )
 
 

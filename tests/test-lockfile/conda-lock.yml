@@ -29,7 +29,8 @@ metadata:
 package:
 - category: main
   dependencies: {}
-  hash: md5:d7c89558ba9fa0495403155b64376d81
+  hash:
+    md5: d7c89558ba9fa0495403155b64376d81
   manager: conda
   name: _libgcc_mutex
   optional: false
@@ -40,7 +41,8 @@ package:
   dependencies:
     _libgcc_mutex: 0.1 conda_forge
     libgomp: '>=7.5.0'
-  hash: md5:561e277319a41d4f24f5c05a9ef63c04
+  hash:
+    md5: 561e277319a41d4f24f5c05a9ef63c04
   manager: conda
   name: _openmp_mutex
   optional: false
@@ -51,7 +53,8 @@ package:
   dependencies:
     python: '>=3.9,<3.10.0a0'
     python_abi: 3.9.* *_cp39
-  hash: md5:325d6f906987a5ca236cc6544594f894
+  hash:
+    md5: 325d6f906987a5ca236cc6544594f894
   manager: conda
   name: appnope
   optional: false
@@ -62,7 +65,8 @@ package:
   dependencies:
     python: '>=3.9,<3.10.0a0 *_cpython'
     python_abi: 3.9.* *_cp39
-  hash: md5:7fb8a37f9e9afaad0210974e1452f84a
+  hash:
+    md5: 7fb8a37f9e9afaad0210974e1452f84a
   manager: conda
   name: appnope
   optional: false
@@ -79,7 +83,8 @@ package:
     python: '>=3.9,<3.10.0a0'
     python_abi: 3.9.* *_cp39
     pyyaml: '>=3.13'
-  hash: md5:5a2d9b5961e84cbbac615c2e3fb7e456
+  hash:
+    md5: 5a2d9b5961e84cbbac615c2e3fb7e456
   manager: conda
   name: astropy
   optional: false
@@ -95,7 +100,8 @@ package:
     python: '>=3.9,<3.10.0a0'
     python_abi: 3.9.* *_cp39
     pyyaml: '>=3.13'
-  hash: md5:e2273d4681c25a1e1f92c02e3879530d
+  hash:
+    md5: e2273d4681c25a1e1f92c02e3879530d
   manager: conda
   name: astropy
   optional: false
@@ -111,7 +117,8 @@ package:
     python: '>=3.9,<3.10.0a0 *_cpython'
     python_abi: 3.9.* *_cp39
     pyyaml: '>=3.13'
-  hash: md5:7c6f7b89e0488f2e34a9206ddae816a5
+  hash:
+    md5: 7c6f7b89e0488f2e34a9206ddae816a5
   manager: conda
   name: astropy
   optional: false
@@ -121,7 +128,8 @@ package:
 - category: dev
   dependencies:
     python: '>2.7'
-  hash: md5:d56c596e61b1c4952acf0a9920856c12
+  hash:
+    md5: d56c596e61b1c4952acf0a9920856c12
   manager: conda
   name: async_generator
   optional: true
@@ -131,7 +139,8 @@ package:
 - category: dev
   dependencies:
     python: '>2.7'
-  hash: md5:d56c596e61b1c4952acf0a9920856c12
+  hash:
+    md5: d56c596e61b1c4952acf0a9920856c12
   manager: conda
   name: async_generator
   optional: true
@@ -141,7 +150,8 @@ package:
 - category: dev
   dependencies:
     python: '>2.7'
-  hash: md5:d56c596e61b1c4952acf0a9920856c12
+  hash:
+    md5: d56c596e61b1c4952acf0a9920856c12
   manager: conda
   name: async_generator
   optional: true
@@ -151,7 +161,8 @@ package:
 - category: dev
   dependencies:
     python: '>=2.7,!=3.0.*,!=3.1.*,!=3.2.*,!=3.3.*,!=3.4.*'
-  hash: md5:d2e1c7f388ac403df7079b411c37cc50
+  hash:
+    md5: d2e1c7f388ac403df7079b411c37cc50
   manager: conda
   name: attrs
   optional: true
@@ -161,7 +172,8 @@ package:
 - category: dev
   dependencies:
     python: '>=2.7,!=3.0.*,!=3.1.*,!=3.2.*,!=3.3.*,!=3.4.*'
-  hash: md5:d2e1c7f388ac403df7079b411c37cc50
+  hash:
+    md5: d2e1c7f388ac403df7079b411c37cc50
   manager: conda
   name: attrs
   optional: true
@@ -171,7 +183,8 @@ package:
 - category: dev
   dependencies:
     python: '>=2.7,!=3.0.*,!=3.1.*,!=3.2.*,!=3.3.*,!=3.4.*'
-  hash: md5:d2e1c7f388ac403df7079b411c37cc50
+  hash:
+    md5: d2e1c7f388ac403df7079b411c37cc50
   manager: conda
   name: attrs
   optional: true
@@ -184,7 +197,8 @@ package:
     numpy: '>=1.10'
     python: ''
     scipy: '>=0.17'
-  hash: md5:657c5f269a3cdbde8e23147957a23f09
+  hash:
+    md5: 657c5f269a3cdbde8e23147957a23f09
   manager: conda
   name: autograd
   optional: false
@@ -197,7 +211,8 @@ package:
     numpy: '>=1.10'
     python: ''
     scipy: '>=0.17'
-  hash: md5:657c5f269a3cdbde8e23147957a23f09
+  hash:
+    md5: 657c5f269a3cdbde8e23147957a23f09
   manager: conda
   name: autograd
   optional: false
@@ -210,7 +225,8 @@ package:
     numpy: '>=1.10'
     python: ''
     scipy: '>=0.17'
-  hash: md5:657c5f269a3cdbde8e23147957a23f09
+  hash:
+    md5: 657c5f269a3cdbde8e23147957a23f09
   manager: conda
   name: autograd
   optional: false
@@ -220,7 +236,8 @@ package:
 - category: main
   dependencies:
     python: ''
-  hash: md5:6006a6d08a3fa99268a2681c7fb55213
+  hash:
+    md5: 6006a6d08a3fa99268a2681c7fb55213
   manager: conda
   name: backcall
   optional: false
@@ -230,7 +247,8 @@ package:
 - category: main
   dependencies:
     python: ''
-  hash: md5:6006a6d08a3fa99268a2681c7fb55213
+  hash:
+    md5: 6006a6d08a3fa99268a2681c7fb55213
   manager: conda
   name: backcall
   optional: false
@@ -240,7 +258,8 @@ package:
 - category: main
   dependencies:
     python: ''
-  hash: md5:6006a6d08a3fa99268a2681c7fb55213
+  hash:
+    md5: 6006a6d08a3fa99268a2681c7fb55213
   manager: conda
   name: backcall
   optional: false
@@ -250,7 +269,8 @@ package:
 - category: main
   dependencies:
     python: ''
-  hash: md5:0da16b293affa6ac31812376f8eb79dd
+  hash:
+    md5: 0da16b293affa6ac31812376f8eb79dd
   manager: conda
   name: backports
   optional: false
@@ -260,7 +280,8 @@ package:
 - category: main
   dependencies:
     python: ''
-  hash: md5:0da16b293affa6ac31812376f8eb79dd
+  hash:
+    md5: 0da16b293affa6ac31812376f8eb79dd
   manager: conda
   name: backports
   optional: false
@@ -270,7 +291,8 @@ package:
 - category: main
   dependencies:
     python: ''
-  hash: md5:0da16b293affa6ac31812376f8eb79dd
+  hash:
+    md5: 0da16b293affa6ac31812376f8eb79dd
   manager: conda
   name: backports
   optional: false
@@ -282,7 +304,8 @@ package:
     backports: ''
     python: '>=3.6'
     setuptools: ''
-  hash: md5:c5b3edc62d6309088f4970b3eaaa65a6
+  hash:
+    md5: c5b3edc62d6309088f4970b3eaaa65a6
   manager: conda
   name: backports.functools_lru_cache
   optional: false
@@ -294,7 +317,8 @@ package:
     backports: ''
     python: '>=3.6'
     setuptools: ''
-  hash: md5:c5b3edc62d6309088f4970b3eaaa65a6
+  hash:
+    md5: c5b3edc62d6309088f4970b3eaaa65a6
   manager: conda
   name: backports.functools_lru_cache
   optional: false
@@ -306,7 +330,8 @@ package:
     backports: ''
     python: '>=3.6'
     setuptools: ''
-  hash: md5:c5b3edc62d6309088f4970b3eaaa65a6
+  hash:
+    md5: c5b3edc62d6309088f4970b3eaaa65a6
   manager: conda
   name: backports.functools_lru_cache
   optional: false
@@ -317,7 +342,8 @@ package:
   dependencies:
     libgcc-ng: '>=9.3.0'
     libstdcxx-ng: '>=9.3.0'
-  hash: md5:5e815e5126c6f7e34ab4496fa1b48dca
+  hash:
+    md5: 5e815e5126c6f7e34ab4496fa1b48dca
   manager: conda
   name: blosc
   optional: false
@@ -327,7 +353,8 @@ package:
 - category: main
   dependencies:
     libcxx: '>=11.1.0'
-  hash: md5:95ea0559c188b34a888d42545c580268
+  hash:
+    md5: 95ea0559c188b34a888d42545c580268
   manager: conda
   name: blosc
   optional: false
@@ -337,7 +364,8 @@ package:
 - category: main
   dependencies:
     libcxx: '>=11.0.0'
-  hash: md5:f4e6e2c4b88fad256c089ef9e0ed24f3
+  hash:
+    md5: f4e6e2c4b88fad256c089ef9e0ed24f3
   manager: conda
   name: blosc
   optional: false
@@ -352,7 +380,8 @@ package:
     numpy: '>=1.19.5,<2.0a0'
     python: '>=3.9,<3.10.0a0'
     python_abi: 3.9.* *_cp39
-  hash: md5:d749fc6bdf3cda293c5714f5f4bb5708
+  hash:
+    md5: d749fc6bdf3cda293c5714f5f4bb5708
   manager: conda
   name: boost
   optional: false
@@ -366,7 +395,8 @@ package:
     numpy: '>=1.19.5,<2.0a0'
     python: '>=3.9,<3.10.0a0'
     python_abi: 3.9.* *_cp39
-  hash: md5:caef6f565a7511dd652ad352d0ab2482
+  hash:
+    md5: caef6f565a7511dd652ad352d0ab2482
   manager: conda
   name: boost
   optional: false
@@ -380,7 +410,8 @@ package:
     numpy: '>=1.19.5,<2.0a0'
     python: '>=3.9,<3.10.0a0 *_cpython'
     python_abi: 3.9.* *_cp39
-  hash: md5:1a70e62e4e932a2e07768017455891da
+  hash:
+    md5: 1a70e62e4e932a2e07768017455891da
   manager: conda
   name: boost
   optional: false
@@ -395,7 +426,8 @@ package:
     libstdcxx-ng: '>=9.4.0'
     xz: '>=5.2.5,<5.3.0a0'
     zstd: '>=1.5.0,<1.6.0a0'
-  hash: md5:5778a2e0609975fac9b24ed637180d28
+  hash:
+    md5: 5778a2e0609975fac9b24ed637180d28
   manager: conda
   name: boost-cpp
   optional: false
@@ -409,7 +441,8 @@ package:
     libcxx: '>=11.1.0'
     xz: '>=5.2.5,<5.3.0a0'
     zstd: '>=1.5.0,<1.6.0a0'
-  hash: md5:9c07353ad4ffd51708370efa62ece44b
+  hash:
+    md5: 9c07353ad4ffd51708370efa62ece44b
   manager: conda
   name: boost-cpp
   optional: false
@@ -423,7 +456,8 @@ package:
     libcxx: '>=11.1.0'
     xz: '>=5.2.5,<5.3.0a0'
     zstd: '>=1.5.0,<1.6.0a0'
-  hash: md5:11f655fb66223a65ea24cc5b5699d898
+  hash:
+    md5: 11f655fb66223a65ea24cc5b5699d898
   manager: conda
   name: boost-cpp
   optional: false
@@ -436,7 +470,8 @@ package:
     libbrotlidec: 1.0.9 h7f98852_6
     libbrotlienc: 1.0.9 h7f98852_6
     libgcc-ng: '>=9.4.0'
-  hash: md5:612385c4a83edb0619fe911d9da317f4
+  hash:
+    md5: 612385c4a83edb0619fe911d9da317f4
   manager: conda
   name: brotli
   optional: false
@@ -448,7 +483,8 @@ package:
     brotli-bin: 1.0.9 h0d85af4_6
     libbrotlidec: 1.0.9 h0d85af4_6
     libbrotlienc: 1.0.9 h0d85af4_6
-  hash: md5:742964fe79862ba2d03365a16278a877
+  hash:
+    md5: 742964fe79862ba2d03365a16278a877
   manager: conda
   name: brotli
   optional: false
@@ -460,7 +496,8 @@ package:
     brotli-bin: 1.0.9 h3422bc3_6
     libbrotlidec: 1.0.9 h3422bc3_6
     libbrotlienc: 1.0.9 h3422bc3_6
-  hash: md5:7caa5234739c9b0aed75bb868ac58ce5
+  hash:
+    md5: 7caa5234739c9b0aed75bb868ac58ce5
   manager: conda
   name: brotli
   optional: false
@@ -472,7 +509,8 @@ package:
     libbrotlidec: 1.0.9 h7f98852_6
     libbrotlienc: 1.0.9 h7f98852_6
     libgcc-ng: '>=9.4.0'
-  hash: md5:9e94bf16f14c78a36561d5019f490d22
+  hash:
+    md5: 9e94bf16f14c78a36561d5019f490d22
   manager: conda
   name: brotli-bin
   optional: false
@@ -483,7 +521,8 @@ package:
   dependencies:
     libbrotlidec: 1.0.9 h0d85af4_6
     libbrotlienc: 1.0.9 h0d85af4_6
-  hash: md5:00d57e8424c3fe0aeb3c37418e1b910e
+  hash:
+    md5: 00d57e8424c3fe0aeb3c37418e1b910e
   manager: conda
   name: brotli-bin
   optional: false
@@ -494,7 +533,8 @@ package:
   dependencies:
     libbrotlidec: 1.0.9 h3422bc3_6
     libbrotlienc: 1.0.9 h3422bc3_6
-  hash: md5:5138af369d34b54bab0bc3bb3ff70d4e
+  hash:
+    md5: 5138af369d34b54bab0bc3bb3ff70d4e
   manager: conda
   name: brotli-bin
   optional: false
@@ -504,7 +544,8 @@ package:
 - category: main
   dependencies:
     libgcc-ng: '>=9.3.0'
-  hash: md5:a1fd65c7ccbf10880423d82bca54eb54
+  hash:
+    md5: a1fd65c7ccbf10880423d82bca54eb54
   manager: conda
   name: bzip2
   optional: false
@@ -513,7 +554,8 @@ package:
   version: 1.0.8
 - category: main
   dependencies: {}
-  hash: md5:37edc4e6304ca87316e160f5ca0bd1b5
+  hash:
+    md5: 37edc4e6304ca87316e160f5ca0bd1b5
   manager: conda
   name: bzip2
   optional: false
@@ -522,7 +564,8 @@ package:
   version: 1.0.8
 - category: main
   dependencies: {}
-  hash: md5:fc76ace7b94fb1f694988ab1b14dd248
+  hash:
+    md5: fc76ace7b94fb1f694988ab1b14dd248
   manager: conda
   name: bzip2
   optional: false
@@ -532,7 +575,8 @@ package:
 - category: main
   dependencies:
     libgcc-ng: '>=9.4.0'
-  hash: md5:f26ef8098fab1f719c91eb760d63381a
+  hash:
+    md5: f26ef8098fab1f719c91eb760d63381a
   manager: conda
   name: c-ares
   optional: false
@@ -541,7 +585,8 @@ package:
   version: 1.18.1
 - category: main
   dependencies: {}
-  hash: md5:00b3e98a61e6430808fe7a2534681f28
+  hash:
+    md5: 00b3e98a61e6430808fe7a2534681f28
   manager: conda
   name: c-ares
   optional: false
@@ -550,7 +595,8 @@ package:
   version: 1.18.1
 - category: main
   dependencies: {}
-  hash: md5:5dd04dad345af4f1e8f3f0d5afc03b67
+  hash:
+    md5: 5dd04dad345af4f1e8f3f0d5afc03b67
   manager: conda
   name: c-ares
   optional: false
@@ -559,7 +605,8 @@ package:
   version: 1.18.1
 - category: main
   dependencies: {}
-  hash: md5:575611b8a84f45960e87722eeb51fa26
+  hash:
+    md5: 575611b8a84f45960e87722eeb51fa26
   manager: conda
   name: ca-certificates
   optional: false
@@ -568,7 +615,8 @@ package:
   version: 2021.10.8
 - category: main
   dependencies: {}
-  hash: md5:bb82d0243db9882b509702ecb69e38f0
+  hash:
+    md5: bb82d0243db9882b509702ecb69e38f0
   manager: conda
   name: ca-certificates
   optional: false
@@ -577,7 +625,8 @@ package:
   version: 2021.10.8
 - category: main
   dependencies: {}
-  hash: md5:d68f418ab2f7a46948ccb4053636f913
+  hash:
+    md5: d68f418ab2f7a46948ccb4053636f913
   manager: conda
   name: ca-certificates
   optional: false
@@ -588,7 +637,8 @@ package:
   dependencies:
     python: '>=3.9,<3.10.0a0'
     python_abi: 3.9.* *_cp39
-  hash: md5:67982d98030fde9139a64219dbe4db5e
+  hash:
+    md5: 67982d98030fde9139a64219dbe4db5e
   manager: conda
   name: certifi
   optional: false
@@ -599,7 +649,8 @@ package:
   dependencies:
     python: '>=3.9,<3.10.0a0'
     python_abi: 3.9.* *_cp39
-  hash: md5:92d08816d4b2e58a34a57013e3a636f0
+  hash:
+    md5: 92d08816d4b2e58a34a57013e3a636f0
   manager: conda
   name: certifi
   optional: false
@@ -610,7 +661,8 @@ package:
   dependencies:
     python: '>=3.9,<3.10.0a0 *_cpython'
     python_abi: 3.9.* *_cp39
-  hash: md5:fb53ec8c7ae669a5388856ffe7c12a00
+  hash:
+    md5: fb53ec8c7ae669a5388856ffe7c12a00
   manager: conda
   name: certifi
   optional: false
@@ -625,7 +677,8 @@ package:
     libgfortran-ng: ''
     libgfortran5: '>=9.4.0'
     libzlib: '>=1.2.11,<1.3.0a0'
-  hash: md5:6b214116ecabe2c5457a93b9763de61d
+  hash:
+    md5: 6b214116ecabe2c5457a93b9763de61d
   manager: conda
   name: cfitsio
   optional: false
@@ -639,7 +692,8 @@ package:
     libgfortran: 5.*
     libgfortran5: '>=9.3.0'
     libzlib: '>=1.2.11,<1.3.0a0'
-  hash: md5:c4a6bba037bbb254a214282a528147fe
+  hash:
+    md5: c4a6bba037bbb254a214282a528147fe
   manager: conda
   name: cfitsio
   optional: false
@@ -653,7 +707,8 @@ package:
     libgfortran: 5.*
     libgfortran5: '>=11.0.1.dev0'
     libzlib: '>=1.2.11,<1.3.0a0'
-  hash: md5:7d8b1067b155c2b64a04d7c3f712bbc6
+  hash:
+    md5: 7d8b1067b155c2b64a04d7c3f712bbc6
   manager: conda
   name: cfitsio
   optional: false
@@ -663,7 +718,8 @@ package:
 - category: main
   dependencies:
     python: ''
-  hash: md5:c08b4c1326b880ed44f3ffb04803332f
+  hash:
+    md5: c08b4c1326b880ed44f3ffb04803332f
   manager: conda
   name: colorama
   optional: false
@@ -673,7 +729,8 @@ package:
 - category: main
   dependencies:
     python: ''
-  hash: md5:c08b4c1326b880ed44f3ffb04803332f
+  hash:
+    md5: c08b4c1326b880ed44f3ffb04803332f
   manager: conda
   name: colorama
   optional: false
@@ -683,7 +740,8 @@ package:
 - category: main
   dependencies:
     python: ''
-  hash: md5:c08b4c1326b880ed44f3ffb04803332f
+  hash:
+    md5: c08b4c1326b880ed44f3ffb04803332f
   manager: conda
   name: colorama
   optional: false
@@ -693,7 +751,8 @@ package:
 - category: main
   dependencies:
     python: '>=3.6'
-  hash: md5:a50559fad0affdbb33729a68669ca1cb
+  hash:
+    md5: a50559fad0affdbb33729a68669ca1cb
   manager: conda
   name: cycler
   optional: false
@@ -703,7 +762,8 @@ package:
 - category: main
   dependencies:
     python: '>=3.6'
-  hash: md5:a50559fad0affdbb33729a68669ca1cb
+  hash:
+    md5: a50559fad0affdbb33729a68669ca1cb
   manager: conda
   name: cycler
   optional: false
@@ -713,7 +773,8 @@ package:
 - category: main
   dependencies:
     python: '>=3.6'
-  hash: md5:a50559fad0affdbb33729a68669ca1cb
+  hash:
+    md5: a50559fad0affdbb33729a68669ca1cb
   manager: conda
   name: cycler
   optional: false
@@ -726,7 +787,8 @@ package:
     libstdcxx-ng: '>=9.4.0'
     python: '>=3.9,<3.10.0a0'
     python_abi: 3.9.* *_cp39
-  hash: md5:111c5b430676182de0f0f038233ba3a4
+  hash:
+    md5: 111c5b430676182de0f0f038233ba3a4
   manager: conda
   name: debugpy
   optional: false
@@ -738,7 +800,8 @@ package:
     libcxx: '>=11.1.0'
     python: '>=3.9,<3.10.0a0'
     python_abi: 3.9.* *_cp39
-  hash: md5:5142a647b3e2aa13cdcc2cedb102260b
+  hash:
+    md5: 5142a647b3e2aa13cdcc2cedb102260b
   manager: conda
   name: debugpy
   optional: false
@@ -750,7 +813,8 @@ package:
     libcxx: '>=11.1.0'
     python: '>=3.9,<3.10.0a0 *_cpython'
     python_abi: 3.9.* *_cp39
-  hash: md5:0f4bd3b0360c879e0041c148c4b73ff4
+  hash:
+    md5: 0f4bd3b0360c879e0041c148c4b73ff4
   manager: conda
   name: debugpy
   optional: false
@@ -760,7 +824,8 @@ package:
 - category: main
   dependencies:
     python: '>=3.5'
-  hash: md5:71b13ba2e0efcff45646f05d619534b0
+  hash:
+    md5: 71b13ba2e0efcff45646f05d619534b0
   manager: conda
   name: decorator
   optional: false
@@ -770,7 +835,8 @@ package:
 - category: main
   dependencies:
     python: '>=3.5'
-  hash: md5:71b13ba2e0efcff45646f05d619534b0
+  hash:
+    md5: 71b13ba2e0efcff45646f05d619534b0
   manager: conda
   name: decorator
   optional: false
@@ -780,7 +846,8 @@ package:
 - category: main
   dependencies:
     python: '>=3.5'
-  hash: md5:71b13ba2e0efcff45646f05d619534b0
+  hash:
+    md5: 71b13ba2e0efcff45646f05d619534b0
   manager: conda
   name: decorator
   optional: false
@@ -791,7 +858,8 @@ package:
   dependencies:
     python: '>=3.9,<3.10.0a0'
     python_abi: 3.9.* *_cp39
-  hash: md5:dad6134fb73bfd57f9658c30c7296355
+  hash:
+    md5: dad6134fb73bfd57f9658c30c7296355
   manager: conda
   name: entrypoints
   optional: false
@@ -802,7 +870,8 @@ package:
   dependencies:
     python: '>=3.9,<3.10.0a0'
     python_abi: 3.9.* *_cp39
-  hash: md5:fb8afe91904c7e3544dab6801b23436e
+  hash:
+    md5: fb8afe91904c7e3544dab6801b23436e
   manager: conda
   name: entrypoints
   optional: false
@@ -812,7 +881,8 @@ package:
 - category: main
   dependencies:
     python: '>=3.6'
-  hash: md5:bbf9a201f6ce99a506f4955374d9a9f4
+  hash:
+    md5: bbf9a201f6ce99a506f4955374d9a9f4
   manager: conda
   name: entrypoints
   optional: false
@@ -826,7 +896,8 @@ package:
     munkres: ''
     python: '>=3.9,<3.10.0a0'
     python_abi: 3.9.* *_cp39
-  hash: md5:b32261506a2c55d88a47570c6e99fcf1
+  hash:
+    md5: b32261506a2c55d88a47570c6e99fcf1
   manager: conda
   name: fonttools
   optional: false
@@ -839,7 +910,8 @@ package:
     munkres: ''
     python: '>=3.9,<3.10.0a0'
     python_abi: 3.9.* *_cp39
-  hash: md5:2059556b0a255250477b1cc33cc44f3c
+  hash:
+    md5: 2059556b0a255250477b1cc33cc44f3c
   manager: conda
   name: fonttools
   optional: false
@@ -852,7 +924,8 @@ package:
     munkres: ''
     python: '>=3.9,<3.10.0a0 *_cpython'
     python_abi: 3.9.* *_cp39
-  hash: md5:043208f8bb3b537b69022b18bfbfa8c7
+  hash:
+    md5: 043208f8bb3b537b69022b18bfbfa8c7
   manager: conda
   name: fonttools
   optional: false
@@ -864,7 +937,8 @@ package:
     libgcc-ng: '>=9.3.0'
     libpng: '>=1.6.37,<1.7.0a0'
     zlib: '>=1.2.11,<1.3.0a0'
-  hash: md5:4a06f2ac2e5bfae7b6b245171c3f07aa
+  hash:
+    md5: 4a06f2ac2e5bfae7b6b245171c3f07aa
   manager: conda
   name: freetype
   optional: false
@@ -875,7 +949,8 @@ package:
   dependencies:
     libpng: '>=1.6.37,<1.7.0a0'
     zlib: '>=1.2.11,<1.3.0a0'
-  hash: md5:5a136a432c6062362cd7990c514bd8d6
+  hash:
+    md5: 5a136a432c6062362cd7990c514bd8d6
   manager: conda
   name: freetype
   optional: false
@@ -886,7 +961,8 @@ package:
   dependencies:
     libpng: '>=1.6.37,<1.7.0a0'
     zlib: '>=1.2.11,<1.3.0a0'
-  hash: md5:c34e8d42b8dcb72cad14b45a4132e9c7
+  hash:
+    md5: c34e8d42b8dcb72cad14b45a4132e9c7
   manager: conda
   name: freetype
   optional: false
@@ -897,7 +973,8 @@ package:
   dependencies:
     python: '>=3.9,<3.10.0a0'
     python_abi: 3.9.* *_cp39
-  hash: md5:d7095dafe0af5c7fa3247d76cf00b08d
+  hash:
+    md5: d7095dafe0af5c7fa3247d76cf00b08d
   manager: conda
   name: future
   optional: false
@@ -908,7 +985,8 @@ package:
   dependencies:
     python: '>=3.9,<3.10.0a0'
     python_abi: 3.9.* *_cp39
-  hash: md5:5c080c6a3bc97583ee1e7d9b70a1dbb4
+  hash:
+    md5: 5c080c6a3bc97583ee1e7d9b70a1dbb4
   manager: conda
   name: future
   optional: false
@@ -919,7 +997,8 @@ package:
   dependencies:
     python: '>=3.9,<3.10.0a0 *_cpython'
     python_abi: 3.9.* *_cp39
-  hash: md5:153aaad703752be5495a9b3f813a3c6d
+  hash:
+    md5: 153aaad703752be5495a9b3f813a3c6d
   manager: conda
   name: future
   optional: false
@@ -930,7 +1009,8 @@ package:
   dependencies:
     libgcc-ng: '>=7.5.0'
     libstdcxx-ng: '>=7.5.0'
-  hash: md5:b94cf2db16066b242ebd26db2facbd56
+  hash:
+    md5: b94cf2db16066b242ebd26db2facbd56
   manager: conda
   name: gmp
   optional: false
@@ -940,7 +1020,8 @@ package:
 - category: main
   dependencies:
     libcxx: '>=10.0.1'
-  hash: md5:dedc96914428dae572a39e69ee2a392f
+  hash:
+    md5: dedc96914428dae572a39e69ee2a392f
   manager: conda
   name: gmp
   optional: false
@@ -950,7 +1031,8 @@ package:
 - category: main
   dependencies:
     libcxx: '>=11.0.0'
-  hash: md5:f8140773b6ca51bf32feec9b4290a8c5
+  hash:
+    md5: f8140773b6ca51bf32feec9b4290a8c5
   manager: conda
   name: gmp
   optional: false
@@ -967,7 +1049,8 @@ package:
     libzlib: '>=1.2.11,<1.3.0a0'
     openssl: '>=3.0.0,<4.0a0'
     zlib: '>=1.2.11,<1.3.0a0'
-  hash: md5:97a1843c143a31049070b04f6e85e9d8
+  hash:
+    md5: 97a1843c143a31049070b04f6e85e9d8
   manager: conda
   name: hdf5
   optional: false
@@ -983,7 +1066,8 @@ package:
     libzlib: '>=1.2.11,<1.3.0a0'
     openssl: '>=3.0.0,<4.0a0'
     zlib: '>=1.2.11,<1.3.0a0'
-  hash: md5:4605cb9facf3c2e97bafd2b363df7248
+  hash:
+    md5: 4605cb9facf3c2e97bafd2b363df7248
   manager: conda
   name: hdf5
   optional: false
@@ -999,7 +1083,8 @@ package:
     libzlib: '>=1.2.11,<1.3.0a0'
     openssl: '>=3.0.0,<4.0a0'
     zlib: '>=1.2.11,<1.3.0a0'
-  hash: md5:87078a40dfd7a78473af990555619a7e
+  hash:
+    md5: 87078a40dfd7a78473af990555619a7e
   manager: conda
   name: hdf5
   optional: false
@@ -1021,7 +1106,8 @@ package:
     python_abi: 3.9.* *_cp39
     scipy: ''
     six: ''
-  hash: md5:f4fc4fb8161a94e50a4d443c68979238
+  hash:
+    md5: f4fc4fb8161a94e50a4d443c68979238
   manager: conda
   name: healpy
   optional: false
@@ -1042,7 +1128,8 @@ package:
     python_abi: 3.9.* *_cp39
     scipy: ''
     six: ''
-  hash: md5:faa6fed9753ccbdbf2f66b239f0e0f8d
+  hash:
+    md5: faa6fed9753ccbdbf2f66b239f0e0f8d
   manager: conda
   name: healpy
   optional: false
@@ -1063,7 +1150,8 @@ package:
     python_abi: 3.9.* *_cp39
     scipy: ''
     six: ''
-  hash: md5:0e4d22d65350c30869e3c1c5dadd259e
+  hash:
+    md5: 0e4d22d65350c30869e3c1c5dadd259e
   manager: conda
   name: healpy
   optional: false
@@ -1074,7 +1162,8 @@ package:
   dependencies:
     libgcc-ng: '>=9.4.0'
     libstdcxx-ng: '>=9.4.0'
-  hash: md5:e0773c9556d588b062a4e1424a6a02fa
+  hash:
+    md5: e0773c9556d588b062a4e1424a6a02fa
   manager: conda
   name: icu
   optional: false
@@ -1084,7 +1173,8 @@ package:
 - category: main
   dependencies:
     libcxx: '>=11.1.0'
-  hash: md5:ee3bde95f8c74ebd296543525775ada5
+  hash:
+    md5: ee3bde95f8c74ebd296543525775ada5
   manager: conda
   name: icu
   optional: false
@@ -1094,7 +1184,8 @@ package:
 - category: main
   dependencies:
     libcxx: '>=11.1.0'
-  hash: md5:09aa1288507a285c7161732adbf2eb2b
+  hash:
+    md5: 09aa1288507a285c7161732adbf2eb2b
   manager: conda
   name: icu
   optional: false
@@ -1106,7 +1197,8 @@ package:
     python: '>=3.9,<3.10.0a0'
     python_abi: 3.9.* *_cp39
     zipp: '>=0.5'
-  hash: md5:c99d085fb9beacd7679864876e97b4af
+  hash:
+    md5: c99d085fb9beacd7679864876e97b4af
   manager: conda
   name: importlib-metadata
   optional: false
@@ -1118,7 +1210,8 @@ package:
     python: '>=3.9,<3.10.0a0'
     python_abi: 3.9.* *_cp39
     zipp: '>=0.5'
-  hash: md5:3ebd97a6f1345ba3322e33b3cc6c9b14
+  hash:
+    md5: 3ebd97a6f1345ba3322e33b3cc6c9b14
   manager: conda
   name: importlib-metadata
   optional: false
@@ -1130,7 +1223,8 @@ package:
     python: '>=3.9,<3.10.0a0 *_cpython'
     python_abi: 3.9.* *_cp39
     zipp: '>=0.5'
-  hash: md5:cc8ba0d83a76b8d1a85e8fad22d4d2dc
+  hash:
+    md5: cc8ba0d83a76b8d1a85e8fad22d4d2dc
   manager: conda
   name: importlib-metadata
   optional: false
@@ -1141,7 +1235,8 @@ package:
   dependencies:
     python: '>=3.6'
     zipp: '>=3.1.0'
-  hash: md5:9fb134dbabe7851a9d71411064b2c30d
+  hash:
+    md5: 9fb134dbabe7851a9d71411064b2c30d
   manager: conda
   name: importlib_resources
   optional: true
@@ -1152,7 +1247,8 @@ package:
   dependencies:
     python: '>=3.6'
     zipp: '>=3.1.0'
-  hash: md5:9fb134dbabe7851a9d71411064b2c30d
+  hash:
+    md5: 9fb134dbabe7851a9d71411064b2c30d
   manager: conda
   name: importlib_resources
   optional: true
@@ -1163,7 +1259,8 @@ package:
   dependencies:
     python: '>=3.6'
     zipp: '>=3.1.0'
-  hash: md5:9fb134dbabe7851a9d71411064b2c30d
+  hash:
+    md5: 9fb134dbabe7851a9d71411064b2c30d
   manager: conda
   name: importlib_resources
   optional: true
@@ -1173,7 +1270,8 @@ package:
 - category: dev
   dependencies:
     python: ''
-  hash: md5:39161f81cc5e5ca45b8226fbb06c6905
+  hash:
+    md5: 39161f81cc5e5ca45b8226fbb06c6905
   manager: conda
   name: iniconfig
   optional: true
@@ -1183,7 +1281,8 @@ package:
 - category: dev
   dependencies:
     python: ''
-  hash: md5:39161f81cc5e5ca45b8226fbb06c6905
+  hash:
+    md5: 39161f81cc5e5ca45b8226fbb06c6905
   manager: conda
   name: iniconfig
   optional: true
@@ -1193,7 +1292,8 @@ package:
 - category: dev
   dependencies:
     python: ''
-  hash: md5:39161f81cc5e5ca45b8226fbb06c6905
+  hash:
+    md5: 39161f81cc5e5ca45b8226fbb06c6905
   manager: conda
   name: iniconfig
   optional: true
@@ -1210,7 +1310,8 @@ package:
     python_abi: 3.9.* *_cp39
     tornado: '>=4.2,<7.0'
     traitlets: '>=5.1.0,<6.0'
-  hash: md5:4ed525d14347a15a3c73e84c92eac501
+  hash:
+    md5: 4ed525d14347a15a3c73e84c92eac501
   manager: conda
   name: ipykernel
   optional: false
@@ -1228,7 +1329,8 @@ package:
     python_abi: 3.9.* *_cp39
     tornado: '>=4.2,<7.0'
     traitlets: '>=5.1.0,<6.0'
-  hash: md5:66a242ed9f8c1a21b90c0c9783010846
+  hash:
+    md5: 66a242ed9f8c1a21b90c0c9783010846
   manager: conda
   name: ipykernel
   optional: false
@@ -1246,7 +1348,8 @@ package:
     python_abi: 3.9.* *_cp39
     tornado: '>=4.2,<7.0'
     traitlets: '>=5.1.0,<6.0'
-  hash: md5:3b0e6bc0d8e9278558220762f7d9c264
+  hash:
+    md5: 3b0e6bc0d8e9278558220762f7d9c264
   manager: conda
   name: ipykernel
   optional: false
@@ -1267,7 +1370,8 @@ package:
     python_abi: 3.9.* *_cp39
     setuptools: '>=18.5'
     traitlets: '>=4.2'
-  hash: md5:de147858c08bf979777f4f2ee5382347
+  hash:
+    md5: de147858c08bf979777f4f2ee5382347
   manager: conda
   name: ipython
   optional: false
@@ -1289,7 +1393,8 @@ package:
     python_abi: 3.9.* *_cp39
     setuptools: '>=18.5'
     traitlets: '>=4.2'
-  hash: md5:fc90fafca1455909b324dbf6be395807
+  hash:
+    md5: fc90fafca1455909b324dbf6be395807
   manager: conda
   name: ipython
   optional: false
@@ -1311,7 +1416,8 @@ package:
     python_abi: 3.9.* *_cp39
     setuptools: '>=18.5'
     traitlets: '>=4.2'
-  hash: md5:207422136de78a0075d7b7c5dcf5442a
+  hash:
+    md5: 207422136de78a0075d7b7c5dcf5442a
   manager: conda
   name: ipython
   optional: false
@@ -1321,7 +1427,8 @@ package:
 - category: dev
   dependencies:
     python: ''
-  hash: md5:5071c982548b3a20caf70462f04f5287
+  hash:
+    md5: 5071c982548b3a20caf70462f04f5287
   manager: conda
   name: ipython_genutils
   optional: true
@@ -1331,7 +1438,8 @@ package:
 - category: dev
   dependencies:
     python: ''
-  hash: md5:5071c982548b3a20caf70462f04f5287
+  hash:
+    md5: 5071c982548b3a20caf70462f04f5287
   manager: conda
   name: ipython_genutils
   optional: true
@@ -1341,7 +1449,8 @@ package:
 - category: dev
   dependencies:
     python: ''
-  hash: md5:5071c982548b3a20caf70462f04f5287
+  hash:
+    md5: 5071c982548b3a20caf70462f04f5287
   manager: conda
   name: ipython_genutils
   optional: true
@@ -1351,7 +1460,8 @@ package:
 - category: main
   dependencies:
     libgcc-ng: '>=9.3.0'
-  hash: md5:1aa0cee79792fa97b7ff4545110b60bf
+  hash:
+    md5: 1aa0cee79792fa97b7ff4545110b60bf
   manager: conda
   name: jbig
   optional: false
@@ -1360,7 +1470,8 @@ package:
   version: '2.1'
 - category: main
   dependencies: {}
-  hash: md5:4d76d11d3a256931926099498aa3565b
+  hash:
+    md5: 4d76d11d3a256931926099498aa3565b
   manager: conda
   name: jbig
   optional: false
@@ -1369,7 +1480,8 @@ package:
   version: '2.1'
 - category: main
   dependencies: {}
-  hash: md5:38e4745944cf5b4598ad7f1cfed5430d
+  hash:
+    md5: 38e4745944cf5b4598ad7f1cfed5430d
   manager: conda
   name: jbig
   optional: false
@@ -1381,7 +1493,8 @@ package:
     parso: '>=0.8.0,<0.9.0'
     python: '>=3.9,<3.10.0a0'
     python_abi: 3.9.* *_cp39
-  hash: md5:4a03392442a5ba884c186f25281ef8a1
+  hash:
+    md5: 4a03392442a5ba884c186f25281ef8a1
   manager: conda
   name: jedi
   optional: false
@@ -1393,7 +1506,8 @@ package:
     parso: '>=0.8.0,<0.9.0'
     python: '>=3.9,<3.10.0a0'
     python_abi: 3.9.* *_cp39
-  hash: md5:e25ec40a35eb99b121e5a728a827cff0
+  hash:
+    md5: e25ec40a35eb99b121e5a728a827cff0
   manager: conda
   name: jedi
   optional: false
@@ -1405,7 +1519,8 @@ package:
     parso: '>=0.8.0,<0.9.0'
     python: '>=3.9,<3.10.0a0 *_cpython'
     python_abi: 3.9.* *_cp39
-  hash: md5:309f836d2f872ef10fb5b00ea1ac38df
+  hash:
+    md5: 309f836d2f872ef10fb5b00ea1ac38df
   manager: conda
   name: jedi
   optional: false
@@ -1415,7 +1530,8 @@ package:
 - category: main
   dependencies:
     libgcc-ng: '>=7.5.0'
-  hash: md5:ea02ce6037dbe81803ae6123e5ba1568
+  hash:
+    md5: ea02ce6037dbe81803ae6123e5ba1568
   manager: conda
   name: jpeg
   optional: false
@@ -1424,7 +1540,8 @@ package:
   version: 9d
 - category: main
   dependencies: {}
-  hash: md5:ff6fba028f282f94ceb10597d58a56e8
+  hash:
+    md5: ff6fba028f282f94ceb10597d58a56e8
   manager: conda
   name: jpeg
   optional: false
@@ -1433,7 +1550,8 @@ package:
   version: 9d
 - category: main
   dependencies: {}
-  hash: md5:08d2dcb8fc57b70f2cd1ebfb392688ab
+  hash:
+    md5: 08d2dcb8fc57b70f2cd1ebfb392688ab
   manager: conda
   name: jpeg
   optional: false
@@ -1447,7 +1565,8 @@ package:
     importlib_resources: ''
     pyrsistent: '!=0.17.0,!=0.17.1,!=0.17.2,>=0.14.0'
     python: '>=3.7'
-  hash: md5:0a4d10a794fc48016d8d0453365180ad
+  hash:
+    md5: 0a4d10a794fc48016d8d0453365180ad
   manager: conda
   name: jsonschema
   optional: true
@@ -1461,7 +1580,8 @@ package:
     importlib_resources: ''
     pyrsistent: '!=0.17.0,!=0.17.1,!=0.17.2,>=0.14.0'
     python: '>=3.7'
-  hash: md5:0a4d10a794fc48016d8d0453365180ad
+  hash:
+    md5: 0a4d10a794fc48016d8d0453365180ad
   manager: conda
   name: jsonschema
   optional: true
@@ -1475,7 +1595,8 @@ package:
     importlib_resources: ''
     pyrsistent: '!=0.17.0,!=0.17.1,!=0.17.2,>=0.14.0'
     python: '>=3.7'
-  hash: md5:0a4d10a794fc48016d8d0453365180ad
+  hash:
+    md5: 0a4d10a794fc48016d8d0453365180ad
   manager: conda
   name: jsonschema
   optional: true
@@ -1492,7 +1613,8 @@ package:
     pyzmq: '>=13'
     tornado: '>=4.1'
     traitlets: ''
-  hash: md5:c1460cc25b6a86d1b66ab6c3c471b791
+  hash:
+    md5: c1460cc25b6a86d1b66ab6c3c471b791
   manager: conda
   name: jupyter_client
   optional: false
@@ -1509,7 +1631,8 @@ package:
     pyzmq: '>=13'
     tornado: '>=4.1'
     traitlets: ''
-  hash: md5:c1460cc25b6a86d1b66ab6c3c471b791
+  hash:
+    md5: c1460cc25b6a86d1b66ab6c3c471b791
   manager: conda
   name: jupyter_client
   optional: false
@@ -1526,7 +1649,8 @@ package:
     pyzmq: '>=13'
     tornado: '>=4.1'
     traitlets: ''
-  hash: md5:c1460cc25b6a86d1b66ab6c3c471b791
+  hash:
+    md5: c1460cc25b6a86d1b66ab6c3c471b791
   manager: conda
   name: jupyter_client
   optional: false
@@ -1538,7 +1662,8 @@ package:
     python: '>=3.9,<3.10.0a0'
     python_abi: 3.9.* *_cp39
     traitlets: ''
-  hash: md5:e9b6677fca1aa658d98deba00fb89267
+  hash:
+    md5: e9b6677fca1aa658d98deba00fb89267
   manager: conda
   name: jupyter_core
   optional: false
@@ -1550,7 +1675,8 @@ package:
     python: '>=3.9,<3.10.0a0'
     python_abi: 3.9.* *_cp39
     traitlets: ''
-  hash: md5:e9982a722c5ed2d74843bdd2f748b4e3
+  hash:
+    md5: e9982a722c5ed2d74843bdd2f748b4e3
   manager: conda
   name: jupyter_core
   optional: false
@@ -1562,7 +1688,8 @@ package:
     python: '>=3.9,<3.10.0a0 *_cpython'
     python_abi: 3.9.* *_cp39
     traitlets: ''
-  hash: md5:d8a602ebb7cbd138329b571030ebac66
+  hash:
+    md5: d8a602ebb7cbd138329b571030ebac66
   manager: conda
   name: jupyter_core
   optional: false
@@ -1575,7 +1702,8 @@ package:
     libstdcxx-ng: '>=9.4.0'
     python: '>=3.9,<3.10.0a0'
     python_abi: 3.9.* *_cp39
-  hash: md5:0692e15dbf6632726be4ed08aaeb37e1
+  hash:
+    md5: 0692e15dbf6632726be4ed08aaeb37e1
   manager: conda
   name: kiwisolver
   optional: false
@@ -1587,7 +1715,8 @@ package:
     libcxx: '>=11.1.0'
     python: '>=3.9,<3.10.0a0'
     python_abi: 3.9.* *_cp39
-  hash: md5:ca59e7f33a4c69c58f41b1820a503c6a
+  hash:
+    md5: ca59e7f33a4c69c58f41b1820a503c6a
   manager: conda
   name: kiwisolver
   optional: false
@@ -1599,7 +1728,8 @@ package:
     libcxx: '>=11.1.0'
     python: '>=3.9,<3.10.0a0 *_cpython'
     python_abi: 3.9.* *_cp39
-  hash: md5:933758a610c98934d2a151a3bef3db94
+  hash:
+    md5: 933758a610c98934d2a151a3bef3db94
   manager: conda
   name: kiwisolver
   optional: false
@@ -1613,7 +1743,8 @@ package:
     libstdcxx-ng: '>=9.4.0'
     openssl: '>=3.0.0,<4.0a0'
     tk: '>=8.6.11,<8.7.0a0'
-  hash: md5:f8701ddce6b17c3c78c258144ff97720
+  hash:
+    md5: f8701ddce6b17c3c78c258144ff97720
   manager: conda
   name: krb5
   optional: false
@@ -1626,7 +1757,8 @@ package:
     libedit: '>=3.1.20191231,<4.0a0'
     openssl: '>=3.0.0,<4.0a0'
     tk: '>=8.6.11,<8.7.0a0'
-  hash: md5:8d390ae9efef7ee87b187104c0177dd2
+  hash:
+    md5: 8d390ae9efef7ee87b187104c0177dd2
   manager: conda
   name: krb5
   optional: false
@@ -1639,7 +1771,8 @@ package:
     libedit: '>=3.1.20191231,<4.0a0'
     openssl: '>=3.0.0,<4.0a0'
     tk: '>=8.6.11,<8.7.0a0'
-  hash: md5:ee28ad4a96e09bcb309e999178e69e33
+  hash:
+    md5: ee28ad4a96e09bcb309e999178e69e33
   manager: conda
   name: krb5
   optional: false
@@ -1651,7 +1784,8 @@ package:
     libgcc-ng: '>=9.4.0'
     python: '>=3.9,<3.10.0a0'
     python_abi: 3.9.* *_cp39
-  hash: md5:e692fe9b3977b9912aa5a90f7c148cd9
+  hash:
+    md5: e692fe9b3977b9912aa5a90f7c148cd9
   manager: conda
   name: lazy-object-proxy
   optional: false
@@ -1662,7 +1796,8 @@ package:
   dependencies:
     python: '>=3.9,<3.10.0a0'
     python_abi: 3.9.* *_cp39
-  hash: md5:3653ce0a0a378f26684be12ce99a2605
+  hash:
+    md5: 3653ce0a0a378f26684be12ce99a2605
   manager: conda
   name: lazy-object-proxy
   optional: false
@@ -1673,7 +1808,8 @@ package:
   dependencies:
     python: '>=3.9,<3.10.0a0 *_cpython'
     python_abi: 3.9.* *_cp39
-  hash: md5:0a751c1a34e06f53703ecd2676e7ecdb
+  hash:
+    md5: 0a751c1a34e06f53703ecd2676e7ecdb
   manager: conda
   name: lazy-object-proxy
   optional: false
@@ -1685,7 +1821,8 @@ package:
     jpeg: '>=9d,<10a'
     libgcc-ng: '>=9.3.0'
     libtiff: '>=4.2.0,<5.0a0'
-  hash: md5:797117394a4aa588de6d741b06fad80f
+  hash:
+    md5: 797117394a4aa588de6d741b06fad80f
   manager: conda
   name: lcms2
   optional: false
@@ -1696,7 +1833,8 @@ package:
   dependencies:
     jpeg: '>=9d,<10a'
     libtiff: '>=4.2.0,<5.0a0'
-  hash: md5:abce77b852b73670e85e104746b0ea1b
+  hash:
+    md5: abce77b852b73670e85e104746b0ea1b
   manager: conda
   name: lcms2
   optional: false
@@ -1707,7 +1845,8 @@ package:
   dependencies:
     jpeg: '>=9d,<10a'
     libtiff: '>=4.2.0,<5.0a0'
-  hash: md5:e66c48b683085eaa6627cc61ba76c1e2
+  hash:
+    md5: e66c48b683085eaa6627cc61ba76c1e2
   manager: conda
   name: lcms2
   optional: false
@@ -1716,7 +1855,8 @@ package:
   version: '2.12'
 - category: main
   dependencies: {}
-  hash: md5:bd4f2e711b39af170e7ff15163fe87ee
+  hash:
+    md5: bd4f2e711b39af170e7ff15163fe87ee
   manager: conda
   name: ld_impl_linux-64
   optional: false
@@ -1727,7 +1867,8 @@ package:
   dependencies:
     libgcc-ng: '>=9.4.0'
     libstdcxx-ng: '>=9.4.0'
-  hash: md5:7fcefde484980d23f0ec24c11e314d2e
+  hash:
+    md5: 7fcefde484980d23f0ec24c11e314d2e
   manager: conda
   name: lerc
   optional: false
@@ -1737,7 +1878,8 @@ package:
 - category: main
   dependencies:
     libcxx: '>=11.1.0'
-  hash: md5:a1d21f85e4b0d5e27a88ecab5e3961da
+  hash:
+    md5: a1d21f85e4b0d5e27a88ecab5e3961da
   manager: conda
   name: lerc
   optional: false
@@ -1747,7 +1889,8 @@ package:
 - category: main
   dependencies:
     libcxx: '>=11.1.0'
-  hash: md5:8f210e26ca368c3d2b418f213b903aef
+  hash:
+    md5: 8f210e26ca368c3d2b418f213b903aef
   manager: conda
   name: lerc
   optional: false
@@ -1757,7 +1900,8 @@ package:
 - category: main
   dependencies:
     libopenblas: '>=0.3.18,<1.0a0'
-  hash: md5:4f93ba28c628a2c27cf39c055e6b219c
+  hash:
+    md5: 4f93ba28c628a2c27cf39c055e6b219c
   manager: conda
   name: libblas
   optional: false
@@ -1767,7 +1911,8 @@ package:
 - category: main
   dependencies:
     libopenblas: '>=0.3.18,<1.0a0'
-  hash: md5:3d38a706f06849a4b08f8a3f642bec93
+  hash:
+    md5: 3d38a706f06849a4b08f8a3f642bec93
   manager: conda
   name: libblas
   optional: false
@@ -1777,7 +1922,8 @@ package:
 - category: main
   dependencies:
     libopenblas: '>=0.3.18,<1.0a0'
-  hash: md5:27435ed0dc1c5d2738b7a4677fa4926b
+  hash:
+    md5: 27435ed0dc1c5d2738b7a4677fa4926b
   manager: conda
   name: libblas
   optional: false
@@ -1787,7 +1933,8 @@ package:
 - category: main
   dependencies:
     libgcc-ng: '>=9.4.0'
-  hash: md5:b0f44f63f7d771d7670747a1dd5d5ac1
+  hash:
+    md5: b0f44f63f7d771d7670747a1dd5d5ac1
   manager: conda
   name: libbrotlicommon
   optional: false
@@ -1796,7 +1943,8 @@ package:
   version: 1.0.9
 - category: main
   dependencies: {}
-  hash: md5:bb40dfcead1d3522ed7e58159080f735
+  hash:
+    md5: bb40dfcead1d3522ed7e58159080f735
   manager: conda
   name: libbrotlicommon
   optional: false
@@ -1805,7 +1953,8 @@ package:
   version: 1.0.9
 - category: main
   dependencies: {}
-  hash: md5:b3eda06c8994f20d829fbe89ccc4b0b1
+  hash:
+    md5: b3eda06c8994f20d829fbe89ccc4b0b1
   manager: conda
   name: libbrotlicommon
   optional: false
@@ -1816,7 +1965,8 @@ package:
   dependencies:
     libbrotlicommon: 1.0.9 h7f98852_6
     libgcc-ng: '>=9.4.0'
-  hash: md5:c7c03a2592cac92246a13a0732bd1573
+  hash:
+    md5: c7c03a2592cac92246a13a0732bd1573
   manager: conda
   name: libbrotlidec
   optional: false
@@ -1826,7 +1976,8 @@ package:
 - category: main
   dependencies:
     libbrotlicommon: 1.0.9 h0d85af4_6
-  hash: md5:8c6e36e5df668a3d44193837319b3444
+  hash:
+    md5: 8c6e36e5df668a3d44193837319b3444
   manager: conda
   name: libbrotlidec
   optional: false
@@ -1836,7 +1987,8 @@ package:
 - category: main
   dependencies:
     libbrotlicommon: 1.0.9 h3422bc3_6
-  hash: md5:5ee99175123dcd24b3857bf467f1044f
+  hash:
+    md5: 5ee99175123dcd24b3857bf467f1044f
   manager: conda
   name: libbrotlidec
   optional: false
@@ -1847,7 +1999,8 @@ package:
   dependencies:
     libbrotlicommon: 1.0.9 h7f98852_6
     libgcc-ng: '>=9.4.0'
-  hash: md5:28bfe0a70154e6881da7bae97517c948
+  hash:
+    md5: 28bfe0a70154e6881da7bae97517c948
   manager: conda
   name: libbrotlienc
   optional: false
@@ -1857,7 +2010,8 @@ package:
 - category: main
   dependencies:
     libbrotlicommon: 1.0.9 h0d85af4_6
-  hash: md5:6718e3c3b3cc237695b3a6bc5a1b2ccb
+  hash:
+    md5: 6718e3c3b3cc237695b3a6bc5a1b2ccb
   manager: conda
   name: libbrotlienc
   optional: false
@@ -1867,7 +2021,8 @@ package:
 - category: main
   dependencies:
     libbrotlicommon: 1.0.9 h3422bc3_6
-  hash: md5:be28e048477fc17a4b59a66f4f4418a7
+  hash:
+    md5: be28e048477fc17a4b59a66f4f4418a7
   manager: conda
   name: libbrotlienc
   optional: false
@@ -1877,7 +2032,8 @@ package:
 - category: main
   dependencies:
     libblas: 3.9.0 12_linux64_openblas
-  hash: md5:2e5082d4a9a18c21100e6ce5b6bcb4ec
+  hash:
+    md5: 2e5082d4a9a18c21100e6ce5b6bcb4ec
   manager: conda
   name: libcblas
   optional: false
@@ -1887,7 +2043,8 @@ package:
 - category: main
   dependencies:
     libblas: 3.9.0 12_osx64_openblas
-  hash: md5:0cb9afc4cfdc6e95aa38328fc1befa05
+  hash:
+    md5: 0cb9afc4cfdc6e95aa38328fc1befa05
   manager: conda
   name: libcblas
   optional: false
@@ -1897,7 +2054,8 @@ package:
 - category: main
   dependencies:
     libblas: 3.9.0 12_osxarm64_openblas
-  hash: md5:734c39aa1f5d351a317391ae053cd607
+  hash:
+    md5: 734c39aa1f5d351a317391ae053cd607
   manager: conda
   name: libcblas
   optional: false
@@ -1912,7 +2070,8 @@ package:
     libssh2: '>=1.10.0,<2.0a0'
     libzlib: '>=1.2.11,<1.3.0a0'
     openssl: '>=3.0.0,<4.0a0'
-  hash: md5:fb2703442469e1628ba6daccf94307c5
+  hash:
+    md5: fb2703442469e1628ba6daccf94307c5
   manager: conda
   name: libcurl
   optional: false
@@ -1926,7 +2085,8 @@ package:
     libssh2: '>=1.10.0,<2.0a0'
     libzlib: '>=1.2.11,<1.3.0a0'
     openssl: '>=3.0.0,<4.0a0'
-  hash: md5:d04c0d3180ccaccf045d1695073ef1a0
+  hash:
+    md5: d04c0d3180ccaccf045d1695073ef1a0
   manager: conda
   name: libcurl
   optional: false
@@ -1940,7 +2100,8 @@ package:
     libssh2: '>=1.10.0,<2.0a0'
     libzlib: '>=1.2.11,<1.3.0a0'
     openssl: '>=3.0.0,<4.0a0'
-  hash: md5:17a1f153561ab867a6788d2fa1a6a513
+  hash:
+    md5: 17a1f153561ab867a6788d2fa1a6a513
   manager: conda
   name: libcurl
   optional: false
@@ -1949,7 +2110,8 @@ package:
   version: 7.80.0
 - category: main
   dependencies: {}
-  hash: md5:49c188a7f9c7c9ddabafc80cc5625bb7
+  hash:
+    md5: 49c188a7f9c7c9ddabafc80cc5625bb7
   manager: conda
   name: libcxx
   optional: false
@@ -1958,7 +2120,8 @@ package:
   version: 12.0.1
 - category: main
   dependencies: {}
-  hash: md5:d534e631f8fefc2690e11bcd85721f26
+  hash:
+    md5: d534e631f8fefc2690e11bcd85721f26
   manager: conda
   name: libcxx
   optional: false
@@ -1968,7 +2131,8 @@ package:
 - category: main
   dependencies:
     libgcc-ng: '>=9.3.0'
-  hash: md5:91d22aefa665265e8e31988b15145c8a
+  hash:
+    md5: 91d22aefa665265e8e31988b15145c8a
   manager: conda
   name: libdeflate
   optional: false
@@ -1977,7 +2141,8 @@ package:
   version: '1.8'
 - category: main
   dependencies: {}
-  hash: md5:0c233c9a12552ee43d1e3f477f2a54ee
+  hash:
+    md5: 0c233c9a12552ee43d1e3f477f2a54ee
   manager: conda
   name: libdeflate
   optional: false
@@ -1986,7 +2151,8 @@ package:
   version: '1.8'
 - category: main
   dependencies: {}
-  hash: md5:7f395c003efdba93c2acaca381de3bfb
+  hash:
+    md5: 7f395c003efdba93c2acaca381de3bfb
   manager: conda
   name: libdeflate
   optional: false
@@ -1997,7 +2163,8 @@ package:
   dependencies:
     libgcc-ng: '>=7.5.0'
     ncurses: '>=6.2,<6.3.0a0'
-  hash: md5:4d331e44109e3f0e19b4cb8f9b82f3e1
+  hash:
+    md5: 4d331e44109e3f0e19b4cb8f9b82f3e1
   manager: conda
   name: libedit
   optional: false
@@ -2007,7 +2174,8 @@ package:
 - category: main
   dependencies:
     ncurses: '>=6.2,<6.3.0a0'
-  hash: md5:6016a8a1d0e63cac3de2c352cd40208b
+  hash:
+    md5: 6016a8a1d0e63cac3de2c352cd40208b
   manager: conda
   name: libedit
   optional: false
@@ -2017,7 +2185,8 @@ package:
 - category: main
   dependencies:
     ncurses: '>=6.2,<6.3.0a0'
-  hash: md5:30e4362988a2623e9eb34337b83e01f9
+  hash:
+    md5: 30e4362988a2623e9eb34337b83e01f9
   manager: conda
   name: libedit
   optional: false
@@ -2027,7 +2196,8 @@ package:
 - category: main
   dependencies:
     libgcc-ng: '>=7.5.0'
-  hash: md5:6f8720dff19e17ce5d48cfe7f3d2f0a3
+  hash:
+    md5: 6f8720dff19e17ce5d48cfe7f3d2f0a3
   manager: conda
   name: libev
   optional: false
@@ -2036,7 +2206,8 @@ package:
   version: '4.33'
 - category: main
   dependencies: {}
-  hash: md5:79dc2be110b2a3d1e97ec21f691c50ad
+  hash:
+    md5: 79dc2be110b2a3d1e97ec21f691c50ad
   manager: conda
   name: libev
   optional: false
@@ -2045,7 +2216,8 @@ package:
   version: '4.33'
 - category: main
   dependencies: {}
-  hash: md5:566dbf70fe79eacdb3c3d3d195a27f55
+  hash:
+    md5: 566dbf70fe79eacdb3c3d3d195a27f55
   manager: conda
   name: libev
   optional: false
@@ -2055,7 +2227,8 @@ package:
 - category: main
   dependencies:
     libgcc-ng: '>=9.4.0'
-  hash: md5:d645c6d2ac96843a2bfaccd2d62b3ac3
+  hash:
+    md5: d645c6d2ac96843a2bfaccd2d62b3ac3
   manager: conda
   name: libffi
   optional: false
@@ -2064,7 +2237,8 @@ package:
   version: 3.4.2
 - category: main
   dependencies: {}
-  hash: md5:ccb34fb14960ad8b125962d3d79b31a9
+  hash:
+    md5: ccb34fb14960ad8b125962d3d79b31a9
   manager: conda
   name: libffi
   optional: false
@@ -2075,7 +2249,8 @@ package:
   dependencies:
     _libgcc_mutex: 0.1 conda_forge
     _openmp_mutex: '>=4.5'
-  hash: md5:e3495f4f93cfd6b68021cbe2b5844cd5
+  hash:
+    md5: e3495f4f93cfd6b68021cbe2b5844cd5
   manager: conda
   name: libgcc-ng
   optional: false
@@ -2085,7 +2260,8 @@ package:
 - category: main
   dependencies:
     libgfortran5: ''
-  hash: md5:60f48cef2d50674e0428c5579b6c3f66
+  hash:
+    md5: 60f48cef2d50674e0428c5579b6c3f66
   manager: conda
   name: libgfortran
   optional: false
@@ -2095,7 +2271,8 @@ package:
 - category: main
   dependencies:
     libgfortran5: ''
-  hash: md5:75f6bd23c894fbb8d353c75edb7041d6
+  hash:
+    md5: 75f6bd23c894fbb8d353c75edb7041d6
   manager: conda
   name: libgfortran
   optional: false
@@ -2105,7 +2282,8 @@ package:
 - category: main
   dependencies:
     libgfortran5: 11.2.0 h5c6108e_11
-  hash: md5:4ea2f9f83b617a7682e8aa05dcb37c6a
+  hash:
+    md5: 4ea2f9f83b617a7682e8aa05dcb37c6a
   manager: conda
   name: libgfortran-ng
   optional: false
@@ -2114,7 +2292,8 @@ package:
   version: 11.2.0
 - category: main
   dependencies: {}
-  hash: md5:2dcb18a9a0fa31f4f29e5a9b3eade394
+  hash:
+    md5: 2dcb18a9a0fa31f4f29e5a9b3eade394
   manager: conda
   name: libgfortran5
   optional: false
@@ -2124,7 +2303,8 @@ package:
 - category: main
   dependencies:
     llvm-openmp: '>=8.0.0'
-  hash: md5:a6956ceb628b14594613cefee5127a7a
+  hash:
+    md5: a6956ceb628b14594613cefee5127a7a
   manager: conda
   name: libgfortran5
   optional: false
@@ -2134,7 +2314,8 @@ package:
 - category: main
   dependencies:
     llvm-openmp: '>=8.0.0'
-  hash: md5:402c05211a9c339c71a1e82ac8b7ad81
+  hash:
+    md5: 402c05211a9c339c71a1e82ac8b7ad81
   manager: conda
   name: libgfortran5
   optional: false
@@ -2144,7 +2325,8 @@ package:
 - category: main
   dependencies:
     _libgcc_mutex: 0.1 conda_forge
-  hash: md5:1d16527c76842bf9c41e9399d39d8097
+  hash:
+    md5: 1d16527c76842bf9c41e9399d39d8097
   manager: conda
   name: libgomp
   optional: false
@@ -2154,7 +2336,8 @@ package:
 - category: main
   dependencies:
     libblas: 3.9.0 12_linux64_openblas
-  hash: md5:9f401a6807a97e0c859d7522ae3d51ec
+  hash:
+    md5: 9f401a6807a97e0c859d7522ae3d51ec
   manager: conda
   name: liblapack
   optional: false
@@ -2164,7 +2347,8 @@ package:
 - category: main
   dependencies:
     libblas: 3.9.0 12_osx64_openblas
-  hash: md5:ca35c8b85ced3a53059c7a001518cbae
+  hash:
+    md5: ca35c8b85ced3a53059c7a001518cbae
   manager: conda
   name: liblapack
   optional: false
@@ -2174,7 +2358,8 @@ package:
 - category: main
   dependencies:
     libblas: 3.9.0 12_osxarm64_openblas
-  hash: md5:db2577f4e83769d7e5cd1ec8bd8aecae
+  hash:
+    md5: db2577f4e83769d7e5cd1ec8bd8aecae
   manager: conda
   name: liblapack
   optional: false
@@ -2189,7 +2374,8 @@ package:
     libstdcxx-ng: '>=9.4.0'
     openssl: '>=3.0.0,<4.0a0'
     zlib: '>=1.2.11,<1.3.0a0'
-  hash: md5:f012f7ad2b1a6607dc2b863304387787
+  hash:
+    md5: f012f7ad2b1a6607dc2b863304387787
   manager: conda
   name: libnghttp2
   optional: false
@@ -2203,7 +2389,8 @@ package:
     libev: '>=4.33,<4.34.0a0'
     openssl: '>=3.0.0,<4.0a0'
     zlib: '>=1.2.11,<1.3.0a0'
-  hash: md5:f0b9ba0862c4fa8b31cf2597b784f1c9
+  hash:
+    md5: f0b9ba0862c4fa8b31cf2597b784f1c9
   manager: conda
   name: libnghttp2
   optional: false
@@ -2217,7 +2404,8 @@ package:
     libev: '>=4.33,<4.34.0a0'
     openssl: '>=3.0.0,<4.0a0'
     zlib: '>=1.2.11,<1.3.0a0'
-  hash: md5:4d9143890d7def7f935f7869a9a5a898
+  hash:
+    md5: 4d9143890d7def7f935f7869a9a5a898
   manager: conda
   name: libnghttp2
   optional: false
@@ -2229,7 +2417,8 @@ package:
     libgcc-ng: '>=9.4.0'
     libgfortran-ng: ''
     libgfortran5: '>=9.4.0'
-  hash: md5:41532e4448c0cce086d6570f95e4e12e
+  hash:
+    md5: 41532e4448c0cce086d6570f95e4e12e
   manager: conda
   name: libopenblas
   optional: false
@@ -2241,7 +2430,8 @@ package:
     libgfortran: 5.*
     libgfortran5: '>=9.3.0'
     llvm-openmp: '>=11.1.0'
-  hash: md5:a0636ed965924977a848fd0d0258cf17
+  hash:
+    md5: a0636ed965924977a848fd0d0258cf17
   manager: conda
   name: libopenblas
   optional: false
@@ -2253,7 +2443,8 @@ package:
     libgfortran: 5.*
     libgfortran5: '>=11.0.1.dev0'
     llvm-openmp: '>=11.1.0'
-  hash: md5:8860a24cd05b691ea33f8c85f9981d4b
+  hash:
+    md5: 8860a24cd05b691ea33f8c85f9981d4b
   manager: conda
   name: libopenblas
   optional: false
@@ -2264,7 +2455,8 @@ package:
   dependencies:
     libgcc-ng: '>=7.5.0'
     zlib: '>=1.2.11,<1.3.0a0'
-  hash: md5:b6acf807307d033d4b7e758b4f44b036
+  hash:
+    md5: b6acf807307d033d4b7e758b4f44b036
   manager: conda
   name: libpng
   optional: false
@@ -2274,7 +2466,8 @@ package:
 - category: main
   dependencies:
     zlib: '>=1.2.11,<1.3.0a0'
-  hash: md5:9e52521faba2b53269672628d34e1513
+  hash:
+    md5: 9e52521faba2b53269672628d34e1513
   manager: conda
   name: libpng
   optional: false
@@ -2284,7 +2477,8 @@ package:
 - category: main
   dependencies:
     zlib: '>=1.2.11,<1.3.0a0'
-  hash: md5:1c5087c1f23ba00c342cfb725f69a57c
+  hash:
+    md5: 1c5087c1f23ba00c342cfb725f69a57c
   manager: conda
   name: libpng
   optional: false
@@ -2294,7 +2488,8 @@ package:
 - category: main
   dependencies:
     libgcc-ng: '>=7.5.0'
-  hash: md5:c3788462a6fbddafdb413a9f9053e58d
+  hash:
+    md5: c3788462a6fbddafdb413a9f9053e58d
   manager: conda
   name: libsodium
   optional: false
@@ -2303,7 +2498,8 @@ package:
   version: 1.0.18
 - category: main
   dependencies: {}
-  hash: md5:24632c09ed931af617fe6d5292919cab
+  hash:
+    md5: 24632c09ed931af617fe6d5292919cab
   manager: conda
   name: libsodium
   optional: false
@@ -2312,7 +2508,8 @@ package:
   version: 1.0.18
 - category: main
   dependencies: {}
-  hash: md5:90859688dbca4735b74c02af14c4c793
+  hash:
+    md5: 90859688dbca4735b74c02af14c4c793
   manager: conda
   name: libsodium
   optional: false
@@ -2324,7 +2521,8 @@ package:
     libgcc-ng: '>=9.4.0'
     openssl: '>=3.0.0,<4.0a0'
     zlib: '>=1.2.11,<1.3.0a0'
-  hash: md5:e0adb0915b3e6971a84e347f998ca837
+  hash:
+    md5: e0adb0915b3e6971a84e347f998ca837
   manager: conda
   name: libssh2
   optional: false
@@ -2335,7 +2533,8 @@ package:
   dependencies:
     openssl: '>=3.0.0,<4.0a0'
     zlib: '>=1.2.11,<1.3.0a0'
-  hash: md5:b0b2876bf1f89bc3cf0c5898c8ab7802
+  hash:
+    md5: b0b2876bf1f89bc3cf0c5898c8ab7802
   manager: conda
   name: libssh2
   optional: false
@@ -2346,7 +2545,8 @@ package:
   dependencies:
     openssl: '>=3.0.0,<4.0a0'
     zlib: '>=1.2.11,<1.3.0a0'
-  hash: md5:b83c0d6ed1be6b4717143e6c74992e35
+  hash:
+    md5: b83c0d6ed1be6b4717143e6c74992e35
   manager: conda
   name: libssh2
   optional: false
@@ -2355,7 +2555,8 @@ package:
   version: 1.10.0
 - category: main
   dependencies: {}
-  hash: md5:0bf83958e788f1e75ba26154cb702afe
+  hash:
+    md5: 0bf83958e788f1e75ba26154cb702afe
   manager: conda
   name: libstdcxx-ng
   optional: false
@@ -2374,7 +2575,8 @@ package:
     libzlib: '>=1.2.11,<1.3.0a0'
     xz: '>=5.2.5,<5.3.0a0'
     zstd: '>=1.5.0,<1.6.0a0'
-  hash: md5:34fda41ca84e67232888c9a885903055
+  hash:
+    md5: 34fda41ca84e67232888c9a885903055
   manager: conda
   name: libtiff
   optional: false
@@ -2392,7 +2594,8 @@ package:
     libzlib: '>=1.2.11,<1.3.0a0'
     xz: '>=5.2.5,<5.3.0a0'
     zstd: '>=1.5.0,<1.6.0a0'
-  hash: md5:f83e9c7a6f2458e85a267df87cd57ca1
+  hash:
+    md5: f83e9c7a6f2458e85a267df87cd57ca1
   manager: conda
   name: libtiff
   optional: false
@@ -2410,7 +2613,8 @@ package:
     libzlib: '>=1.2.11,<1.3.0a0'
     xz: '>=5.2.5,<5.3.0a0'
     zstd: '>=1.5.0,<1.6.0a0'
-  hash: md5:80686c6a442d21c98617ebd2eef9d329
+  hash:
+    md5: 80686c6a442d21c98617ebd2eef9d329
   manager: conda
   name: libtiff
   optional: false
@@ -2420,7 +2624,8 @@ package:
 - category: main
   dependencies:
     libgcc-ng: '>=9.4.0'
-  hash: md5:90607c4c0247f04ec98b48997de71c1a
+  hash:
+    md5: 90607c4c0247f04ec98b48997de71c1a
   manager: conda
   name: libwebp-base
   optional: false
@@ -2429,7 +2634,8 @@ package:
   version: 1.2.1
 - category: main
   dependencies: {}
-  hash: md5:8c6f05a6655b7911c62910343ba806d1
+  hash:
+    md5: 8c6f05a6655b7911c62910343ba806d1
   manager: conda
   name: libwebp-base
   optional: false
@@ -2438,7 +2644,8 @@ package:
   version: 1.2.1
 - category: main
   dependencies: {}
-  hash: md5:5c092854d506da060e1f9ffde1963de1
+  hash:
+    md5: 5c092854d506da060e1f9ffde1963de1
   manager: conda
   name: libwebp-base
   optional: false
@@ -2448,7 +2655,8 @@ package:
 - category: main
   dependencies:
     libgcc-ng: '>=7.5.0'
-  hash: md5:dcddf696ff5dfcab567100d691678e18
+  hash:
+    md5: dcddf696ff5dfcab567100d691678e18
   manager: conda
   name: libzlib
   optional: false
@@ -2457,7 +2665,8 @@ package:
   version: 1.2.11
 - category: main
   dependencies: {}
-  hash: md5:a3a6a53beaa92c5cfe52ee3a198e78cc
+  hash:
+    md5: a3a6a53beaa92c5cfe52ee3a198e78cc
   manager: conda
   name: libzlib
   optional: false
@@ -2466,7 +2675,8 @@ package:
   version: 1.2.11
 - category: main
   dependencies: {}
-  hash: md5:fe3c74ef0fe456a4011468f860b0c3dc
+  hash:
+    md5: fe3c74ef0fe456a4011468f860b0c3dc
   manager: conda
   name: libzlib
   optional: false
@@ -2475,7 +2685,8 @@ package:
   version: 1.2.11
 - category: main
   dependencies: {}
-  hash: md5:35b1fd6ed9f0f1c68583dc9c9f672513
+  hash:
+    md5: 35b1fd6ed9f0f1c68583dc9c9f672513
   manager: conda
   name: llvm-openmp
   optional: false
@@ -2484,7 +2695,8 @@ package:
   version: 12.0.1
 - category: main
   dependencies: {}
-  hash: md5:99d8ad7f938fc5b730ec1c610851f1ba
+  hash:
+    md5: 99d8ad7f938fc5b730ec1c610851f1ba
   manager: conda
   name: llvm-openmp
   optional: false
@@ -2495,7 +2707,8 @@ package:
   dependencies:
     libgcc-ng: '>=9.3.0'
     libstdcxx-ng: '>=9.3.0'
-  hash: md5:fbe97e8fa6f275d7c76a09e795adc3e6
+  hash:
+    md5: fbe97e8fa6f275d7c76a09e795adc3e6
   manager: conda
   name: lz4-c
   optional: false
@@ -2505,7 +2718,8 @@ package:
 - category: main
   dependencies:
     libcxx: '>=11.1.0'
-  hash: md5:05c08241b66631c00ca4f9e0b75320bc
+  hash:
+    md5: 05c08241b66631c00ca4f9e0b75320bc
   manager: conda
   name: lz4-c
   optional: false
@@ -2515,7 +2729,8 @@ package:
 - category: main
   dependencies:
     libcxx: '>=11.1.0'
-  hash: md5:074b9beb2e563515c0dd46229b18d521
+  hash:
+    md5: 074b9beb2e563515c0dd46229b18d521
   manager: conda
   name: lz4-c
   optional: false
@@ -2525,7 +2740,8 @@ package:
 - category: main
   dependencies:
     libgcc-ng: '>=7.5.0'
-  hash: md5:bb14fcb13341b81d5eb386423b9d2bac
+  hash:
+    md5: bb14fcb13341b81d5eb386423b9d2bac
   manager: conda
   name: lzo
   optional: false
@@ -2549,7 +2765,8 @@ package:
     python-dateutil: '>=2.7'
     python_abi: 3.9.* *_cp39
     tk: '>=8.6.11,<8.7.0a0'
-  hash: md5:429308f24e184b438657d933723f396b
+  hash:
+    md5: 429308f24e184b438657d933723f396b
   manager: conda
   name: matplotlib-base
   optional: false
@@ -2571,7 +2788,8 @@ package:
     python: '>=3.9,<3.10.0a0'
     python-dateutil: '>=2.7'
     python_abi: 3.9.* *_cp39
-  hash: md5:36c18ba08fee9eba0a02ea9c8b61423a
+  hash:
+    md5: 36c18ba08fee9eba0a02ea9c8b61423a
   manager: conda
   name: matplotlib-base
   optional: false
@@ -2593,7 +2811,8 @@ package:
     python: '>=3.9,<3.10.0a0 *_cpython'
     python-dateutil: '>=2.7'
     python_abi: 3.9.* *_cp39
-  hash: md5:197c945cce26f59951389f851e9865d9
+  hash:
+    md5: 197c945cce26f59951389f851e9865d9
   manager: conda
   name: matplotlib-base
   optional: false
@@ -2604,7 +2823,8 @@ package:
   dependencies:
     python: '>=3.6'
     traitlets: ''
-  hash: md5:be3bfd435802d2c768c6b2439f325f3d
+  hash:
+    md5: be3bfd435802d2c768c6b2439f325f3d
   manager: conda
   name: matplotlib-inline
   optional: false
@@ -2615,7 +2835,8 @@ package:
   dependencies:
     python: '>=3.6'
     traitlets: ''
-  hash: md5:be3bfd435802d2c768c6b2439f325f3d
+  hash:
+    md5: be3bfd435802d2c768c6b2439f325f3d
   manager: conda
   name: matplotlib-inline
   optional: false
@@ -2626,7 +2847,8 @@ package:
   dependencies:
     python: '>=3.6'
     traitlets: ''
-  hash: md5:be3bfd435802d2c768c6b2439f325f3d
+  hash:
+    md5: be3bfd435802d2c768c6b2439f325f3d
   manager: conda
   name: matplotlib-inline
   optional: false
@@ -2636,7 +2858,8 @@ package:
 - category: main
   dependencies:
     libgcc-ng: '>=7.5.0'
-  hash: md5:d099b812378b1e133c12e3b75167d83a
+  hash:
+    md5: d099b812378b1e133c12e3b75167d83a
   manager: conda
   name: metis
   optional: false
@@ -2645,7 +2868,8 @@ package:
   version: 5.1.0
 - category: main
   dependencies: {}
-  hash: md5:ed90f7784864e7c0580624ec3ed5534e
+  hash:
+    md5: ed90f7784864e7c0580624ec3ed5534e
   manager: conda
   name: metis
   optional: false
@@ -2654,7 +2878,8 @@ package:
   version: 5.1.0
 - category: main
   dependencies: {}
-  hash: md5:f77d9809ca7c6b8482a66685d4cf55c9
+  hash:
+    md5: f77d9809ca7c6b8482a66685d4cf55c9
   manager: conda
   name: metis
   optional: false
@@ -2666,7 +2891,8 @@ package:
     python: '>=3.9,<3.10.0a0'
     python_abi: 3.9.* *_cp39
     six: ''
-  hash: md5:b1969febdc3cb97c120255a20b41737a
+  hash:
+    md5: b1969febdc3cb97c120255a20b41737a
   manager: conda
   name: mock
   optional: false
@@ -2678,7 +2904,8 @@ package:
     python: '>=3.9,<3.10.0a0'
     python_abi: 3.9.* *_cp39
     six: ''
-  hash: md5:3fd270befb9f7ca17800052d9d361ec5
+  hash:
+    md5: 3fd270befb9f7ca17800052d9d361ec5
   manager: conda
   name: mock
   optional: false
@@ -2690,7 +2917,8 @@ package:
     python: '>=3.9,<3.10.0a0 *_cpython'
     python_abi: 3.9.* *_cp39
     six: ''
-  hash: md5:d783cfff66b361a0ef3e7cb7bda17605
+  hash:
+    md5: d783cfff66b361a0ef3e7cb7bda17605
   manager: conda
   name: mock
   optional: false
@@ -2700,7 +2928,8 @@ package:
 - category: dev
   dependencies:
     python: '>=3.4'
-  hash: md5:1338809c9c8e56f1b6f69d4b8e0ed7f7
+  hash:
+    md5: 1338809c9c8e56f1b6f69d4b8e0ed7f7
   manager: conda
   name: more-itertools
   optional: true
@@ -2710,7 +2939,8 @@ package:
 - category: dev
   dependencies:
     python: '>=3.4'
-  hash: md5:1338809c9c8e56f1b6f69d4b8e0ed7f7
+  hash:
+    md5: 1338809c9c8e56f1b6f69d4b8e0ed7f7
   manager: conda
   name: more-itertools
   optional: true
@@ -2720,7 +2950,8 @@ package:
 - category: dev
   dependencies:
     python: '>=3.4'
-  hash: md5:1338809c9c8e56f1b6f69d4b8e0ed7f7
+  hash:
+    md5: 1338809c9c8e56f1b6f69d4b8e0ed7f7
   manager: conda
   name: more-itertools
   optional: true
@@ -2731,7 +2962,8 @@ package:
   dependencies:
     gmp: '>=6.2.1,<7.0a0'
     libgcc-ng: '>=7.5.0'
-  hash: md5:ea9ebeddb066da8fad4a815e61b139be
+  hash:
+    md5: ea9ebeddb066da8fad4a815e61b139be
   manager: conda
   name: mpfr
   optional: false
@@ -2741,7 +2973,8 @@ package:
 - category: main
   dependencies:
     gmp: '>=6.2.1,<7.0a0'
-  hash: md5:afe26b08c2d2265b4d663d199000e5da
+  hash:
+    md5: afe26b08c2d2265b4d663d199000e5da
   manager: conda
   name: mpfr
   optional: false
@@ -2751,7 +2984,8 @@ package:
 - category: main
   dependencies:
     gmp: '>=6.2.0,<7.0a0'
-  hash: md5:c37f296f76cfb61d4f91613da93789e6
+  hash:
+    md5: c37f296f76cfb61d4f91613da93789e6
   manager: conda
   name: mpfr
   optional: false
@@ -2761,7 +2995,8 @@ package:
 - category: main
   dependencies:
     python: ''
-  hash: md5:2ba8498c1018c1e9c61eb99b973dfe19
+  hash:
+    md5: 2ba8498c1018c1e9c61eb99b973dfe19
   manager: conda
   name: munkres
   optional: false
@@ -2771,7 +3006,8 @@ package:
 - category: main
   dependencies:
     python: ''
-  hash: md5:2ba8498c1018c1e9c61eb99b973dfe19
+  hash:
+    md5: 2ba8498c1018c1e9c61eb99b973dfe19
   manager: conda
   name: munkres
   optional: false
@@ -2781,7 +3017,8 @@ package:
 - category: main
   dependencies:
     python: ''
-  hash: md5:2ba8498c1018c1e9c61eb99b973dfe19
+  hash:
+    md5: 2ba8498c1018c1e9c61eb99b973dfe19
   manager: conda
   name: munkres
   optional: false
@@ -2796,7 +3033,8 @@ package:
     nest-asyncio: ''
     python: '>=3.6'
     traitlets: '>=4.2'
-  hash: md5:21554dd9bbabff27ae87f715fee4d56c
+  hash:
+    md5: 21554dd9bbabff27ae87f715fee4d56c
   manager: conda
   name: nbclient
   optional: true
@@ -2811,7 +3049,8 @@ package:
     nest-asyncio: ''
     python: '>=3.6'
     traitlets: '>=4.2'
-  hash: md5:21554dd9bbabff27ae87f715fee4d56c
+  hash:
+    md5: 21554dd9bbabff27ae87f715fee4d56c
   manager: conda
   name: nbclient
   optional: true
@@ -2826,7 +3065,8 @@ package:
     nest-asyncio: ''
     python: '>=3.6'
     traitlets: '>=4.2'
-  hash: md5:21554dd9bbabff27ae87f715fee4d56c
+  hash:
+    md5: 21554dd9bbabff27ae87f715fee4d56c
   manager: conda
   name: nbclient
   optional: true
@@ -2840,7 +3080,8 @@ package:
     jupyter_core: ''
     python: '>=3.5'
     traitlets: '>=4.1'
-  hash: md5:bafa5df6d4f8db69a4d197b4657127e7
+  hash:
+    md5: bafa5df6d4f8db69a4d197b4657127e7
   manager: conda
   name: nbformat
   optional: true
@@ -2854,7 +3095,8 @@ package:
     jupyter_core: ''
     python: '>=3.5'
     traitlets: '>=4.1'
-  hash: md5:bafa5df6d4f8db69a4d197b4657127e7
+  hash:
+    md5: bafa5df6d4f8db69a4d197b4657127e7
   manager: conda
   name: nbformat
   optional: true
@@ -2868,7 +3110,8 @@ package:
     jupyter_core: ''
     python: '>=3.5'
     traitlets: '>=4.1'
-  hash: md5:bafa5df6d4f8db69a4d197b4657127e7
+  hash:
+    md5: bafa5df6d4f8db69a4d197b4657127e7
   manager: conda
   name: nbformat
   optional: true
@@ -2884,7 +3127,8 @@ package:
     pygments: '>=2.7.3,<3.0.0'
     pytest: '>=6.1.0,<7.0.0'
     python: '>=3.6,<4.0'
-  hash: md5:939467afcac3043712b21b436ec6fc5e
+  hash:
+    md5: 939467afcac3043712b21b436ec6fc5e
   manager: conda
   name: nbmake
   optional: true
@@ -2900,7 +3144,8 @@ package:
     pygments: '>=2.7.3,<3.0.0'
     pytest: '>=6.1.0,<7.0.0'
     python: '>=3.6,<4.0'
-  hash: md5:939467afcac3043712b21b436ec6fc5e
+  hash:
+    md5: 939467afcac3043712b21b436ec6fc5e
   manager: conda
   name: nbmake
   optional: true
@@ -2916,7 +3161,8 @@ package:
     pygments: '>=2.7.3,<3.0.0'
     pytest: '>=6.1.0,<7.0.0'
     python: '>=3.6,<4.0'
-  hash: md5:939467afcac3043712b21b436ec6fc5e
+  hash:
+    md5: 939467afcac3043712b21b436ec6fc5e
   manager: conda
   name: nbmake
   optional: true
@@ -2926,7 +3172,8 @@ package:
 - category: main
   dependencies:
     libgcc-ng: '>=7.5.0'
-  hash: md5:509f2a21c4a09214cd737a480dfd80c9
+  hash:
+    md5: 509f2a21c4a09214cd737a480dfd80c9
   manager: conda
   name: ncurses
   optional: false
@@ -2935,7 +3182,8 @@ package:
   version: '6.2'
 - category: main
   dependencies: {}
-  hash: md5:9cef1910395d1543527583e73dba30f1
+  hash:
+    md5: 9cef1910395d1543527583e73dba30f1
   manager: conda
   name: ncurses
   optional: false
@@ -2944,7 +3192,8 @@ package:
   version: '6.2'
 - category: main
   dependencies: {}
-  hash: md5:8a4aa25a5741e65f2338204f8a45d8d8
+  hash:
+    md5: 8a4aa25a5741e65f2338204f8a45d8d8
   manager: conda
   name: ncurses
   optional: false
@@ -2954,7 +3203,8 @@ package:
 - category: main
   dependencies:
     python: '>=3.5'
-  hash: md5:0d86e4e6ac78912f3f47e0453b124aca
+  hash:
+    md5: 0d86e4e6ac78912f3f47e0453b124aca
   manager: conda
   name: nest-asyncio
   optional: false
@@ -2964,7 +3214,8 @@ package:
 - category: main
   dependencies:
     python: '>=3.5'
-  hash: md5:0d86e4e6ac78912f3f47e0453b124aca
+  hash:
+    md5: 0d86e4e6ac78912f3f47e0453b124aca
   manager: conda
   name: nest-asyncio
   optional: false
@@ -2974,7 +3225,8 @@ package:
 - category: main
   dependencies:
     python: '>=3.5'
-  hash: md5:0d86e4e6ac78912f3f47e0453b124aca
+  hash:
+    md5: 0d86e4e6ac78912f3f47e0453b124aca
   manager: conda
   name: nest-asyncio
   optional: false
@@ -2983,7 +3235,8 @@ package:
   version: 1.5.4
 - category: main
   dependencies: {}
-  hash: md5:9a66894dfd07c4510beb6b3f9672ccc0
+  hash:
+    md5: 9a66894dfd07c4510beb6b3f9672ccc0
   manager: conda
   name: nomkl
   optional: false
@@ -3000,7 +3253,8 @@ package:
     photospline: '>=2.0.7,<2.1.0a0'
     python: '>=3.9,<3.10.0a0'
     python_abi: 3.9.* *_cp39
-  hash: md5:69552c767764091efb5a72bb4b1ee117
+  hash:
+    md5: 69552c767764091efb5a72bb4b1ee117
   manager: conda
   name: nuflux
   optional: false
@@ -3016,7 +3270,8 @@ package:
     photospline: '>=2.0.7,<2.1.0a0'
     python: '>=3.9,<3.10.0a0'
     python_abi: 3.9.* *_cp39
-  hash: md5:ee1ed441aa031a82238059dbe33dce37
+  hash:
+    md5: ee1ed441aa031a82238059dbe33dce37
   manager: conda
   name: nuflux
   optional: false
@@ -3032,7 +3287,8 @@ package:
     photospline: '>=2.0.7,<2.1.0a0'
     python: '>=3.9,<3.10.0a0 *_cpython'
     python_abi: 3.9.* *_cp39
-  hash: md5:9bb73c5bffb2f40887248e7944c17841
+  hash:
+    md5: 9bb73c5bffb2f40887248e7944c17841
   manager: conda
   name: nuflux
   optional: false
@@ -3047,7 +3303,8 @@ package:
     numpy: '>=1.19.5,<2.0a0'
     python: '>=3.9,<3.10.0a0'
     python_abi: 3.9.* *_cp39
-  hash: md5:5881e6c20884547b02e3b3d1843337a7
+  hash:
+    md5: 5881e6c20884547b02e3b3d1843337a7
   manager: conda
   name: numexpr
   optional: false
@@ -3060,7 +3317,8 @@ package:
     numpy: '>=1.19.5,<2.0a0'
     python: '>=3.9,<3.10.0a0'
     python_abi: 3.9.* *_cp39
-  hash: md5:536530df85d99eaa94e4d1237906be4b
+  hash:
+    md5: 536530df85d99eaa94e4d1237906be4b
   manager: conda
   name: numexpr
   optional: false
@@ -3073,7 +3331,8 @@ package:
     numpy: '>=1.19.5,<2.0a0'
     python: '>=3.9,<3.10.0a0 *_cpython'
     python_abi: 3.9.* *_cp39
-  hash: md5:96d593e80301a6827dfcbffa25dcfe6a
+  hash:
+    md5: 96d593e80301a6827dfcbffa25dcfe6a
   manager: conda
   name: numexpr
   optional: false
@@ -3088,7 +3347,8 @@ package:
     liblapack: '>=3.8.0,<4.0a0'
     python: '>=3.9,<3.10.0a0'
     python_abi: 3.9.* *_cp39
-  hash: md5:3ef30a1c931a3cfe564ca5212b3fa8fe
+  hash:
+    md5: 3ef30a1c931a3cfe564ca5212b3fa8fe
   manager: conda
   name: numpy
   optional: false
@@ -3102,7 +3362,8 @@ package:
     liblapack: '>=3.8.0,<4.0a0'
     python: '>=3.9,<3.10.0a0'
     python_abi: 3.9.* *_cp39
-  hash: md5:1c5103c2f7c964e07a5cae06468d0f98
+  hash:
+    md5: 1c5103c2f7c964e07a5cae06468d0f98
   manager: conda
   name: numpy
   optional: false
@@ -3116,7 +3377,8 @@ package:
     liblapack: '>=3.9.0,<4.0a0'
     python: '>=3.9,<3.10.0a0 *_cpython'
     python_abi: 3.9.* *_cp39
-  hash: md5:ae8bfff0872f36c053ea4130818d7270
+  hash:
+    md5: ae8bfff0872f36c053ea4130818d7270
   manager: conda
   name: numpy
   optional: false
@@ -3126,7 +3388,8 @@ package:
 - category: main
   dependencies:
     python: ''
-  hash: md5:0b2e68acc8c78c8cc392b90983481f58
+  hash:
+    md5: 0b2e68acc8c78c8cc392b90983481f58
   manager: conda
   name: olefile
   optional: false
@@ -3136,7 +3399,8 @@ package:
 - category: main
   dependencies:
     python: ''
-  hash: md5:0b2e68acc8c78c8cc392b90983481f58
+  hash:
+    md5: 0b2e68acc8c78c8cc392b90983481f58
   manager: conda
   name: olefile
   optional: false
@@ -3146,7 +3410,8 @@ package:
 - category: main
   dependencies:
     python: ''
-  hash: md5:0b2e68acc8c78c8cc392b90983481f58
+  hash:
+    md5: 0b2e68acc8c78c8cc392b90983481f58
   manager: conda
   name: olefile
   optional: false
@@ -3160,7 +3425,8 @@ package:
     libstdcxx-ng: '>=9.3.0'
     libtiff: '>=4.2.0,<5.0a0'
     zlib: '>=1.2.11,<1.3.0a0'
-  hash: md5:b7ad78ad2e9ee155f59e6428406ee824
+  hash:
+    md5: b7ad78ad2e9ee155f59e6428406ee824
   manager: conda
   name: openjpeg
   optional: false
@@ -3173,7 +3439,8 @@ package:
     libpng: '>=1.6.37,<1.7.0a0'
     libtiff: '>=4.2.0,<5.0a0'
     zlib: '>=1.2.11,<1.3.0a0'
-  hash: md5:c8cbb6d99f6467246ac26a139256e50f
+  hash:
+    md5: c8cbb6d99f6467246ac26a139256e50f
   manager: conda
   name: openjpeg
   optional: false
@@ -3186,7 +3453,8 @@ package:
     libpng: '>=1.6.37,<1.7.0a0'
     libtiff: '>=4.2.0,<5.0a0'
     zlib: '>=1.2.11,<1.3.0a0'
-  hash: md5:02ec6e9debe1bf6488ac302592d067fc
+  hash:
+    md5: 02ec6e9debe1bf6488ac302592d067fc
   manager: conda
   name: openjpeg
   optional: false
@@ -3197,7 +3465,8 @@ package:
   dependencies:
     ca-certificates: ''
     libgcc-ng: '>=9.4.0'
-  hash: md5:3f9cc59705e5ee0c4ec99bd58fe94b94
+  hash:
+    md5: 3f9cc59705e5ee0c4ec99bd58fe94b94
   manager: conda
   name: openssl
   optional: false
@@ -3207,7 +3476,8 @@ package:
 - category: main
   dependencies:
     ca-certificates: ''
-  hash: md5:459fe1a1b09864f0fbacadc9abf8c73e
+  hash:
+    md5: 459fe1a1b09864f0fbacadc9abf8c73e
   manager: conda
   name: openssl
   optional: false
@@ -3217,7 +3487,8 @@ package:
 - category: main
   dependencies:
     ca-certificates: ''
-  hash: md5:a8c39e076c8d531dd9e73b7ff0dea96a
+  hash:
+    md5: a8c39e076c8d531dd9e73b7ff0dea96a
   manager: conda
   name: openssl
   optional: false
@@ -3228,7 +3499,8 @@ package:
   dependencies:
     pyparsing: '>=2.0.2,!=3.0.5'
     python: '>=3.6'
-  hash: md5:71f1ab2de48613876becddd496371c85
+  hash:
+    md5: 71f1ab2de48613876becddd496371c85
   manager: conda
   name: packaging
   optional: true
@@ -3239,7 +3511,8 @@ package:
   dependencies:
     pyparsing: '>=2.0.2,!=3.0.5'
     python: '>=3.6'
-  hash: md5:71f1ab2de48613876becddd496371c85
+  hash:
+    md5: 71f1ab2de48613876becddd496371c85
   manager: conda
   name: packaging
   optional: true
@@ -3250,7 +3523,8 @@ package:
   dependencies:
     pyparsing: '>=2.0.2,!=3.0.5'
     python: '>=3.6'
-  hash: md5:71f1ab2de48613876becddd496371c85
+  hash:
+    md5: 71f1ab2de48613876becddd496371c85
   manager: conda
   name: packaging
   optional: true
@@ -3266,7 +3540,8 @@ package:
     python-dateutil: '>=2.7.3'
     python_abi: 3.9.* *_cp39
     pytz: '>=2017.2'
-  hash: md5:8b043715b3ecda6b4546c962aff6f519
+  hash:
+    md5: 8b043715b3ecda6b4546c962aff6f519
   manager: conda
   name: pandas
   optional: false
@@ -3281,7 +3556,8 @@ package:
     python-dateutil: '>=2.7.3'
     python_abi: 3.9.* *_cp39
     pytz: '>=2017.2'
-  hash: md5:ec1c2db1e81f499e29f1d0d114dbf919
+  hash:
+    md5: ec1c2db1e81f499e29f1d0d114dbf919
   manager: conda
   name: pandas
   optional: false
@@ -3296,7 +3572,8 @@ package:
     python-dateutil: '>=2.7.3'
     python_abi: 3.9.* *_cp39
     pytz: '>=2017.2'
-  hash: md5:72590755c6995e359cb031dd04e979cb
+  hash:
+    md5: 72590755c6995e359cb031dd04e979cb
   manager: conda
   name: pandas
   optional: false
@@ -3306,7 +3583,8 @@ package:
 - category: main
   dependencies:
     python: '>=3.6'
-  hash: md5:17a565a0c3899244e938cdf417e7b094
+  hash:
+    md5: 17a565a0c3899244e938cdf417e7b094
   manager: conda
   name: parso
   optional: false
@@ -3316,7 +3594,8 @@ package:
 - category: main
   dependencies:
     python: '>=3.6'
-  hash: md5:17a565a0c3899244e938cdf417e7b094
+  hash:
+    md5: 17a565a0c3899244e938cdf417e7b094
   manager: conda
   name: parso
   optional: false
@@ -3326,7 +3605,8 @@ package:
 - category: main
   dependencies:
     python: '>=3.6'
-  hash: md5:17a565a0c3899244e938cdf417e7b094
+  hash:
+    md5: 17a565a0c3899244e938cdf417e7b094
   manager: conda
   name: parso
   optional: false
@@ -3337,7 +3617,8 @@ package:
   dependencies:
     ptyprocess: '>=0.5'
     python: ''
-  hash: md5:5909e7b978141dd80d28dbf9de627827
+  hash:
+    md5: 5909e7b978141dd80d28dbf9de627827
   manager: conda
   name: pexpect
   optional: false
@@ -3348,7 +3629,8 @@ package:
   dependencies:
     ptyprocess: '>=0.5'
     python: ''
-  hash: md5:5909e7b978141dd80d28dbf9de627827
+  hash:
+    md5: 5909e7b978141dd80d28dbf9de627827
   manager: conda
   name: pexpect
   optional: false
@@ -3359,7 +3641,8 @@ package:
   dependencies:
     ptyprocess: '>=0.5'
     python: ''
-  hash: md5:5909e7b978141dd80d28dbf9de627827
+  hash:
+    md5: 5909e7b978141dd80d28dbf9de627827
   manager: conda
   name: pexpect
   optional: false
@@ -3375,7 +3658,8 @@ package:
     python: '>=3.9,<3.10.0a0'
     python_abi: 3.9.* *_cp39
     suitesparse: '>=5.10.1,<6.0a0'
-  hash: md5:cfcdf1ce8567b7b94dff2723ddd5210e
+  hash:
+    md5: cfcdf1ce8567b7b94dff2723ddd5210e
   manager: conda
   name: photospline
   optional: false
@@ -3390,7 +3674,8 @@ package:
     python: '>=3.9,<3.10.0a0'
     python_abi: 3.9.* *_cp39
     suitesparse: '>=5.10.1,<6.0a0'
-  hash: md5:7ac72624a9035f8eafc19a4416e7490d
+  hash:
+    md5: 7ac72624a9035f8eafc19a4416e7490d
   manager: conda
   name: photospline
   optional: false
@@ -3405,7 +3690,8 @@ package:
     python: '>=3.9,<3.10.0a0 *_cpython'
     python_abi: 3.9.* *_cp39
     suitesparse: '>=5.10.1,<6.0a0'
-  hash: md5:a342f63ef13c0f6965b0fb19c817d461
+  hash:
+    md5: a342f63ef13c0f6965b0fb19c817d461
   manager: conda
   name: photospline
   optional: false
@@ -3416,7 +3702,8 @@ package:
   dependencies:
     python: '>=3.9,<3.10.0a0'
     python_abi: 3.9.* *_cp39
-  hash: md5:2dc9995512c80256532250a6fd616b14
+  hash:
+    md5: 2dc9995512c80256532250a6fd616b14
   manager: conda
   name: pickleshare
   optional: false
@@ -3427,7 +3714,8 @@ package:
   dependencies:
     python: '>=3.9,<3.10.0a0'
     python_abi: 3.9.* *_cp39
-  hash: md5:ea16ea8f9953518f231b76ca97acea9a
+  hash:
+    md5: ea16ea8f9953518f231b76ca97acea9a
   manager: conda
   name: pickleshare
   optional: false
@@ -3437,7 +3725,8 @@ package:
 - category: main
   dependencies:
     python: '>=3'
-  hash: md5:415f0ebb6198cc2801c73438a9fb5761
+  hash:
+    md5: 415f0ebb6198cc2801c73438a9fb5761
   manager: conda
   name: pickleshare
   optional: false
@@ -3458,7 +3747,8 @@ package:
     python_abi: 3.9.* *_cp39
     tk: '>=8.6.11,<8.7.0a0'
     zlib: '>=1.2.11,<1.3.0a0'
-  hash: md5:f36987ff4c71212ed574c8a2c190edb3
+  hash:
+    md5: f36987ff4c71212ed574c8a2c190edb3
   manager: conda
   name: pillow
   optional: false
@@ -3478,7 +3768,8 @@ package:
     python_abi: 3.9.* *_cp39
     tk: '>=8.6.11,<8.7.0a0'
     zlib: '>=1.2.11,<1.3.0a0'
-  hash: md5:cf632c5ba3ba61d7cf144e28810e24f7
+  hash:
+    md5: cf632c5ba3ba61d7cf144e28810e24f7
   manager: conda
   name: pillow
   optional: false
@@ -3498,7 +3789,8 @@ package:
     python_abi: 3.9.* *_cp39
     tk: '>=8.6.11,<8.7.0a0'
     zlib: '>=1.2.11,<1.3.0a0'
-  hash: md5:038dba961ccc2a21630d564ff48afc1d
+  hash:
+    md5: 038dba961ccc2a21630d564ff48afc1d
   manager: conda
   name: pillow
   optional: false
@@ -3510,7 +3802,8 @@ package:
     python: '>=3.6'
     setuptools: ''
     wheel: ''
-  hash: md5:e4fe2a9af78ff11f1aced7e62128c6a8
+  hash:
+    md5: e4fe2a9af78ff11f1aced7e62128c6a8
   manager: conda
   name: pip
   optional: false
@@ -3522,7 +3815,8 @@ package:
     python: '>=3.6'
     setuptools: ''
     wheel: ''
-  hash: md5:e4fe2a9af78ff11f1aced7e62128c6a8
+  hash:
+    md5: e4fe2a9af78ff11f1aced7e62128c6a8
   manager: conda
   name: pip
   optional: false
@@ -3534,7 +3828,8 @@ package:
     python: '>=3.6'
     setuptools: ''
     wheel: ''
-  hash: md5:e4fe2a9af78ff11f1aced7e62128c6a8
+  hash:
+    md5: e4fe2a9af78ff11f1aced7e62128c6a8
   manager: conda
   name: pip
   optional: false
@@ -3545,7 +3840,8 @@ package:
   dependencies:
     python: '>=3.9,<3.10.0a0'
     python_abi: 3.9.* *_cp39
-  hash: md5:2b6a2f6875bbebc7646fe556b677a015
+  hash:
+    md5: 2b6a2f6875bbebc7646fe556b677a015
   manager: conda
   name: pluggy
   optional: true
@@ -3556,7 +3852,8 @@ package:
   dependencies:
     python: '>=3.9,<3.10.0a0'
     python_abi: 3.9.* *_cp39
-  hash: md5:0837336c3a2d14e137650bbbc9186695
+  hash:
+    md5: 0837336c3a2d14e137650bbbc9186695
   manager: conda
   name: pluggy
   optional: true
@@ -3567,7 +3864,8 @@ package:
   dependencies:
     python: '>=3.9,<3.10.0a0 *_cpython'
     python_abi: 3.9.* *_cp39
-  hash: md5:636c947ba07c1582065f01453b6e4fef
+  hash:
+    md5: 636c947ba07c1582065f01453b6e4fef
   manager: conda
   name: pluggy
   optional: true
@@ -3578,7 +3876,8 @@ package:
   dependencies:
     python: '>=3.6'
     wcwidth: ''
-  hash: md5:a749a230f0d950eae1dedf13ff344b15
+  hash:
+    md5: a749a230f0d950eae1dedf13ff344b15
   manager: conda
   name: prompt-toolkit
   optional: false
@@ -3589,7 +3888,8 @@ package:
   dependencies:
     python: '>=3.6'
     wcwidth: ''
-  hash: md5:a749a230f0d950eae1dedf13ff344b15
+  hash:
+    md5: a749a230f0d950eae1dedf13ff344b15
   manager: conda
   name: prompt-toolkit
   optional: false
@@ -3600,7 +3900,8 @@ package:
   dependencies:
     python: '>=3.6'
     wcwidth: ''
-  hash: md5:a749a230f0d950eae1dedf13ff344b15
+  hash:
+    md5: a749a230f0d950eae1dedf13ff344b15
   manager: conda
   name: prompt-toolkit
   optional: false
@@ -3610,7 +3911,8 @@ package:
 - category: main
   dependencies:
     python: ''
-  hash: md5:359eeb6536da0e687af562ed265ec263
+  hash:
+    md5: 359eeb6536da0e687af562ed265ec263
   manager: conda
   name: ptyprocess
   optional: false
@@ -3620,7 +3922,8 @@ package:
 - category: main
   dependencies:
     python: ''
-  hash: md5:359eeb6536da0e687af562ed265ec263
+  hash:
+    md5: 359eeb6536da0e687af562ed265ec263
   manager: conda
   name: ptyprocess
   optional: false
@@ -3630,7 +3933,8 @@ package:
 - category: main
   dependencies:
     python: ''
-  hash: md5:359eeb6536da0e687af562ed265ec263
+  hash:
+    md5: 359eeb6536da0e687af562ed265ec263
   manager: conda
   name: ptyprocess
   optional: false
@@ -3640,7 +3944,8 @@ package:
 - category: dev
   dependencies:
     python: '>=2.7'
-  hash: md5:b4613d7e7a493916d867842a6a148054
+  hash:
+    md5: b4613d7e7a493916d867842a6a148054
   manager: conda
   name: py
   optional: true
@@ -3650,7 +3955,8 @@ package:
 - category: dev
   dependencies:
     python: '>=2.7'
-  hash: md5:b4613d7e7a493916d867842a6a148054
+  hash:
+    md5: b4613d7e7a493916d867842a6a148054
   manager: conda
   name: py
   optional: true
@@ -3660,7 +3966,8 @@ package:
 - category: dev
   dependencies:
     python: '>=2.7'
-  hash: md5:b4613d7e7a493916d867842a6a148054
+  hash:
+    md5: b4613d7e7a493916d867842a6a148054
   manager: conda
   name: py
   optional: true
@@ -3673,7 +3980,8 @@ package:
     python: '>=3.9,<3.10.0a0'
     python_abi: 3.9.* *_cp39
     typing-extensions: '>=3.7.4.3'
-  hash: md5:f1e316180313e4a7e4c163060d52fcf9
+  hash:
+    md5: f1e316180313e4a7e4c163060d52fcf9
   manager: conda
   name: pydantic
   optional: true
@@ -3685,7 +3993,8 @@ package:
     python: '>=3.9,<3.10.0a0'
     python_abi: 3.9.* *_cp39
     typing-extensions: '>=3.7.4.3'
-  hash: md5:535c3ed3be935e7385a261a56049be2c
+  hash:
+    md5: 535c3ed3be935e7385a261a56049be2c
   manager: conda
   name: pydantic
   optional: true
@@ -3697,7 +4006,8 @@ package:
     python: '>=3.9,<3.10.0a0 *_cpython'
     python_abi: 3.9.* *_cp39
     typing-extensions: '>=3.7.4.3'
-  hash: md5:f615f8c81fd4d403d124bc4601d7877b
+  hash:
+    md5: f615f8c81fd4d403d124bc4601d7877b
   manager: conda
   name: pydantic
   optional: true
@@ -3710,7 +4020,8 @@ package:
     numpy: '>=1.19.5,<2.0a0'
     python: '>=3.9,<3.10.0a0'
     python_abi: 3.9.* *_cp39
-  hash: md5:96b29c80185a959228709a126c59a388
+  hash:
+    md5: 96b29c80185a959228709a126c59a388
   manager: conda
   name: pyerfa
   optional: false
@@ -3722,7 +4033,8 @@ package:
     numpy: '>=1.19.5,<2.0a0'
     python: '>=3.9,<3.10.0a0'
     python_abi: 3.9.* *_cp39
-  hash: md5:e8f1f56f302b3841effc97e521605010
+  hash:
+    md5: e8f1f56f302b3841effc97e521605010
   manager: conda
   name: pyerfa
   optional: false
@@ -3734,7 +4046,8 @@ package:
     numpy: '>=1.19.5,<2.0a0'
     python: '>=3.9,<3.10.0a0 *_cpython'
     python_abi: 3.9.* *_cp39
-  hash: md5:d7c83deb0e2eda037e2c1a1aaa72af63
+  hash:
+    md5: d7c83deb0e2eda037e2c1a1aaa72af63
   manager: conda
   name: pyerfa
   optional: false
@@ -3745,7 +4058,8 @@ package:
   dependencies:
     python: '>=3.5'
     setuptools: ''
-  hash: md5:32bcce837f1316f1c3208118b6c5e5fc
+  hash:
+    md5: 32bcce837f1316f1c3208118b6c5e5fc
   manager: conda
   name: pygments
   optional: false
@@ -3756,7 +4070,8 @@ package:
   dependencies:
     python: '>=3.5'
     setuptools: ''
-  hash: md5:32bcce837f1316f1c3208118b6c5e5fc
+  hash:
+    md5: 32bcce837f1316f1c3208118b6c5e5fc
   manager: conda
   name: pygments
   optional: false
@@ -3767,7 +4082,8 @@ package:
   dependencies:
     python: '>=3.5'
     setuptools: ''
-  hash: md5:32bcce837f1316f1c3208118b6c5e5fc
+  hash:
+    md5: 32bcce837f1316f1c3208118b6c5e5fc
   manager: conda
   name: pygments
   optional: false
@@ -3777,7 +4093,8 @@ package:
 - category: dev
   dependencies:
     python: '>=3.6'
-  hash: md5:3087df8c636c5a00e694605c39ce4982
+  hash:
+    md5: 3087df8c636c5a00e694605c39ce4982
   manager: conda
   name: pyparsing
   optional: true
@@ -3787,7 +4104,8 @@ package:
 - category: dev
   dependencies:
     python: '>=3.6'
-  hash: md5:3087df8c636c5a00e694605c39ce4982
+  hash:
+    md5: 3087df8c636c5a00e694605c39ce4982
   manager: conda
   name: pyparsing
   optional: true
@@ -3797,7 +4115,8 @@ package:
 - category: dev
   dependencies:
     python: '>=3.6'
-  hash: md5:3087df8c636c5a00e694605c39ce4982
+  hash:
+    md5: 3087df8c636c5a00e694605c39ce4982
   manager: conda
   name: pyparsing
   optional: true
@@ -3809,7 +4128,8 @@ package:
     libgcc-ng: '>=9.4.0'
     python: '>=3.9,<3.10.0a0'
     python_abi: 3.9.* *_cp39
-  hash: md5:8d38d839366d28d11fafc9d7021c32fc
+  hash:
+    md5: 8d38d839366d28d11fafc9d7021c32fc
   manager: conda
   name: pyrsistent
   optional: true
@@ -3820,7 +4140,8 @@ package:
   dependencies:
     python: '>=3.9,<3.10.0a0'
     python_abi: 3.9.* *_cp39
-  hash: md5:0cb72a420508be4c6edfaa1e1198771c
+  hash:
+    md5: 0cb72a420508be4c6edfaa1e1198771c
   manager: conda
   name: pyrsistent
   optional: true
@@ -3831,7 +4152,8 @@ package:
   dependencies:
     python: '>=3.9,<3.10.0a0 *_cpython'
     python_abi: 3.9.* *_cp39
-  hash: md5:f129a2eb1f8ca70fa5e7e3193d73dc28
+  hash:
+    md5: f129a2eb1f8ca70fa5e7e3193d73dc28
   manager: conda
   name: pyrsistent
   optional: true
@@ -3854,7 +4176,8 @@ package:
     python_abi: 3.9.* *_cp39
     six: ''
     zlib: '>=1.2.11,<1.3.0a0'
-  hash: md5:946ed3120b3491fb81de80c5770fc3c6
+  hash:
+    md5: 946ed3120b3491fb81de80c5770fc3c6
   manager: conda
   name: pytables
   optional: false
@@ -3875,7 +4198,8 @@ package:
     python_abi: 3.9.* *_cp39
     six: ''
     zlib: '>=1.2.11,<1.3.0a0'
-  hash: md5:ce852a2dcadde03d1aa25093bc842bd2
+  hash:
+    md5: ce852a2dcadde03d1aa25093bc842bd2
   manager: conda
   name: pytables
   optional: false
@@ -3896,7 +4220,8 @@ package:
     python_abi: 3.9.* *_cp39
     six: ''
     zlib: '>=1.2.11,<1.3.0a0'
-  hash: md5:fa68fe37b10bafec9f6fae1c76905f5f
+  hash:
+    md5: fa68fe37b10bafec9f6fae1c76905f5f
   manager: conda
   name: pytables
   optional: false
@@ -3914,7 +4239,8 @@ package:
     python: '>=3.9,<3.10.0a0'
     python_abi: 3.9.* *_cp39
     toml: ''
-  hash: md5:5a2cb92ccaac272bbf4d167352d6b4d4
+  hash:
+    md5: 5a2cb92ccaac272bbf4d167352d6b4d4
   manager: conda
   name: pytest
   optional: true
@@ -3932,7 +4258,8 @@ package:
     python: '>=3.9,<3.10.0a0'
     python_abi: 3.9.* *_cp39
     toml: ''
-  hash: md5:21f34c4fc1f9f16d2a41ea6766eadbf3
+  hash:
+    md5: 21f34c4fc1f9f16d2a41ea6766eadbf3
   manager: conda
   name: pytest
   optional: true
@@ -3950,7 +4277,8 @@ package:
     python: '>=3.9,<3.10.0a0 *_cpython'
     python_abi: 3.9.* *_cp39
     toml: ''
-  hash: md5:7f37779bafbefe9d1d32a2f5e17fc4fd
+  hash:
+    md5: 7f37779bafbefe9d1d32a2f5e17fc4fd
   manager: conda
   name: pytest
   optional: true
@@ -3962,7 +4290,8 @@ package:
     pytest: ''
     python: '>=3.6'
     setuptools: ''
-  hash: md5:746605234be5c988579ba312035c3959
+  hash:
+    md5: 746605234be5c988579ba312035c3959
   manager: conda
   name: pytest-runner
   optional: false
@@ -3974,7 +4303,8 @@ package:
     pytest: ''
     python: '>=3.6'
     setuptools: ''
-  hash: md5:746605234be5c988579ba312035c3959
+  hash:
+    md5: 746605234be5c988579ba312035c3959
   manager: conda
   name: pytest-runner
   optional: false
@@ -3986,7 +4316,8 @@ package:
     pytest: ''
     python: '>=3.6'
     setuptools: ''
-  hash: md5:746605234be5c988579ba312035c3959
+  hash:
+    md5: 746605234be5c988579ba312035c3959
   manager: conda
   name: pytest-runner
   optional: false
@@ -4007,7 +4338,8 @@ package:
     tzdata: ''
     xz: '>=5.2.5,<5.3.0a0'
     zlib: '>=1.2.11,<1.3.0a0'
-  hash: md5:e9741ee23c7a0ea9b8968b517b9a8f9a
+  hash:
+    md5: e9741ee23c7a0ea9b8968b517b9a8f9a
   manager: conda
   name: python
   optional: false
@@ -4026,7 +4358,8 @@ package:
     tzdata: ''
     xz: '>=5.2.5,<5.3.0a0'
     zlib: '>=1.2.11,<1.3.0a0'
-  hash: md5:471a3d09ca47c7174320651e54acc073
+  hash:
+    md5: 471a3d09ca47c7174320651e54acc073
   manager: conda
   name: python
   optional: false
@@ -4044,7 +4377,8 @@ package:
     tzdata: ''
     xz: '>=5.2.5,<5.3.0a0'
     zlib: '>=1.2.11,<1.3.0a0'
-  hash: md5:4a9cb0347e7f1f5443ca7720cfd42cfb
+  hash:
+    md5: 4a9cb0347e7f1f5443ca7720cfd42cfb
   manager: conda
   name: python
   optional: false
@@ -4055,7 +4389,8 @@ package:
   dependencies:
     python: '>=3.6'
     six: '>=1.5'
-  hash: md5:dd999d1cc9f79e67dbb855c8924c7984
+  hash:
+    md5: dd999d1cc9f79e67dbb855c8924c7984
   manager: conda
   name: python-dateutil
   optional: false
@@ -4066,7 +4401,8 @@ package:
   dependencies:
     python: '>=3.6'
     six: '>=1.5'
-  hash: md5:dd999d1cc9f79e67dbb855c8924c7984
+  hash:
+    md5: dd999d1cc9f79e67dbb855c8924c7984
   manager: conda
   name: python-dateutil
   optional: false
@@ -4077,7 +4413,8 @@ package:
   dependencies:
     python: '>=3.6'
     six: '>=1.5'
-  hash: md5:dd999d1cc9f79e67dbb855c8924c7984
+  hash:
+    md5: dd999d1cc9f79e67dbb855c8924c7984
   manager: conda
   name: python-dateutil
   optional: false
@@ -4087,7 +4424,8 @@ package:
 - category: main
   dependencies:
     python: 3.9.*
-  hash: md5:39adde4247484de2bb4000122fdcf665
+  hash:
+    md5: 39adde4247484de2bb4000122fdcf665
   manager: conda
   name: python_abi
   optional: false
@@ -4097,7 +4435,8 @@ package:
 - category: main
   dependencies:
     python: 3.9.*
-  hash: md5:262f557ee8ca777fe2190956038024cd
+  hash:
+    md5: 262f557ee8ca777fe2190956038024cd
   manager: conda
   name: python_abi
   optional: false
@@ -4107,7 +4446,8 @@ package:
 - category: main
   dependencies:
     python: 3.9.*
-  hash: md5:ba3082b5441b482d5cfe328d4e7ba0bf
+  hash:
+    md5: ba3082b5441b482d5cfe328d4e7ba0bf
   manager: conda
   name: python_abi
   optional: false
@@ -4117,7 +4457,8 @@ package:
 - category: main
   dependencies:
     python: '>=3'
-  hash: md5:7e4f811bff46a5a6a7e0094921389395
+  hash:
+    md5: 7e4f811bff46a5a6a7e0094921389395
   manager: conda
   name: pytz
   optional: false
@@ -4127,7 +4468,8 @@ package:
 - category: main
   dependencies:
     python: '>=3'
-  hash: md5:7e4f811bff46a5a6a7e0094921389395
+  hash:
+    md5: 7e4f811bff46a5a6a7e0094921389395
   manager: conda
   name: pytz
   optional: false
@@ -4137,7 +4479,8 @@ package:
 - category: main
   dependencies:
     python: '>=3'
-  hash: md5:7e4f811bff46a5a6a7e0094921389395
+  hash:
+    md5: 7e4f811bff46a5a6a7e0094921389395
   manager: conda
   name: pytz
   optional: false
@@ -4150,7 +4493,8 @@ package:
     python: '>=3.9,<3.10.0a0'
     python_abi: 3.9.* *_cp39
     yaml: '>=0.2.5,<0.3.0a0'
-  hash: md5:057928f10b3eaa98b088b7b57c6dabb8
+  hash:
+    md5: 057928f10b3eaa98b088b7b57c6dabb8
   manager: conda
   name: pyyaml
   optional: false
@@ -4162,7 +4506,8 @@ package:
     python: '>=3.9,<3.10.0a0'
     python_abi: 3.9.* *_cp39
     yaml: '>=0.2.5,<0.3.0a0'
-  hash: md5:58aa79ae5416c058bcb4942dd55ec341
+  hash:
+    md5: 58aa79ae5416c058bcb4942dd55ec341
   manager: conda
   name: pyyaml
   optional: false
@@ -4174,7 +4519,8 @@ package:
     python: '>=3.9,<3.10.0a0 *_cpython'
     python_abi: 3.9.* *_cp39
     yaml: '>=0.2.5,<0.3.0a0'
-  hash: md5:1169532ea0b9456d7ac8171807486614
+  hash:
+    md5: 1169532ea0b9456d7ac8171807486614
   manager: conda
   name: pyyaml
   optional: false
@@ -4189,7 +4535,8 @@ package:
     python: '>=3.9,<3.10.0a0'
     python_abi: 3.9.* *_cp39
     zeromq: '>=4.3.4,<4.4.0a0'
-  hash: md5:90dbe11c01a89fc6fddb90cbe2672e68
+  hash:
+    md5: 90dbe11c01a89fc6fddb90cbe2672e68
   manager: conda
   name: pyzmq
   optional: false
@@ -4203,7 +4550,8 @@ package:
     python: '>=3.9,<3.10.0a0'
     python_abi: 3.9.* *_cp39
     zeromq: '>=4.3.4,<4.4.0a0'
-  hash: md5:2fce59dc95b66a741674e752e4f6a80a
+  hash:
+    md5: 2fce59dc95b66a741674e752e4f6a80a
   manager: conda
   name: pyzmq
   optional: false
@@ -4217,7 +4565,8 @@ package:
     python: '>=3.9,<3.10.0a0 *_cpython'
     python_abi: 3.9.* *_cp39
     zeromq: '>=4.3.4,<4.4.0a0'
-  hash: md5:8043c857734c4adef5a27ef8ab0ef8e8
+  hash:
+    md5: 8043c857734c4adef5a27ef8ab0ef8e8
   manager: conda
   name: pyzmq
   optional: false
@@ -4228,7 +4577,8 @@ package:
   dependencies:
     libgcc-ng: '>=9.3.0'
     ncurses: '>=6.2,<6.3.0a0'
-  hash: md5:5788de3c8d7a7d64ac56c784c4ef48e6
+  hash:
+    md5: 5788de3c8d7a7d64ac56c784c4ef48e6
   manager: conda
   name: readline
   optional: false
@@ -4238,7 +4588,8 @@ package:
 - category: main
   dependencies:
     ncurses: '>=6.2,<6.3.0a0'
-  hash: md5:2832e9b6a7caa7cb192fcda6cfcd8871
+  hash:
+    md5: 2832e9b6a7caa7cb192fcda6cfcd8871
   manager: conda
   name: readline
   optional: false
@@ -4248,7 +4599,8 @@ package:
 - category: main
   dependencies:
     ncurses: '>=6.2,<6.3.0a0'
-  hash: md5:3ab98d5fd433cd392a1b0781391a9e38
+  hash:
+    md5: 3ab98d5fd433cd392a1b0781391a9e38
   manager: conda
   name: readline
   optional: false
@@ -4267,7 +4619,8 @@ package:
     numpy: '>=1.19.5,<2.0a0'
     python: '>=3.9,<3.10.0a0'
     python_abi: 3.9.* *_cp39
-  hash: md5:c3a582733e173e5d46696af9022a848c
+  hash:
+    md5: c3a582733e173e5d46696af9022a848c
   manager: conda
   name: scipy
   optional: false
@@ -4285,7 +4638,8 @@ package:
     numpy: '>=1.19.5,<2.0a0'
     python: '>=3.9,<3.10.0a0'
     python_abi: 3.9.* *_cp39
-  hash: md5:1c9a4f4d7ddbcc3c6442e276bd910406
+  hash:
+    md5: 1c9a4f4d7ddbcc3c6442e276bd910406
   manager: conda
   name: scipy
   optional: false
@@ -4303,7 +4657,8 @@ package:
     numpy: '>=1.19.5,<2.0a0'
     python: '>=3.9,<3.10.0a0 *_cpython'
     python_abi: 3.9.* *_cp39
-  hash: md5:d57142dec9172f161e4a768685c3446a
+  hash:
+    md5: d57142dec9172f161e4a768685c3446a
   manager: conda
   name: scipy
   optional: false
@@ -4314,7 +4669,8 @@ package:
   dependencies:
     python: '>=3.9,<3.10.0a0'
     python_abi: 3.9.* *_cp39
-  hash: md5:beed56861c0146ae7708f641e9044a06
+  hash:
+    md5: beed56861c0146ae7708f641e9044a06
   manager: conda
   name: setuptools
   optional: false
@@ -4325,7 +4681,8 @@ package:
   dependencies:
     python: '>=3.9,<3.10.0a0'
     python_abi: 3.9.* *_cp39
-  hash: md5:b991b472797e90c2698f8d1797bebb48
+  hash:
+    md5: b991b472797e90c2698f8d1797bebb48
   manager: conda
   name: setuptools
   optional: false
@@ -4336,7 +4693,8 @@ package:
   dependencies:
     python: '>=3.9,<3.10.0a0 *_cpython'
     python_abi: 3.9.* *_cp39
-  hash: md5:a0e7c77bacb87d35b83cda68af7ad1ab
+  hash:
+    md5: a0e7c77bacb87d35b83cda68af7ad1ab
   manager: conda
   name: setuptools
   optional: false
@@ -4346,7 +4704,8 @@ package:
 - category: main
   dependencies:
     python: ''
-  hash: md5:e5f25f8dbc060e9a8d912e432202afc2
+  hash:
+    md5: e5f25f8dbc060e9a8d912e432202afc2
   manager: conda
   name: six
   optional: false
@@ -4356,7 +4715,8 @@ package:
 - category: main
   dependencies:
     python: ''
-  hash: md5:e5f25f8dbc060e9a8d912e432202afc2
+  hash:
+    md5: e5f25f8dbc060e9a8d912e432202afc2
   manager: conda
   name: six
   optional: false
@@ -4366,7 +4726,8 @@ package:
 - category: main
   dependencies:
     python: ''
-  hash: md5:e5f25f8dbc060e9a8d912e432202afc2
+  hash:
+    md5: e5f25f8dbc060e9a8d912e432202afc2
   manager: conda
   name: six
   optional: false
@@ -4380,7 +4741,8 @@ package:
     ncurses: '>=6.2,<6.3.0a0'
     readline: '>=8.1,<9.0a0'
     zlib: '>=1.2.11,<1.3.0a0'
-  hash: md5:eb66fc098824d25518a79e83d12a81d6
+  hash:
+    md5: eb66fc098824d25518a79e83d12a81d6
   manager: conda
   name: sqlite
   optional: false
@@ -4393,7 +4755,8 @@ package:
     ncurses: '>=6.2,<6.3.0a0'
     readline: '>=8.1,<9.0a0'
     zlib: '>=1.2.11,<1.3.0a0'
-  hash: md5:68f13bbe00ac288ffc1c1b868bc4da23
+  hash:
+    md5: 68f13bbe00ac288ffc1c1b868bc4da23
   manager: conda
   name: sqlite
   optional: false
@@ -4406,7 +4769,8 @@ package:
     ncurses: '>=6.2,<6.3.0a0'
     readline: '>=8.1,<9.0a0'
     zlib: '>=1.2.11,<1.3.0a0'
-  hash: md5:f74a80bbaeb1ba21140af97042e9192c
+  hash:
+    md5: f74a80bbaeb1ba21140af97042e9192c
   manager: conda
   name: sqlite
   optional: false
@@ -4423,7 +4787,8 @@ package:
     metis: '>=5.1.0,<5.2.0a0'
     mpfr: '>=4.1.0,<5.0a0'
     tbb: '>=2021.3.0'
-  hash: md5:a3a685b5f9aeb890ed874502fe56accf
+  hash:
+    md5: a3a685b5f9aeb890ed874502fe56accf
   manager: conda
   name: suitesparse
   optional: false
@@ -4439,7 +4804,8 @@ package:
     metis: '>=5.1.0,<5.2.0a0'
     mpfr: '>=4.1.0,<5.0a0'
     tbb: '>=2021.3.0'
-  hash: md5:d30185298e8ba70c8bc17121f837730d
+  hash:
+    md5: d30185298e8ba70c8bc17121f837730d
   manager: conda
   name: suitesparse
   optional: false
@@ -4455,7 +4821,8 @@ package:
     metis: '>=5.1.0,<5.2.0a0'
     mpfr: '>=4.1.0,<5.0a0'
     tbb: '>=2021.3.0'
-  hash: md5:aa2b4cd2c3c870a5da51032c97952e8e
+  hash:
+    md5: aa2b4cd2c3c870a5da51032c97952e8e
   manager: conda
   name: suitesparse
   optional: false
@@ -4466,7 +4833,8 @@ package:
   dependencies:
     libgcc-ng: '>=9.4.0'
     libstdcxx-ng: '>=9.4.0'
-  hash: md5:5c0e6a6180660e803d06905ab97d1878
+  hash:
+    md5: 5c0e6a6180660e803d06905ab97d1878
   manager: conda
   name: tbb
   optional: false
@@ -4476,7 +4844,8 @@ package:
 - category: main
   dependencies:
     libcxx: '>=11.1.0'
-  hash: md5:e144dec8fb993865dcdecd13587b3a0b
+  hash:
+    md5: e144dec8fb993865dcdecd13587b3a0b
   manager: conda
   name: tbb
   optional: false
@@ -4486,7 +4855,8 @@ package:
 - category: main
   dependencies:
     libcxx: '>=11.1.0'
-  hash: md5:2abdcb4eb65a719eca9015c6d726cb8a
+  hash:
+    md5: 2abdcb4eb65a719eca9015c6d726cb8a
   manager: conda
   name: tbb
   optional: false
@@ -4497,7 +4867,8 @@ package:
   dependencies:
     libgcc-ng: '>=9.4.0'
     zlib: '>=1.2.11,<1.3.0a0'
-  hash: md5:84e76fb280e735fec1efd2d21fd9cb27
+  hash:
+    md5: 84e76fb280e735fec1efd2d21fd9cb27
   manager: conda
   name: tk
   optional: false
@@ -4507,7 +4878,8 @@ package:
 - category: main
   dependencies:
     zlib: '>=1.2.11,<1.3.0a0'
-  hash: md5:e35b11155bd70facee39dfdec7368ad0
+  hash:
+    md5: e35b11155bd70facee39dfdec7368ad0
   manager: conda
   name: tk
   optional: false
@@ -4517,7 +4889,8 @@ package:
 - category: main
   dependencies:
     zlib: '>=1.2.11,<1.3.0a0'
-  hash: md5:dd4c783060a6825a6e73a073c650be16
+  hash:
+    md5: dd4c783060a6825a6e73a073c650be16
   manager: conda
   name: tk
   optional: false
@@ -4527,7 +4900,8 @@ package:
 - category: dev
   dependencies:
     python: '>=2.7'
-  hash: md5:f832c45a477c78bebd107098db465095
+  hash:
+    md5: f832c45a477c78bebd107098db465095
   manager: conda
   name: toml
   optional: true
@@ -4537,7 +4911,8 @@ package:
 - category: dev
   dependencies:
     python: '>=2.7'
-  hash: md5:f832c45a477c78bebd107098db465095
+  hash:
+    md5: f832c45a477c78bebd107098db465095
   manager: conda
   name: toml
   optional: true
@@ -4547,7 +4922,8 @@ package:
 - category: dev
   dependencies:
     python: '>=2.7'
-  hash: md5:f832c45a477c78bebd107098db465095
+  hash:
+    md5: f832c45a477c78bebd107098db465095
   manager: conda
   name: toml
   optional: true
@@ -4557,7 +4933,8 @@ package:
 - category: main
   dependencies:
     python: '>=3.5'
-  hash: md5:f348d1590550371edfac5ed3c1d44f7e
+  hash:
+    md5: f348d1590550371edfac5ed3c1d44f7e
   manager: conda
   name: toolz
   optional: false
@@ -4567,7 +4944,8 @@ package:
 - category: main
   dependencies:
     python: '>=3.5'
-  hash: md5:f348d1590550371edfac5ed3c1d44f7e
+  hash:
+    md5: f348d1590550371edfac5ed3c1d44f7e
   manager: conda
   name: toolz
   optional: false
@@ -4577,7 +4955,8 @@ package:
 - category: main
   dependencies:
     python: '>=3.5'
-  hash: md5:f348d1590550371edfac5ed3c1d44f7e
+  hash:
+    md5: f348d1590550371edfac5ed3c1d44f7e
   manager: conda
   name: toolz
   optional: false
@@ -4589,7 +4968,8 @@ package:
     libgcc-ng: '>=9.4.0'
     python: '>=3.9,<3.10.0a0'
     python_abi: 3.9.* *_cp39
-  hash: md5:5a7bb7af2f3bcf31ee6cd817de1d5011
+  hash:
+    md5: 5a7bb7af2f3bcf31ee6cd817de1d5011
   manager: conda
   name: tornado
   optional: false
@@ -4600,7 +4980,8 @@ package:
   dependencies:
     python: '>=3.9,<3.10.0a0'
     python_abi: 3.9.* *_cp39
-  hash: md5:32d59d66d08f06a706865721ca8dd91d
+  hash:
+    md5: 32d59d66d08f06a706865721ca8dd91d
   manager: conda
   name: tornado
   optional: false
@@ -4611,7 +4992,8 @@ package:
   dependencies:
     python: '>=3.9,<3.10.0a0 *_cpython'
     python_abi: 3.9.* *_cp39
-  hash: md5:fffd4f597cb7b7cf8b7ff38ce3057635
+  hash:
+    md5: fffd4f597cb7b7cf8b7ff38ce3057635
   manager: conda
   name: tornado
   optional: false
@@ -4622,7 +5004,8 @@ package:
   dependencies:
     colorama: ''
     python: '>=2.7'
-  hash: md5:24ed42db084efd6e615babec03c2b460
+  hash:
+    md5: 24ed42db084efd6e615babec03c2b460
   manager: conda
   name: tqdm
   optional: false
@@ -4633,7 +5016,8 @@ package:
   dependencies:
     colorama: ''
     python: '>=2.7'
-  hash: md5:24ed42db084efd6e615babec03c2b460
+  hash:
+    md5: 24ed42db084efd6e615babec03c2b460
   manager: conda
   name: tqdm
   optional: false
@@ -4644,7 +5028,8 @@ package:
   dependencies:
     colorama: ''
     python: '>=2.7'
-  hash: md5:24ed42db084efd6e615babec03c2b460
+  hash:
+    md5: 24ed42db084efd6e615babec03c2b460
   manager: conda
   name: tqdm
   optional: false
@@ -4654,7 +5039,8 @@ package:
 - category: main
   dependencies:
     python: '>=3.7'
-  hash: md5:a1bc9765ef9499760e88f568b3a6622c
+  hash:
+    md5: a1bc9765ef9499760e88f568b3a6622c
   manager: conda
   name: traitlets
   optional: false
@@ -4664,7 +5050,8 @@ package:
 - category: main
   dependencies:
     python: '>=3.7'
-  hash: md5:a1bc9765ef9499760e88f568b3a6622c
+  hash:
+    md5: a1bc9765ef9499760e88f568b3a6622c
   manager: conda
   name: traitlets
   optional: false
@@ -4674,7 +5061,8 @@ package:
 - category: main
   dependencies:
     python: '>=3.7'
-  hash: md5:a1bc9765ef9499760e88f568b3a6622c
+  hash:
+    md5: a1bc9765ef9499760e88f568b3a6622c
   manager: conda
   name: traitlets
   optional: false
@@ -4684,7 +5072,8 @@ package:
 - category: dev
   dependencies:
     typing_extensions: 4.0.1 pyha770c72_0
-  hash: md5:c0d4ec4bcbceb927bff1103a997410d3
+  hash:
+    md5: c0d4ec4bcbceb927bff1103a997410d3
   manager: conda
   name: typing-extensions
   optional: true
@@ -4694,7 +5083,8 @@ package:
 - category: dev
   dependencies:
     typing_extensions: 4.0.1 pyha770c72_0
-  hash: md5:c0d4ec4bcbceb927bff1103a997410d3
+  hash:
+    md5: c0d4ec4bcbceb927bff1103a997410d3
   manager: conda
   name: typing-extensions
   optional: true
@@ -4704,7 +5094,8 @@ package:
 - category: dev
   dependencies:
     typing_extensions: 4.0.1 pyha770c72_0
-  hash: md5:c0d4ec4bcbceb927bff1103a997410d3
+  hash:
+    md5: c0d4ec4bcbceb927bff1103a997410d3
   manager: conda
   name: typing-extensions
   optional: true
@@ -4714,7 +5105,8 @@ package:
 - category: dev
   dependencies:
     python: '>=3.6'
-  hash: md5:1fc03816925d3cb7fdab9ab234e7fea7
+  hash:
+    md5: 1fc03816925d3cb7fdab9ab234e7fea7
   manager: conda
   name: typing_extensions
   optional: true
@@ -4724,7 +5116,8 @@ package:
 - category: dev
   dependencies:
     python: '>=3.6'
-  hash: md5:1fc03816925d3cb7fdab9ab234e7fea7
+  hash:
+    md5: 1fc03816925d3cb7fdab9ab234e7fea7
   manager: conda
   name: typing_extensions
   optional: true
@@ -4734,7 +5127,8 @@ package:
 - category: dev
   dependencies:
     python: '>=3.6'
-  hash: md5:1fc03816925d3cb7fdab9ab234e7fea7
+  hash:
+    md5: 1fc03816925d3cb7fdab9ab234e7fea7
   manager: conda
   name: typing_extensions
   optional: true
@@ -4743,7 +5137,8 @@ package:
   version: 4.0.1
 - category: main
   dependencies: {}
-  hash: md5:a751ec502589ebdc2eceb183ff602569
+  hash:
+    md5: a751ec502589ebdc2eceb183ff602569
   manager: conda
   name: tzdata
   optional: false
@@ -4752,7 +5147,8 @@ package:
   version: 2021e
 - category: main
   dependencies: {}
-  hash: md5:a751ec502589ebdc2eceb183ff602569
+  hash:
+    md5: a751ec502589ebdc2eceb183ff602569
   manager: conda
   name: tzdata
   optional: false
@@ -4761,7 +5157,8 @@ package:
   version: 2021e
 - category: main
   dependencies: {}
-  hash: md5:a751ec502589ebdc2eceb183ff602569
+  hash:
+    md5: a751ec502589ebdc2eceb183ff602569
   manager: conda
   name: tzdata
   optional: false
@@ -4772,7 +5169,8 @@ package:
   dependencies:
     backports.functools_lru_cache: ''
     python: ''
-  hash: md5:5266fcd697043c59621fda522b3d78ee
+  hash:
+    md5: 5266fcd697043c59621fda522b3d78ee
   manager: conda
   name: wcwidth
   optional: false
@@ -4783,7 +5181,8 @@ package:
   dependencies:
     backports.functools_lru_cache: ''
     python: ''
-  hash: md5:5266fcd697043c59621fda522b3d78ee
+  hash:
+    md5: 5266fcd697043c59621fda522b3d78ee
   manager: conda
   name: wcwidth
   optional: false
@@ -4794,7 +5193,8 @@ package:
   dependencies:
     backports.functools_lru_cache: ''
     python: ''
-  hash: md5:5266fcd697043c59621fda522b3d78ee
+  hash:
+    md5: 5266fcd697043c59621fda522b3d78ee
   manager: conda
   name: wcwidth
   optional: false
@@ -4804,7 +5204,8 @@ package:
 - category: main
   dependencies:
     python: '!=3.0,!=3.1,!=3.2,!=3.3,!=3.4'
-  hash: md5:3aa2c3e25dd361b453d010388b9cdff1
+  hash:
+    md5: 3aa2c3e25dd361b453d010388b9cdff1
   manager: conda
   name: wheel
   optional: false
@@ -4814,7 +5215,8 @@ package:
 - category: main
   dependencies:
     python: '!=3.0,!=3.1,!=3.2,!=3.3,!=3.4'
-  hash: md5:3aa2c3e25dd361b453d010388b9cdff1
+  hash:
+    md5: 3aa2c3e25dd361b453d010388b9cdff1
   manager: conda
   name: wheel
   optional: false
@@ -4824,7 +5226,8 @@ package:
 - category: main
   dependencies:
     python: '!=3.0,!=3.1,!=3.2,!=3.3,!=3.4'
-  hash: md5:3aa2c3e25dd361b453d010388b9cdff1
+  hash:
+    md5: 3aa2c3e25dd361b453d010388b9cdff1
   manager: conda
   name: wheel
   optional: false
@@ -4834,7 +5237,8 @@ package:
 - category: main
   dependencies:
     libgcc-ng: '>=7.5.0'
-  hash: md5:33f601066901f3e1a85af3522a8113f9
+  hash:
+    md5: 33f601066901f3e1a85af3522a8113f9
   manager: conda
   name: xz
   optional: false
@@ -4843,7 +5247,8 @@ package:
   version: 5.2.5
 - category: main
   dependencies: {}
-  hash: md5:41116deb499e9bc58048c297d6403ce6
+  hash:
+    md5: 41116deb499e9bc58048c297d6403ce6
   manager: conda
   name: xz
   optional: false
@@ -4852,7 +5257,8 @@ package:
   version: 5.2.5
 - category: main
   dependencies: {}
-  hash: md5:9ab2316785cb81c464ab9a99512dae71
+  hash:
+    md5: 9ab2316785cb81c464ab9a99512dae71
   manager: conda
   name: xz
   optional: false
@@ -4862,7 +5268,8 @@ package:
 - category: main
   dependencies:
     libgcc-ng: '>=7.5.0'
-  hash: md5:03a530e925414902547cf48da7756db8
+  hash:
+    md5: 03a530e925414902547cf48da7756db8
   manager: conda
   name: yaml
   optional: false
@@ -4871,7 +5278,8 @@ package:
   version: 0.2.5
 - category: main
   dependencies: {}
-  hash: md5:84c2fc186995c25a43e86ed708065572
+  hash:
+    md5: 84c2fc186995c25a43e86ed708065572
   manager: conda
   name: yaml
   optional: false
@@ -4880,7 +5288,8 @@ package:
   version: 0.2.5
 - category: main
   dependencies: {}
-  hash: md5:143549bda61a8b9e3a223328cdddc811
+  hash:
+    md5: 143549bda61a8b9e3a223328cdddc811
   manager: conda
   name: yaml
   optional: false
@@ -4892,7 +5301,8 @@ package:
     libgcc-ng: '>=9.4.0'
     libsodium: '>=1.0.18,<1.0.19.0a0'
     libstdcxx-ng: '>=9.4.0'
-  hash: md5:21743a8d2ea0c8cfbbf8fe489b0347df
+  hash:
+    md5: 21743a8d2ea0c8cfbbf8fe489b0347df
   manager: conda
   name: zeromq
   optional: false
@@ -4903,7 +5313,8 @@ package:
   dependencies:
     libcxx: '>=11.1.0'
     libsodium: '>=1.0.18,<1.0.19.0a0'
-  hash: md5:1972d732b123ed04b60fd21e94f0b178
+  hash:
+    md5: 1972d732b123ed04b60fd21e94f0b178
   manager: conda
   name: zeromq
   optional: false
@@ -4914,7 +5325,8 @@ package:
   dependencies:
     libcxx: '>=11.1.0'
     libsodium: '>=1.0.18,<1.0.19.0a0'
-  hash: md5:49132c08da6545dc68351ff8b659ac8e
+  hash:
+    md5: 49132c08da6545dc68351ff8b659ac8e
   manager: conda
   name: zeromq
   optional: false
@@ -4924,7 +5336,8 @@ package:
 - category: main
   dependencies:
     python: '>=3.6'
-  hash: md5:855e2c4622f5eb50a4f6f7167b9ba17a
+  hash:
+    md5: 855e2c4622f5eb50a4f6f7167b9ba17a
   manager: conda
   name: zipp
   optional: false
@@ -4934,7 +5347,8 @@ package:
 - category: main
   dependencies:
     python: '>=3.6'
-  hash: md5:855e2c4622f5eb50a4f6f7167b9ba17a
+  hash:
+    md5: 855e2c4622f5eb50a4f6f7167b9ba17a
   manager: conda
   name: zipp
   optional: false
@@ -4944,7 +5358,8 @@ package:
 - category: main
   dependencies:
     python: '>=3.6'
-  hash: md5:855e2c4622f5eb50a4f6f7167b9ba17a
+  hash:
+    md5: 855e2c4622f5eb50a4f6f7167b9ba17a
   manager: conda
   name: zipp
   optional: false
@@ -4955,7 +5370,8 @@ package:
   dependencies:
     libgcc-ng: '>=7.5.0'
     libzlib: 1.2.11 h36c2ea0_1013
-  hash: md5:cf7190238072a41e9579e4476a6a60b8
+  hash:
+    md5: cf7190238072a41e9579e4476a6a60b8
   manager: conda
   name: zlib
   optional: false
@@ -4965,7 +5381,8 @@ package:
 - category: main
   dependencies:
     libzlib: 1.2.11 h9173be1_1013
-  hash: md5:cf985617d679990418c380099620b01a
+  hash:
+    md5: cf985617d679990418c380099620b01a
   manager: conda
   name: zlib
   optional: false
@@ -4975,7 +5392,8 @@ package:
 - category: main
   dependencies:
     libzlib: 1.2.11 hee7b306_1013
-  hash: md5:0b65c3db409dd06257dd879605eddb45
+  hash:
+    md5: 0b65c3db409dd06257dd879605eddb45
   manager: conda
   name: zlib
   optional: false
@@ -4989,7 +5407,8 @@ package:
     lz4-c: '>=1.9.3,<1.9.4.0a0'
     xz: '>=5.2.5,<5.3.0a0'
     zlib: '>=1.2.11,<1.3.0a0'
-  hash: md5:b56f94865e2de36abf054e7bfa499034
+  hash:
+    md5: b56f94865e2de36abf054e7bfa499034
   manager: conda
   name: zstd
   optional: false
@@ -5002,7 +5421,8 @@ package:
     lz4-c: '>=1.9.3,<1.9.4.0a0'
     xz: '>=5.2.5,<5.3.0a0'
     zlib: '>=1.2.11,<1.3.0a0'
-  hash: md5:96a04eeb0146059f0c2d63491f77d6d0
+  hash:
+    md5: 96a04eeb0146059f0c2d63491f77d6d0
   manager: conda
   name: zstd
   optional: false
@@ -5015,7 +5435,8 @@ package:
     lz4-c: '>=1.9.3,<1.9.4.0a0'
     xz: '>=5.2.5,<5.3.0a0'
     zlib: '>=1.2.11,<1.3.0a0'
-  hash: md5:3a3700f7735317734bf584b11a9475f6
+  hash:
+    md5: 3a3700f7735317734bf584b11a9475f6
   manager: conda
   name: zstd
   optional: false
@@ -5025,7 +5446,8 @@ package:
 - category: main
   dependencies:
     six: '*'
-  hash: sha256:d99412159074d39891c83098dd5f0ca63bb56103e46efaa7e8455560680ce282
+  hash:
+    sha256: d99412159074d39891c83098dd5f0ca63bb56103e46efaa7e8455560680ce282
   manager: pip
   name: easy-cache
   optional: false
@@ -5036,7 +5458,8 @@ package:
 - category: main
   dependencies:
     six: '*'
-  hash: sha256:d99412159074d39891c83098dd5f0ca63bb56103e46efaa7e8455560680ce282
+  hash:
+    sha256: d99412159074d39891c83098dd5f0ca63bb56103e46efaa7e8455560680ce282
   manager: pip
   name: easy-cache
   optional: false
@@ -5047,7 +5470,8 @@ package:
 - category: main
   dependencies:
     six: '*'
-  hash: sha256:d99412159074d39891c83098dd5f0ca63bb56103e46efaa7e8455560680ce282
+  hash:
+    sha256: d99412159074d39891c83098dd5f0ca63bb56103e46efaa7e8455560680ce282
   manager: pip
   name: easy-cache
   optional: false
@@ -5057,7 +5481,8 @@ package:
   version: 1.1.0
 - category: main
   dependencies: {}
-  hash: sha256:b2b8a179f4268d3619a72fc14f8f223f52bc9d51c3ff338863eb8b11c6bc0d5b
+  hash:
+    sha256: b2b8a179f4268d3619a72fc14f8f223f52bc9d51c3ff338863eb8b11c6bc0d5b
   manager: pip
   name: pydashi
   optional: false
@@ -5069,7 +5494,8 @@ package:
   version: 2.0.0a0
 - category: main
   dependencies: {}
-  hash: sha256:b2b8a179f4268d3619a72fc14f8f223f52bc9d51c3ff338863eb8b11c6bc0d5b
+  hash:
+    sha256: b2b8a179f4268d3619a72fc14f8f223f52bc9d51c3ff338863eb8b11c6bc0d5b
   manager: pip
   name: pydashi
   optional: false
@@ -5081,7 +5507,8 @@ package:
   version: 2.0.0a0
 - category: main
   dependencies: {}
-  hash: sha256:b2b8a179f4268d3619a72fc14f8f223f52bc9d51c3ff338863eb8b11c6bc0d5b
+  hash:
+    sha256: b2b8a179f4268d3619a72fc14f8f223f52bc9d51c3ff338863eb8b11c6bc0d5b
   manager: pip
   name: pydashi
   optional: false
@@ -5094,7 +5521,8 @@ package:
 - category: dev
   dependencies:
     pytest: '>=3.5.0'
-  hash: sha256:ebf8b6cd32772e940c20871f5c09ca35d18155390e649823b8435299a25bd88e
+  hash:
+    sha256: ebf8b6cd32772e940c20871f5c09ca35d18155390e649823b8435299a25bd88e
   manager: pip
   name: pytest-pinned
   optional: true
@@ -5105,7 +5533,8 @@ package:
 - category: dev
   dependencies:
     pytest: '>=3.5.0'
-  hash: sha256:ebf8b6cd32772e940c20871f5c09ca35d18155390e649823b8435299a25bd88e
+  hash:
+    sha256: ebf8b6cd32772e940c20871f5c09ca35d18155390e649823b8435299a25bd88e
   manager: pip
   name: pytest-pinned
   optional: true
@@ -5116,7 +5545,8 @@ package:
 - category: dev
   dependencies:
     pytest: '>=3.5.0'
-  hash: sha256:ebf8b6cd32772e940c20871f5c09ca35d18155390e649823b8435299a25bd88e
+  hash:
+    sha256: ebf8b6cd32772e940c20871f5c09ca35d18155390e649823b8435299a25bd88e
   manager: pip
   name: pytest-pinned
   optional: true

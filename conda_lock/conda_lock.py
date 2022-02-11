@@ -495,15 +495,15 @@ def render_lockfile_for_platform(  # noqa: C901
         if spec.source and spec.source.type == "url":
             return f"{spec.name} @ {spec.source.url}"
         elif direct:
-            return f'{spec.name} @ {spec.url}#{spec.hash.replace(":", "=")}'
+            return f"{spec.name} @ {spec.url}#md5={spec.hash.md5}"
         else:
-            return f"{spec.name} === {spec.version} --hash={spec.hash}"
+            return f"{spec.name} === {spec.version} --hash=md5:{spec.hash.md5}"
 
     def format_conda_requirement(
         spec: LockedDependency, platform: str, direct=False
     ) -> str:
         if direct:
-            return f"{spec.url}#{spec.hash.replace('md5:', '')}"
+            return f"{spec.url}#{spec.hash.md5}"
         else:
             path = pathlib.Path(urlsplit(spec.url).path)
             while path.suffix in {".tar", ".bz2", ".gz", ".conda"}:
