@@ -503,13 +503,15 @@ def fake_conda_environment(locked: Iterable[LockedDependency], platform: str):
                 "channel": channel,
                 "url": dep.url,
                 "md5": dep.hash.md5,
-                "sha256": dep.hash.sha256,
                 "build": build,
                 "build_number": build_number,
                 "version": dep.version,
                 "subdir": path.parent.name,
                 "depends": [f"{k} {v}".strip() for k, v in dep.dependencies.items()],
             }
+            if dep.hash.sha256 is not None:
+                entry["sha256"] = dep.hash.sha256
+
             with open(conda_meta / (path.name + ".json"), "w") as f:
                 json.dump(entry, f, indent=2)
         yield prefix
