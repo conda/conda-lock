@@ -76,7 +76,7 @@ LockKey = namedtuple("LockKey", ["manager", "name", "platform"])
 
 
 class HashModel(StrictModel):
-    md5: str
+    md5: Optional[str]
     sha256: Optional[str]
 
 

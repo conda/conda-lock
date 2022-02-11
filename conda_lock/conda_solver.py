@@ -441,6 +441,8 @@ def update_specs_for_arch(
                 channel = f'{entry["base_url"]}/{entry["platform"]}'
             url = f"{channel}/{fn}"
             md5 = locked[package].hash.md5
+            if md5 is None:
+                raise RuntimeError("Conda packages require non-null md5 hashes")
             sha256 = locked[package].hash.sha256
             dryrun_install["actions"]["FETCH"].append(
                 {
