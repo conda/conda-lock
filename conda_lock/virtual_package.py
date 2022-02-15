@@ -113,7 +113,7 @@ class FakeRepoData:
         logger.debug("repo: %s", self.channel_url)
 
     def __enter__(self):
-        """Ensure that if glibc etc is set by the overrides we force the conda solver overrride variables"""
+        """Ensure that if glibc etc is set by the overrides we force the conda solver override variables"""
         env_vars_to_clear = set()
         for package in self.packages_by_subdir:
             if package.name.startswith("__"):

@@ -255,7 +255,7 @@ def make_lock_files(
     extras :
         Include the given extras in explicit or env output
     check_input_hash :
-        Do not re-solve for each target platform for which specifcations are unchanged
+        Do not re-solve for each target platform for which specifications are unchanged
     """
 
     # initialize virtual package fake
@@ -359,7 +359,7 @@ def do_render(
     extras :
         Include the given extras in output
     check_input_hash :
-        Do not re-render if specifcations are unchanged
+        Do not re-render if specifications are unchanged
 
     """
 
