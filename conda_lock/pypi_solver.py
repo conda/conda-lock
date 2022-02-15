@@ -18,7 +18,7 @@ from poetry.repositories.repository import Repository
 from poetry.utils.env import Env
 
 from conda_lock import src_parser
-from conda_lock.src_parser.pyproject_toml import get_lookup as get_forward_lookup
+from conda_lock.lookup import normalize_conda_name
 
 
 # NB: in principle these depend on the glibc in the conda env
@@ -154,25 +154,6 @@ def get_package(locked: src_parser.LockedDependency) -> Package:
         )
     else:
         return Package(locked.name, version=locked.version)
-
-
-PYPI_LOOKUP: Optional[Dict] = None
-
-
-def get_lookup() -> Dict:
-    """
-    Reverse grayskull name mapping to map conda names onto PyPI
-    """
-    global PYPI_LOOKUP
-    if PYPI_LOOKUP is None:
-        PYPI_LOOKUP = {
-            record["conda_name"]: record for record in get_forward_lookup().values()
-        }
-    return PYPI_LOOKUP
-
-
-def normalize_conda_name(name: str):
-    return get_lookup().get(name, {"pypi_name": name})["pypi_name"]
 
 
 def solve_pypi(

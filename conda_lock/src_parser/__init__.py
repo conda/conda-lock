@@ -20,6 +20,7 @@ from typing import (
 from pydantic import BaseModel, Field, validator
 
 from conda_lock.common import ordered_union
+from conda_lock.lookup import normalize_conda_name
 from conda_lock.virtual_package import FakeRepoData
 
 
@@ -243,7 +244,7 @@ def _apply_categories(
     def seperator_munge_get(
         d: Dict[str, LockedDependency], key: str
     ) -> LockedDependency:
-        # since seperators are not consistent across managers we need to do some double attemps here
+        # since separators are not consistent across managers we need to do some double attempts here
         try:
             return d[key]
         except KeyError:
@@ -287,7 +288,7 @@ def _apply_categories(
 
     for dep, root in root_requests.items():
         source = requested[root]
-        target = seperator_munge_get(planned, dep)
+        target = seperator_munge_get(planned, normalize_conda_name(dep).lower())
         target.category = source.category
         target.optional = source.optional
 
