@@ -5,17 +5,7 @@ import pathlib
 from collections import defaultdict, namedtuple
 from dataclasses import dataclass
 from itertools import chain
-from typing import (
-    ClassVar,
-    Dict,
-    List,
-    Literal,
-    NamedTuple,
-    Optional,
-    Sequence,
-    Set,
-    Tuple,
-)
+from typing import ClassVar, Dict, List, Literal, Optional, Sequence, Set, Tuple
 
 from pydantic import BaseModel, Field, validator
 
