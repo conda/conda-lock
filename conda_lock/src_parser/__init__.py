@@ -176,6 +176,10 @@ class Lockfile(StrictModel):
                     continue
                 if d.manager != "conda":
                     continue
+                # exclude virtual packages
+                if d.name.startswith("__"):
+                    continue
+
                 lookup[d.name] = set(d.dependencies)
                 conda_packages[d.name] = d
 
