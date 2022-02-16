@@ -179,9 +179,13 @@ class Lockfile(StrictModel):
 
                 ordered = toposort(lookup)
                 for package_name in ordered:
-                    d = packages[package_name]
+                    d = packages[package_name]                 
                     if d.manager != manager:
                         continue
+                    # skip virtual packages
+                    if d.manager == "conda" and d.name.startswith("__"):
+                        continue
+                        
                     final_package.append(d)
 
         return Lockfile(package=final_package, metadata=other.metadata | self.metadata)
