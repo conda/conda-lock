@@ -1,0 +1,8 @@
+channels:
+  - conda-forge
+dependencies:
+  - python=3.9
+  - dask
+  - pip
+  - pip:
+      - geogif  # brings in dask and chokes with dask(-/_)core name in conda-forge

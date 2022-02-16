@@ -75,6 +75,13 @@ def pip_environment():
 
 
 @pytest.fixture
+def pip_environment_different_names_same_deps():
+    return TEST_DIR.joinpath("test-pypi-resolve").joinpath(
+        "environment-different-names-same-deps.yml"
+    )
+
+
+@pytest.fixture
 def pip_local_package_environment():
     return TEST_DIR.joinpath("test-local-pip").joinpath("environment.yml")
 
