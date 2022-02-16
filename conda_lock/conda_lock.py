@@ -241,7 +241,7 @@ def make_lock_files(
         Path to a conda-lock.yml to create or update
     platform_overrides :
         Platforms to solve for. Takes precedence over platforms found in src_files.
-    channels_overrides :
+    channel_overrides :
         Channels to use. Takes precedence over channels found in src_files.
     virtual_package_spec :
         Path to a virtual package repository that defines each platform.

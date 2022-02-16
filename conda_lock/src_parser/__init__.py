@@ -10,7 +10,7 @@ from typing import ClassVar, Dict, List, Literal, Optional, Sequence, Set, Tuple
 from pydantic import BaseModel, Field, validator
 
 from conda_lock.common import ordered_union
-from conda_lock.lookup import normalize_conda_name
+from conda_lock.lookup import conda_name_to_pypi_name, pypi_name_to_conda_name
 from conda_lock.virtual_package import FakeRepoData
 
 
@@ -158,31 +158,31 @@ class Lockfile(StrictModel):
         # Resort the conda packages topologically
         final_package: List[LockedDependency] = []
         for platform in sorted(platforms):
-            lookup = defaultdict(set)
-            conda_packages: Dict[str, LockedDependency] = {}
             from ..vendor.conda.toposort import toposort
 
-            for d in package:
-                if d.platform != platform:
-                    continue
-                if d.manager != "conda":
-                    continue
-                lookup[d.name] = set(d.dependencies)
-                conda_packages[d.name] = d
-
-            ordered = toposort(lookup)
-            for conda_package_name in ordered:
-                d = conda_packages[conda_package_name]
-                final_package.append(d)
-
             # Add the remaining non-conda packages in the order in which they appeared.
-            # TOFO: should the pip packages also get topologically ordered?
-            for d in package:
-                if d.platform != platform:
-                    continue
-                if d.manager == "conda":
-                    continue
-                final_package.append(d)
+            # Order the pip packages topologically ordered (might be not 100% perfect if they depend on
+            # other conda packages, but good enough
+            for manager in ["conda", "pip"]:
+                lookup = defaultdict(set)
+                packages: Dict[str, LockedDependency] = {}
+
+                for d in package:
+                    if d.platform != platform:
+                        continue
+
+                    if d.manager != manager:
+                        continue
+
+                    lookup[d.name] = set(d.dependencies)
+                    packages[d.name] = d
+
+                ordered = toposort(lookup)
+                for package_name in ordered:
+                    d = packages[package_name]
+                    if d.manager != manager:
+                        continue
+                    final_package.append(d)
 
         return Lockfile(package=final_package, metadata=other.metadata | self.metadata)
 
@@ -234,7 +234,7 @@ def _apply_categories(
     def seperator_munge_get(
         d: Dict[str, LockedDependency], key: str
     ) -> LockedDependency:
-        # since separators are not consistent across managers we need to do some double attempts here
+        # since separators are not consistent across managers (or even within) we need to do some double attempts here
         try:
             return d[key]
         except KeyError:
@@ -278,7 +278,8 @@ def _apply_categories(
 
     for dep, root in root_requests.items():
         source = requested[root]
-        target = seperator_munge_get(planned, normalize_conda_name(dep).lower())
+        # try a conda target first
+        target = seperator_munge_get(planned, dep)
         target.category = source.category
         target.optional = source.optional
 

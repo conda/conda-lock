@@ -163,7 +163,10 @@ def solve_conda(
     }
 
     # propagate categories from explicit to transitive dependencies
-    _apply_categories({k: v for k, v in specs.items() if v.manager == "conda"}, planned)
+    _apply_categories(
+        requested={k: v for k, v in specs.items() if v.manager == "conda"},
+        planned=planned,
+    )
 
     return planned
 
