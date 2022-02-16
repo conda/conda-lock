@@ -1,6 +1,10 @@
+import logging
 import re
 
 from typing import Iterator
+
+
+logger = logging.getLogger(__name__)
 
 
 def filter_platform_selectors(content: str, platform) -> Iterator[str]:
@@ -23,7 +27,11 @@ def filter_platform_selectors(content: str, platform) -> Iterator[str]:
         m = sel_pat.match(line)
         if m:
             cond = m.group(3)
-            if cond in platform_sel[platform]:
+            if platform and (cond in platform_sel[platform]):
                 yield line
+            else:
+                logger.warning(
+                    "filtered out line `%s` due to unmatchable selector", line
+                )
         else:
             yield line
