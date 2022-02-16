@@ -385,6 +385,15 @@ def test_run_lock_with_pip(monkeypatch, pip_environment, conda_exe):
     run_lock([pip_environment], conda_exe=conda_exe)
 
 
+def test_run_lock_with_pip_environment_different_names_same_deps(
+    monkeypatch, pip_environment_different_names_same_deps, conda_exe
+):
+    monkeypatch.chdir(pip_environment_different_names_same_deps.parent)
+    if is_micromamba(conda_exe):
+        monkeypatch.setenv("CONDA_FLAGS", "-v")
+    run_lock([pip_environment_different_names_same_deps], conda_exe=conda_exe)
+
+
 def test_run_lock_with_local_package(
     monkeypatch, pip_local_package_environment, conda_exe
 ):
