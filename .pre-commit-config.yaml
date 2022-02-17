@@ -26,4 +26,4 @@ repos:
   rev: v0.910
   hooks:
   - id: mypy
-    additional_dependencies: [types-requests, types-toml, types-PyYAML, types-setuptools, pydantic]
+    additional_dependencies: [types-filelock, types-requests, types-toml, types-PyYAML, types-setuptools, pydantic]

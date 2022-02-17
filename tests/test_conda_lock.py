@@ -13,6 +13,7 @@ from typing import Any
 from unittest.mock import MagicMock
 from urllib.parse import urldefrag, urlsplit
 
+import filelock
 import pytest
 
 from conda_lock.conda_lock import (
@@ -72,6 +73,16 @@ def gdal_environment():
 @pytest.fixture
 def pip_environment():
     return TEST_DIR.joinpath("test-pypi-resolve").joinpath("environment.yml")
+
+
+@pytest.fixture
+def pip_environment_different_names_same_deps():
+    root = TEST_DIR.joinpath("test-pypi-resolve-namediff")
+    envfile = root.joinpath("environment.yml")
+    yield envfile
+    # for child in root.iterdir():
+    #     if child != envfile:
+    #         child.unlink()
 
 
 @pytest.fixture
@@ -378,59 +389,73 @@ def test_run_lock_with_pip(monkeypatch, pip_environment, conda_exe):
     run_lock([pip_environment], conda_exe=conda_exe)
 
 
+def test_run_lock_with_pip_environment_different_names_same_deps(
+    monkeypatch, pip_environment_different_names_same_deps, conda_exe
+):
+    with filelock.FileLock(
+        str(pip_environment_different_names_same_deps.parent / "filelock")
+    ):
+        monkeypatch.chdir(pip_environment_different_names_same_deps.parent)
+        if is_micromamba(conda_exe):
+            monkeypatch.setenv("CONDA_FLAGS", "-v")
+        run_lock([pip_environment_different_names_same_deps], conda_exe=conda_exe)
+
+
 def test_run_lock_with_local_package(
     monkeypatch, pip_local_package_environment, conda_exe
 ):
-    monkeypatch.chdir(pip_local_package_environment.parent)
-    if is_micromamba(conda_exe):
-        monkeypatch.setenv("CONDA_FLAGS", "-v")
-    virtual_package_repo = default_virtual_package_repodata()
+    with filelock.FileLock(str(pip_local_package_environment.parent / "filelock")):
+        monkeypatch.chdir(pip_local_package_environment.parent)
+        if is_micromamba(conda_exe):
+            monkeypatch.setenv("CONDA_FLAGS", "-v")
+        virtual_package_repo = default_virtual_package_repodata()
 
-    with virtual_package_repo:
-        lock_spec = make_lock_spec(
-            src_files=[pip_local_package_environment],
-            virtual_package_repo=virtual_package_repo,
-        )
-    assert not any(
-        p.manager == "pip" for p in lock_spec.dependencies
-    ), "conda-lock ignores editable pip deps"
+        with virtual_package_repo:
+            lock_spec = make_lock_spec(
+                src_files=[pip_local_package_environment],
+                virtual_package_repo=virtual_package_repo,
+            )
+        assert not any(
+            p.manager == "pip" for p in lock_spec.dependencies
+        ), "conda-lock ignores editable pip deps"
 
 
 def test_run_lock_with_input_hash_check(
     monkeypatch, input_hash_zlib_environment: pathlib.Path, conda_exe, capsys
 ):
-    monkeypatch.chdir(input_hash_zlib_environment.parent)
-    if is_micromamba(conda_exe):
-        monkeypatch.setenv("CONDA_FLAGS", "-v")
-    lockfile = input_hash_zlib_environment.parent / "conda-linux-64.lock"
-    if lockfile.exists():
-        lockfile.unlink()
+    with filelock.FileLock(str(input_hash_zlib_environment.parent / "filelock")):
+        monkeypatch.chdir(input_hash_zlib_environment.parent)
+        if is_micromamba(conda_exe):
+            monkeypatch.setenv("CONDA_FLAGS", "-v")
+        lockfile = input_hash_zlib_environment.parent / "conda-linux-64.lock"
+        if lockfile.exists():
+            lockfile.unlink()
 
-    run_lock(
-        [input_hash_zlib_environment],
-        platforms=["linux-64"],
-        conda_exe=conda_exe,
-        check_input_hash=True,
-    )
-    stat = lockfile.stat()
-    created = stat.st_mtime_ns
+        run_lock(
+            [input_hash_zlib_environment],
+            platforms=["linux-64"],
+            conda_exe=conda_exe,
+            check_input_hash=True,
+        )
+        stat = lockfile.stat()
+        created = stat.st_mtime_ns
 
-    with open(lockfile) as f:
-        previous_hash = extract_input_hash(f.read())
-        assert previous_hash is not None
-        assert len(previous_hash) == 64
+        with open(lockfile) as f:
+            previous_hash = extract_input_hash(f.read())
+            assert previous_hash is not None
+            assert len(previous_hash) == 64
 
-    capsys.readouterr()
-    run_lock(
-        [input_hash_zlib_environment],
-        platforms=["linux-64"],
-        conda_exe=conda_exe,
-        check_input_hash=True,
-    )
-    stat = lockfile.stat()
-    assert stat.st_mtime_ns == created
-    output = capsys.readouterr()
-    assert "Spec hash already locked for" in output.err
+        capsys.readouterr()
+        run_lock(
+            [input_hash_zlib_environment],
+            platforms=["linux-64"],
+            conda_exe=conda_exe,
+            check_input_hash=True,
+        )
+        stat = lockfile.stat()
+        assert stat.st_mtime_ns == created
+        output = capsys.readouterr()
+        assert "Spec hash already locked for" in output.err
 
 
 @pytest.mark.parametrize(

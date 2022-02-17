@@ -18,7 +18,7 @@ from poetry.repositories.repository import Repository
 from poetry.utils.env import Env
 
 from conda_lock import src_parser
-from conda_lock.src_parser.pyproject_toml import get_lookup as get_forward_lookup
+from conda_lock.lookup import conda_name_to_pypi_name
 
 
 # NB: in principle these depend on the glibc in the conda env
@@ -156,25 +156,6 @@ def get_package(locked: src_parser.LockedDependency) -> Package:
         return Package(locked.name, version=locked.version)
 
 
-PYPI_LOOKUP: Optional[Dict] = None
-
-
-def get_lookup() -> Dict:
-    """
-    Reverse grayskull name mapping to map conda names onto PyPI
-    """
-    global PYPI_LOOKUP
-    if PYPI_LOOKUP is None:
-        PYPI_LOOKUP = {
-            record["conda_name"]: record for record in get_forward_lookup().values()
-        }
-    return PYPI_LOOKUP
-
-
-def normalize_conda_name(name: str):
-    return get_lookup().get(name, {"pypi_name": name})["pypi_name"]
-
-
 def solve_pypi(
     pip_specs: Dict[str, src_parser.Dependency],
     use_latest: List[str],
@@ -222,7 +203,10 @@ def solve_pypi(
     for dep in conda_locked.values():
         if dep.name.startswith("__"):
             continue
-        pypi_name = normalize_conda_name(dep.name)
+        try:
+            pypi_name = conda_name_to_pypi_name(dep.name).lower()
+        except KeyError:
+            continue
         # Prefer the Python package when its name collides with the Conda package
         # for the underlying library, e.g. python-xxhash (pypi: xxhash) over xxhash
         # (pypi: no equivalent)
@@ -297,12 +281,17 @@ def solve_pypi(
     # use PyPI names of conda packages to walking the dependency tree and propagate
     # categories from explicit to transitive dependencies
     planned = {
-        **{
-            normalize_conda_name(name).lower(): dep
-            for name, dep in conda_locked.items()
-        },
         **{dep.name: dep for dep in requirements},
+        # prefer conda packages so add them afterwards
     }
+
+    for conda_name, dep in conda_locked.items():
+        try:
+            pypi_name = conda_name_to_pypi_name(conda_name).lower()
+        except KeyError:
+            # no conda-name found, assuming conda packages do NOT intersect with the pip package
+            continue
+        planned[pypi_name] = dep
 
     src_parser._apply_categories(requested=pip_specs, planned=planned)
 

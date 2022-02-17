@@ -6,31 +6,16 @@ from functools import partial
 from typing import AbstractSet, Any, List, Literal, Mapping, Optional, Sequence
 from urllib.parse import urldefrag
 
-import requests
 import toml
-import yaml
 
 from conda_lock.common import get_in
+from conda_lock.lookup import get_forward_lookup as get_lookup
 from conda_lock.src_parser import (
     Dependency,
     LockSpecification,
     URLDependency,
     VersionedDependency,
 )
-
-
-# TODO: make this configurable
-PYPI_TO_CONDA_NAME_LOOKUP = "https://raw.githubusercontent.com/regro/cf-graph-countyfair/master/mappings/pypi/grayskull_pypi_mapping.yaml"
-PYPI_LOOKUP: Optional[dict] = None
-
-
-def get_lookup():
-    global PYPI_LOOKUP
-    if PYPI_LOOKUP is None:
-        res = requests.get(PYPI_TO_CONDA_NAME_LOOKUP)
-        res.raise_for_status()
-        PYPI_LOOKUP = yaml.safe_load(res.content)
-    return PYPI_LOOKUP
 
 
 def join_version_components(pieces):
@@ -116,7 +101,7 @@ def parse_poetry_pyproject_toml(
                 url = depattrs.get("url", None)
                 optional = depattrs.get("optional", False)
                 extras = depattrs.get("extras", [])
-                # If a depdendency is explicitly marked as sourced from pypi,
+                # If a dependency is explicitly marked as sourced from pypi,
                 # or is a URL dependency, delegate to the pip section
                 if (
                     depattrs.get("source", None) == "pypi"

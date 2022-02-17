@@ -241,7 +241,7 @@ def make_lock_files(
         Path to a conda-lock.yml to create or update
     platform_overrides :
         Platforms to solve for. Takes precedence over platforms found in src_files.
-    channels_overrides :
+    channel_overrides :
         Channels to use. Takes precedence over channels found in src_files.
     virtual_package_spec :
         Path to a virtual package repository that defines each platform.
@@ -255,7 +255,7 @@ def make_lock_files(
     extras :
         Include the given extras in explicit or env output
     check_input_hash :
-        Do not re-solve for each target platform for which specifcations are unchanged
+        Do not re-solve for each target platform for which specifications are unchanged
     """
 
     # initialize virtual package fake
@@ -279,7 +279,19 @@ def make_lock_files(
         platforms_to_lock: List[str] = []
         platforms_already_locked: List[str] = []
         if lockfile_path.exists():
-            lock_content = parse_conda_lock_file(lockfile_path)
+            import yaml
+
+            try:
+                lock_content = parse_conda_lock_file(lockfile_path)
+            except (yaml.error.YAMLError, FileNotFoundError):
+                logger.warning(
+                    "Failed to parse existing lock.  Regenerating from scratch"
+                )
+                lock_content = None
+        else:
+            lock_content = None
+
+        if lock_content is not None:
             platforms_already_locked = list(lock_content.metadata.platforms)
             update_spec = UpdateSpecification(
                 locked=lock_content.package, update=update
@@ -359,7 +371,7 @@ def do_render(
     extras :
         Include the given extras in output
     check_input_hash :
-        Do not re-render if specifcations are unchanged
+        Do not re-render if specifications are unchanged
 
     """
 
