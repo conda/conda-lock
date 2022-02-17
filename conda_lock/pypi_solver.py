@@ -204,7 +204,7 @@ def solve_pypi(
         if dep.name.startswith("__"):
             continue
         try:
-            pypi_name = conda_name_to_pypi_name(dep.name)
+            pypi_name = conda_name_to_pypi_name(dep.name).lower()
         except KeyError:
             continue
         # Prefer the Python package when its name collides with the Conda package
@@ -287,7 +287,7 @@ def solve_pypi(
 
     for conda_name, dep in conda_locked.items():
         try:
-            pypi_name = conda_name_to_pypi_name(conda_name)
+            pypi_name = conda_name_to_pypi_name(conda_name).lower()
         except KeyError:
             # no conda-name found, assuming conda packages do NOT intersect with the pip package
             continue

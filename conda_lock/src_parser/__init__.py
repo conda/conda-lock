@@ -179,14 +179,18 @@ class Lockfile(StrictModel):
 
                 ordered = toposort(lookup)
                 for package_name in ordered:
-                    d = packages[package_name]
-                    if d.manager != manager:
+                    # since we could have a pure dep in here, that does not have a package
+                    # eg a pip package that depends on a conda package (the conda package will not be in this list)
+                    dep = packages.get(package_name)
+                    if dep is None:
+                        continue
+                    if dep.manager != manager:
                         continue
                     # skip virtual packages
-                    if d.manager == "conda" and d.name.startswith("__"):
+                    if dep.manager == "conda" and dep.name.startswith("__"):
                         continue
 
-                    final_package.append(d)
+                    final_package.append(dep)
 
         return Lockfile(package=final_package, metadata=other.metadata | self.metadata)
 
