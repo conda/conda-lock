@@ -1,3 +1,5 @@
+exclude: ^conda_lock/vendor/.*$
+
 repos:
 - repo: https://github.com/pre-commit/pre-commit-hooks
   rev: v4.0.1
@@ -27,3 +29,4 @@ repos:
   hooks:
   - id: mypy
     additional_dependencies: [types-filelock, types-requests, types-toml, types-PyYAML, types-setuptools, pydantic]
+    exclude: ^tests/test-local-pip/setup.py$

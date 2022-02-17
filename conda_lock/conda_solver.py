@@ -35,6 +35,7 @@ from conda_lock.src_parser import (
     VersionedDependency,
     _apply_categories,
 )
+from conda_lock.vendor.conda.models.match_spec import MatchSpec
 
 
 class FetchAction(TypedDict):
@@ -79,12 +80,15 @@ class DryRunInstall(TypedDict):
     actions: InstallActions
 
 
-def _to_match_spec(conda_dep_name, conda_version):
+def _to_match_spec(conda_dep_name, conda_version, build):
+    kwargs = dict(name=conda_dep_name)
     if conda_version:
-        spec = f"{conda_dep_name}[version='{conda_version}']"
-    else:
-        spec = f"{conda_dep_name}"
-    return spec
+        kwargs["version"] = conda_version
+    if build:
+        kwargs["build"] = build
+
+    ms = MatchSpec(**kwargs)
+    return str(ms)
 
 
 def solve_conda(
@@ -116,7 +120,7 @@ def solve_conda(
     """
 
     conda_specs = [
-        _to_match_spec(dep.name, dep.version)
+        _to_match_spec(dep.name, dep.version, dep.build)
         for dep in specs.values()
         if isinstance(dep, VersionedDependency) and dep.manager == "conda"
     ]

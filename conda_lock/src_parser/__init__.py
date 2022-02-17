@@ -46,6 +46,7 @@ class Dependency(StrictModel):
 
 class VersionedDependency(Dependency):
     version: str
+    build: Optional[str]
 
 
 class URLDependency(Dependency):
@@ -82,6 +83,7 @@ class LockedDependency(StrictModel):
     optional: bool = False
     category: str = "main"
     source: Optional[DependencySource] = None
+    build: Optional[str] = None
 
     def key(self) -> LockKey:
         return LockKey(self.manager, self.name, self.platform)
@@ -158,7 +160,7 @@ class Lockfile(StrictModel):
         # Resort the conda packages topologically
         final_package: List[LockedDependency] = []
         for platform in sorted(platforms):
-            from ..vendor.conda.toposort import toposort
+            from ..vendor.conda.common.toposort import toposort
 
             # Add the remaining non-conda packages in the order in which they appeared.
             # Order the pip packages topologically ordered (might be not 100% perfect if they depend on
