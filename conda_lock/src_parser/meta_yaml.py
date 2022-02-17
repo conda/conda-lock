@@ -134,6 +134,7 @@ def _parse_meta_yaml_file_for_platform(
     def add_spec(spec: str, category: str):
         if spec is None:
             return
+        # TODO: This does not parse conda requirements with build strings
         dep = parse_python_requirement(
             spec,
             manager="conda",
