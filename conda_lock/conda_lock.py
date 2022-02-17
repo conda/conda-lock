@@ -279,7 +279,19 @@ def make_lock_files(
         platforms_to_lock: List[str] = []
         platforms_already_locked: List[str] = []
         if lockfile_path.exists():
-            lock_content = parse_conda_lock_file(lockfile_path)
+            import yaml
+
+            try:
+                lock_content = parse_conda_lock_file(lockfile_path)
+            except (yaml.error.YAMLError, FileNotFoundError):
+                logger.warning(
+                    "Failed to parse existing lock.  Regenerating from scratch"
+                )
+                lock_content = None
+        else:
+            lock_content = None
+
+        if lock_content is not None:
             platforms_already_locked = list(lock_content.metadata.platforms)
             update_spec = UpdateSpecification(
                 locked=lock_content.package, update=update
