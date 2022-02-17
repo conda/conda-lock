@@ -105,6 +105,11 @@ def input_hash_zlib_environment():
 
 
 @pytest.fixture
+def blas_mkl_environment():
+    return TEST_DIR.joinpath("test-environment-blas-mkl").joinpath("environment.yml")
+
+
+@pytest.fixture
 def meta_yaml_environment():
     return TEST_DIR.joinpath("test-recipe").joinpath("meta.yaml")
 
@@ -337,6 +342,11 @@ def test_run_lock(monkeypatch, zlib_environment, conda_exe):
     if is_micromamba(conda_exe):
         monkeypatch.setenv("CONDA_FLAGS", "-v")
     run_lock([zlib_environment], conda_exe=conda_exe)
+
+
+def test_run_lock_blas_mkl(monkeypatch, blas_mkl_environment, conda_exe):
+    monkeypatch.chdir(blas_mkl_environment.parent)
+    run_lock([blas_mkl_environment], conda_exe=conda_exe)
 
 
 @pytest.fixture
