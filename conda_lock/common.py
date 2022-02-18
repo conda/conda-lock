@@ -3,7 +3,7 @@ import os
 import pathlib
 
 from itertools import chain
-from typing import Dict, Iterable, List, TypeVar
+from typing import Dict, Iterable, List, TypeVar, Union
 
 
 T = TypeVar("T")
@@ -26,17 +26,17 @@ def get_in(keys, nested_dict, default=None):
         return default
 
 
-def read_file(filepath: str) -> str:
+def read_file(filepath: Union[str, pathlib.Path]) -> str:
     with open(filepath, mode="r") as fp:
         return fp.read()
 
 
-def write_file(obj: str, filepath: str) -> None:
+def write_file(obj: str, filepath: Union[str, pathlib.Path]) -> None:
     with open(filepath, mode="w") as fp:
         fp.write(obj)
 
 
-def read_json(filepath: str) -> Dict:
+def read_json(filepath: Union[str, pathlib.Path]) -> Dict:
     with open(filepath, mode="r") as fp:
         return json.load(fp)
 

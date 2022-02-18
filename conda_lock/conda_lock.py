@@ -15,6 +15,7 @@ import tempfile
 
 from contextlib import contextmanager
 from functools import partial
+from pydoc import cli
 from typing import AbstractSet, Dict, Iterator, List, Optional, Sequence, Tuple, cast
 from urllib.parse import urlsplit
 
@@ -24,6 +25,7 @@ import toml
 
 from click_default_group import DefaultGroup
 
+from conda_lock.click_helpers import OrderedGroup
 from conda_lock.common import read_file, read_json, relative_path, write_file
 from conda_lock.conda_solver import solve_conda
 from conda_lock.errors import PlatformValidationError
@@ -144,11 +146,13 @@ def do_validate_platform(lockfile: str):
         )
 
 
-def do_conda_install(conda: PathLike, prefix: str, name: str, file: str) -> None:
+def do_conda_install(
+    conda: PathLike, prefix: str, name: str, file: pathlib.Path
+) -> None:
 
     _conda = partial(_invoke_conda, conda, prefix, name, check_call=True)
 
-    kind = "env" if file.endswith(".yml") else "explicit"
+    kind = "env" if file.name.endswith(".yml") else "explicit"
 
     if kind == "explicit":
         with open(file) as explicit_env:
@@ -747,7 +751,7 @@ def _add_auth_to_lockfile(lockfile: str, auth: Dict[str, str]) -> str:
 
 
 @contextmanager
-def _add_auth(lockfile: str, auth: Dict[str, str]) -> Iterator[str]:
+def _add_auth(lockfile: str, auth: Dict[str, str]) -> Iterator[pathlib.Path]:
     lockfile_with_auth = _add_auth_to_lockfile(lockfile, auth)
 
     # On Windows, NamedTemporaryFiles can't be opened a second time, so we have to close it first (and delete it manually later)
@@ -755,7 +759,7 @@ def _add_auth(lockfile: str, auth: Dict[str, str]) -> Iterator[str]:
     try:
         tf.close()
         write_file(lockfile_with_auth, tf.name)
-        yield tf.name
+        yield pathlib.Path(tf.name)
     finally:
         os.unlink(tf.name)
 
@@ -792,10 +796,10 @@ def _strip_auth_from_lockfile(lockfile: str) -> str:
 
 @contextmanager
 def _render_lockfile_for_install(
-    filename: str,
+    filename: pathlib.Path,
     include_dev_dependencies: bool = True,
     extras: Optional[AbstractSet[str]] = None,
-):
+) -> Iterator[pathlib.Path]:
     """
     Render lock content into a temporary, explicit lockfile for the current platform
 
@@ -810,7 +814,7 @@ def _render_lockfile_for_install(
 
     """
 
-    if not filename.endswith(DEFAULT_LOCKFILE_NAME):
+    if not filename.name.endswith(DEFAULT_LOCKFILE_NAME):
         yield filename
         return
 
@@ -834,7 +838,7 @@ def _render_lockfile_for_install(
         )
         tf.write("\n".join(content) + "\n")
         tf.flush()
-        yield tf.name
+        yield pathlib.Path(tf.name)
 
 
 def run_lock(
@@ -898,7 +902,7 @@ def run_lock(
     )
 
 
-@click.group(cls=DefaultGroup, default="lock", default_if_no_args=True)
+@click.group(cls=OrderedGroup, default="lock", default_if_no_args=True)
 def main():
     """To get help for subcommands, use the conda-lock <SUBCOMMAND> --help"""
     pass
@@ -1001,14 +1005,16 @@ def main():
     multiple=True,
     help="Packages to update to their latest versions. If empty, update all.",
 )
+@click.pass_context
 def lock(
+    ctx: click.Context,
     conda,
     mamba,
     micromamba,
     platform,
     channel_overrides,
     dev_dependencies,
-    files,
+    files: List[pathlib.Path],
     kind,
     filename_template,
     lockfile,
@@ -1033,6 +1039,13 @@ def lock(
         timestamp: The approximate timestamp of the output file in ISO8601 basic format.
     """
     logging.basicConfig(level=log_level)
+
+    # bail out if we do not encounter the default file if no files were passed
+    if ctx.get_parameter_source("files") == click.core.ParameterSource.DEFAULT:
+        for f in files:
+            if not f.exists():
+                print(ctx.get_help())
+                sys.exit(1)
 
     if pdb:
 
@@ -1132,14 +1145,18 @@ def lock(
     default=[],
     help="include extra dependencies from the lockfile (where applicable)",
 )
-@click.argument("lock-file", default=DEFAULT_LOCKFILE_NAME)
+@click.argument(
+    "lock-file", default=pathlib.Path(DEFAULT_LOCKFILE_NAME), type=click.Path()
+)
+@click.pass_context
 def install(
+    ctx: click.Context,
     conda,
     mamba,
     micromamba,
     prefix,
     name,
-    lock_file,
+    lock_file: pathlib.Path,
     auth,
     auth_file,
     validate_platform,
@@ -1147,15 +1164,21 @@ def install(
     dev,
     extras,
 ):
+    # bail out if we do not encounter the lockfile
+    lock_file = pathlib.Path(lock_file)
+    if not lock_file.exists():
+        print(ctx.get_help())
+        sys.exit(1)
+
     """Perform a conda install"""
     logging.basicConfig(level=log_level)
     auth = json.loads(auth) if auth else read_json(auth_file) if auth_file else None
     _conda_exe = determine_conda_executable(conda, mamba=mamba, micromamba=micromamba)
     install_func = partial(do_conda_install, conda=_conda_exe, prefix=prefix, name=name)
-    if validate_platform and not lock_file.endswith(DEFAULT_LOCKFILE_NAME):
-        lockfile = read_file(lock_file)
+    if validate_platform and not lock_file.name.endswith(DEFAULT_LOCKFILE_NAME):
+        lockfile_contents = read_file(lock_file)
         try:
-            do_validate_platform(lockfile)
+            do_validate_platform(lockfile_contents)
         except PlatformValidationError as error:
             raise PlatformValidationError(
                 error.args[0] + " Disable validation with `--no-validate-platform`."
@@ -1181,9 +1204,9 @@ def install(
     "-k",
     "--kind",
     default=["explicit"],
-    type=str,
+    type=click.Choice(["explicit", "env"]),
     multiple=True,
-    help="Kind of lock file(s) to generate [should be one of 'explicit' or 'env'].",
+    help="Kind of lock file(s) to generate.",
 )
 @click.option(
     "--filename-template",
@@ -1208,7 +1231,9 @@ def install(
     "--pdb", is_flag=True, help="Drop into a postmortem debugger if conda-lock crashes"
 )
 @click.argument("lock-file", default=DEFAULT_LOCKFILE_NAME)
+@click.pass_context
 def render(
+    ctx: click.Context,
     dev_dependencies,
     kind,
     filename_template,
@@ -1229,7 +1254,13 @@ def render(
 
         sys.excepthook = handle_exception
 
-    lock_content = parse_conda_lock_file(pathlib.Path(lock_file))
+    # bail out if we do not encounter the lockfile
+    lock_file = pathlib.Path(lock_file)
+    if not lock_file.exists():
+        print(ctx.get_help())
+        sys.exit(1)
+
+    lock_content = parse_conda_lock_file(lock_file)
 
     do_render(
         lock_content,
