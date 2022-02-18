@@ -18,6 +18,6 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           CONFIG_FILE: mkdocs.yml
-          EXTRA_PACKAGES: build-base
+          EXTRA_PACKAGES: build-base gcc musl-dev python3-dev libffi-dev openssl-dev cargo
           # GITHUB_DOMAIN: github.myenterprise.com
           REQUIREMENTS: requirements-dev.txt
