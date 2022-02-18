@@ -4,6 +4,10 @@ on:
     # branches:
     #   - main
 
+permissions:
+  contents: write
+  pages: write
+
 jobs:
   build:
     name: Deploy docs
@@ -14,7 +18,6 @@ jobs:
         with:
           submodules: "recursive"
           fetch-depth: 0       # Fetch all history for .GitInfo and .Lastmod
-          persist-credentials: false
 
       - name: Setup Python
         uses: actions/setup-python@v1
@@ -38,3 +41,5 @@ jobs:
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./site
+          user_name: 'github-actions[bot]'
+          user_email: 'github-actions[bot]@users.noreply.github.com'
