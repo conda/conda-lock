@@ -8,16 +8,31 @@ jobs:
   build:
     name: Deploy docs
     runs-on: ubuntu-latest
+    concurrency: ci-${{ github.ref }}
     steps:
-      - name: Checkout main
-        uses: actions/checkout@v2
+      - uses: actions/checkout@v2
+        with:
+          submodules: "recursive"
+          fetch-depth: 0       # Fetch all history for .GitInfo and .Lastmod
+      - name: Setup Python
+        uses: actions/setup-python@v1
+        with:
+          python-version: '3.9'
+          architecture: 'x64'
+      - name: Install dependencies
+        run: |
+          python3 -m pip install --upgrade pip            # install pip
+          python3 -m pip install -r requirements-dev.txt  # install dev deps
 
-      - name: Deploy docs
-        uses: mhausenblas/mkdocs-deploy-gh-pages@master
-        # Or use mhausenblas/mkdocs-deploy-gh-pages@nomaterial to build without the mkdocs-material theme
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          CONFIG_FILE: mkdocs.yml
-          EXTRA_PACKAGES: build-base gcc musl-dev python3-dev libffi-dev openssl-dev cargo
-          # GITHUB_DOMAIN: github.myenterprise.com
-          REQUIREMENTS: requirements-dev.txt
+      - name: Install conda-lock
+        run: |
+          python3 -m pip install .
+
+      - name: Build site
+        run: mkdocs build
+
+      - name: Deploy 🚀
+        uses: JamesIves/github-pages-deploy-action@v4.2.5
+        with:
+          branch: gh-pages  # The branch the action should deploy to.
+          folder: site      # The folder the action should deploy.
