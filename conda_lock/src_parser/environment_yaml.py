@@ -63,15 +63,19 @@ def parse_environment_file(
     specs = [x for x in specs if isinstance(x, str)]
 
     for spec in specs:
-        name, version = parse_conda_requirement(spec)
+        from ..vendor.conda.models.match_spec import MatchSpec
+
+        ms = MatchSpec(spec)
+
         dependencies.append(
             VersionedDependency(
-                name=name,
-                version=version,
+                name=ms.name,
+                version=ms.get("version", ""),
                 manager="conda",
                 optional=category != "main",
                 category=category,
                 extras=[],
+                build=ms.get("build"),
             )
         )
     for mapping_spec in mapping_specs:

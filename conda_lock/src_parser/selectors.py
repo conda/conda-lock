@@ -20,7 +20,7 @@ def filter_platform_selectors(content: str, platform) -> Iterator[str]:
     }
 
     # This code is adapted from conda-build
-    sel_pat = re.compile(r"(.+?)\s*(#.*)?\[([^\[\]]+)\](?(2)[^\(\)]*)$")
+    sel_pat = re.compile(r"(.+?)\s*(#.*)\[([^\[\]]+)\](?(2)[^\(\)]*)$")
     for line in content.splitlines(keepends=False):
         if line.lstrip().startswith("#"):
             continue
