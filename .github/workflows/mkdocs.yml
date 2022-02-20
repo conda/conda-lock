@@ -1,4 +1,4 @@
-name: Publish docs via GitHub Pages
+name: mkdocs
 on:
   push:
     branches:
