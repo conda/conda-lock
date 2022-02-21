@@ -381,6 +381,7 @@ def test_run_lock_with_update(monkeypatch, update_environment, conda_exe):
     assert post_lock["python"].version == pre_lock["python"].version
 
 
+@flaky
 def test_run_lock_with_locked_environment_files(
     monkeypatch, update_environment, conda_exe
 ):
