@@ -156,6 +156,7 @@ def solve_conda(
                 item.split()[0]: " ".join(item.split(" ")[1:])
                 for item in action.get("depends") or []
             },
+            # TODO: Normalize URL here and inject env vars
             url=action["url"],
             # NB: virtual packages may have no hash
             hash=HashModel(

@@ -43,11 +43,10 @@ class FakePackage(BaseModel):
         return fname, out
 
 
-class FakeRepoData:
-    def __init__(self, base_dir: pathlib.Path):
-        self.base_path = base_dir
-        self.packages_by_subdir: Dict[FakePackage, Set[str]] = defaultdict(set)
-        self.all_subdirs = {
+class FakeRepoData(BaseModel):
+    base_dir: pathlib.Path
+    packages_by_subdir: Dict[FakePackage, Set[str]] = Field(default_factory=lambda: defaultdict(set))
+    all_subdirs: Set[str] = {
             "noarch",
             "linux-aarch64",
             "linux-ppc64le",
@@ -56,9 +55,9 @@ class FakeRepoData:
             "osx-arm64",
             "win-64",
         }
-        self.all_repodata: Dict[str, dict] = {}
-        self.hash: Optional[str] = None
-        self.old_env_vars: Dict[str, str] = {}
+    all_repodata: Dict[str, dict] = {}
+    hash: Optional[str] = None
+    old_env_vars: Dict[str, str] = {}
 
     @property
     def channel_url(self):

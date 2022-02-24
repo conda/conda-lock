@@ -660,7 +660,7 @@ def create_lockfile_from_spec(
             conda=conda,
             spec=spec,
             platform=platform,
-            channels=[*spec.channels, virtual_package_channel],
+            channels=[*[c.conda_token_replaced_url() for c in spec.channels], virtual_package_channel],
             update_spec=update_spec,
         )
 
@@ -671,7 +671,7 @@ def create_lockfile_from_spec(
         package=[locked[k] for k in locked],
         metadata=LockMeta(
             content_hash=spec.content_hash(),
-            channels=spec.channels,
+            channels=[c.conda_token_replaced_url() for c in spec.channels],
             platforms=spec.platforms,
             sources=[
                 relative_path(lockfile_path.parent, source) for source in spec.sources
