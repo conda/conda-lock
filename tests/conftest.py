@@ -19,7 +19,9 @@ class QuetzServerInfo(NamedTuple):
 
 @pytest.fixture(scope="session")
 def quetz_server() -> Iterable[QuetzServerInfo]:
-    if not platform_subdir().startswith("linux"):
+    if not (
+        platform_subdir().startswith("linux") or platform_subdir().startswith("osx")
+    ):
         raise pytest.skip("Docker Quetz fixture only available on linux platforms")
     client = docker.from_env()
 

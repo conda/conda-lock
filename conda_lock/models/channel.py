@@ -46,7 +46,7 @@ from pydantic import BaseModel
 
 logger = logging.getLogger(__name__)
 
-token_pattern = re.compile(r"(.*)(/t/[a-zA-Z0-9-]*)(.*)")
+token_pattern = re.compile(r"(.*)(/t/\$?[a-zA-Z0-9-_]*)(/.*)")
 
 
 class CondaUrl(BaseModel):
@@ -177,7 +177,7 @@ def env_var_normalize(url: str) -> CondaUrl:
             )
     if res.password:
         password_env_var = detect_used_env_var(
-            res.password, ["PASSWORD", "PASS", "TOKEN"]
+            res.password, ["PASSWORD", "PASS", "TOKEN", "KEY"]
         )
         if password_env_var:
             res_replaced = res_replaced._replace(
@@ -190,16 +190,16 @@ def env_var_normalize(url: str) -> CondaUrl:
             )
 
     _token_match = token_pattern.search(res.path)
-    token = _token_match.groups()[1] if _token_match else None
+    token = _token_match.groups()[1][3:] if _token_match else None
     if token:
         token_env_var = detect_used_env_var(
-            token, ["TOKEN", "CRED", "PASSWORD", "PASS"]
+            token, ["TOKEN", "CRED", "PASSWORD", "PASS", "KEY"]
         )
         if not token_env_var:
             # maybe we should raise here if we have mismatched env vars
             logger.warning("token url detected without env var")
         else:
-            new_path = token_pattern.sub(fr"\1${token_env_var}\3", res_replaced.path)
+            new_path = token_pattern.sub(fr"\1/t/${token_env_var}\3", res_replaced.path)
             res_replaced = res_replaced._replace(path=new_path)
 
     return CondaUrl(

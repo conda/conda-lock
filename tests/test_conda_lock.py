@@ -39,7 +39,7 @@ from conda_lock.conda_lock import (
     run_lock,
 )
 from conda_lock.conda_solver import fake_conda_environment
-from conda_lock.errors import PlatformValidationError
+from conda_lock.errors import MissingEnvVarError, PlatformValidationError
 from conda_lock.invoke_conda import _ensureconda, is_micromamba, reset_conda_pkgs_dir
 from conda_lock.models.channel import Channel
 from conda_lock.pypi_solver import parse_pip_requirement, solve_pypi
@@ -1024,11 +1024,12 @@ def test_private_lock(quetz_server, tmp_path, monkeypatch, capsys, conda_exe):
         )
         assert result.exit_code == 0
 
-    with capsys.disabled():
-        runner = CliRunner(mix_stderr=False)
-        env_name = uuid.uuid4().hex
-        env_prefix = tmp_path / env_name
-        try:
+    def run_install():
+        with capsys.disabled():
+            runner = CliRunner(mix_stderr=False)
+            env_name = uuid.uuid4().hex
+            env_prefix = tmp_path / env_name
+
             result: Result = runner.invoke(
                 main,
                 [
@@ -1041,10 +1042,13 @@ def test_private_lock(quetz_server, tmp_path, monkeypatch, capsys, conda_exe):
                 ],
                 catch_exceptions=False,
             )
-        except subprocess.CalledProcessError as e:
-            print(e.stderr, file=sys.stderr)
-            print(e.stdout, file=sys.stdout)
-            raise e
+
         print(result.stdout, file=sys.stdout)
         print(result.stderr, file=sys.stderr)
         assert result.exit_code == 0
+
+    run_install()
+
+    monkeypatch.delenv("QUETZ_API_KEY")
+    with pytest.raises(MissingEnvVarError):
+        run_install()

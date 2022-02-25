@@ -5,7 +5,7 @@ from textwrap import dedent
 
 import yaml
 
-from . import LockedDependency, Lockfile
+from . import Lockfile
 
 
 def parse_conda_lock_file(
