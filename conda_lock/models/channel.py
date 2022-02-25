@@ -25,29 +25,29 @@ the raw version of a url.  If it encounters a channel url that looks as if it co
 it will search the currently available environment variables for a match with that variable.  In the case
 of a match that portion of the url will be replaced with a environment variable.
 
-Conveniently since conda ALSO performs env var substitution the rendered output can contain env vars which 
+Conveniently since conda ALSO performs env var substitution the rendered output can contain env vars which
 will be handled correctly by conda/mamba.
 
 ## PIP?
 
 """
 
-from asyncio.log import logger
-from curses import use_env
-from optparse import Option
-import re
+import copy
 import logging
 import os
-import copy
-from os.path import expandvars
+import re
 
-from typing import NamedTuple, Optional, List, Set
-from urllib.parse import urlparse, unquote, urlunparse
-from pydantic import BaseModel, Field
+from os.path import expandvars
+from typing import FrozenSet, List, Optional, cast
+from urllib.parse import unquote, urlparse, urlunparse
+
+from pydantic import BaseModel
+
 
 logger = logging.getLogger(__name__)
 
-token_pattern = re.compile(r'(.*/t/)([a-zA-Z0-9-]*)(.*)')
+token_pattern = re.compile(r"(.*)(/t/[a-zA-Z0-9-]*)(.*)")
+
 
 class CondaUrl(BaseModel):
     raw_url: str
@@ -63,46 +63,59 @@ class CondaUrl(BaseModel):
     password_env_var: Optional[str]
 
     @classmethod
-    def from_string(cls, value: str) -> 'CondaUrl':
+    def from_string(cls, value: str) -> "CondaUrl":
         return env_var_normalize(value)
-
 
 
 class Channel(BaseModel):
     url: str
-    used_env_vars: Set[str] = Field(default_factory=set)
+    used_env_vars: FrozenSet[str]
+
+    class Config:
+        frozen = True
 
     @classmethod
-    def from_string(cls, value: str) -> 'Channel':
-        if '://' in value:
+    def from_string(cls, value: str) -> "Channel":
+        if "://" in value:
             # url like string
             return cls.from_conda_url(CondaUrl.from_string(value))
         else:
             # this is a simple url
-            return Channel(url=value)
+            return Channel(url=value, used_env_vars=frozenset([]))
 
     @classmethod
-    def from_conda_url(cls, value: CondaUrl) -> 'Channel':
+    def from_conda_url(cls, value: CondaUrl) -> "Channel":
         env_vars = {value.user_env_var, value.token_env_var, value.password_env_var}
         if None in env_vars:
             env_vars.remove(None)
-        return Channel(url=value.env_var_url, used_env_vars=env_vars)
-    
+
+        return Channel(
+            url=value.env_var_url,
+            used_env_vars=frozenset(cast(FrozenSet[str], env_vars)),
+        )
+
+    def env_replaced_url(self) -> str:
+        return expandvars(self.url)
+
     def conda_token_replaced_url(self) -> str:
+        """This is basically a crazy thing that conda does for the token replacement in the output"""
         # TODO: pass in env vars maybe?
         expanded_url = expandvars(self.url)
-        replaced, _ = token_pattern.subn(r'\1<TOKEN>\3', expanded_url, 1)
-        return replaced
+        if token_pattern.match(expanded_url):
+            replaced, _ = token_pattern.subn(r"\1\3", expanded_url, 1)
+            p = urlparse(replaced)
+            replaced = urlunparse(p._replace(path="/t/<TOKEN>" + p.path))
+            return replaced
+        return expanded_url
 
 
-
-def detect_used_env_var(value: str, preferred_env_var_suffix: List[str]) -> Optional[str]:
-    if value.startswith('$'):
-        return value.lstrip('$')
+def detect_used_env_var(
+    value: str, preferred_env_var_suffix: List[str]
+) -> Optional[str]:
+    if value.startswith("$"):
+        return value.lstrip("$")
     for suffix in preferred_env_var_suffix + [""]:
-        candidates = {
-            v: k for k, v in os.environ.items() if k.upper().endswith(suffix)
-        }
+        candidates = {v: k for k, v in os.environ.items() if k.upper().endswith(suffix)}
         # try first with a simple match
         key = candidates.get(value)
         if key:
@@ -117,21 +130,18 @@ def detect_used_env_var(value: str, preferred_env_var_suffix: List[str]) -> Opti
 def env_var_normalize(url: str) -> CondaUrl:
     """
     Normalizes url by using env vars
-
-    Examples
-    --------
-    >>> split_scheme_auth_token("https://u:p@conda.io/t/x1029384756/more/path")
-    
     """
-    res =  urlparse(url)
+    res = urlparse(url)
     res_replaced = copy.copy(res)
 
-    def make_netloc(username: Optional[str], password: Optional[str], host: str, port: Optional[int]):
+    def make_netloc(
+        username: Optional[str], password: Optional[str], host: str, port: Optional[int]
+    ):
         if port:
             host_info = f"{host}:{port:d}"
         else:
             host_info = host
-        
+
         if username:
             if password:
                 user_info = f"{username}:{password}"
@@ -139,7 +149,7 @@ def env_var_normalize(url: str) -> CondaUrl:
                 user_info = username
         else:
             user_info = ""
-        
+
         if user_info:
             return f"{user_info}@{host_info}"
         else:
@@ -149,29 +159,42 @@ def env_var_normalize(url: str) -> CondaUrl:
     password_env_var: Optional[str] = None
     token_env_var: Optional[str] = None
 
+    def get_or_raise(val: Optional[str]):
+        if val is None:
+            raise ValueError("Expected to be non Null")
+        return val
+
     if res.username:
         user_env_var = detect_used_env_var(res.username, ["USERNAME", "USER"])
         if user_env_var:
-            res_replaced = res_replaced._replace(netloc=make_netloc(
-                username=f'${user_env_var}', 
-                password=res_replaced.password, 
-                host=res_replaced.hostname,
-                port=res_replaced.port,
-            ))
+            res_replaced = res_replaced._replace(
+                netloc=make_netloc(
+                    username=f"${user_env_var}",
+                    password=res_replaced.password,
+                    host=get_or_raise(res_replaced.hostname),
+                    port=res_replaced.port,
+                )
+            )
     if res.password:
-        password_env_var = detect_used_env_var(res.password, ["PASSWORD", "PASS", "TOKEN"])
+        password_env_var = detect_used_env_var(
+            res.password, ["PASSWORD", "PASS", "TOKEN"]
+        )
         if password_env_var:
-            res_replaced = res_replaced._replace(netloc=make_netloc(
-                username=res_replaced.username, 
-                password=f'${password_env_var}', 
-                host=res_replaced.hostname,
-                port=res_replaced.port,
-            ))
+            res_replaced = res_replaced._replace(
+                netloc=make_netloc(
+                    username=res_replaced.username,
+                    password=f"${password_env_var}",
+                    host=get_or_raise(res_replaced.hostname),
+                    port=res_replaced.port,
+                )
+            )
 
     _token_match = token_pattern.search(res.path)
     token = _token_match.groups()[1] if _token_match else None
     if token:
-        token_env_var = detect_used_env_var(token, ["TOKEN", "CRED", "PASSWORD", "PASS"])
+        token_env_var = detect_used_env_var(
+            token, ["TOKEN", "CRED", "PASSWORD", "PASS"]
+        )
         if not token_env_var:
             # maybe we should raise here if we have mismatched env vars
             logger.warning("token url detected without env var")
@@ -182,34 +205,27 @@ def env_var_normalize(url: str) -> CondaUrl:
     return CondaUrl(
         raw_url=url,
         env_var_url=urlunparse(res_replaced),
-
         user=res.username,
         user_env_var=user_env_var,
-
         password=res.password,
         password_env_var=password_env_var,
-
         token=token,
         token_env_var=token_env_var,
     )
 
 
 def test_url_auth_info(monkeypatch):
-    user = 'user123'
-    passwd = 'pass123'
-    token = 'tokTOK123'
+    user = "user123"
+    passwd = "pass123"
+    token = "tokTOK123"
 
     monkeypatch.setenv("TOKEN", token)
     monkeypatch.setenv("USER", user)
     monkeypatch.setenv("PASSWORD", passwd)
-    
+
     # These two urls are equivalent since we can pull the env vars out.
-    x = env_var_normalize(
-        "http://$USER:$PASSWORD@host/prefix/t/$TOKEN/suffix"
-    )
-    y = env_var_normalize(
-        f"http://{user}:{passwd}@host/prefix/t/{token}/suffix"
-    )
+    x = env_var_normalize("http://$USER:$PASSWORD@host/prefix/t/$TOKEN/suffix")
+    y = env_var_normalize(f"http://{user}:{passwd}@host/prefix/t/{token}/suffix")
 
     assert x.env_var_url == y.env_var_url
 

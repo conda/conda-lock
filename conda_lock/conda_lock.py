@@ -8,22 +8,16 @@ import logging
 import os
 import pathlib
 import re
-import shutil
 import subprocess
 import sys
 import tempfile
-
 from contextlib import contextmanager
 from functools import partial
-from pydoc import cli
-from typing import AbstractSet, Dict, Iterator, List, Optional, Sequence, Tuple, cast
+from typing import AbstractSet, Dict, Iterator, List, Optional, Sequence, Tuple
 from urllib.parse import urlsplit
 
 import click
 import pkg_resources
-import toml
-
-from click_default_group import DefaultGroup
 
 from conda_lock.click_helpers import OrderedGroup
 from conda_lock.common import read_file, read_json, relative_path, write_file
@@ -31,12 +25,11 @@ from conda_lock.conda_solver import solve_conda
 from conda_lock.errors import PlatformValidationError
 from conda_lock.invoke_conda import (
     PathLike,
-    _ensureconda,
     _invoke_conda,
     determine_conda_executable,
     is_micromamba,
 )
-
+from conda_lock.models.channel import Channel
 
 try:
     from conda_lock.pypi_solver import solve_pypi
@@ -169,7 +162,7 @@ def do_conda_install(
             *(["env"] if kind == "env" and not is_micromamba(conda) else []),
             "create",
             "--file",
-            file,
+            str(file),
             *([] if kind == "env" else ["--yes"]),
         ],
     )
@@ -207,7 +200,9 @@ def make_lock_spec(
     lock_spec = aggregate_lock_specs(lock_specs)
     lock_spec.virtual_package_repo = virtual_package_repo
     lock_spec.channels = (
-        list(channel_overrides) if channel_overrides else lock_spec.channels
+        [Channel.from_string(co) for co in channel_overrides]
+        if channel_overrides
+        else lock_spec.channels
     )
     lock_spec.platforms = (
         list(platform_overrides) if platform_overrides else lock_spec.platforms
@@ -519,7 +514,8 @@ def render_lockfile_for_platform(  # noqa: C901
         spec: LockedDependency, platform: str, direct=False
     ) -> str:
         if direct:
-            return f"{spec.url}#{spec.hash.md5}"
+            # inject the environment variables in here
+            return os.path.expandvars(f"{spec.url}#{spec.hash.md5}")
         else:
             path = pathlib.Path(urlsplit(spec.url).path)
             while path.suffix in {".tar", ".bz2", ".gz", ".conda"}:
@@ -531,7 +527,10 @@ def render_lockfile_for_platform(  # noqa: C901
         lockfile_contents.extend(
             [
                 "channels:",
-                *(f"  - {channel}" for channel in lockfile.metadata.channels),
+                *(
+                    f"  - {channel.env_replaced_url()}"
+                    for channel in lockfile.metadata.channels
+                ),
                 "dependencies:",
                 *(
                     f"  - {format_conda_requirement(dep, platform, direct=False)}"
@@ -584,7 +583,7 @@ def _solve_for_arch(
     conda: PathLike,
     spec: LockSpecification,
     platform: str,
-    channels: List[str],
+    channels: List[Channel],
     update_spec: Optional[UpdateSpecification] = None,
 ) -> List[LockedDependency]:
     """
@@ -650,7 +649,7 @@ def create_lockfile_from_spec(
     Solve or update specification
     """
     assert spec.virtual_package_repo is not None
-    virtual_package_channel = spec.virtual_package_repo.channel_url
+    virtual_package_channel = spec.virtual_package_repo.channel
 
     locked: Dict[Tuple[str, str, str], LockedDependency] = {}
 
@@ -660,7 +659,7 @@ def create_lockfile_from_spec(
             conda=conda,
             spec=spec,
             platform=platform,
-            channels=[*[c.conda_token_replaced_url() for c in spec.channels], virtual_package_channel],
+            channels=[*spec.channels, virtual_package_channel],
             update_spec=update_spec,
         )
 
@@ -671,7 +670,7 @@ def create_lockfile_from_spec(
         package=[locked[k] for k in locked],
         metadata=LockMeta(
             content_hash=spec.content_hash(),
-            channels=[c.conda_token_replaced_url() for c in spec.channels],
+            channels=[c for c in spec.channels],
             platforms=spec.platforms,
             sources=[
                 relative_path(lockfile_path.parent, source) for source in spec.sources

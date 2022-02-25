@@ -1,0 +1,26 @@
+[github]
+# Register the app here: https://github.com/settings/applications/new
+# Use a callback URL like `http://localhost:8000/auth/github/authorize`
+client_id = "37cdbb80c7733e2a1831"
+client_secret = "75e648e981545902ab7802de94e2f2707c8e0ff8"
+
+[sqlalchemy]
+database_url = "sqlite:///./quetz.sqlite"
+
+[session]
+# openssl rand -hex 32
+secret = "b72376b88e6f249cb0921052ea8a092381ca17fd8bb0caf4d847e337b3d34cf8"
+https_only = false
+
+[logging]
+level = "DEBUG"
+file = "/var/log/quetz.log"
+
+[users]
+admins = [
+    "dummy:alice",
+    "dummy:bob",
+    "dummy:carol",
+    "dummy:dave",
+]
+

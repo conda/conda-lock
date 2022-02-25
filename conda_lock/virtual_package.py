@@ -9,6 +9,8 @@ from typing import Dict, Iterable, List, Optional, Set, Tuple
 
 from pydantic import BaseModel, Field, validator
 
+from conda_lock.models.channel import Channel
+
 
 logger = logging.getLogger(__name__)
 
@@ -44,27 +46,33 @@ class FakePackage(BaseModel):
 
 
 class FakeRepoData(BaseModel):
-    base_dir: pathlib.Path
-    packages_by_subdir: Dict[FakePackage, Set[str]] = Field(default_factory=lambda: defaultdict(set))
+    base_path: pathlib.Path
+    packages_by_subdir: Dict[FakePackage, Set[str]] = Field(
+        default_factory=lambda: defaultdict(set)
+    )
     all_subdirs: Set[str] = {
-            "noarch",
-            "linux-aarch64",
-            "linux-ppc64le",
-            "linux-64",
-            "osx-64",
-            "osx-arm64",
-            "win-64",
-        }
+        "noarch",
+        "linux-aarch64",
+        "linux-ppc64le",
+        "linux-64",
+        "osx-64",
+        "osx-arm64",
+        "win-64",
+    }
     all_repodata: Dict[str, dict] = {}
     hash: Optional[str] = None
     old_env_vars: Dict[str, str] = {}
 
     @property
-    def channel_url(self):
+    def channel_url(self) -> str:
         if isinstance(self.base_path, pathlib.WindowsPath):
             return str(self.base_path.absolute())
         else:
             return f"file://{self.base_path.absolute().as_posix()}"
+
+    @property
+    def channel(self) -> Channel:
+        return Channel(url=self.channel_url, used_env_vars=frozenset([]))
 
     @property
     def channel_url_posix(self):
@@ -148,7 +156,7 @@ def _init_fake_repodata() -> FakeRepoData:
         atexit.register(clean)
 
     tmp_path = pathlib.Path(tmp_dir)
-    repodata = FakeRepoData(tmp_path)
+    repodata = FakeRepoData(base_path=tmp_path)
     return repodata
 
 

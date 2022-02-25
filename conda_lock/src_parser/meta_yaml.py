@@ -62,8 +62,8 @@ class UndefinedNeverFail(jinja2.Undefined):
     # few methods must always return the correct type
     __str__ = __repr__ = lambda self: self._return_value(str())  # type: ignore  # noqa: E731
     __unicode__ = lambda self: self._return_value("")  # noqa: E731
-    __int__ = lambda self: self._return_value(0)  # noqa: E731
-    __float__ = lambda self: self._return_value(0.0)  # noqa: E731
+    __int__ = lambda self: self._return_value(0)  # type: ignore  # noqa: E731
+    __float__ = lambda self: self._return_value(0.0)  # type: ignore  # noqa: E731
     __nonzero__ = lambda self: self._return_value(False)  # noqa: E731
 
     def _return_undefined(self, result_name):

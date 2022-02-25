@@ -7,7 +7,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
-
+import uuid
 from glob import glob
 from typing import Any
 from unittest.mock import MagicMock
@@ -15,7 +15,7 @@ from urllib.parse import urldefrag, urlsplit
 
 import filelock
 import pytest
-
+import yaml
 from flaky import flaky
 
 from conda_lock.conda_lock import (
@@ -52,7 +52,6 @@ from conda_lock.src_parser.pyproject_toml import (
     parse_pyproject_toml,
     poetry_version_to_conda_version,
 )
-
 
 TEST_DIR = pathlib.Path(__file__).parent
 
@@ -829,7 +828,7 @@ def test_virtual_packages(conda_exe, monkeypatch, kind, capsys):
 
     platform = "linux-64"
 
-    from click.testing import CliRunner, Result
+    from click.testing import CliRunner
 
     for lockfile in glob(f"conda-{platform}.*"):
         os.unlink(lockfile)
@@ -986,3 +985,59 @@ def test_fake_conda_env(conda_exe, conda_lock_yaml):
                 assert env_package["channel"] == "conda-forge"
             assert env_package["dist_name"] == f"{path.name[:-8]}"
             assert platform == path.parent.name
+
+
+def test_private_lock(quetz_server, tmp_path, monkeypatch, capsys, conda_exe):
+    from ensureconda.resolve import platform_subdir
+
+    monkeypatch.setenv("QUETZ_API_KEY", quetz_server.api_key)
+    monkeypatch.chdir(tmp_path)
+
+    content = yaml.safe_dump(
+        {
+            "channels": [f"{quetz_server.url}/t/$QUETZ_API_KEY/get/proxy-channel"],
+            "platforms": [platform_subdir()],
+            "dependencies": ["zlib"],
+        }
+    )
+    (tmp_path / "environment.yml").write_text(content)
+
+    with capsys.disabled():
+        from click.testing import CliRunner, Result
+
+        runner = CliRunner(mix_stderr=False)
+        result: Result = runner.invoke(
+            main,
+            [
+                "lock",
+                "--conda",
+                conda_exe,
+            ],
+            catch_exceptions=False,
+        )
+        assert result.exit_code == 0
+
+    with capsys.disabled():
+        runner = CliRunner(mix_stderr=False)
+        env_name = uuid.uuid4().hex
+        env_prefix = tmp_path / env_name
+        try:
+            result: Result = runner.invoke(
+                main,
+                [
+                    "install",
+                    "--conda",
+                    conda_exe,
+                    "--prefix",
+                    str(env_prefix),
+                    str(tmp_path / "conda-lock.yml"),
+                ],
+                catch_exceptions=False,
+            )
+        except subprocess.CalledProcessError as e:
+            print(e.stderr, file=sys.stderr)
+            print(e.stdout, file=sys.stdout)
+            raise e
+        print(result.stdout, file=sys.stdout)
+        print(result.stderr, file=sys.stderr)
+        assert result.exit_code == 0

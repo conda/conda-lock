@@ -175,7 +175,7 @@ def specification_with_dependencies(
         )
 
     return LockSpecification(
-        dependencies,
+        dependencies=dependencies,
         channels=get_in(["tool", "conda-lock", "channels"], toml_contents, []),
         platforms=get_in(["tool", "conda-lock", "platforms"], toml_contents, []),
         sources=[path],

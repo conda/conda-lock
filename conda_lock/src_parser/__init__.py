@@ -10,19 +10,17 @@ from typing import ClassVar, Dict, List, Literal, Optional, Sequence, Set, Tuple
 from pydantic import BaseModel, Field, validator
 
 from conda_lock.common import ordered_union
-from conda_lock.credential import URLAuthInfo
 from conda_lock.lookup import conda_name_to_pypi_name, pypi_name_to_conda_name
 from conda_lock.models.channel import Channel
 from conda_lock.virtual_package import FakeRepoData
 
 
-from conda_lock.credential import URLAuthInfo
-
-
-
 class StrictModel(BaseModel):
     class Config:
         extra = "forbid"
+        json_encoders = {
+            frozenset: list,
+        }
 
 
 class Selectors(StrictModel):
@@ -219,7 +217,7 @@ class LockSpecification(BaseModel):
 
     def content_hash_for_platform(self, platform: str) -> str:
         data: dict = {
-            "channels": self.channels,
+            "channels": [c.json() for c in self.channels],
             "specs": [
                 p.dict()
                 for p in sorted(self.dependencies, key=lambda p: (p.manager, p.name))
@@ -325,7 +323,7 @@ def aggregate_lock_specs(
     dependencies = list(unique_deps.values())
 
     return LockSpecification(
-        dependencies,
+        dependencies=dependencies,
         # uniquify metadata, preserving order
         channels=ordered_union(lock_spec.channels or [] for lock_spec in lock_specs),
         platforms=ordered_union(lock_spec.platforms or [] for lock_spec in lock_specs),

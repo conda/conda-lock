@@ -1,5 +1,4 @@
 import atexit
-import json
 import logging
 import os
 import pathlib
@@ -7,12 +6,12 @@ import shlex
 import shutil
 import subprocess
 import tempfile
-
 from distutils.version import LooseVersion
 from typing import Dict, List, Optional, Sequence, Union
 
 import ensureconda
 
+from conda_lock.models.channel import Channel
 
 PathLike = Union[str, pathlib.Path]
 
@@ -110,17 +109,23 @@ def _invoke_conda(
         bufsize=1,
         universal_newlines=True,
     ) as p:
+        stdout = []
         if p.stdout:
             for line in _process_stdout(p.stdout):
                 logging.info(line)
-
+                stdout.append(line)
+        stderr = []
         if p.stderr:
             for line in p.stderr:
+                stderr.append(line)
                 logging.error(line.rstrip())
 
     if check_call and p.returncode != 0:
         raise subprocess.CalledProcessError(
-            p.returncode, [str(conda), *command_args, *common_args, *post_args]
+            p.returncode,
+            [str(conda), *command_args, *common_args, *post_args],
+            output="\n".join(stdout),
+            stderr="\n".join(stderr),
         )
 
     return p
@@ -160,7 +165,7 @@ def conda_env_override(platform) -> Dict[str, str]:
     return env
 
 
-def _get_conda_flags(channels: Sequence[str], platform) -> List[str]:
+def _get_conda_flags(channels: Sequence[Channel], platform) -> List[str]:
     args = []
     conda_flags = os.environ.get("CONDA_FLAGS")
     if conda_flags:
@@ -169,7 +174,7 @@ def _get_conda_flags(channels: Sequence[str], platform) -> List[str]:
         args.append("--override-channels")
 
     for channel in channels:
-        args.extend(["--channel", channel])
+        args.extend(["--channel", channel.env_replaced_url()])
         if channel == "defaults" and platform in {"win-64", "win-32"}:
             # msys2 is a windows-only channel that conda automatically
             # injects if the host platform is Windows. If our host
