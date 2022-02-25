@@ -16,6 +16,8 @@ from urllib.parse import urldefrag, urlsplit
 import filelock
 import pytest
 
+from flaky import flaky
+
 from conda_lock.conda_lock import (
     DEFAULT_FILES,
     DEFAULT_LOCKFILE_NAME,
@@ -379,6 +381,7 @@ def test_run_lock_with_update(monkeypatch, update_environment, conda_exe):
     assert post_lock["python"].version == pre_lock["python"].version
 
 
+@flaky
 def test_run_lock_with_locked_environment_files(
     monkeypatch, update_environment, conda_exe
 ):
@@ -602,6 +605,7 @@ def conda_supports_env(conda_exe):
 
 
 @pytest.mark.parametrize("kind", ["explicit", "env"])
+@flaky
 def test_install(
     request, kind, tmp_path, conda_exe, zlib_environment, monkeypatch, capsys
 ):

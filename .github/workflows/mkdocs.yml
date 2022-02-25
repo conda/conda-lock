@@ -1,0 +1,45 @@
+name: mkdocs
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
+  pages: write
+
+jobs:
+  build:
+    name: Deploy docs
+    runs-on: ubuntu-latest
+    concurrency: ci-${{ github.ref }}
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          submodules: "recursive"
+          fetch-depth: 0       # Fetch all history for .GitInfo and .Lastmod
+
+      - name: Setup Python
+        uses: actions/setup-python@v1
+        with:
+          python-version: '3.9'
+          architecture: 'x64'
+      - name: Install dependencies
+        run: |
+          python3 -m pip install --upgrade pip            # install pip
+          python3 -m pip install -r requirements-dev.txt  # install dev deps
+
+      - name: Install conda-lock
+        run: |
+          python3 -m pip install .
+
+      - name: Build site
+        run: mkdocs build
+
+      - name: Deploy
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./site
+          user_name: 'github-actions[bot]'
+          user_email: 'github-actions[bot]@users.noreply.github.com'

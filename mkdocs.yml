@@ -1,0 +1,62 @@
+site_name: conda-lock
+repo_url: https://github.com/conda-incubator/conda-lock
+theme:
+  name: material
+  features:
+    - content.tabs.link
+    - header.autohide
+    - navigation.indexes
+    - navigation.instant
+    - navigation.expand
+    # - search.highlight
+    # - search.share
+    # - search.suggest
+  icon:
+    repo: fontawesome/brands/github
+#plugins:
+markdown_extensions:
+  - tables
+  - toc
+  - def_list
+  - pymdownx.emoji:
+      emoji_index: !!python/name:materialx.emoji.twemoji
+      emoji_generator: !!python/name:materialx.emoji.to_svg
+      options:
+        custom_icons:
+          - docs/static/icons
+  - pymdownx.details
+  - pymdownx.highlight
+  - pymdownx.inlinehilite
+  - pymdownx.magiclink:
+      provider: github
+      repo_url_shortener: true
+  - pymdownx.saneheaders
+  - pymdownx.snippets
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
+  - attr_list
+  - mkdocs-click
+nav:
+  - Home: index.md
+  - Installation: getting_started.md
+  - Source Formats:
+    - environment.yml: src_environment_yml.md
+    - meta.yaml: src_meta_yaml.md
+    - pyproject.toml: src_pyproject.md
+  - Output Formats: output.md
+  - Pip integration: pip.md
+  - Flags: flags.md
+  - Usage:
+    - Docker: docker.md
+    - CLI Reference: cli/gen.md
+
+extra:
+  project_name: "conda-lock"
+  team:
+    - name: "Active maintainers"
+      members:
+        - mariusvniekerk
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/conda-incubator/conda-lock

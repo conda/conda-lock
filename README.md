@@ -243,7 +243,7 @@ not guaranteed to work for complex recipes with many selectors and outputs.  For
 will fuse all the dependencies together.  If that doesn't work for your case fall back to specifying the specification
 as an [environment.yml][envyaml]
 
-Since a meta.yaml doesn't contain channel information we make use of the following extra key to retrieve channels
+Since a meta.yaml doesn't contain channel information we make use of the following extra key to specify channels
 
 ```yaml
 # meta.yaml
