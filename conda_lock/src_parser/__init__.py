@@ -126,6 +126,17 @@ class LockMeta(StrictModel):
             sources=ordered_union([self.sources, other.sources]),
         )
 
+    @validator("channels", pre=True, always=True)
+    def ensure_channels(cls, v):
+        res = []
+        for e in v:
+            if isinstance(e, str):
+                res.append(Channel.from_string(e))
+            else:
+                res.append(e)
+        return res
+
+
 
 class Lockfile(StrictModel):
 
