@@ -39,6 +39,7 @@ from conda_lock.conda_lock import (
 from conda_lock.conda_solver import fake_conda_environment
 from conda_lock.errors import PlatformValidationError
 from conda_lock.invoke_conda import _ensureconda, is_micromamba, reset_conda_pkgs_dir
+from conda_lock.models.channel import Channel
 from conda_lock.pypi_solver import parse_pip_requirement, solve_pypi
 from conda_lock.src_parser import (
     HashModel,
@@ -159,11 +160,11 @@ def test_parse_environment_file(gdal_environment):
         )
         in res.dependencies
     )
-    assert all(x in res.channels for x in ["conda-forge", "defaults"])
+    assert all(Channel.from_string(x) in res.channels for x in ["conda-forge", "defaults"])
 
 
 def test_parse_environment_file_with_pip(pip_environment):
-    res = parse_environment_file(pip_environment, "linux-64")
+    res = parse_environment_file(pip_environment, True)
     assert [dep for dep in res.dependencies if dep.manager == "pip"] == [
         VersionedDependency(
             name="requests-toolbelt",
@@ -317,7 +318,7 @@ def test_parse_poetry(poetry_pyproject_toml):
     assert specs["tomlkit"].optional is True
     assert specs["tomlkit"].category == "tomlkit"
 
-    assert res.channels == ["defaults"]
+    assert res.channels == [Channel.from_string("defaults")]
 
 
 def test_parse_flit(flit_pyproject_toml):
@@ -335,7 +336,7 @@ def test_parse_flit(flit_pyproject_toml):
     assert specs["pytest"].optional is True
     assert specs["pytest"].category == "dev"
 
-    assert res.channels == ["defaults"]
+    assert res.channels == [Channel.from_string("defaults")]
 
 
 def test_run_lock(monkeypatch, zlib_environment, conda_exe):

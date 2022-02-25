@@ -137,7 +137,6 @@ class LockMeta(StrictModel):
         return res
 
 
-
 class Lockfile(StrictModel):
 
     version: ClassVar[int] = 1
