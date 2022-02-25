@@ -6,12 +6,14 @@ import shlex
 import shutil
 import subprocess
 import tempfile
+
 from distutils.version import LooseVersion
 from typing import Dict, List, Optional, Sequence, Union
 
 import ensureconda
 
 from conda_lock.models.channel import Channel
+
 
 PathLike = Union[str, pathlib.Path]
 

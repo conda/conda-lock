@@ -11,6 +11,7 @@ import re
 import subprocess
 import sys
 import tempfile
+
 from contextlib import contextmanager
 from functools import partial
 from typing import AbstractSet, Dict, Iterator, List, Optional, Sequence, Tuple
@@ -30,6 +31,7 @@ from conda_lock.invoke_conda import (
     is_micromamba,
 )
 from conda_lock.models.channel import Channel
+
 
 try:
     from conda_lock.pypi_solver import solve_pypi

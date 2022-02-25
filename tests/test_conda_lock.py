@@ -8,6 +8,7 @@ import subprocess
 import sys
 import tempfile
 import uuid
+
 from glob import glob
 from typing import Any
 from unittest.mock import MagicMock
@@ -16,6 +17,7 @@ from urllib.parse import urldefrag, urlsplit
 import filelock
 import pytest
 import yaml
+
 from flaky import flaky
 
 from conda_lock.conda_lock import (
@@ -53,6 +55,7 @@ from conda_lock.src_parser.pyproject_toml import (
     parse_pyproject_toml,
     poetry_version_to_conda_version,
 )
+
 
 TEST_DIR = pathlib.Path(__file__).parent
 
@@ -160,7 +163,9 @@ def test_parse_environment_file(gdal_environment):
         )
         in res.dependencies
     )
-    assert all(Channel.from_string(x) in res.channels for x in ["conda-forge", "defaults"])
+    assert all(
+        Channel.from_string(x) in res.channels for x in ["conda-forge", "defaults"]
+    )
 
 
 def test_parse_environment_file_with_pip(pip_environment):
