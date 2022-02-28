@@ -91,6 +91,8 @@ def _to_match_spec(conda_dep_name, conda_version, build):
         kwargs["version"] = conda_version
     if build:
         kwargs["build"] = build
+        if "version" not in kwargs:
+            kwargs["version"] = "*"
 
     ms = MatchSpec(**kwargs)
     # Since MatchSpec doesn't round trip to the cli well
