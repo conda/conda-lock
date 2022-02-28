@@ -309,7 +309,7 @@ def solve_specs_for_arch(
             # platform is not Windows, we need to add it manually
             args.extend(["--channel", "msys2"])
     args.extend(specs)
-    logger.info("using spcs %s", specs)
+    logger.info("%s using specs %s", platform, specs)
     proc = subprocess.run(
         args,
         env=conda_env_override(platform),
