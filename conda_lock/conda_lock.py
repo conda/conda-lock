@@ -20,6 +20,8 @@ from urllib.parse import urlsplit
 import click
 import pkg_resources
 
+from ensureconda import ensureconda
+
 from conda_lock.click_helpers import OrderedGroup
 from conda_lock.common import read_file, read_json, relative_path, write_file
 from conda_lock.conda_solver import solve_conda
@@ -70,6 +72,14 @@ DOMAIN_PATTERN = re.compile(r"^(https?:\/\/)?([^\/]+)(.*)")
 # Captures the platform in the first group.
 PLATFORM_PATTERN = re.compile(r"^# platform: (.*)$")
 INPUT_HASH_PATTERN = re.compile(r"^# input_hash: (.*)$")
+
+
+HAVE_MAMBA = (
+    ensureconda(
+        mamba=True, micromamba=False, conda=False, conda_exe=False, no_install=True
+    )
+    is not None
+)
 
 
 if not (sys.version_info.major >= 3 and sys.version_info.minor >= 6):
@@ -924,7 +934,9 @@ def main():
     "--conda", default=None, help="path (or name) of the conda/mamba executable to use."
 )
 @click.option(
-    "--mamba/--no-mamba", default=False, help="don't attempt to use or install mamba."
+    "--mamba/--no-mamba",
+    default=HAVE_MAMBA,
+    help="don't attempt to use or install mamba.",
 )
 @click.option(
     "--micromamba/--no-micromamba",
@@ -1121,7 +1133,9 @@ def lock(
     "--conda", default=None, help="path (or name) of the conda/mamba executable to use."
 )
 @click.option(
-    "--mamba/--no-mamba", default=False, help="don't attempt to use or install mamba."
+    "--mamba/--no-mamba",
+    default=HAVE_MAMBA,
+    help="don't attempt to use or install mamba.",
 )
 @click.option(
     "--micromamba/--no-micromamba",
