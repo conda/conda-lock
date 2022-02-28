@@ -1,0 +1,10 @@
+# /tmp/environment.yml
+channels:
+  - conda-forge
+platform:
+  - linux-64
+dependencies:
+  - python=3.9
+  - pip
+  - pip:
+    - matplotlib
