@@ -393,7 +393,7 @@ def update_specs_for_arch(
                 )
             )
         }
-        spec_for_name = {v.split("[")[0]: v for v in specs}
+        spec_for_name = {MatchSpec(v).name: v for v in specs}
         to_update = [
             spec_for_name[name] for name in set(installed).intersection(update)
         ]
