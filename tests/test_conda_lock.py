@@ -584,6 +584,9 @@ def conda_exe(request):
     _conda_exe = _ensureconda(**kwargs)
 
     if _conda_exe is not None:
+        if is_micromamba(_conda_exe):
+            res = subprocess.run([conda_exe, "--version"], capture_output=True)
+            logging.info("using micromamba version %s", res.stdout)
         return _conda_exe
     raise pytest.skip(f"{request.param} is not installed")
 
