@@ -980,25 +980,31 @@ def test_fake_conda_env(conda_exe, conda_lock_yaml):
             path = pathlib.PurePosixPath(
                 urlsplit(urldefrag(locked_package.url)[0]).path
             )
+            expected_channel = "conda-forge"
+            expected_base_url = "https://conda.anaconda.org/conda-forge"
             if is_micromamba(conda_exe):
-                assert (
-                    env_package["base_url"]
-                    == f"https://conda.anaconda.org/conda-forge/{platform}"
-                )
-                assert env_package["channel"] == f"conda-forge/{platform}"
+                assert env_package["base_url"] in {
+                    f"{expected_base_url}/{platform}",
+                    expected_base_url,
+                }
+                assert env_package["channel"] in {
+                    f"{expected_channel}/{platform}",
+                    expected_channel,
+                }
             else:
-                assert (
-                    env_package["base_url"] == "https://conda.anaconda.org/conda-forge"
-                )
-                assert env_package["channel"] == "conda-forge"
+                assert env_package["base_url"] == expected_base_url
+                assert env_package["channel"] == expected_channel
             assert env_package["dist_name"] == f"{path.name[:-8]}"
             assert platform == path.parent.name
 
 
 def test_private_lock(quetz_server, tmp_path, monkeypatch, capsys, conda_exe):
     if is_micromamba(conda_exe):
-        res = subprocess.run([conda_exe, "--version"], stdout=subprocess.PIPE)
+        res = subprocess.run(
+            [conda_exe, "--version"], stdout=subprocess.PIPE, encidubg="utf8"
+        )
         logging.info("using micromamba version %s", res.stdout)
+        pytest.xfail("micromamba doesn't support our quetz server urls properly")
     from ensureconda.resolve import platform_subdir
 
     monkeypatch.setenv("QUETZ_API_KEY", quetz_server.api_key)
