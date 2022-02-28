@@ -584,9 +584,6 @@ def conda_exe(request):
     _conda_exe = _ensureconda(**kwargs)
 
     if _conda_exe is not None:
-        if is_micromamba(_conda_exe):
-            res = subprocess.run([_conda_exe, "--version"], stdout=subprocess.PIPE)
-            logging.info("using micromamba version %s", res.stdout)
         return _conda_exe
     raise pytest.skip(f"{request.param} is not installed")
 
@@ -999,6 +996,9 @@ def test_fake_conda_env(conda_exe, conda_lock_yaml):
 
 
 def test_private_lock(quetz_server, tmp_path, monkeypatch, capsys, conda_exe):
+    if is_micromamba(conda_exe):
+        res = subprocess.run([conda_exe, "--version"], stdout=subprocess.PIPE)
+        logging.info("using micromamba version %s", res.stdout)
     from ensureconda.resolve import platform_subdir
 
     monkeypatch.setenv("QUETZ_API_KEY", quetz_server.api_key)
