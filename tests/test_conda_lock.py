@@ -367,6 +367,7 @@ def update_environment():
         shutil.copy(lock.with_suffix(".bak"), lock)
 
 
+@pytest.mark.timeout(90)
 def test_run_lock_with_update(monkeypatch, update_environment, conda_exe):
     monkeypatch.chdir(update_environment.parent)
     if is_micromamba(conda_exe):
