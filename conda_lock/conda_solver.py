@@ -40,6 +40,9 @@ from conda_lock.src_parser import (
 from conda_lock.vendor.conda.models.match_spec import MatchSpec
 
 
+logger = logging.getLogger(__name__)
+
+
 class FetchAction(TypedDict):
     """
     FETCH actions include all the entries from the corresponding package's
@@ -90,7 +93,8 @@ def _to_match_spec(conda_dep_name, conda_version, build):
         kwargs["build"] = build
 
     ms = MatchSpec(**kwargs)
-    return str(ms)
+    # Since MatchSpec doesn't round trip to the cli well
+    return ms.conda_build_form()
 
 
 def solve_conda(
@@ -303,6 +307,7 @@ def solve_specs_for_arch(
             # platform is not Windows, we need to add it manually
             args.extend(["--channel", "msys2"])
     args.extend(specs)
+    logger.info("using spcs %s", specs)
     proc = subprocess.run(
         args,
         env=conda_env_override(platform),
