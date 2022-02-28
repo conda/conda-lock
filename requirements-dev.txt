@@ -15,6 +15,7 @@ pytest
 pytest-cov
 pytest-flake8
 pytest-xdist
+pytest-timeout
 setuptools_scm
 toml
 twine

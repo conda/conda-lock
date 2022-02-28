@@ -393,14 +393,13 @@ def test_run_lock_with_locked_environment_files(
     monkeypatch, update_environment, conda_exe
 ):
     """run_lock() with default args uses source files from lock"""
-    with filelock.FileLock(str(update_environment.parent / "filelock")):
-        monkeypatch.chdir(update_environment.parent)
-        make_lock_files = MagicMock()
-        monkeypatch.setattr("conda_lock.conda_lock.make_lock_files", make_lock_files)
-        run_lock(DEFAULT_FILES, conda_exe=conda_exe, update=["pydantic"])
-        assert [p.resolve() for p in make_lock_files.call_args.kwargs["src_files"]] == [
-            pathlib.Path(update_environment.parent / "environment-preupdate.yml")
-        ]
+    monkeypatch.chdir(update_environment.parent)
+    make_lock_files = MagicMock()
+    monkeypatch.setattr("conda_lock.conda_lock.make_lock_files", make_lock_files)
+    run_lock(DEFAULT_FILES, conda_exe=conda_exe, update=["pydantic"])
+    assert [p.resolve() for p in make_lock_files.call_args.kwargs["src_files"]] == [
+        pathlib.Path(update_environment.parent / "environment-preupdate.yml")
+    ]
 
 
 def test_run_lock_with_pip(monkeypatch, pip_environment, conda_exe):
