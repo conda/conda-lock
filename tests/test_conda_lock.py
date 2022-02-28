@@ -1001,7 +1001,7 @@ def test_fake_conda_env(conda_exe, conda_lock_yaml):
 def test_private_lock(quetz_server, tmp_path, monkeypatch, capsys, conda_exe):
     if is_micromamba(conda_exe):
         res = subprocess.run(
-            [conda_exe, "--version"], stdout=subprocess.PIPE, encidubg="utf8"
+            [conda_exe, "--version"], stdout=subprocess.PIPE, encoding="utf8"
         )
         logging.info("using micromamba version %s", res.stdout)
         pytest.xfail("micromamba doesn't support our quetz server urls properly")
