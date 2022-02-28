@@ -358,11 +358,13 @@ def test_run_lock_blas_mkl(monkeypatch, blas_mkl_environment, conda_exe):
 
 @pytest.fixture
 def update_environment():
-    env = TEST_DIR.joinpath("test-update").joinpath("environment-postupdate.yml")
-    lock = env.parent / DEFAULT_LOCKFILE_NAME
-    shutil.copy(lock, lock.with_suffix(".bak"))
-    yield env
-    shutil.copy(lock.with_suffix(".bak"), lock)
+    base_dir = TEST_DIR.joinpath("test-update")
+    with filelock.FileLock(str(base_dir / "filelock")):
+        env = base_dir.joinpath("environment-postupdate.yml")
+        lock = env.parent / DEFAULT_LOCKFILE_NAME
+        shutil.copy(lock, lock.with_suffix(".bak"))
+        yield env
+        shutil.copy(lock.with_suffix(".bak"), lock)
 
 
 def test_run_lock_with_update(monkeypatch, update_environment, conda_exe):
@@ -386,7 +388,6 @@ def test_run_lock_with_update(monkeypatch, update_environment, conda_exe):
     assert post_lock["python"].version == pre_lock["python"].version
 
 
-@flaky
 def test_run_lock_with_locked_environment_files(
     monkeypatch, update_environment, conda_exe
 ):
