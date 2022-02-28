@@ -1,3 +1,4 @@
+import os
 import pathlib
 import re
 
@@ -22,7 +23,15 @@ def quetz_server() -> Iterable[QuetzServerInfo]:
     if not (
         platform_subdir().startswith("linux") or platform_subdir().startswith("osx")
     ):
-        raise pytest.skip("Docker Quetz fixture only available on linux platforms")
+        raise pytest.skip(
+            "Docker Quetz fixture only available on osx and linux platforms"
+        )
+
+    if platform_subdir().startswith("osx") and ("GITHUB_ACTION" in os.environ):
+        raise pytest.skip(
+            "Docker Quetz fixture not avilable on osx running on github actions"
+        )
+
     client = docker.from_env()
 
     image = client.images.pull("mambaorg/quetz")
