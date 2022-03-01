@@ -23,5 +23,6 @@ wheel
 mkdocs
 mkdocs-material
 mkdocs-click
+mkdocs-include-markdown-plugin
 flaky
 docker

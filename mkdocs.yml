@@ -13,7 +13,8 @@ theme:
     # - search.suggest
   icon:
     repo: fontawesome/brands/github
-#plugins:
+plugins:
+  - include-markdown
 markdown_extensions:
   - tables
   - toc
@@ -47,6 +48,7 @@ nav:
   - Output Formats: output.md
   - Pip integration: pip.md
   - Flags: flags.md
+  - Authenticated Channels: authenticated_channels.md
   - Usage:
     - Docker: docker.md
     - CLI Reference: cli/gen.md
