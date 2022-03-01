@@ -3,7 +3,7 @@ import collections.abc
 import pathlib
 
 from functools import partial
-from typing import AbstractSet, Any, List, Literal, Mapping, Optional, Sequence
+from typing import AbstractSet, Any, List, Literal, Mapping, Optional, Sequence, Union
 from urllib.parse import urldefrag
 
 import toml
@@ -18,7 +18,7 @@ from conda_lock.src_parser import (
 )
 
 
-def join_version_components(pieces):
+def join_version_components(pieces: Sequence[Union[str, int]]) -> str:
     return ".".join(str(p) for p in pieces)
 
 
@@ -182,7 +182,7 @@ def specification_with_dependencies(
     )
 
 
-def to_match_spec(conda_dep_name, conda_version):
+def to_match_spec(conda_dep_name: str, conda_version: Optional[str]) -> str:
     if conda_version:
         spec = f"{conda_dep_name} {conda_version}"
     else:
@@ -275,7 +275,7 @@ def parse_requirements_pyproject_toml(
     main_tag: str,
     optional_tag: str,
     dev_tags: AbstractSet[str] = {"dev", "test"},
-):
+) -> LockSpecification:
     """
     PEP621 and flit
     """

@@ -1,6 +1,6 @@
 import pathlib
 
-from typing import List
+from typing import Any, Dict, List
 
 import jinja2
 import yaml
@@ -30,13 +30,13 @@ class UndefinedNeverFail(jinja2.Undefined):
 
     all_undefined_names: List[str] = []
 
-    def __init__(
+    def __init__(  # type: ignore
         self,
         hint=None,
         obj=jinja2.runtime.missing,
         name=None,
         exc=jinja2.exceptions.UndefinedError,
-    ):
+    ) -> None:
         jinja2.Undefined.__init__(self, hint, obj, name, exc)
 
     # Using any of these methods on an Undefined variable
@@ -52,7 +52,7 @@ class UndefinedNeverFail(jinja2.Undefined):
 
     # Accessing an attribute of an Undefined variable
     # results in another Undefined variable.
-    def __getattr__(self, k):
+    def __getattr__(self, k):  # type: ignore
         try:
             return object.__getattr__(self, k)
         except AttributeError:
@@ -66,7 +66,7 @@ class UndefinedNeverFail(jinja2.Undefined):
     __float__ = lambda self: self._return_value(0.0)  # type: ignore  # noqa: E731
     __nonzero__ = lambda self: self._return_value(False)  # noqa: E731
 
-    def _return_undefined(self, result_name):
+    def _return_undefined(self, result_name):  # type: ignore
         # Record that this undefined variable was actually used.
         UndefinedNeverFail.all_undefined_names.append(self._undefined_name)
         return UndefinedNeverFail(
@@ -76,7 +76,7 @@ class UndefinedNeverFail(jinja2.Undefined):
             exc=self._undefined_exception,
         )
 
-    def _return_value(self, value=None):
+    def _return_value(self, value=None):  # type: ignore
         # Record that this undefined variable was actually used.
         UndefinedNeverFail.all_undefined_names.append(self._undefined_name)
         return value
@@ -131,7 +131,7 @@ def _parse_meta_yaml_file_for_platform(
     channels = get_in(["extra", "channels"], meta_yaml_data, [])
     dependencies: List[Dependency] = []
 
-    def add_spec(spec: str, category: str):
+    def add_spec(spec: str, category: str) -> None:
         if spec is None:
             return
         # TODO: This does not parse conda requirements with build strings
@@ -145,7 +145,7 @@ def _parse_meta_yaml_file_for_platform(
         dep.selectors.platform = [platform]
         dependencies.append(dep)
 
-    def add_requirements_from_recipe_or_output(yaml_data):
+    def add_requirements_from_recipe_or_output(yaml_data: Dict[str, Any]) -> None:
         for s in get_in(["requirements", "host"], yaml_data, []):
             add_spec(s, "main")
         for s in get_in(["requirements", "run"], yaml_data, []):

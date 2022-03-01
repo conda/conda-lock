@@ -3,13 +3,15 @@ import os
 import pathlib
 
 from itertools import chain
-from typing import Dict, Iterable, List, TypeVar, Union
+from typing import Any, Dict, Iterable, List, Mapping, Sequence, TypeVar, Union
 
 
 T = TypeVar("T")
 
 
-def get_in(keys, nested_dict, default=None):
+def get_in(
+    keys: Sequence[Any], nested_dict: Mapping[Any, Any], default: Any = None
+) -> Any:
     """
     >>> foo = {'a': {'b': {'c': 1}}}
     >>> get_in(['a', 'b'], foo)

@@ -25,7 +25,7 @@ def parse_conda_requirement(req: str) -> Tuple[str, str]:
 
 
 def parse_environment_file(
-    environment_file: pathlib.Path, pip_support: bool = False
+    environment_file: pathlib.Path, *, pip_support: bool = False
 ) -> LockSpecification:
     """
     Parse dependencies from a conda environment specification
@@ -45,7 +45,8 @@ def parse_environment_file(
 
     with environment_file.open("r") as fo:
         content = fo.read()
-        filtered_content = "\n".join(filter_platform_selectors(content, platform=None))
+        # TODO: improve this call since we *SHOULD* pass the right platform here
+        filtered_content = "\n".join(filter_platform_selectors(content, platform=""))
         assert yaml.safe_load(filtered_content) == yaml.safe_load(
             content
         ), "selectors are temporarily gone"

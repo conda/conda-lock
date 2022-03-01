@@ -13,7 +13,20 @@ import tempfile
 
 from contextlib import contextmanager
 from functools import partial
-from typing import AbstractSet, Dict, Iterator, List, Optional, Sequence, Set, Tuple
+from types import TracebackType
+from typing import (
+    AbstractSet,
+    Dict,
+    Iterator,
+    List,
+    Literal,
+    Optional,
+    Sequence,
+    Set,
+    Tuple,
+    Type,
+    Union,
+)
 from urllib.parse import urlsplit
 
 import click
@@ -38,9 +51,9 @@ from conda_lock.models.channel import Channel
 try:
     from conda_lock.pypi_solver import solve_pypi
 
-    pip_support = True
+    PIP_SUPPORT = True
 except ImportError:
-    pip_support = False
+    PIP_SUPPORT = False
 from conda_lock.src_parser import (
     LockedDependency,
     Lockfile,
@@ -88,17 +101,28 @@ if not (sys.version_info.major >= 3 and sys.version_info.minor >= 6):
 
 
 DEFAULT_PLATFORMS = ["osx-64", "linux-64", "win-64"]
-DEFAULT_KINDS = ["explicit", "lock"]
+
+KIND_EXPLICIT: Literal["explicit"] = "explicit"
+KIND_LOCK: Literal["lock"] = "lock"
+KIND_ENV: Literal["env"] = "env"
+TKindAll = Union[Literal["explicit"], Literal["lock"], Literal["env"]]
+TKindRendarable = Union[Literal["explicit"], Literal["lock"], Literal["env"]]
+
+
+DEFAULT_KINDS: List[Union[Literal["explicit"], Literal["lock"]]] = [
+    KIND_EXPLICIT,
+    KIND_LOCK,
+]
 DEFAULT_LOCKFILE_NAME = "conda-lock.yml"
 KIND_FILE_EXT = {
-    "explicit": "",
-    "env": ".yml",
-    "lock": "." + DEFAULT_LOCKFILE_NAME,
+    KIND_EXPLICIT: "",
+    KIND_ENV: ".yml",
+    KIND_LOCK: "." + DEFAULT_LOCKFILE_NAME,
 }
 KIND_USE_TEXT = {
-    "explicit": "conda create --name YOURENV --file {lockfile}",
-    "env": "conda env create --name YOURENV --file {lockfile}",
-    "lock": "conda-lock install --name YOURENV {lockfile}",
+    KIND_EXPLICIT: "conda create --name YOURENV --file {lockfile}",
+    KIND_ENV: "conda env create --name YOURENV --file {lockfile}",
+    KIND_LOCK: "conda-lock install --name YOURENV {lockfile}",
 }
 
 
@@ -139,7 +163,7 @@ def _do_validate_platform(platform: str) -> Tuple[bool, str]:
     return platform == determined_subdir, determined_subdir
 
 
-def do_validate_platform(lockfile: str):
+def do_validate_platform(lockfile: str) -> None:
     platform_lockfile = extract_platform(lockfile)
     try:
         success, platform_sys = _do_validate_platform(platform_lockfile)
@@ -226,7 +250,7 @@ def make_lock_spec(
 def make_lock_files(
     conda: PathLike,
     src_files: List[pathlib.Path],
-    kinds: List[str],
+    kinds: Sequence[TKindAll],
     lockfile_path: pathlib.Path = pathlib.Path(DEFAULT_LOCKFILE_NAME),
     platform_overrides: Optional[Sequence[str]] = None,
     channel_overrides: Optional[Sequence[str]] = None,
@@ -236,7 +260,7 @@ def make_lock_files(
     filename_template: Optional[str] = None,
     extras: Optional[AbstractSet[str]] = None,
     check_input_hash: bool = False,
-):
+) -> None:
     """
     Generate a lock file from the src files provided
 
@@ -361,12 +385,12 @@ def make_lock_files(
 
 def do_render(
     lockfile: Lockfile,
-    kinds: List[str],
+    kinds: Sequence[Union[Literal["env"], Literal["explicit"]]],
     include_dev_dependencies: bool = True,
     filename_template: Optional[str] = None,
     extras: Optional[AbstractSet[str]] = None,
     check_input_hash: bool = False,
-):
+) -> None:
     """Render the lock content for each platform in lockfile
 
     Parameters
@@ -466,7 +490,7 @@ def render_lockfile_for_platform(  # noqa: C901
     lockfile: Lockfile,
     include_dev_dependencies: bool,
     extras: Optional[AbstractSet[str]],
-    kind: str,
+    kind: Union[Literal["env"], Literal["explicit"]],
     platform: str,
 ) -> List[str]:
     """
@@ -511,7 +535,7 @@ def render_lockfile_for_platform(  # noqa: C901
                     conda_deps.append(p)
 
     def format_pip_requirement(
-        spec: LockedDependency, platform: str, direct=False
+        spec: LockedDependency, platform: str, direct: bool = False
     ) -> str:
         if spec.source and spec.source.type == "url":
             return f"{spec.name} @ {spec.source.url}"
@@ -521,7 +545,7 @@ def render_lockfile_for_platform(  # noqa: C901
             return f"{spec.name} === {spec.version} --hash=md5:{spec.hash.md5}"
 
     def format_conda_requirement(
-        spec: LockedDependency, platform: str, direct=False
+        spec: LockedDependency, platform: str, direct: bool = False
     ) -> str:
         if direct:
             # inject the environment variables in here
@@ -566,7 +590,7 @@ def render_lockfile_for_platform(  # noqa: C901
             [format_conda_requirement(dep, platform, direct=True) for dep in conda_deps]
         )
 
-        def sanitize_lockfile_line(line):
+        def sanitize_lockfile_line(line: str) -> str:
             line = line.strip()
             if line == "":
                 return "#"
@@ -627,7 +651,7 @@ def _solve_for_arch(
     )
 
     if requested_deps_by_name["pip"]:
-        if not pip_support:
+        if not PIP_SUPPORT:
             raise ValueError("pip support is not enabled")
         if "python" not in conda_deps:
             raise ValueError("Got pip specs without Python")
@@ -689,29 +713,6 @@ def create_lockfile_from_spec(
     )
 
 
-def main_on_docker(env_file, platforms):
-    env_path = pathlib.Path(env_file)
-    platform_arg = []
-    for p in platforms:
-        platform_arg.extend(["--platform", p])
-
-    subprocess.check_output(
-        [
-            "docker",
-            "run",
-            "--rm",
-            "-v",
-            f"{str(env_path.parent)}:/work:rwZ",
-            "--workdir",
-            "/work",
-            "conda-lock:latest",
-            "--file",
-            env_path.name,
-            *platform_arg,
-        ]
-    )
-
-
 def parse_source_files(
     src_files: List[pathlib.Path],
     platform_overrides: Sequence[str],
@@ -735,11 +736,13 @@ def parse_source_files(
         elif src_file.name == "pyproject.toml":
             desired_envs.append(parse_pyproject_toml(src_file))
         else:
-            desired_envs.append(parse_environment_file(src_file, pip_support))
+            desired_envs.append(
+                parse_environment_file(src_file, pip_support=PIP_SUPPORT)
+            )
     return desired_envs
 
 
-def _add_auth_to_line(line: str, auth: Dict[str, str]):
+def _add_auth_to_line(line: str, auth: Dict[str, str]) -> str:
     matching_auths = [a for a in auth if a in line]
     if not matching_auths:
         return line
@@ -871,7 +874,7 @@ def run_lock(
     include_dev_dependencies: bool = True,
     channel_overrides: Optional[Sequence[str]] = None,
     filename_template: Optional[str] = None,
-    kinds: Optional[List[str]] = None,
+    kinds: Optional[Sequence[TKindAll]] = None,
     lockfile_path: pathlib.Path = pathlib.Path(DEFAULT_LOCKFILE_NAME),
     check_input_hash: bool = False,
     extras: Optional[AbstractSet[str]] = None,
@@ -924,9 +927,18 @@ def run_lock(
 
 
 @click.group(cls=OrderedGroup, default="lock", default_if_no_args=True)
-def main():
+def main() -> None:
     """To get help for subcommands, use the conda-lock <SUBCOMMAND> --help"""
     pass
+
+
+TLogLevel = Union[
+    Literal["DEBUG"],
+    Literal["INFO"],
+    Literal["WARNING"],
+    Literal["ERROR"],
+    Literal["CRITICAL"],
+]
 
 
 @main.command("lock")
@@ -1031,24 +1043,24 @@ def main():
 @click.pass_context
 def lock(
     ctx: click.Context,
-    conda,
-    mamba,
-    micromamba,
-    platform,
-    channel_overrides,
-    dev_dependencies,
+    conda: Optional[PathLike],
+    mamba: bool,
+    micromamba: bool,
+    platform: List[str],
+    channel_overrides: List[str],
+    dev_dependencies: bool,
     files: List[pathlib.Path],
-    kind,
-    filename_template,
-    lockfile,
-    strip_auth,
-    extras,
+    kind: List[Union[Literal["lock"], Literal["env"], Literal["explicit"]]],
+    filename_template: str,
+    lockfile: PathLike,
+    strip_auth: bool,
+    extras: List[str],
     check_input_hash: bool,
-    log_level,
-    pdb,
-    virtual_package_spec,
-    update=None,
-):
+    log_level: TLogLevel,
+    pdb: bool,
+    virtual_package_spec: Optional[PathLike],
+    update: bool = None,
+) -> None:
     """Generate fully reproducible lock files for conda environments.
 
     By default, the lock files are written to conda-{platform}.lock. These filenames can be customized using the
@@ -1075,13 +1087,7 @@ def lock(
             sys.exit(1)
 
     if pdb:
-
-        def handle_exception(exc_type, exc_value, exc_traceback):
-            import pdb
-
-            pdb.post_mortem(exc_traceback)
-
-        sys.excepthook = handle_exception
+        sys.excepthook = _handle_exception_post_mortem
 
     if not virtual_package_spec:
         candidates = [
@@ -1097,7 +1103,7 @@ def lock(
         virtual_package_spec = pathlib.Path(virtual_package_spec)
 
     files = [pathlib.Path(file) for file in files]
-    extras = set(extras)
+    extras_ = set(extras)
     lock_func = partial(
         run_lock,
         environment_files=files,
@@ -1109,7 +1115,7 @@ def lock(
         channel_overrides=channel_overrides,
         kinds=kind,
         lockfile_path=pathlib.Path(lockfile),
-        extras=extras,
+        extras=extras_,
         virtual_package_spec=virtual_package_spec,
         update=update,
     )
@@ -1180,19 +1186,19 @@ def lock(
 @click.pass_context
 def install(
     ctx: click.Context,
-    conda,
-    mamba,
-    micromamba,
-    prefix,
-    name,
+    conda: Optional[str],
+    mamba: bool,
+    micromamba: bool,
+    prefix: Optional[str],
+    name: Optional[str],
     lock_file: pathlib.Path,
-    auth,
-    auth_file,
-    validate_platform,
-    log_level,
-    dev,
-    extras,
-):
+    auth: Optional[str],
+    auth_file: Optional[PathLike],
+    validate_platform: bool,
+    log_level: TLogLevel,
+    dev: bool,
+    extras: List[str],
+) -> None:
     # bail out if we do not encounter the lockfile
     lock_file = pathlib.Path(lock_file)
     if not lock_file.exists():
@@ -1201,7 +1207,7 @@ def install(
 
     """Perform a conda install"""
     logging.basicConfig(level=log_level)
-    auth = yaml.safe_load(auth) if auth else read_json(auth_file) if auth_file else None
+    _auth = yaml.safe_load(auth) if auth else read_json(auth_file) if auth_file else None
     _conda_exe = determine_conda_executable(conda, mamba=mamba, micromamba=micromamba)
     install_func = partial(do_conda_install, conda=_conda_exe, prefix=prefix, name=name)
     if validate_platform and not lock_file.name.endswith(DEFAULT_LOCKFILE_NAME):
@@ -1213,10 +1219,10 @@ def install(
                 error.args[0] + " Disable validation with `--no-validate-platform`."
             )
     with _render_lockfile_for_install(
-        lock_file, include_dev_dependencies=dev, extras=extras
+        lock_file, include_dev_dependencies=dev, extras=set(extras)
     ) as lockfile:
         if auth:
-            with _add_auth(read_file(lockfile), auth) as lockfile_with_auth:
+            with _add_auth(read_file(lockfile), _auth) as lockfile_with_auth:
                 install_func(file=lockfile_with_auth)
         else:
             install_func(file=lockfile)
@@ -1263,25 +1269,19 @@ def install(
 @click.pass_context
 def render(
     ctx: click.Context,
-    dev_dependencies,
-    kind,
-    filename_template,
-    extras,
-    log_level,
-    lock_file,
-    pdb,
-):
+    dev_dependencies: bool,
+    kind: Sequence[Union[Literal["env"], Literal["explicit"]]],
+    filename_template: str,
+    extras: List[str],
+    log_level: TLogLevel,
+    lock_file: PathLike,
+    pdb: bool,
+) -> None:
     """Render multi-platform lockfile into single-platform env or explicit file"""
     logging.basicConfig(level=log_level)
 
     if pdb:
-
-        def handle_exception(exc_type, exc_value, exc_traceback):
-            import pdb
-
-            pdb.post_mortem(exc_traceback)
-
-        sys.excepthook = handle_exception
+        sys.excepthook = _handle_exception_post_mortem
 
     # bail out if we do not encounter the lockfile
     lock_file = pathlib.Path(lock_file)
@@ -1296,8 +1296,18 @@ def render(
         filename_template=filename_template,
         kinds=kind,
         include_dev_dependencies=dev_dependencies,
-        extras=extras,
+        extras=set(extras),
     )
+
+
+def _handle_exception_post_mortem(
+    exc_type: Type[BaseException],
+    exc_value: BaseException,
+    exc_traceback: TracebackType,
+) -> None:
+    import pdb
+
+    pdb.post_mortem(exc_traceback)
 
 
 if __name__ == "__main__":

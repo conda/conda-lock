@@ -1,6 +1,7 @@
 import hashlib
 import json
 import pathlib
+import typing
 
 from collections import defaultdict, namedtuple
 from itertools import chain
@@ -24,7 +25,7 @@ class StrictModel(BaseModel):
 class Selectors(StrictModel):
     platform: Optional[List[str]] = None
 
-    def __ior__(self, other) -> "Selectors":
+    def __ior__(self, other: "Selectors") -> "Selectors":
         if not isinstance(other, Selectors):
             raise TypeError
         if other.platform and self.platform:
@@ -91,7 +92,7 @@ class LockedDependency(StrictModel):
         return LockKey(self.manager, self.name, self.platform)
 
     @validator("hash")
-    def validate_hash(cls, v, values, **kwargs):
+    def validate_hash(cls, v: HashModel, values: Dict[str, typing.Any]) -> HashModel:
         if (values["manager"] == "conda") and (v.md5 is None):
             raise ValueError("conda package hashes must use MD5")
         return v
@@ -110,7 +111,7 @@ class LockMeta(StrictModel):
         description="paths to source files, relative to the parent directory of the lockfile",
     )
 
-    def __or__(self, other) -> "LockMeta":
+    def __or__(self, other: "LockMeta") -> "LockMeta":
         """merge other into self"""
         if other is None:
             return self
@@ -125,14 +126,14 @@ class LockMeta(StrictModel):
         )
 
     @validator("channels", pre=True, always=True)
-    def ensure_channels(cls, v):
+    def ensure_channels(cls, v: List[Union[str, Channel]]) -> List[Channel]:
         res = []
         for e in v:
             if isinstance(e, str):
                 res.append(Channel.from_string(e))
             else:
                 res.append(e)
-        return res
+        return typing.cast(List[Channel], res)
 
 
 class Lockfile(StrictModel):
@@ -142,10 +143,10 @@ class Lockfile(StrictModel):
     package: List[LockedDependency]
     metadata: LockMeta
 
-    def __or__(self, other) -> "Lockfile":
+    def __or__(self, other: "Lockfile") -> "Lockfile":
         return other.__ror__(self)
 
-    def __ror__(self, other) -> "Lockfile":
+    def __ror__(self, other: "Optional[Lockfile]") -> "Lockfile":
         """
         merge self into other
         """
@@ -243,11 +244,11 @@ class LockSpecification(BaseModel):
         return hashlib.sha256(env_spec.encode("utf-8")).hexdigest()
 
     @validator("channels", pre=True)
-    def validate_channels(cls, v: List[Union[Channel, str]], values, **kwargs):
+    def validate_channels(cls, v: List[Union[Channel, str]]) -> List[Channel]:
         for i, e in enumerate(v):
             if isinstance(e, str):
                 v[i] = Channel.from_string(e)
-        return v
+        return typing.cast(List[Channel], v)
 
 
 def _apply_categories(

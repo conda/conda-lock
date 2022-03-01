@@ -151,7 +151,7 @@ def env_var_normalize(url: str) -> CondaUrl:
 
     def make_netloc(
         username: Optional[str], password: Optional[str], host: str, port: Optional[int]
-    ):
+    ) -> str:
         if port:
             host_info = f"{host}:{port:d}"
         else:
@@ -174,7 +174,7 @@ def env_var_normalize(url: str) -> CondaUrl:
     password_env_var: Optional[str] = None
     token_env_var: Optional[str] = None
 
-    def get_or_raise(val: Optional[str]):
+    def get_or_raise(val: Optional[str]) -> str:
         if val is None:
             raise ValueError("Expected to be non Null")
         return val

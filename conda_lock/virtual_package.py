@@ -5,7 +5,8 @@ import os
 import pathlib
 
 from collections import defaultdict
-from typing import Dict, Iterable, List, Optional, Set, Tuple
+from types import TracebackType
+from typing import Any, Dict, Iterable, List, Optional, Set, Tuple, Type
 
 from pydantic import BaseModel, Field, validator
 
@@ -33,7 +34,7 @@ class FakePackage(BaseModel):
     depends: Tuple[str, ...] = Field(default_factory=tuple)
     timestamp: int = DEFAULT_TIME
 
-    def to_repodata_entry(self):
+    def to_repodata_entry(self) -> Tuple[str, Dict[str, Any]]:
         out = self.dict()
         if self.build_string:
             build = f"{self.build_string}_{self.build_number}"
@@ -61,7 +62,7 @@ class FakeRepoData(BaseModel):
     }
     all_repodata: Dict[str, dict] = {}
     hash: Optional[str] = None
-    old_env_vars: Dict[str, str] = {}
+    old_env_vars: Dict[str, Optional[str]] = {}
 
     @property
     def channel_url(self) -> str:
@@ -75,7 +76,7 @@ class FakeRepoData(BaseModel):
         return Channel(url=self.channel_url, used_env_vars=frozenset([]))
 
     @property
-    def channel_url_posix(self):
+    def channel_url_posix(self) -> str:
         if isinstance(self.base_path, pathlib.WindowsPath):
             # Mamba has a different return format for windows filepach urls and takes the form
             # file:///C:/dira/dirb
@@ -83,7 +84,7 @@ class FakeRepoData(BaseModel):
         else:
             return f"file://{self.base_path.absolute().as_posix()}"
 
-    def add_package(self, package: FakePackage, subdirs: Iterable[str] = ()):
+    def add_package(self, package: FakePackage, subdirs: Iterable[str] = ()) -> None:
         subdirs = frozenset(subdirs)
         if not subdirs:
             subdirs = frozenset(["noarch"])
@@ -119,7 +120,7 @@ class FakeRepoData(BaseModel):
             logger.debug(filename)
         logger.debug("repo: %s", self.channel_url)
 
-    def __enter__(self):
+    def __enter__(self) -> None:
         """Ensure that if glibc etc is set by the overrides we force the conda solver override variables"""
         env_vars_to_clear = set()
         for package in self.packages_by_subdir:
@@ -131,7 +132,12 @@ class FakeRepoData(BaseModel):
             self.old_env_vars[e] = os.environ.get(e)
             os.environ[e] = ""
 
-    def __exit__(self, exc_type, exc_value, traceback):
+    def __exit__(
+        self,
+        exc_type: Optional[Type[BaseException]],
+        exc: Optional[BaseException],
+        traceback: Optional[TracebackType],
+    ) -> None:
         """Clear out old vars"""
         for k, v in self.old_env_vars.items():
             if v is None:
@@ -150,7 +156,7 @@ def _init_fake_repodata() -> FakeRepoData:
 
     if not runner_tmp:
         # no need to bother cleaning up on CI
-        def clean():
+        def clean() -> None:
             shutil.rmtree(tmp_dir, ignore_errors=True)
 
         atexit.register(clean)
@@ -228,7 +234,7 @@ class VirtualPackageSpecSubdir(BaseModel):
     packages: Dict[str, str]
 
     @validator("packages")
-    def validate_packages(cls, v: Dict[str, str]):
+    def validate_packages(cls, v: Dict[str, str]) -> Dict[str, str]:
         for package_name in v:
             if not package_name.startswith("__"):
                 raise ValueError(f"{package_name} is not a virtual package!")
