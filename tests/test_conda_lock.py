@@ -10,7 +10,7 @@ import tempfile
 import uuid
 
 from glob import glob
-from typing import Any
+from typing import Any, Dict
 from unittest.mock import MagicMock
 from urllib.parse import urldefrag, urlsplit
 
@@ -151,7 +151,7 @@ def include_dev_dependencies(request: Any) -> bool:
 
 
 def test_parse_environment_file(gdal_environment):
-    res = parse_environment_file(gdal_environment, "linux-64")
+    res = parse_environment_file(gdal_environment, pip_support=True)
     assert all(
         x in res.dependencies
         for x in [
@@ -320,7 +320,7 @@ def test_parse_poetry(poetry_pyproject_toml):
         poetry_pyproject_toml,
     )
 
-    specs = {dep.name: dep for dep in res.dependencies}
+    specs: Dict[str, VersionedDependency] = {dep.name: dep for dep in res.dependencies}
 
     assert specs["requests"].version == ">=2.13.0,<3.0.0"
     assert specs["toml"].version == ">=0.10"
@@ -516,7 +516,7 @@ def test_poetry_version_parsing_constraints(package, version, url_pattern, capsy
                 dependencies=[
                     VersionedDependency(
                         name=package,
-                        version=poetry_version_to_conda_version(version),
+                        version=poetry_version_to_conda_version(version) or "",
                         manager="conda",
                         optional=False,
                         category="main",
@@ -911,9 +911,9 @@ def test_virtual_package_input_hash_stability():
     from conda_lock.virtual_package import virtual_package_repo_from_specification
 
     test_dir = TEST_DIR.joinpath("test-cuda")
-    spec = test_dir / "virtual-packages-old-glibc.yaml"
+    vspec = test_dir / "virtual-packages-old-glibc.yaml"
 
-    vpr = virtual_package_repo_from_specification(spec)
+    vpr = virtual_package_repo_from_specification(vspec)
     spec = LockSpecification(
         dependencies=[],
         channels=[],

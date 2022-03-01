@@ -66,6 +66,9 @@ class CondaUrl(BaseModel):
     def from_string(cls, value: str) -> "CondaUrl":
         return env_var_normalize(value)
 
+    def env_replaced_url(self) -> str:
+        return expandvars(self.env_var_url)
+
 
 class Channel(BaseModel):
     url: str
@@ -136,7 +139,7 @@ def env_var_normalize(url: str) -> CondaUrl:
 
     def make_netloc(
         username: Optional[str], password: Optional[str], host: str, port: Optional[int]
-    ):
+    ) -> str:
         if port:
             host_info = f"{host}:{port:d}"
         else:
@@ -159,7 +162,7 @@ def env_var_normalize(url: str) -> CondaUrl:
     password_env_var: Optional[str] = None
     token_env_var: Optional[str] = None
 
-    def get_or_raise(val: Optional[str]):
+    def get_or_raise(val: Optional[str]) -> str:
         if val is None:
             raise ValueError("Expected to be non Null")
         return val
@@ -214,7 +217,7 @@ def env_var_normalize(url: str) -> CondaUrl:
     )
 
 
-def test_url_auth_info(monkeypatch):
+def test_url_auth_info(monkeypatch):  # type: ignore
     user = "user123"
     passwd = "pass123"
     token = "tokTOK123"

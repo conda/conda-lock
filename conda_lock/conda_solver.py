@@ -13,6 +13,7 @@ from typing import (
     Any,
     Dict,
     Iterable,
+    Iterator,
     List,
     MutableSequence,
     Optional,
@@ -85,7 +86,9 @@ class DryRunInstall(TypedDict):
     actions: InstallActions
 
 
-def _to_match_spec(conda_dep_name, conda_version, build):
+def _to_match_spec(
+    conda_dep_name: str, conda_version: Optional[str], build: Optional[str]
+) -> str:
     kwargs = dict(name=conda_dep_name)
     if conda_version:
         kwargs["version"] = conda_version
@@ -153,7 +156,7 @@ def solve_conda(
         )
     logging.debug("dry_run_install:\n%s", dry_run_install)
 
-    def normalize_url(url) -> str:
+    def normalize_url(url: str) -> str:
         for channel in channels:
             candidate1 = channel.conda_token_replaced_url()
             url = re.sub(rf"^{candidate1}(.*)", rf"{channel.url}\1", url)
@@ -318,7 +321,7 @@ def solve_specs_for_arch(
         encoding="utf8",
     )
 
-    def print_proc(proc):
+    def print_proc(proc: subprocess.CompletedProcess) -> None:
         print(f"    Command: {proc.args}", file=sys.stderr)
         if proc.stdout:
             print(f"    STDOUT:\n{proc.stdout}", file=sys.stderr)
@@ -492,7 +495,9 @@ def update_specs_for_arch(
 
 
 @contextmanager
-def fake_conda_environment(locked: Iterable[LockedDependency], platform: str):
+def fake_conda_environment(
+    locked: Iterable[LockedDependency], platform: str
+) -> Iterator[str]:
     """
     Create a fake conda prefix containing metadata corresponding to the provided dependencies
 

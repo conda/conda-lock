@@ -1,5 +1,6 @@
 import re
 import sys
+import typing
 
 from pathlib import Path
 from typing import Dict, List, Optional
@@ -21,6 +22,9 @@ from conda_lock import src_parser
 from conda_lock.lookup import conda_name_to_pypi_name
 
 
+if typing.TYPE_CHECKING:
+    from packaging.tags import Tag
+
 # NB: in principle these depend on the glibc in the conda env
 MANYLINUX_TAGS = ["1", "2010", "2014", "_2_17"]
 
@@ -30,7 +34,7 @@ class PlatformEnv(Env):
     Fake poetry Env to match PyPI distributions to the target conda environment
     """
 
-    def __init__(self, python_version, platform: str):
+    def __init__(self, python_version: str, platform: str):
         super().__init__(path=Path(sys.prefix))
         if platform.startswith("linux-"):
             arch = platform.split("-")[-1]
@@ -65,7 +69,7 @@ class PlatformEnv(Env):
         else:
             raise ValueError(f"Unsupported platform '{platform}'")
 
-    def get_supported_tags(self):
+    def get_supported_tags(self) -> List["Tag"]:
         """
         Mimic the output of packaging.tags.sys_tags() on the given platform
         """
@@ -77,7 +81,7 @@ class PlatformEnv(Env):
             )
         )
 
-    def get_marker_env(self):
+    def get_marker_env(self) -> Dict[str, str]:
         """Return the subset of info needed to match common markers"""
         return {
             "python_full_version": ".".join([str(c) for c in self._python_version]),

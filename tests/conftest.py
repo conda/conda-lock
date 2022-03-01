@@ -108,7 +108,7 @@ def quetz_server() -> Iterable[QuetzServerInfo]:
         container.stop()
 
 
-def test_quetz(quetz_server: QuetzServerInfo):
+def test_quetz(quetz_server: QuetzServerInfo) -> None:
     channel = requests.get(
         f"{quetz_server.url}/api/channels/proxy-channel",
         headers={"X-API-Key": quetz_server.api_key},
