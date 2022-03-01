@@ -91,6 +91,16 @@ def pip_environment_different_names_same_deps():
 
 
 @pytest.fixture
+def pip_environment_regression_gh155():
+    root = TEST_DIR.joinpath("test-pypi-resolve-gh155")
+    envfile = root.joinpath("environment.yml")
+    yield envfile
+    # for child in root.iterdir():
+    #     if child != envfile:
+    #         child.unlink()
+
+
+@pytest.fixture
 def pip_local_package_environment():
     return TEST_DIR.joinpath("test-local-pip").joinpath("environment.yml")
 
@@ -419,6 +429,16 @@ def test_run_lock_with_pip_environment_different_names_same_deps(
         if is_micromamba(conda_exe):
             monkeypatch.setenv("CONDA_FLAGS", "-v")
         run_lock([pip_environment_different_names_same_deps], conda_exe=conda_exe)
+
+
+def test_run_lock_regression_gh155(
+    monkeypatch, pip_environment_regression_gh155, conda_exe
+):
+    with filelock.FileLock(str(pip_environment_regression_gh155.parent / "filelock")):
+        monkeypatch.chdir(pip_environment_regression_gh155.parent)
+        if is_micromamba(conda_exe):
+            monkeypatch.setenv("CONDA_FLAGS", "-v")
+        run_lock([pip_environment_regression_gh155], conda_exe=conda_exe)
 
 
 def test_run_lock_with_local_package(
