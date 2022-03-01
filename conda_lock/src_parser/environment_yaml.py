@@ -101,7 +101,6 @@ def parse_environment_file(
                             normalize_name=False,
                         )
                     )
-                    breakpoint()
 
                 # ensure pip is in target env
                 dependencies.append(parse_python_requirement("pip", manager="conda"))
