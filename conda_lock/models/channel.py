@@ -37,7 +37,7 @@ import logging
 import os
 import re
 
-from os.path import expandvars
+from posixpath import expandvars
 from typing import FrozenSet, List, Optional, cast
 from urllib.parse import unquote, urlparse, urlunparse
 

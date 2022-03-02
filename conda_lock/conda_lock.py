@@ -6,6 +6,7 @@ import datetime
 import logging
 import os
 import pathlib
+import posixpath
 import re
 import subprocess
 import sys
@@ -525,7 +526,7 @@ def render_lockfile_for_platform(  # noqa: C901
     ) -> str:
         if direct:
             # inject the environment variables in here
-            return os.path.expandvars(f"{spec.url}#{spec.hash.md5}")
+            return posixpath.expandvars(f"{spec.url}#{spec.hash.md5}")
         else:
             path = pathlib.Path(urlsplit(spec.url).path)
             while path.suffix in {".tar", ".bz2", ".gz", ".conda"}:
