@@ -21,7 +21,7 @@ If you accidentally pass a channel url that contains a token like so
 --channel "http://host.com/t/$MY_REPO_TOKEN/channel"
 ```
 
-Then conda lock will detect the environment variabl used (provided that the environment variable used ends in a sensible suffix (KEY, TOKEN, PASS, etc)).
+Then conda lock will detect the environment variable used (preferring that the environment variables with a sensible suffix (KEY, TOKEN, PASS, etc)).
 
 The _name_ of the environment variable will form part of your lock and you will have to have that SAME environment variable set if you wish to run the install
 

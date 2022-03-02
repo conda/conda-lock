@@ -45,7 +45,6 @@ from pydantic import BaseModel
 
 
 logger = logging.getLogger(__name__)
-
 token_pattern = re.compile(r"(.*)(/t/\$?[a-zA-Z0-9-_]*)(/.*)")
 
 
@@ -65,6 +64,17 @@ class CondaUrl(BaseModel):
     @classmethod
     def from_string(cls, value: str) -> "CondaUrl":
         return env_var_normalize(value)
+
+    def conda_token_replaced_url(self) -> str:
+        """This is basically a crazy thing that conda does for the token replacement in the output"""
+        # TODO: pass in env vars maybe?
+        expanded_url = expandvars(self.env_var_url)
+        if token_pattern.match(expanded_url):
+            replaced, _ = token_pattern.subn(r"\1\3", expanded_url, 1)
+            p = urlparse(replaced)
+            replaced = urlunparse(p._replace(path="/t/<TOKEN>" + p.path))
+            return replaced
+        return expanded_url
 
 
 class Channel(BaseModel):
@@ -112,6 +122,11 @@ class Channel(BaseModel):
 def detect_used_env_var(
     value: str, preferred_env_var_suffix: List[str]
 ) -> Optional[str]:
+    """Detects if the strincg exactly matches any current environment variable
+
+    Preference is given to variables that end in the suffixes provided
+    """
+
     if value.startswith("$"):
         return value.lstrip("$")
     for suffix in preferred_env_var_suffix + [""]:
@@ -212,22 +227,3 @@ def env_var_normalize(url: str) -> CondaUrl:
         token=token,
         token_env_var=token_env_var,
     )
-
-
-def test_url_auth_info(monkeypatch):
-    user = "user123"
-    passwd = "pass123"
-    token = "tokTOK123"
-
-    monkeypatch.setenv("TOKEN", token)
-    monkeypatch.setenv("USER", user)
-    monkeypatch.setenv("PASSWORD", passwd)
-
-    # These two urls are equivalent since we can pull the env vars out.
-    x = env_var_normalize("http://$USER:$PASSWORD@host/prefix/t/$TOKEN/suffix")
-    y = env_var_normalize(f"http://{user}:{passwd}@host/prefix/t/{token}/suffix")
-
-    assert x.env_var_url == y.env_var_url
-
-    replaced = y.conda_token_replaced_url()
-    assert replaced == f"http://{user}:{passwd}@host/prefix/t/<TOKEN>/suffix"

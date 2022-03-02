@@ -129,7 +129,7 @@ def _parse_meta_yaml_file_for_platform(
         meta_yaml_data = yaml.safe_load(rendered)
 
     channels = get_in(["extra", "channels"], meta_yaml_data, [])
-    depenencies: List[Dependency] = []
+    dependencies: List[Dependency] = []
 
     def add_spec(spec: str, category: str):
         if spec is None:
@@ -143,7 +143,7 @@ def _parse_meta_yaml_file_for_platform(
             normalize_name=False,
         )
         dep.selectors.platform = [platform]
-        depenencies.append(dep)
+        dependencies.append(dep)
 
     def add_requirements_from_recipe_or_output(yaml_data):
         for s in get_in(["requirements", "host"], yaml_data, []):
@@ -158,7 +158,7 @@ def _parse_meta_yaml_file_for_platform(
         add_requirements_from_recipe_or_output(output)
 
     return LockSpecification(
-        dependencies=depenencies,
+        dependencies=dependencies,
         channels=channels,
         platforms=[platform],
         sources=[meta_yaml_file],
