@@ -29,7 +29,7 @@ The _name_ of the environment variable will form part of your lock and you will 
 # retrieve secrets from some store
 source $(./get-lockfile-env-vars-from-secret-store)
 # use the secrets as part of the conda-lock invocation
-conda-lock install -n my-env-with-a-secret condae-lock.yml
+conda-lock install -n my-env-with-a-secret conda-lock.yml
 ```
 
 ## Simple Auth
