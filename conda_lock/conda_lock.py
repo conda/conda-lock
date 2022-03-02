@@ -1207,7 +1207,9 @@ def install(
 
     """Perform a conda install"""
     logging.basicConfig(level=log_level)
-    _auth = yaml.safe_load(auth) if auth else read_json(auth_file) if auth_file else None
+    _auth = (
+        yaml.safe_load(auth) if auth else read_json(auth_file) if auth_file else None
+    )
     _conda_exe = determine_conda_executable(conda, mamba=mamba, micromamba=micromamba)
     install_func = partial(do_conda_install, conda=_conda_exe, prefix=prefix, name=name)
     if validate_platform and not lock_file.name.endswith(DEFAULT_LOCKFILE_NAME):
