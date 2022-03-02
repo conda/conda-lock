@@ -4,9 +4,9 @@
 
     This flag is only used for basic auth.
 
-By default `conda-lock` will leave basic auth credentials for private conda channels _in the manner in which they were specified_ (unless it can match some  existing environment variables).
+By default `conda-lock` will leave basic auth credentials for private conda channels _in the manner in which they were specified_.
 
-This means that if you specified your channel as
+This means that if you should specified your channel as
 
 !!! success "Non-leaky credentials"
 
