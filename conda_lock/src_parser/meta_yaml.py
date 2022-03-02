@@ -62,8 +62,8 @@ class UndefinedNeverFail(jinja2.Undefined):
     # few methods must always return the correct type
     __str__ = __repr__ = lambda self: self._return_value(str())  # type: ignore  # noqa: E731
     __unicode__ = lambda self: self._return_value("")  # noqa: E731
-    __int__ = lambda self: self._return_value(0)  # noqa: E731
-    __float__ = lambda self: self._return_value(0.0)  # noqa: E731
+    __int__ = lambda self: self._return_value(0)  # type: ignore  # noqa: E731
+    __float__ = lambda self: self._return_value(0.0)  # type: ignore  # noqa: E731
     __nonzero__ = lambda self: self._return_value(False)  # noqa: E731
 
     def _return_undefined(self, result_name):
@@ -129,7 +129,7 @@ def _parse_meta_yaml_file_for_platform(
         meta_yaml_data = yaml.safe_load(rendered)
 
     channels = get_in(["extra", "channels"], meta_yaml_data, [])
-    depenencies: List[Dependency] = []
+    dependencies: List[Dependency] = []
 
     def add_spec(spec: str, category: str):
         if spec is None:
@@ -143,7 +143,7 @@ def _parse_meta_yaml_file_for_platform(
             normalize_name=False,
         )
         dep.selectors.platform = [platform]
-        depenencies.append(dep)
+        dependencies.append(dep)
 
     def add_requirements_from_recipe_or_output(yaml_data):
         for s in get_in(["requirements", "host"], yaml_data, []):
@@ -158,7 +158,7 @@ def _parse_meta_yaml_file_for_platform(
         add_requirements_from_recipe_or_output(output)
 
     return LockSpecification(
-        dependencies=depenencies,
+        dependencies=dependencies,
         channels=channels,
         platforms=[platform],
         sources=[meta_yaml_file],

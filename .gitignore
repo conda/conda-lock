@@ -11,3 +11,4 @@ venv/
 test_install*.yml
 test_install*.lock
 site/
+filelock

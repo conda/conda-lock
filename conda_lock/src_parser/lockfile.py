@@ -1,10 +1,11 @@
+import json
 import pathlib
 
 from textwrap import dedent
 
 import yaml
 
-from . import LockedDependency, Lockfile
+from . import Lockfile
 
 
 def parse_conda_lock_file(
@@ -75,7 +76,7 @@ def write_conda_lock_file(
         yaml.dump(
             {
                 "version": Lockfile.version,
-                **content.dict(by_alias=True, exclude_unset=True),
+                **json.loads(content.json(by_alias=True, exclude_unset=True)),
             },
             f,
         )

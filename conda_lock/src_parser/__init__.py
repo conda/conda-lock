@@ -5,18 +5,22 @@ import pathlib
 from collections import defaultdict, namedtuple
 from dataclasses import dataclass
 from itertools import chain
-from typing import ClassVar, Dict, List, Literal, Optional, Sequence, Set, Tuple
+from typing import ClassVar, Dict, List, Literal, Optional, Sequence, Set, Tuple, Union
 
 from pydantic import BaseModel, Field, validator
 
 from conda_lock.common import ordered_union
 from conda_lock.lookup import conda_name_to_pypi_name, pypi_name_to_conda_name
+from conda_lock.models.channel import Channel
 from conda_lock.virtual_package import FakeRepoData
 
 
 class StrictModel(BaseModel):
     class Config:
         extra = "forbid"
+        json_encoders = {
+            frozenset: list,
+        }
 
 
 class Selectors(StrictModel):
@@ -99,7 +103,7 @@ class LockMeta(StrictModel):
     content_hash: Dict[str, str] = Field(
         ..., description="Hash of dependencies for each target platform"
     )
-    channels: List[str] = Field(
+    channels: List[Channel] = Field(
         ..., description="Channels used to resolve dependencies"
     )
     platforms: List[str] = Field(..., description="Target platforms")
@@ -121,6 +125,16 @@ class LockMeta(StrictModel):
             platforms=sorted(set(self.platforms).union(other.platforms)),
             sources=ordered_union([self.sources, other.sources]),
         )
+
+    @validator("channels", pre=True, always=True)
+    def ensure_channels(cls, v):
+        res = []
+        for e in v:
+            if isinstance(e, str):
+                res.append(Channel.from_string(e))
+            else:
+                res.append(e)
+        return res
 
 
 class Lockfile(StrictModel):
@@ -197,10 +211,10 @@ class Lockfile(StrictModel):
         return Lockfile(package=final_package, metadata=other.metadata | self.metadata)
 
 
-@dataclass
-class LockSpecification:
+class LockSpecification(BaseModel):
     dependencies: List[Dependency]
-    channels: List[str]
+    # TODO: Should we store the auth info in here?
+    channels: List[Channel]
     platforms: List[str]
     sources: List[pathlib.Path]
     virtual_package_repo: Optional[FakeRepoData] = None
@@ -213,7 +227,7 @@ class LockSpecification:
 
     def content_hash_for_platform(self, platform: str) -> str:
         data: dict = {
-            "channels": self.channels,
+            "channels": [c.json() for c in self.channels],
             "specs": [
                 p.dict()
                 for p in sorted(self.dependencies, key=lambda p: (p.manager, p.name))
@@ -229,6 +243,13 @@ class LockSpecification:
 
         env_spec = json.dumps(data, sort_keys=True)
         return hashlib.sha256(env_spec.encode("utf-8")).hexdigest()
+
+    @validator("channels", pre=True)
+    def validate_channels(cls, v: List[Union[Channel, str]], values, **kwargs):
+        for i, e in enumerate(v):
+            if isinstance(e, str):
+                v[i] = Channel.from_string(e)
+        return v
 
 
 def _apply_categories(
@@ -312,7 +333,7 @@ def aggregate_lock_specs(
     dependencies = list(unique_deps.values())
 
     return LockSpecification(
-        dependencies,
+        dependencies=dependencies,
         # uniquify metadata, preserving order
         channels=ordered_union(lock_spec.channels or [] for lock_spec in lock_specs),
         platforms=ordered_union(lock_spec.platforms or [] for lock_spec in lock_specs),

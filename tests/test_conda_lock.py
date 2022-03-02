@@ -7,6 +7,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import uuid
 
 from glob import glob
 from typing import Any
@@ -15,6 +16,7 @@ from urllib.parse import urldefrag, urlsplit
 
 import filelock
 import pytest
+import yaml
 
 from flaky import flaky
 
@@ -37,8 +39,9 @@ from conda_lock.conda_lock import (
     run_lock,
 )
 from conda_lock.conda_solver import fake_conda_environment
-from conda_lock.errors import PlatformValidationError
+from conda_lock.errors import MissingEnvVarError, PlatformValidationError
 from conda_lock.invoke_conda import _ensureconda, is_micromamba, reset_conda_pkgs_dir
+from conda_lock.models.channel import Channel
 from conda_lock.pypi_solver import parse_pip_requirement, solve_pypi
 from conda_lock.src_parser import (
     HashModel,
@@ -160,11 +163,13 @@ def test_parse_environment_file(gdal_environment):
         )
         in res.dependencies
     )
-    assert all(x in res.channels for x in ["conda-forge", "defaults"])
+    assert all(
+        Channel.from_string(x) in res.channels for x in ["conda-forge", "defaults"]
+    )
 
 
 def test_parse_environment_file_with_pip(pip_environment):
-    res = parse_environment_file(pip_environment, "linux-64")
+    res = parse_environment_file(pip_environment, True)
     assert [dep for dep in res.dependencies if dep.manager == "pip"] == [
         VersionedDependency(
             name="requests-toolbelt",
@@ -318,7 +323,7 @@ def test_parse_poetry(poetry_pyproject_toml):
     assert specs["tomlkit"].optional is True
     assert specs["tomlkit"].category == "tomlkit"
 
-    assert res.channels == ["defaults"]
+    assert res.channels == [Channel.from_string("defaults")]
 
 
 def test_parse_flit(flit_pyproject_toml):
@@ -336,7 +341,7 @@ def test_parse_flit(flit_pyproject_toml):
     assert specs["pytest"].optional is True
     assert specs["pytest"].category == "dev"
 
-    assert res.channels == ["defaults"]
+    assert res.channels == [Channel.from_string("defaults")]
 
 
 def test_run_lock(monkeypatch, zlib_environment, conda_exe):
@@ -353,13 +358,16 @@ def test_run_lock_blas_mkl(monkeypatch, blas_mkl_environment, conda_exe):
 
 @pytest.fixture
 def update_environment():
-    env = TEST_DIR.joinpath("test-update").joinpath("environment-postupdate.yml")
-    lock = env.parent / DEFAULT_LOCKFILE_NAME
-    shutil.copy(lock, lock.with_suffix(".bak"))
-    yield env
-    shutil.copy(lock.with_suffix(".bak"), lock)
+    base_dir = TEST_DIR.joinpath("test-update")
+    with filelock.FileLock(str(base_dir / "filelock")):
+        env = base_dir.joinpath("environment-postupdate.yml")
+        lock = env.parent / DEFAULT_LOCKFILE_NAME
+        shutil.copy(lock, lock.with_suffix(".bak"))
+        yield env
+        shutil.copy(lock.with_suffix(".bak"), lock)
 
 
+@pytest.mark.timeout(90)
 def test_run_lock_with_update(monkeypatch, update_environment, conda_exe):
     monkeypatch.chdir(update_environment.parent)
     if is_micromamba(conda_exe):
@@ -381,7 +389,6 @@ def test_run_lock_with_update(monkeypatch, update_environment, conda_exe):
     assert post_lock["python"].version == pre_lock["python"].version
 
 
-@flaky
 def test_run_lock_with_locked_environment_files(
     monkeypatch, update_environment, conda_exe
 ):
@@ -829,7 +836,7 @@ def test_virtual_packages(conda_exe, monkeypatch, kind, capsys):
 
     platform = "linux-64"
 
-    from click.testing import CliRunner, Result
+    from click.testing import CliRunner
 
     for lockfile in glob(f"conda-{platform}.*"):
         os.unlink(lockfile)
@@ -973,16 +980,85 @@ def test_fake_conda_env(conda_exe, conda_lock_yaml):
             path = pathlib.PurePosixPath(
                 urlsplit(urldefrag(locked_package.url)[0]).path
             )
+            expected_channel = "conda-forge"
+            expected_base_url = "https://conda.anaconda.org/conda-forge"
             if is_micromamba(conda_exe):
-                assert (
-                    env_package["base_url"]
-                    == f"https://conda.anaconda.org/conda-forge/{platform}"
-                )
-                assert env_package["channel"] == f"conda-forge/{platform}"
+                assert env_package["base_url"] in {
+                    f"{expected_base_url}/{platform}",
+                    expected_base_url,
+                }
+                assert env_package["channel"] in {
+                    f"{expected_channel}/{platform}",
+                    expected_channel,
+                }
             else:
-                assert (
-                    env_package["base_url"] == "https://conda.anaconda.org/conda-forge"
-                )
-                assert env_package["channel"] == "conda-forge"
+                assert env_package["base_url"] == expected_base_url
+                assert env_package["channel"] == expected_channel
             assert env_package["dist_name"] == f"{path.name[:-8]}"
             assert platform == path.parent.name
+
+
+def test_private_lock(quetz_server, tmp_path, monkeypatch, capsys, conda_exe):
+    if is_micromamba(conda_exe):
+        res = subprocess.run(
+            [conda_exe, "--version"], stdout=subprocess.PIPE, encoding="utf8"
+        )
+        logging.info("using micromamba version %s", res.stdout)
+        pytest.xfail("micromamba doesn't support our quetz server urls properly")
+    from ensureconda.resolve import platform_subdir
+
+    monkeypatch.setenv("QUETZ_API_KEY", quetz_server.api_key)
+    monkeypatch.chdir(tmp_path)
+
+    content = yaml.safe_dump(
+        {
+            "channels": [f"{quetz_server.url}/t/$QUETZ_API_KEY/get/proxy-channel"],
+            "platforms": [platform_subdir()],
+            "dependencies": ["zlib"],
+        }
+    )
+    (tmp_path / "environment.yml").write_text(content)
+
+    with capsys.disabled():
+        from click.testing import CliRunner, Result
+
+        runner = CliRunner(mix_stderr=False)
+        result: Result = runner.invoke(
+            main,
+            [
+                "lock",
+                "--conda",
+                conda_exe,
+            ],
+            catch_exceptions=False,
+        )
+        assert result.exit_code == 0
+
+    def run_install():
+        with capsys.disabled():
+            runner = CliRunner(mix_stderr=False)
+            env_name = uuid.uuid4().hex
+            env_prefix = tmp_path / env_name
+
+            result: Result = runner.invoke(
+                main,
+                [
+                    "install",
+                    "--conda",
+                    conda_exe,
+                    "--prefix",
+                    str(env_prefix),
+                    str(tmp_path / "conda-lock.yml"),
+                ],
+                catch_exceptions=False,
+            )
+
+        print(result.stdout, file=sys.stdout)
+        print(result.stderr, file=sys.stderr)
+        assert result.exit_code == 0
+
+    run_install()
+
+    monkeypatch.delenv("QUETZ_API_KEY")
+    with pytest.raises(MissingEnvVarError):
+        run_install()

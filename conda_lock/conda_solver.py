@@ -2,6 +2,7 @@ import json
 import logging
 import os
 import pathlib
+import re
 import shlex
 import subprocess
 import sys
@@ -28,6 +29,7 @@ from conda_lock.invoke_conda import (
     conda_pkgs_dir,
     is_micromamba,
 )
+from conda_lock.models.channel import Channel
 from conda_lock.src_parser import (
     Dependency,
     HashModel,
@@ -36,6 +38,9 @@ from conda_lock.src_parser import (
     _apply_categories,
 )
 from conda_lock.vendor.conda.models.match_spec import MatchSpec
+
+
+logger = logging.getLogger(__name__)
 
 
 class FetchAction(TypedDict):
@@ -86,9 +91,12 @@ def _to_match_spec(conda_dep_name, conda_version, build):
         kwargs["version"] = conda_version
     if build:
         kwargs["build"] = build
+        if "version" not in kwargs:
+            kwargs["version"] = "*"
 
     ms = MatchSpec(**kwargs)
-    return str(ms)
+    # Since MatchSpec doesn't round trip to the cli well
+    return ms.conda_build_form()
 
 
 def solve_conda(
@@ -97,7 +105,7 @@ def solve_conda(
     locked: Dict[str, LockedDependency],
     update: List[str],
     platform: str,
-    channels: List[str],
+    channels: List[Channel],
 ) -> Dict[str, LockedDependency]:
     """
     Solve (or update a previous solution of) conda specs for the given platform
@@ -145,6 +153,14 @@ def solve_conda(
         )
     logging.debug("dry_run_install:\n%s", dry_run_install)
 
+    def normalize_url(url) -> str:
+        for channel in channels:
+            candidate1 = channel.conda_token_replaced_url()
+            url = re.sub(rf"^{candidate1}(.*)", rf"{channel.url}\1", url)
+            candidate2 = channel.env_replaced_url()
+            url = re.sub(rf"^{candidate2}(.*)", rf"{channel.url}\1", url)
+        return url
+
     # extract dependencies from package plan
     planned = {
         action["name"]: LockedDependency(
@@ -156,7 +172,8 @@ def solve_conda(
                 item.split()[0]: " ".join(item.split(" ")[1:])
                 for item in action.get("depends") or []
             },
-            url=action["url"],
+            # TODO: Normalize URL here and inject env vars
+            url=normalize_url(action["url"]),
             # NB: virtual packages may have no hash
             hash=HashModel(
                 md5=action["md5"] if "md5" in action else "",
@@ -251,7 +268,7 @@ def _reconstruct_fetch_actions(
 
 def solve_specs_for_arch(
     conda: PathLike,
-    channels: Sequence[str],
+    channels: Sequence[Channel],
     specs: List[str],
     platform: str,
 ) -> DryRunInstall:
@@ -285,13 +302,14 @@ def solve_specs_for_arch(
         args.append("--override-channels")
 
     for channel in channels:
-        args.extend(["--channel", channel])
+        args.extend(["--channel", channel.env_replaced_url()])
         if channel == "defaults" and platform in {"win-64", "win-32"}:
             # msys2 is a windows-only channel that conda automatically
             # injects if the host platform is Windows. If our host
             # platform is not Windows, we need to add it manually
             args.extend(["--channel", "msys2"])
     args.extend(specs)
+    logger.info("using spcs %s", specs)
     proc = subprocess.run(
         args,
         env=conda_env_override(platform),
@@ -343,7 +361,7 @@ def update_specs_for_arch(
     locked: Dict[str, LockedDependency],
     update: List[str],
     platform: str,
-    channels: Sequence[str],
+    channels: Sequence[Channel],
 ) -> DryRunInstall:
     """
     Update a previous solution for the given platform
@@ -375,7 +393,7 @@ def update_specs_for_arch(
                 )
             )
         }
-        spec_for_name = {v.split("[")[0]: v for v in specs}
+        spec_for_name = {MatchSpec(v).name: v for v in specs}
         to_update = [
             spec_for_name[name] for name in set(installed).intersection(update)
         ]

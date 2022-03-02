@@ -15,6 +15,7 @@ pytest
 pytest-cov
 pytest-flake8
 pytest-xdist
+pytest-timeout
 setuptools_scm
 toml
 twine
@@ -22,4 +23,6 @@ wheel
 mkdocs
 mkdocs-material
 mkdocs-click
+mkdocs-include-markdown-plugin
 flaky
+docker
