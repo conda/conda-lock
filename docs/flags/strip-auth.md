@@ -17,7 +17,7 @@ This means that if you should specified your channel as
 
     !!! note ""
 
-        The environment variables `CHANNEL_USER` and `CHANNEL_PASSWORD` are required at install time.
+        The environment variables `CHANNEL_USER` and `CHANNEL_PASSWORD` will be required at install time.
 
 !!! fail "Leaky credentials"
 
