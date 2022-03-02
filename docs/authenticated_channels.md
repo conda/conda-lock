@@ -15,7 +15,6 @@ These should be specified making of the **environment variable form**
         ```yaml
         channels:
             - http://host.com/t/$MY_REPO_TOKEN/channel
-
         ```
 
     === "meta.yaml"

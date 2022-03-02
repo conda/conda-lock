@@ -3,7 +3,6 @@ Somewhat hacky solution to create conda lock files.
 """
 
 import datetime
-import json
 import logging
 import os
 import pathlib
@@ -19,6 +18,7 @@ from urllib.parse import urlsplit
 
 import click
 import pkg_resources
+import yaml
 
 from ensureconda import ensureconda
 
@@ -1201,7 +1201,7 @@ def install(
 
     """Perform a conda install"""
     logging.basicConfig(level=log_level)
-    auth = json.loads(auth) if auth else read_json(auth_file) if auth_file else None
+    auth = yaml.safe_load(auth) if auth else read_json(auth_file) if auth_file else None
     _conda_exe = determine_conda_executable(conda, mamba=mamba, micromamba=micromamba)
     install_func = partial(do_conda_install, conda=_conda_exe, prefix=prefix, name=name)
     if validate_platform and not lock_file.name.endswith(DEFAULT_LOCKFILE_NAME):

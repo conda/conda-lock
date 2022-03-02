@@ -4,8 +4,29 @@
 
     This flag is only used for basic auth.
 
-By default `conda-lock` will leave basic auth credentials for private conda channels in the lock file (unless you make use of environment variables for your passwords).
-If you wish to strip authentication from the file, provide the `--strip-auth` argument.
+By default `conda-lock` will leave basic auth credentials for private conda channels _in the manner in which they were specified_ (unless it can match some  existing environment variables).
+
+This means that if you specified your channel as
+
+!!! success "Non-leaky credentials"
+
+    ```{.yaml title="environment.yml"}
+    channels:
+        - http://$CHANNEL_USER:$CHANNEL_PASSWORD@host.com/channel
+    ```
+
+    !!! note ""
+
+        The environment variables `CHANNEL_USER` and `CHANNEL_PASSWORD` are required at install time.
+
+!!! fail "Leaky credentials"
+
+    ```{.yaml title="environment.yml"}
+    channels:
+        - http://username:password123@host.com/channel
+    ```
+
+When used with explicit/env render targets you may wish to strip the basic auth from these files (regardless of if it is correctly or incorrectly specified).
 
 ```bash
 conda-lock --strip-auth --file environment.yml
@@ -28,7 +49,13 @@ If you have multiple channels that require different authentication within the s
 }
 ```
 
-You can provide the authentication either as string through `--auth` or as a filepath through `--auth-file`.
+You can provide the authentication either as a yaml/json string through `--auth`
+
+```bash
+conda-lock install --auth "{domain: 'username:$PASSWORD'}" conda-linux-64.lock
+```
+
+or as a filepath through  `--auth-file`.
 
 ```bash
 conda-lock install --auth-file auth.json conda-linux-64.lock
