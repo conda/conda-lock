@@ -8,19 +8,19 @@
       
       
       
-      <link rel="icon" href="../assets/images/favicon.png">
+      <link rel="icon" href="../../assets/images/favicon.png">
       <meta name="generator" content="mkdocs-1.2.3, mkdocs-material-8.2.4">
     
     
       
-        <title>meta.yaml - conda-lock</title>
+        <title>--strip-auth, --auth and --auth-file - conda-lock</title>
       
     
     
-      <link rel="stylesheet" href="../assets/stylesheets/main.2d9f7617.min.css">
+      <link rel="stylesheet" href="../../assets/stylesheets/main.2d9f7617.min.css">
       
         
-        <link rel="stylesheet" href="../assets/stylesheets/palette.e6a45f82.min.css">
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.e6a45f82.min.css">
         
       
     
@@ -35,7 +35,7 @@
       
     
     
-    <script>__md_scope=new URL("..",location),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    <script>__md_scope=new URL("../..",location),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
     
       
 
@@ -59,7 +59,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#metayaml" class="md-skip">
+        <a href="#-strip-auth-auth-and-auth-file" class="md-skip">
           Skip to content
         </a>
       
@@ -73,7 +73,7 @@
 
 <header class="md-header" data-md-component="header">
   <nav class="md-header__inner md-grid" aria-label="Header">
-    <a href=".." title="conda-lock" class="md-header__button md-logo" aria-label="conda-lock" data-md-component="logo">
+    <a href="../.." title="conda-lock" class="md-header__button md-logo" aria-label="conda-lock" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54z"/></svg>
@@ -92,7 +92,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              meta.yaml
+              --strip-auth, --auth and --auth-file
             
           </span>
         </div>
@@ -138,7 +138,7 @@
 
 <nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
   <label class="md-nav__title" for="__drawer">
-    <a href=".." title="conda-lock" class="md-nav__button md-logo" aria-label="conda-lock" data-md-component="logo">
+    <a href="../.." title="conda-lock" class="md-nav__button md-logo" aria-label="conda-lock" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54z"/></svg>
@@ -169,7 +169,7 @@
   
   
     <li class="md-nav__item">
-      <a href=".." class="md-nav__link">
+      <a href="../.." class="md-nav__link">
         Home
       </a>
     </li>
@@ -184,7 +184,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../getting_started/" class="md-nav__link">
+      <a href="../../getting_started/" class="md-nav__link">
         Installation
       </a>
     </li>
@@ -197,14 +197,12 @@
 
   
   
-    
-  
   
     
-    <li class="md-nav__item md-nav__item--active md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--nested">
       
       
-        <input class="md-nav__toggle md-toggle" data-md-toggle="__nav_3" type="checkbox" id="__nav_3" checked>
+        <input class="md-nav__toggle md-toggle" data-md-toggle="__nav_3" data-md-state="indeterminate" type="checkbox" id="__nav_3" checked>
       
       
       
@@ -235,7 +233,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../src_environment_yml/" class="md-nav__link">
+      <a href="../../src_environment_yml/" class="md-nav__link">
         environment.yml
       </a>
     </li>
@@ -247,72 +245,11 @@
               
   
   
-    
   
-  
-    <li class="md-nav__item md-nav__item--active">
-      
-      <input class="md-nav__toggle md-toggle" data-md-toggle="toc" type="checkbox" id="__toc">
-      
-      
-        
-      
-      
-        <label class="md-nav__link md-nav__link--active" for="__toc">
-          meta.yaml
-          <span class="md-nav__icon md-icon"></span>
-        </label>
-      
-      <a href="./" class="md-nav__link md-nav__link--active">
+    <li class="md-nav__item">
+      <a href="../../src_meta_yaml/" class="md-nav__link">
         meta.yaml
       </a>
-      
-        
-
-<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
-  
-  
-  
-    
-  
-  
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      Table of contents
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#categories" class="md-nav__link">
-    Categories
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#extensions" class="md-nav__link">
-    Extensions
-  </a>
-  
-    <nav class="md-nav" aria-label="Extensions">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#channel-specification" class="md-nav__link">
-    Channel specification
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-    </ul>
-  
-</nav>
-      
     </li>
   
 
@@ -324,7 +261,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../src_pyproject/" class="md-nav__link">
+      <a href="../../src_pyproject/" class="md-nav__link">
         pyproject.toml
       </a>
     </li>
@@ -346,7 +283,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../output/" class="md-nav__link">
+      <a href="../../output/" class="md-nav__link">
         Output Formats
       </a>
     </li>
@@ -361,7 +298,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../pip/" class="md-nav__link">
+      <a href="../../pip/" class="md-nav__link">
         Pip integration
       </a>
     </li>
@@ -376,7 +313,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../flags/" class="md-nav__link">
+      <a href="../" class="md-nav__link">
         Flags
       </a>
     </li>
@@ -391,7 +328,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../authenticated_channels/" class="md-nav__link">
+      <a href="../../authenticated_channels/" class="md-nav__link">
         Authenticated Channels
       </a>
     </li>
@@ -438,7 +375,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../docker/" class="md-nav__link">
+      <a href="../../docker/" class="md-nav__link">
         Docker
       </a>
     </li>
@@ -452,7 +389,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../cli/gen/" class="md-nav__link">
+      <a href="../../cli/gen/" class="md-nav__link">
         CLI Reference
       </a>
     </li>
@@ -486,41 +423,6 @@
     
   
   
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      Table of contents
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#categories" class="md-nav__link">
-    Categories
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#extensions" class="md-nav__link">
-    Extensions
-  </a>
-  
-    <nav class="md-nav" aria-label="Extensions">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#channel-specification" class="md-nav__link">
-    Channel specification
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-    </ul>
-  
 </nav>
                   </div>
                 </div>
@@ -531,67 +433,53 @@
             <article class="md-content__inner md-typeset">
               
                 
-<a href="https://github.com/conda-incubator/conda-lock/edit/master/docs/src_meta_yaml.md" title="Edit this page" class="md-content__button md-icon">
+<a href="https://github.com/conda-incubator/conda-lock/edit/master/docs/flags/strip-auth.md" title="Edit this page" class="md-content__button md-icon">
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20.71 7.04c.39-.39.39-1.04 0-1.41l-2.34-2.34c-.37-.39-1.02-.39-1.41 0l-1.84 1.83 3.75 3.75M3 17.25V21h3.75L17.81 9.93l-3.75-3.75L3 17.25z"/></svg>
 </a>
 
 
 
-<h1 id="metayaml">meta.yaml</h1>
-<p><a href="https://docs.conda.io/projects/condabuild">Conda build</a> defines package recipes using the <a href="https://docs.conda.io/projects/conda-build/en/latest/resources/define-metadata.html">meta.yaml</a> format.</p>
-<p>Conda-lock will attempt to make an educated guess at the desired environment spec in a meta.yaml.</p>
-<p>This is <strong>not</strong> guaranteed to work for complex recipes with many selectors and outputs or complex use of jinja templates.</p>
-<p>For multi-output recipes, conda-lock will fuse all the dependencies together.  If that doesn't work for your case fall back to specifying the specification as an <a href="/src_environment_yml">environment.yml</a></p>
-<div class="highlight"><span class="filename">meta.yaml</span><pre><span></span><code><span class="p p-Indicator">{</span><span class="err">%</span><span class="w"> </span><span class="nv">set version = &quot;1.0.5&quot; %</span><span class="p p-Indicator">}</span><span class="w"></span>
-
-<span class="nt">package</span><span class="p">:</span><span class="w"></span>
-<span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">foo</span><span class="w"></span>
-<span class="w">  </span><span class="nt">version</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{{</span><span class="w"> </span><span class="nv">version</span><span class="w"> </span><span class="p p-Indicator">}}</span><span class="w"></span>
-
-<span class="nt">build</span><span class="p">:</span><span class="w"></span>
-<span class="w">  </span><span class="nt">number</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0</span><span class="w"></span>
-<span class="w">  </span><span class="nt">script</span><span class="p">:</span><span class="w"></span>
-<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">export PYTHONUNBUFFERED=1</span><span class="w">  </span><span class="c1"># [ppc64le]</span><span class="w"></span>
-<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">{{</span><span class="w"> </span><span class="nv">PYTHON</span><span class="w"> </span><span class="p p-Indicator">}}</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">-m pip install --no-deps --ignore-installed .</span><span class="w"></span>
-<span class="w">  </span><span class="nt">skip</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">True</span><span class="w">  </span><span class="c1"># [py2k]</span><span class="w"></span>
-
-<span class="nt">requirements</span><span class="p">:</span><span class="w"></span>
-<span class="w">  </span><span class="nt">build</span><span class="p">:</span><span class="w"></span>
-<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">{{</span><span class="w"> </span><span class="nv">compiler(&#39;c&#39;)</span><span class="w"> </span><span class="p p-Indicator">}}</span><span class="w"></span>
-<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">{{</span><span class="w"> </span><span class="nv">compiler(&#39;cxx&#39;)</span><span class="w"> </span><span class="p p-Indicator">}}</span><span class="w"></span>
-<span class="w">  </span><span class="nt">host</span><span class="p">:</span><span class="w"></span>
-<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">python</span><span class="w"></span>
-<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">pip</span><span class="w"></span>
-<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">cython &gt;=0.28.2</span><span class="w"></span>
-<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">numpy</span><span class="w"></span>
-<span class="w">  </span><span class="nt">run</span><span class="p">:</span><span class="w"></span>
-<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">python</span><span class="w"></span>
-<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">{{</span><span class="w"> </span><span class="nv">pin_compatible(&#39;numpy&#39;)</span><span class="w"> </span><span class="p p-Indicator">}}</span><span class="w"></span>
-<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">python-dateutil &gt;=2.6.1</span><span class="w"></span>
-<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">pytz &gt;=2017.2</span><span class="w"></span>
-<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">zlib</span><span class="w">     </span><span class="c1"># [unix]</span><span class="w"></span>
-
-<span class="nt">test</span><span class="p">:</span><span class="w"></span>
-<span class="w">  </span><span class="nt">requires</span><span class="p">:</span><span class="w"></span>
-<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">pytest</span><span class="w"></span>
+<h1 id="-strip-auth-auth-and-auth-file">--strip-auth, --auth and --auth-file</h1>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>This flag is only used for basic auth.</p>
+</div>
+<p>By default <code>conda-lock</code> will leave basic auth credentials for private conda channels <em>in the manner in which they were specified</em>.</p>
+<p>This means that if you should specified your channel as</p>
+<div class="admonition success">
+<p class="admonition-title">Non-leaky credentials</p>
+<div class="highlight"><span class="filename">environment.yml</span><pre><span></span><code><span class="nt">channels</span><span class="p">:</span><span class="w"></span>
+<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">http://$CHANNEL_USER:$CHANNEL_PASSWORD@host.com/channel</span><span class="w"></span>
 </code></pre></div>
-<h2 id="categories">Categories</h2>
-<ul>
-<li><code>build</code> requirements are ignored</li>
-<li><code>host</code> and <code>run</code> dependencies are treated as <strong>main</strong></li>
-<li><code>test.requires</code> dependencies are treated as <strong>dev</strong></li>
-</ul>
-<p>By default conda-lock will include dev dependencies in the specification of the lock (if the files that the lock
-is being built from support them).  This can be disabled easily</p>
-<div class="highlight"><pre><span></span><code>conda-lock --no-dev-dependencies --file meta.yaml
+<div class="admonition note">
+<p>The environment variables <code>CHANNEL_USER</code> and <code>CHANNEL_PASSWORD</code> will be required at install time.</p>
+</div>
+</div>
+<div class="admonition fail">
+<p class="admonition-title">Leaky credentials</p>
+<div class="highlight"><span class="filename">environment.yml</span><pre><span></span><code><span class="nt">channels</span><span class="p">:</span><span class="w"></span>
+<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">http://username:password123@host.com/channel</span><span class="w"></span>
 </code></pre></div>
-<h2 id="extensions">Extensions</h2>
-<h3 id="channel-specification">Channel specification</h3>
-<p>Since a meta.yaml doesn't contain channel information we make use of the following <code>extra</code> key to specify channels</p>
-<div class="highlight"><pre><span></span><code><span class="nt">extra</span><span class="p">:</span><span class="w"></span>
-<span class="w">  </span><span class="nt">channels</span><span class="p">:</span><span class="w"></span>
-<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">conda-forge</span><span class="w"></span>
-<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">defaults</span><span class="w"></span>
+</div>
+<p>When used with explicit/env render targets you may wish to strip the basic auth from these files (regardless of if it is correctly or incorrectly specified).</p>
+<div class="highlight"><pre><span></span><code>conda-lock --strip-auth --file environment.yml
+</code></pre></div>
+<p>In order to <code>conda-lock install</code> a lock file with its basic auth credentials stripped, you will need to create an authentication file in <code>.json</code> format like this:</p>
+<div class="highlight"><pre><span></span><code><span class="p">{</span><span class="w"></span>
+<span class="w">  </span><span class="nt">&quot;domain&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;username:password&quot;</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+</code></pre></div>
+<p>If you have multiple channels that require different authentication within the same domain, you can additionally specify the channel like this:</p>
+<div class="highlight"><pre><span></span><code><span class="p">{</span><span class="w"></span>
+<span class="w">  </span><span class="nt">&quot;domain.org/channel1&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;username1:password1&quot;</span><span class="p">,</span><span class="w"></span>
+<span class="w">  </span><span class="nt">&quot;domain.org/channel2&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;username2:password2&quot;</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+</code></pre></div>
+<p>You can provide the authentication either as a yaml/json string through <code>--auth</code></p>
+<div class="highlight"><pre><span></span><code>conda-lock install --auth <span class="s2">&quot;{domain: &#39;username:</span><span class="nv">$PASSWORD</span><span class="s2">&#39;}&quot;</span> conda-linux-64.lock
+</code></pre></div>
+<p>or as a filepath through  <code>--auth-file</code>.</p>
+<div class="highlight"><pre><span></span><code>conda-lock install --auth-file auth.json conda-linux-64.lock
 </code></pre></div>
 
               
@@ -602,41 +490,6 @@ is being built from support them).  This can be disabled easily</p>
       </main>
       
         <footer class="md-footer">
-  
-    <nav class="md-footer__inner md-grid" aria-label="Footer">
-      
-        
-        <a href="../src_environment_yml/" class="md-footer__link md-footer__link--prev" aria-label="Previous: environment.yml" rel="prev">
-          <div class="md-footer__button md-icon">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11h12z"/></svg>
-          </div>
-          <div class="md-footer__title">
-            <div class="md-ellipsis">
-              <span class="md-footer__direction">
-                Previous
-              </span>
-              environment.yml
-            </div>
-          </div>
-        </a>
-      
-      
-        
-        <a href="../src_pyproject/" class="md-footer__link md-footer__link--next" aria-label="Next: pyproject.toml" rel="next">
-          <div class="md-footer__title">
-            <div class="md-ellipsis">
-              <span class="md-footer__direction">
-                Next
-              </span>
-              pyproject.toml
-            </div>
-          </div>
-          <div class="md-footer__button md-icon">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M4 11v2h12l-5.5 5.5 1.42 1.42L19.84 12l-7.92-7.92L10.5 5.5 16 11H4z"/></svg>
-          </div>
-        </a>
-      
-    </nav>
   
   <div class="md-footer-meta md-typeset">
     <div class="md-footer-meta__inner md-grid">
@@ -671,10 +524,10 @@ is being built from support them).  This can be disabled easily</p>
     <div class="md-dialog" data-md-component="dialog">
       <div class="md-dialog__inner md-typeset"></div>
     </div>
-    <script id="__config" type="application/json">{"base": "..", "features": ["content.tabs.link", "header.autohide", "navigation.indexes", "navigation.instant", "navigation.expand"], "translations": {"clipboard.copy": "Copy to clipboard", "clipboard.copied": "Copied to clipboard", "search.config.lang": "en", "search.config.pipeline": "trimmer, stopWordFilter", "search.config.separator": "[\\s\\-]+", "search.placeholder": "Search", "search.result.placeholder": "Type to start searching", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.term.missing": "Missing", "select.version.title": "Select version"}, "search": "../assets/javascripts/workers/search.bd0b6b67.min.js"}</script>
+    <script id="__config" type="application/json">{"base": "../..", "features": ["content.tabs.link", "header.autohide", "navigation.indexes", "navigation.instant", "navigation.expand"], "translations": {"clipboard.copy": "Copy to clipboard", "clipboard.copied": "Copied to clipboard", "search.config.lang": "en", "search.config.pipeline": "trimmer, stopWordFilter", "search.config.separator": "[\\s\\-]+", "search.placeholder": "Search", "search.result.placeholder": "Type to start searching", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.term.missing": "Missing", "select.version.title": "Select version"}, "search": "../../assets/javascripts/workers/search.bd0b6b67.min.js"}</script>
     
     
-      <script src="../assets/javascripts/bundle.5413a266.min.js"></script>
+      <script src="../../assets/javascripts/bundle.5413a266.min.js"></script>
       
     
   </body>

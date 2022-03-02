@@ -13,7 +13,7 @@
     
     
       
-        <title>meta.yaml - conda-lock</title>
+        <title>Authenticated Channels - conda-lock</title>
       
     
     
@@ -59,7 +59,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#metayaml" class="md-skip">
+        <a href="#authentication-for-channels" class="md-skip">
           Skip to content
         </a>
       
@@ -92,7 +92,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              meta.yaml
+              Authenticated Channels
             
           </span>
         </div>
@@ -197,14 +197,12 @@
 
   
   
-    
-  
   
     
-    <li class="md-nav__item md-nav__item--active md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--nested">
       
       
-        <input class="md-nav__toggle md-toggle" data-md-toggle="__nav_3" type="checkbox" id="__nav_3" checked>
+        <input class="md-nav__toggle md-toggle" data-md-toggle="__nav_3" data-md-state="indeterminate" type="checkbox" id="__nav_3" checked>
       
       
       
@@ -247,72 +245,11 @@
               
   
   
-    
   
-  
-    <li class="md-nav__item md-nav__item--active">
-      
-      <input class="md-nav__toggle md-toggle" data-md-toggle="toc" type="checkbox" id="__toc">
-      
-      
-        
-      
-      
-        <label class="md-nav__link md-nav__link--active" for="__toc">
-          meta.yaml
-          <span class="md-nav__icon md-icon"></span>
-        </label>
-      
-      <a href="./" class="md-nav__link md-nav__link--active">
+    <li class="md-nav__item">
+      <a href="../src_meta_yaml/" class="md-nav__link">
         meta.yaml
       </a>
-      
-        
-
-<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
-  
-  
-  
-    
-  
-  
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      Table of contents
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#categories" class="md-nav__link">
-    Categories
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#extensions" class="md-nav__link">
-    Extensions
-  </a>
-  
-    <nav class="md-nav" aria-label="Extensions">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#channel-specification" class="md-nav__link">
-    Channel specification
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-    </ul>
-  
-</nav>
-      
     </li>
   
 
@@ -389,11 +326,66 @@
 
   
   
+    
   
-    <li class="md-nav__item">
-      <a href="../authenticated_channels/" class="md-nav__link">
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" data-md-toggle="toc" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          Authenticated Channels
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
         Authenticated Channels
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#token-based" class="md-nav__link">
+    Token based
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#simple-auth" class="md-nav__link">
+    Simple Auth
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#what-gets-stored" class="md-nav__link">
+    What gets stored
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
     </li>
   
 
@@ -493,29 +485,23 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#categories" class="md-nav__link">
-    Categories
+  <a href="#token-based" class="md-nav__link">
+    Token based
   </a>
   
 </li>
       
         <li class="md-nav__item">
-  <a href="#extensions" class="md-nav__link">
-    Extensions
-  </a>
-  
-    <nav class="md-nav" aria-label="Extensions">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#channel-specification" class="md-nav__link">
-    Channel specification
+  <a href="#simple-auth" class="md-nav__link">
+    Simple Auth
   </a>
   
 </li>
-        
-      </ul>
-    </nav>
+      
+        <li class="md-nav__item">
+  <a href="#what-gets-stored" class="md-nav__link">
+    What gets stored
+  </a>
   
 </li>
       
@@ -531,68 +517,87 @@
             <article class="md-content__inner md-typeset">
               
                 
-<a href="https://github.com/conda-incubator/conda-lock/edit/master/docs/src_meta_yaml.md" title="Edit this page" class="md-content__button md-icon">
+<a href="https://github.com/conda-incubator/conda-lock/edit/master/docs/authenticated_channels.md" title="Edit this page" class="md-content__button md-icon">
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20.71 7.04c.39-.39.39-1.04 0-1.41l-2.34-2.34c-.37-.39-1.02-.39-1.41 0l-1.84 1.83 3.75 3.75M3 17.25V21h3.75L17.81 9.93l-3.75-3.75L3 17.25z"/></svg>
 </a>
 
 
 
-<h1 id="metayaml">meta.yaml</h1>
-<p><a href="https://docs.conda.io/projects/condabuild">Conda build</a> defines package recipes using the <a href="https://docs.conda.io/projects/conda-build/en/latest/resources/define-metadata.html">meta.yaml</a> format.</p>
-<p>Conda-lock will attempt to make an educated guess at the desired environment spec in a meta.yaml.</p>
-<p>This is <strong>not</strong> guaranteed to work for complex recipes with many selectors and outputs or complex use of jinja templates.</p>
-<p>For multi-output recipes, conda-lock will fuse all the dependencies together.  If that doesn't work for your case fall back to specifying the specification as an <a href="/src_environment_yml">environment.yml</a></p>
-<div class="highlight"><span class="filename">meta.yaml</span><pre><span></span><code><span class="p p-Indicator">{</span><span class="err">%</span><span class="w"> </span><span class="nv">set version = &quot;1.0.5&quot; %</span><span class="p p-Indicator">}</span><span class="w"></span>
-
-<span class="nt">package</span><span class="p">:</span><span class="w"></span>
-<span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">foo</span><span class="w"></span>
-<span class="w">  </span><span class="nt">version</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{{</span><span class="w"> </span><span class="nv">version</span><span class="w"> </span><span class="p p-Indicator">}}</span><span class="w"></span>
-
-<span class="nt">build</span><span class="p">:</span><span class="w"></span>
-<span class="w">  </span><span class="nt">number</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0</span><span class="w"></span>
-<span class="w">  </span><span class="nt">script</span><span class="p">:</span><span class="w"></span>
-<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">export PYTHONUNBUFFERED=1</span><span class="w">  </span><span class="c1"># [ppc64le]</span><span class="w"></span>
-<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">{{</span><span class="w"> </span><span class="nv">PYTHON</span><span class="w"> </span><span class="p p-Indicator">}}</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">-m pip install --no-deps --ignore-installed .</span><span class="w"></span>
-<span class="w">  </span><span class="nt">skip</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">True</span><span class="w">  </span><span class="c1"># [py2k]</span><span class="w"></span>
-
-<span class="nt">requirements</span><span class="p">:</span><span class="w"></span>
-<span class="w">  </span><span class="nt">build</span><span class="p">:</span><span class="w"></span>
-<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">{{</span><span class="w"> </span><span class="nv">compiler(&#39;c&#39;)</span><span class="w"> </span><span class="p p-Indicator">}}</span><span class="w"></span>
-<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">{{</span><span class="w"> </span><span class="nv">compiler(&#39;cxx&#39;)</span><span class="w"> </span><span class="p p-Indicator">}}</span><span class="w"></span>
-<span class="w">  </span><span class="nt">host</span><span class="p">:</span><span class="w"></span>
-<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">python</span><span class="w"></span>
-<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">pip</span><span class="w"></span>
-<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">cython &gt;=0.28.2</span><span class="w"></span>
-<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">numpy</span><span class="w"></span>
-<span class="w">  </span><span class="nt">run</span><span class="p">:</span><span class="w"></span>
-<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">python</span><span class="w"></span>
-<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">{{</span><span class="w"> </span><span class="nv">pin_compatible(&#39;numpy&#39;)</span><span class="w"> </span><span class="p p-Indicator">}}</span><span class="w"></span>
-<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">python-dateutil &gt;=2.6.1</span><span class="w"></span>
-<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">pytz &gt;=2017.2</span><span class="w"></span>
-<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">zlib</span><span class="w">     </span><span class="c1"># [unix]</span><span class="w"></span>
-
-<span class="nt">test</span><span class="p">:</span><span class="w"></span>
-<span class="w">  </span><span class="nt">requires</span><span class="p">:</span><span class="w"></span>
-<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">pytest</span><span class="w"></span>
+<h1 id="authentication-for-channels">Authentication for channels</h1>
+<p>Conda lock supports two kinds of credentials used for channels</p>
+<h2 id="token-based">Token based</h2>
+<p>These are used by <a href="https://anaconda.org/">anaconda.org</a>, <a href="https://www.anaconda.com/products/enterprise">Anaconda Enterprise</a>,
+<a href="https://www.anaconda.com/products/team">Anaconda Team Edition</a> and <a href="https://github.com/mamba-org/quetz">Quetz</a>.</p>
+<p>These should be specified making of the <strong>environment variable form</strong></p>
+<div class="admonition note">
+<p class="admonition-title">Specifying</p>
+<div class="tabbed-set tabbed-alternate" data-tabs="1:4"><input checked="checked" id="__tabbed_1_1" name="__tabbed_1" type="radio" /><input id="__tabbed_1_2" name="__tabbed_1" type="radio" /><input id="__tabbed_1_3" name="__tabbed_1" type="radio" /><input id="__tabbed_1_4" name="__tabbed_1" type="radio" /><div class="tabbed-labels"><label for="__tabbed_1_1">environment.yml</label><label for="__tabbed_1_2">meta.yaml</label><label for="__tabbed_1_3">pyproject.toml</label><label for="__tabbed_1_4">shell arguments</label></div>
+<div class="tabbed-content">
+<div class="tabbed-block">
+<div class="highlight"><pre><span></span><code><span class="nt">channels</span><span class="p">:</span><span class="w"></span>
+<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">http://host.com/t/$MY_REPO_TOKEN/channel</span><span class="w"></span>
 </code></pre></div>
-<h2 id="categories">Categories</h2>
-<ul>
-<li><code>build</code> requirements are ignored</li>
-<li><code>host</code> and <code>run</code> dependencies are treated as <strong>main</strong></li>
-<li><code>test.requires</code> dependencies are treated as <strong>dev</strong></li>
-</ul>
-<p>By default conda-lock will include dev dependencies in the specification of the lock (if the files that the lock
-is being built from support them).  This can be disabled easily</p>
-<div class="highlight"><pre><span></span><code>conda-lock --no-dev-dependencies --file meta.yaml
-</code></pre></div>
-<h2 id="extensions">Extensions</h2>
-<h3 id="channel-specification">Channel specification</h3>
-<p>Since a meta.yaml doesn't contain channel information we make use of the following <code>extra</code> key to specify channels</p>
+</div>
+<div class="tabbed-block">
 <div class="highlight"><pre><span></span><code><span class="nt">extra</span><span class="p">:</span><span class="w"></span>
-<span class="w">  </span><span class="nt">channels</span><span class="p">:</span><span class="w"></span>
-<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">conda-forge</span><span class="w"></span>
-<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">defaults</span><span class="w"></span>
+<span class="w">    </span><span class="nt">channels</span><span class="p">:</span><span class="w"></span>
+<span class="w">        </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">http://host.com/t/$MY_REPO_TOKEN/channel</span><span class="w"></span>
 </code></pre></div>
+</div>
+<div class="tabbed-block">
+<div class="highlight"><pre><span></span><code><span class="k">[tool.conda-lock]</span><span class="w"></span>
+<span class="n">channels</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="w"></span>
+<span class="w">    </span><span class="s">&#39;http://host.com/t/$MY_REPO_TOKEN/channel&#39;</span><span class="w"></span>
+<span class="p">]</span><span class="w"></span>
+</code></pre></div>
+</div>
+<div class="tabbed-block">
+<p>Make sure this environment variable is <strong>not</strong> expanded (quote types matter).</p>
+<div class="highlight"><pre><span></span><code>--channel <span class="s1">&#39;http://host.com/t/$MY_REPO_TOKEN/channel&#39;</span>
+</code></pre></div>
+<p>If you accidentally pass a channel url that contains a token and its gets expanded like in this case</p>
+<div class="highlight"><pre><span></span><code>--channel <span class="s2">&quot;http://host.com/t/</span><span class="nv">$MY_REPO_TOKEN</span><span class="s2">/channel&quot;</span>
+</code></pre></div>
+<p>conda lock will attempt detect the environment variable used, preferring that the environment variables with
+a sensible suffix (<code>KEY</code>, <code>TOKEN</code>, <code>PASS</code>, etc).</p>
+</div>
+</div>
+</div>
+</div>
+<p>The <em>name</em> of the environment variable(s) will form part of your lock and you will have to have that SAME
+environment variable set if you wish to run the install.</p>
+<div class="highlight"><pre><span></span><code><span class="c1"># retrieve secrets from some store</span>
+<span class="nb">source</span> <span class="k">$(</span>./get-lockfile-env-vars-from-secret-store<span class="k">)</span>
+<span class="c1"># use the secrets as part of the conda-lock invocation</span>
+conda-lock install -n my-env-with-a-secret conda-lock.yml
+</code></pre></div>
+<h2 id="simple-auth">Simple Auth</h2>
+<p>For other channels (such as those self-managed) basic auth is supported and has the same environment variable
+behavior as for token based channel urls.</p>
+<div class="highlight"><pre><span></span><code>--channel <span class="s1">&#39;http://$USER:$PASSWORD@host.com/channel&#39;</span>
+</code></pre></div>
+<p>Additionally simple auth also support the <a href="/flags#-strip-auth-auth-and-auth-file">--strip-auth, --auth and --auth-file</a> flags.</p>
+<h2 id="what-gets-stored">What gets stored</h2>
+<p>Since we can generally assume that these substitutions are both volatile <em>and</em> secret <code>conda-lock</code> will not store
+the raw version of a url in the unified lockfile.</p>
+<p>If it encounters a channel url that looks as if it contains a credential portion it will search the currently
+available environment variables for a match with that variable.  In the case of a match that portion of the url
+will be replaced with a environment variable.</p>
+<details class="example">
+<summary>Example output in unified lockfile</summary>
+<div class="highlight"><pre><span></span><code><span class="nt">metadata</span><span class="p">:</span><span class="w"></span>
+<span class="nt">channels</span><span class="p">:</span><span class="w"></span>
+<span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">url</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">https://host.tld/t/$QUETZ_API_KEY/channel_name</span><span class="w"></span>
+<span class="w">    </span><span class="l l-Scalar l-Scalar-Plain">used_env_vars</span><span class="p p-Indicator">:</span><span class="w"></span>
+<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">QUETZ_API_KEY</span><span class="w"></span>
+<span class="nt">package</span><span class="p">:</span><span class="w"></span>
+<span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">platform</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">linux-64</span><span class="w"></span>
+<span class="nt">url</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">https://host.tld/t/$QUETZ_API_KEY/channel_name/linux-64/libsomethingprivate-22.02.00.tar.bz2</span><span class="w"></span>
+<span class="nt">version</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">22.02.00</span><span class="w"></span>
+</code></pre></div>
+</details>
+<p>The rendered lockfiles will contain substituted environment variables, so if you are making use of <code>conda-lock</code>
+in conjunction with git these should <em>NOT</em> be checked into version control.</p>
 
               
             </article>
@@ -606,7 +611,7 @@ is being built from support them).  This can be disabled easily</p>
     <nav class="md-footer__inner md-grid" aria-label="Footer">
       
         
-        <a href="../src_environment_yml/" class="md-footer__link md-footer__link--prev" aria-label="Previous: environment.yml" rel="prev">
+        <a href="../flags/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Flags" rel="prev">
           <div class="md-footer__button md-icon">
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11h12z"/></svg>
           </div>
@@ -615,20 +620,20 @@ is being built from support them).  This can be disabled easily</p>
               <span class="md-footer__direction">
                 Previous
               </span>
-              environment.yml
+              Flags
             </div>
           </div>
         </a>
       
       
         
-        <a href="../src_pyproject/" class="md-footer__link md-footer__link--next" aria-label="Next: pyproject.toml" rel="next">
+        <a href="../docker/" class="md-footer__link md-footer__link--next" aria-label="Next: Docker" rel="next">
           <div class="md-footer__title">
             <div class="md-ellipsis">
               <span class="md-footer__direction">
                 Next
               </span>
-              pyproject.toml
+              Docker
             </div>
           </div>
           <div class="md-footer__button md-icon">
