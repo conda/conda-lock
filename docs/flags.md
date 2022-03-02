@@ -8,6 +8,8 @@ If you wish to specify a particular conda/mamba executable to use to perform the
 conda-lock --conda some_path_to_conda
 ```
 
+---
+
 ## --mamba
 
 If you want to make use of mamba in order to perform faster solves this can be enabledd with
@@ -17,6 +19,8 @@ conda-lock --mamba some_path_to_conda
 ```
 
 If mamba is not installed, it will attempt to install it using [ensureconda](https://github.com/conda-incubator/ensureconda)
+
+---
 
 ## --filename-template
 
@@ -48,6 +52,8 @@ The following fields are available for templating
 | version           | the version of conda-lock used                            |
 | timestamp         | the timestamp of the output file in ISO8601 basic format  |
 
+---
+
 ## --channel
 
 You can override the channels that are used by conda-lock in case you need to override the ones specified in
@@ -57,6 +63,8 @@ an [environment.yml][envyaml] or any of the other supported formats.
 conda-lock --channel conda-forge
 ```
 
+---
+
 ## --platform
 
 You may specify the platforms you wish to target by default directly in an [environment.yml][envyaml]
@@ -64,6 +72,8 @@ You may specify the platforms you wish to target by default directly in an [envi
 If you specify target platforms on the command line with `--platform`, these will
 override the values in the environment specification. If neither `platforms` (from source files) nor
 `--platforms` are provided, `conda-lock` will fall back to a default set of platforms.
+
+---
 
 ## --dev-dependencies/--no-dev-dependencies
 
@@ -73,6 +83,8 @@ is being built from support them).  This can be disabled easily
 ```bash
 conda-lock --no-dev-dependencies --file ./recipe/meta.yaml
 ```
+
+---
 
 ## --check-input-hash
 
@@ -85,10 +97,14 @@ conda-lock --check-input-hash --platform linux-64
 
 When the input_hash of the input files, channels match those present in a given lockfile, that lockfile will not be regenerated.
 
+---
+
 {%
    include-markdown "./flags/strip-auth.md"
    heading-offset=1
 %}
+
+---
 
 ## --virtual-package-spec
 
@@ -98,8 +114,7 @@ them into the solution environment with a reasonable guess at what a default sys
 
 If you want to override which virtual packages are injected you can create a virtual package spec file
 
-```yaml
-# virtual-packages.yml
+```{.yaml title="virtual-packages.yml"}
 subdirs:
   linux-64:
     packages:
@@ -123,7 +138,7 @@ Virtual packages take part in the input hash so if you build an environment with
 Additionally the default set of virtual packages may be augmented in future versions of conda-lock.  If you desire very stable input hashes
 we recommend creating a `virtual-packages.yml` file to lock down the virtual packages considered.
 
-### ⚠️ in conjunction with micromamba
+!!! warning "in conjunction with micromamba"
 
-Micromamba does not presently support some of the overrides to remove all discovered virtual packages, consequently the set of virtual packages
-available at solve time may be larger than those specified in your specification.
+    Micromamba does not presently support some of the overrides to remove all discovered virtual packages, consequently the set of virtual packages
+    available at solve time may be larger than those specified in your specification.

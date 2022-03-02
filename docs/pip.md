@@ -8,8 +8,7 @@ conda-lock has experimental support to allow locking mixed conda/pip environment
 [environment.yml](https://docs.conda.io/projects/conda/en/latest/user-guide/tasks/manage-environments.html#create-env-file-manually), using [Poetry's](https://python-poetry.org) dependency solver, if
 installed with the `pip_support` extra.
 
-```yaml
-# environment.yml
+```{.yaml title="environment.yml"}
 channels:
   - conda-forge
 dependencies:
@@ -27,8 +26,7 @@ conda and the version will be constrained to what the conda solver determines.
 If a dependency refers directly to a URL rather than a package name and version,
 `conda-lock` will assume it is pip-installable, e.g.:
 
-```toml
-# pyproject.toml
+```{.toml title="pyproject.toml"}
 [tool.poetry.dependencies]
 python = "3.9"
 pymage = {url = "https://github.com/MickaelRigault/pymage/archive/v1.0.tar.gz#sha256=11e99c4ea06b76ca7fb5b42d1d35d64139a4fa6f7f163a2f0f9cc3ea0b3c55eb"}
@@ -37,7 +35,7 @@ pymage = {url = "https://github.com/MickaelRigault/pymage/archive/v1.0.tar.gz#sh
 Similarly, if a dependency is explicitly marked with `source = "pypi"`, it will
 be treated as a `pip` dependency, e.g.:
 
-```toml
+```{.toml title="pyproject.toml"}
 [tool.poetry.dependencies]
 python = "3.9"
 ampel-ztf = {version = "^0.8.0-alpha.2", source = "pypi"}

@@ -1,5 +1,9 @@
 # --strip-auth, --auth and --auth-file
 
+!!! warning
+
+    This flag is only used for basic auth.
+
 By default `conda-lock` will leave basic auth credentials for private conda channels in the lock file (unless you make use of environment variables for your passwords).
 If you wish to strip authentication from the file, provide the `--strip-auth` argument.
 

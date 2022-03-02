@@ -8,8 +8,7 @@ This is **not** guaranteed to work for complex recipes with many selectors and o
 
 For multi-output recipes, conda-lock will fuse all the dependencies together.  If that doesn't work for your case fall back to specifying the specification as an [environment.yml](/src_environment_yml)
 
-```yaml
-# meta.yaml
+```{.yaml title="meta.yaml"}
 
 {% set version = "1.0.5" %}
 

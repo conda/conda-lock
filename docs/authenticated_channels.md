@@ -1,29 +1,59 @@
 # Authentication for channels
 
 Conda lock supports two kinds of credentials used for channels
-
 ## Token based
 
 These are used by [anaconda.org](https://anaconda.org/), [Anaconda Enterprise](https://www.anaconda.com/products/enterprise),
 [Anaconda Team Edition](https://www.anaconda.com/products/team) and [Quetz](https://github.com/mamba-org/quetz).
 
-To pass one of these channels specify them in your source with an environment variable
+These should be specified making of the **environment variable form**
 
-Make sure this environment variable is not expanded (quote types matter).
+!!! note "Specifying"
 
-```sh
---channel 'http://host.com/t/$MY_REPO_TOKEN/channel'
-```
+    === "environment.yml"
 
-If you accidentally pass a channel url that contains a token like so
+        ```yaml
+        channels:
+            - http://host.com/t/$MY_REPO_TOKEN/channel
 
-```sh
---channel "http://host.com/t/$MY_REPO_TOKEN/channel"
-```
+        ```
 
-Then conda lock will detect the environment variable used (preferring that the environment variables with a sensible suffix (KEY, TOKEN, PASS, etc)).
+    === "meta.yaml"
 
-The _name_ of the environment variable will form part of your lock and you will have to have that SAME environment variable set if you wish to run the install
+        ```yaml
+        extra:
+            channels:
+                - http://host.com/t/$MY_REPO_TOKEN/channel
+        ```
+
+    === "pyproject.toml"
+
+        ```toml
+        [tool.conda-lock]
+        channels = [
+            'http://host.com/t/$MY_REPO_TOKEN/channel'
+        ]
+        ```
+
+    === "shell arguments"
+
+        Make sure this environment variable is **not** expanded (quote types matter).
+
+        ```sh
+        --channel 'http://host.com/t/$MY_REPO_TOKEN/channel'
+        ```
+
+        If you accidentally pass a channel url that contains a token and its gets expanded like in this case
+
+        ```sh
+        --channel "http://host.com/t/$MY_REPO_TOKEN/channel"
+        ```
+
+        conda lock will attempt detect the environment variable used, preferring that the environment variables with
+        a sensible suffix (`KEY`, `TOKEN`, `PASS`, etc).
+
+The _name_ of the environment variable(s) will form part of your lock and you will have to have that SAME
+environment variable set if you wish to run the install.
 
 ```sh
 # retrieve secrets from some store
@@ -34,22 +64,18 @@ conda-lock install -n my-env-with-a-secret conda-lock.yml
 
 ## Simple Auth
 
-For other channels (such as those self-managed) basic auth is supported
+For other channels (such as those self-managed) basic auth is supported and has the same environment variable
+behavior as for token based channel urls.
 
 ```sh
 --channel 'http://$USER:$PASSWORD@host.com/channel'
 ```
 
-This can also be done using the following flags
-
-{%
-   include-markdown "./flags/strip-auth.md"
-   heading-offset=2
-%}
+Additionally simple auth also support the [--strip-auth, --auth and --auth-file](/flags#-strip-auth-auth-and-auth-file) flags.
 
 ## What gets stored
 
-Since we can generally assume that these substitutions are both volatile *and* secret `conda-lock` will not store
+Since we can generally assume that these substitutions are both volatile _and_ secret `conda-lock` will not store
 the raw version of a url in the unified lockfile.
 
 If it encounters a channel url that looks as if it contains a credential portion it will search the currently
@@ -70,9 +96,7 @@ will be replaced with a environment variable.
     version: 22.02.00
     ```
 
-The rendered lockfiles will contain substituted environment variables so if you are making use of `conda-lock`
-in conjunction with git these should *NOT* be checked into version control.
-
-
+The rendered lockfiles will contain substituted environment variables, so if you are making use of `conda-lock`
+in conjunction with git these should _NOT_ be checked into version control.
 
 [anaconda.org]: https://docs.conda.io/projects/conda/en/latest/user-guide/tasks/manage-environments.html#create-env-file-manually

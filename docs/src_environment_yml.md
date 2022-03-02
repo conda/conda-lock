@@ -6,8 +6,7 @@ If no `--file` argument is specified `conda-lock` will look for an `environment.
 
 ## Basic example
 
-```yaml
-# environment.yml
+```{.yaml title="environment.yml"}
 channels:
   - conda-forge
 dependencies:
@@ -23,8 +22,7 @@ conda-lock makes use of a number of non-standard extensions to the format in ord
 
 You may specify the platforms you wish to target by default directly in an [environment.yml][envyaml] using the (nonstandard) `platforms` key:
 
-```yaml
-# environment.yml
+```{.yaml title="environment.yml"}
 channels:
   - conda-forge
 dependencies:
@@ -47,8 +45,7 @@ organization, e.g. a `environment.yml` for production dependencies and a
 dependencies parsed from a single file to a category using the (nonstandard)
 `category` key.
 
-```yaml
-# dev-environment.yml
+```{.yaml title=dev-environment.yml}
 channels:
   - conda-forge
 dependencies:
@@ -63,5 +60,6 @@ These can be used in a [compound specification](/compound_specification) as foll
 
 ```sh
 conda-lock --file environment.yml --file dev-environment.yml
+```
 
 [envyaml]: https://docs.conda.io/projects/conda/en/latest/user-guide/tasks/manage-environments.html#create-env-file-manually

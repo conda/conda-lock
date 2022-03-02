@@ -13,9 +13,7 @@ is no lookup for the package it assumes that the PyPI name, and the conda name a
 
 === "poetry"
 
-    ```toml
-    # pyproject.toml
-
+    ```{.toml title="pyproject.toml"}
     [tool.poetry.dependencies]
     requests = "^2.13.0"
     toml = ">=0.10"
@@ -29,9 +27,7 @@ is no lookup for the package it assumes that the PyPI name, and the conda name a
     ```
 
 === "pep621 (flit)"
-    ```toml
-    # pyproject.toml
-
+    ```{.toml title="pyproject.toml"}
     [project]
     dependencies = [
         "requests ^2.13.0",
@@ -59,9 +55,7 @@ This will create a conda-lock specification with
 If a dependency refers directly to a URL rather than a package name and version,
 `conda-lock` will assume it is pip-installable, e.g.:
 
-```toml
-# pyproject.toml
-
+```{.toml title="pyproject.toml"}
 [tool.poetry.dependencies]
 python = "3.9"
 pymage = {url = "https://github.com/MickaelRigault/pymage/archive/v1.0.tar.gz#sha256=11e99c4ea06b76ca7fb5b42d1d35d64139a4fa6f7f163a2f0f9cc3ea0b3c55eb"}
@@ -70,9 +64,7 @@ pymage = {url = "https://github.com/MickaelRigault/pymage/archive/v1.0.tar.gz#sh
 Similarly, if a dependency is explicitly marked with `source = "pypi"`, it will
 be treated as a `pip` dependency, e.g.:
 
-```toml
-# pyproject.toml
-
+```{.toml title="pyproject.toml"}
 [tool.poetry.dependencies]
 python = "3.9"
 ampel-ztf = {version = "^0.8.0-alpha.2", source = "pypi"}
@@ -88,8 +80,7 @@ If your pyproject.toml file contains optional dependencies/extras these can be r
 
 === "poetry"
 
-    ```toml
-    # pyproject.toml
+    ```{.toml title="pyproject.toml"}
 
     [tool.poetry.dependencies]
     mandatory = "^1.0"
@@ -103,7 +94,7 @@ If your pyproject.toml file contains optional dependencies/extras these can be r
 
 === "pep621 (flit)"
 
-    ```toml
+    ```{.toml title="pyproject.toml"}
     # pyproject.toml
 
     [project]
@@ -116,10 +107,9 @@ If your pyproject.toml file contains optional dependencies/extras these can be r
     pgsql = ["psycopg2 ^2.7"]
     ```
 
-
 These can be referened as follows
 
-```
+```sh
 conda-lock --extra mysql --extra pgsql -f pyproject.toml
 ```
 
@@ -133,9 +123,7 @@ toml file.  All extensions live in the `tool.conda-lock` section.
 
 ### Channels
 
-```toml
-# pyproject.toml
-
+```{.toml title="pyproject.toml"}
 [tool.conda-lock]
 channels = [
     'conda-forge', 'defaults'
@@ -146,9 +134,7 @@ channels = [
 
 Like in [environment.yml](/src_environment_yml#platform-specification), you can specify default platforms to target:
 
-```toml
-# pyproject.toml
-
+```{.toml title="pyproject.toml"}
 [tool.conda-lock]
 platforms = [
     'osx-arm64', 'linux-64'
@@ -161,9 +147,7 @@ Since in a `pyproject.toml` all the definitions are python dependencies if you n
 to specify some non-python dependencies as well this can be accomplished by adding
 the following sections to the `pyproject.toml`
 
-```toml
-# pyproject.toml
-
+```{.toml title="pyproject.toml"}
 [tool.conda-lock.dependencies]
 sqlite = ">=3.34"
 ```

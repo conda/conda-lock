@@ -16,6 +16,7 @@ theme:
 plugins:
   - include-markdown
 markdown_extensions:
+  - admonition
   - tables
   - toc
   - def_list
