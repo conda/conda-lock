@@ -3,14 +3,12 @@ import json
 import pathlib
 
 from collections import defaultdict, namedtuple
-from dataclasses import dataclass
 from itertools import chain
 from typing import ClassVar, Dict, List, Literal, Optional, Sequence, Set, Tuple, Union
 
 from pydantic import BaseModel, Field, validator
 
 from conda_lock.common import ordered_union
-from conda_lock.lookup import conda_name_to_pypi_name, pypi_name_to_conda_name
 from conda_lock.models.channel import Channel
 from conda_lock.virtual_package import FakeRepoData
 
