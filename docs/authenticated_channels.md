@@ -34,7 +34,7 @@ conda-lock install -n my-env-with-a-secret conda-lock.yml
 
 ## Simple Auth
 
-For other channels (such as those self-managed) you may be using a more standard username/password auth
+For other channels (such as those self-managed) basic auth is supported
 
 ```sh
 --channel 'http://$USER:$PASSWORD@host.com/channel'
