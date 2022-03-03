@@ -8,7 +8,7 @@ import subprocess
 import tempfile
 
 from distutils.version import LooseVersion
-from typing import Dict, List, Optional, Sequence, Union
+from typing import IO, Dict, Iterator, List, Optional, Sequence, Union
 
 import ensureconda
 
@@ -17,8 +17,8 @@ from conda_lock.models.channel import Channel
 
 PathLike = Union[str, pathlib.Path]
 
-CONDA_PKGS_DIRS = None
-MAMBA_ROOT_PREFIX = None
+CONDA_PKGS_DIRS: Optional[str] = None
+MAMBA_ROOT_PREFIX: Optional[str] = None
 
 
 def _ensureconda(
@@ -26,7 +26,7 @@ def _ensureconda(
     micromamba: bool = False,
     conda: bool = False,
     conda_exe: bool = False,
-):
+) -> Optional[PathLike]:
     _conda_exe = ensureconda.ensureconda(
         mamba=mamba,
         micromamba=micromamba,
@@ -39,7 +39,7 @@ def _ensureconda(
 
 def _determine_conda_executable(
     conda_executable: Optional[str], mamba: bool, micromamba: bool
-):
+) -> Iterator[Optional[PathLike]]:
     if conda_executable:
         if pathlib.Path(conda_executable).exists():
             yield conda_executable
@@ -50,7 +50,7 @@ def _determine_conda_executable(
 
 def determine_conda_executable(
     conda_executable: Optional[str], mamba: bool, micromamba: bool
-):
+) -> PathLike:
     for candidate in _determine_conda_executable(conda_executable, mamba, micromamba):
         if candidate is not None:
             if is_micromamba(candidate):
@@ -133,7 +133,7 @@ def _invoke_conda(
     return p
 
 
-def _process_stdout(stdout):
+def _process_stdout(stdout: IO[str]) -> Iterator[str]:
     cache = set()
     extracting_packages = False
     leading_empty = True
@@ -154,7 +154,7 @@ def _process_stdout(stdout):
             yield logline
 
 
-def conda_env_override(platform) -> Dict[str, str]:
+def conda_env_override(platform: str) -> Dict[str, str]:
     env = dict(os.environ)
     env.update(
         {
@@ -167,7 +167,7 @@ def conda_env_override(platform) -> Dict[str, str]:
     return env
 
 
-def _get_conda_flags(channels: Sequence[Channel], platform) -> List[str]:
+def _get_conda_flags(channels: Sequence[Channel], platform: str) -> List[str]:
     args = []
     conda_flags = os.environ.get("CONDA_FLAGS")
     if conda_flags:
@@ -185,7 +185,7 @@ def _get_conda_flags(channels: Sequence[Channel], platform) -> List[str]:
     return args
 
 
-def conda_pkgs_dir():
+def conda_pkgs_dir() -> str:
     global CONDA_PKGS_DIRS
     if CONDA_PKGS_DIRS is None:
         temp_dir = tempfile.TemporaryDirectory()
@@ -196,7 +196,7 @@ def conda_pkgs_dir():
         return CONDA_PKGS_DIRS
 
 
-def mamba_root_prefix():
+def mamba_root_prefix() -> str:
     """Legacy root prefix used by micromamba"""
     global MAMBA_ROOT_PREFIX
     if MAMBA_ROOT_PREFIX is None:
@@ -209,7 +209,7 @@ def mamba_root_prefix():
         return MAMBA_ROOT_PREFIX
 
 
-def reset_conda_pkgs_dir():
+def reset_conda_pkgs_dir() -> None:
     """Clear the fake conda packages directory.  This is used only by testing"""
     global CONDA_PKGS_DIRS
     global MAMBA_ROOT_PREFIX

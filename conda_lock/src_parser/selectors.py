@@ -7,7 +7,7 @@ from typing import Iterator
 logger = logging.getLogger(__name__)
 
 
-def filter_platform_selectors(content: str, platform) -> Iterator[str]:
+def filter_platform_selectors(content: str, platform: str) -> Iterator[str]:
     """ """
     # we support a very limited set of selectors that adhere to platform only
     platform_sel = {
