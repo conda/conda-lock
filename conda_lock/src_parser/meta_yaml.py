@@ -1,6 +1,6 @@
 import pathlib
 
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 import jinja2
 import yaml
@@ -28,7 +28,7 @@ class UndefinedNeverFail(jinja2.Undefined):
         Be sure to clear the all_undefined_names list before calling template.render().
     """
 
-    all_undefined_names: List[str] = []
+    all_undefined_names: List[Optional[str]] = []
 
     def __init__(  # type: ignore
         self,
@@ -52,11 +52,11 @@ class UndefinedNeverFail(jinja2.Undefined):
 
     # Accessing an attribute of an Undefined variable
     # results in another Undefined variable.
-    def __getattr__(self, k):  # type: ignore
+    def __getattr__(self, k: str) -> "UndefinedNeverFail":
         try:
-            return object.__getattr__(self, k)
+            return object.__getattr__(self, k)  # type: ignore
         except AttributeError:
-            self._return_undefined(self._undefined_name + "." + k)
+            return self._return_undefined(self._undefined_name + "." + k)
 
     # Unlike the methods above, Python requires that these
     # few methods must always return the correct type
@@ -66,7 +66,7 @@ class UndefinedNeverFail(jinja2.Undefined):
     __float__ = lambda self: self._return_value(0.0)  # type: ignore  # noqa: E731
     __nonzero__ = lambda self: self._return_value(False)  # noqa: E731
 
-    def _return_undefined(self, result_name):  # type: ignore
+    def _return_undefined(self, result_name: str) -> "UndefinedNeverFail":  # type: ignore
         # Record that this undefined variable was actually used.
         UndefinedNeverFail.all_undefined_names.append(self._undefined_name)
         return UndefinedNeverFail(

@@ -7,6 +7,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import typing
 import uuid
 
 from glob import glob
@@ -179,7 +180,7 @@ def test_parse_environment_file(gdal_environment):
 
 
 def test_parse_environment_file_with_pip(pip_environment):
-    res = parse_environment_file(pip_environment, True)
+    res = parse_environment_file(pip_environment, pip_support=True)
     assert [dep for dep in res.dependencies if dep.manager == "pip"] == [
         VersionedDependency(
             name="requests-toolbelt",
@@ -320,7 +321,9 @@ def test_parse_poetry(poetry_pyproject_toml):
         poetry_pyproject_toml,
     )
 
-    specs: Dict[str, VersionedDependency] = {dep.name: dep for dep in res.dependencies}
+    specs = {
+        dep.name: typing.cast(VersionedDependency, dep) for dep in res.dependencies
+    }
 
     assert specs["requests"].version == ">=2.13.0,<3.0.0"
     assert specs["toml"].version == ">=0.10"
@@ -341,7 +344,9 @@ def test_parse_flit(flit_pyproject_toml):
         flit_pyproject_toml,
     )
 
-    specs = {dep.name: dep for dep in res.dependencies}
+    specs = {
+        dep.name: typing.cast(VersionedDependency, dep) for dep in res.dependencies
+    }
 
     assert specs["requests"].version == ">=2.13.0"
     assert specs["toml"].version == ">=0.10"
@@ -523,7 +528,7 @@ def test_poetry_version_parsing_constraints(package, version, url_pattern, capsy
                         extras=[],
                     )
                 ],
-                channels=["conda-forge"],
+                channels=[Channel.from_string("conda-forge")],
                 platforms=["linux-64"],
                 # NB: this file must exist for relative path resolution to work
                 # in create_lockfile_from_spec
@@ -550,14 +555,14 @@ def _make_spec(name, constraint="*"):
 def test_aggregate_lock_specs():
     gpu_spec = LockSpecification(
         dependencies=[_make_spec("pytorch")],
-        channels=["pytorch", "conda-forge"],
+        channels=[Channel.from_string("pytorch"), Channel.from_string("conda-forge")],
         platforms=["linux-64"],
         sources=[pathlib.Path("ml-stuff.yml")],
     )
 
     base_spec = LockSpecification(
         dependencies=[_make_spec("python", "=3.7")],
-        channels=["conda-forge"],
+        channels=[Channel.from_string("conda-forge")],
         platforms=["linux-64"],
         sources=[pathlib.Path("base-env.yml")],
     )
@@ -567,7 +572,10 @@ def test_aggregate_lock_specs():
         aggregate_lock_specs([gpu_spec, base_spec]).content_hash()
         == LockSpecification(
             dependencies=[_make_spec("pytorch"), _make_spec("python", "=3.7")],
-            channels=["pytorch", "conda-forge"],
+            channels=[
+                Channel.from_string("pytorch"),
+                Channel.from_string("conda-forge"),
+            ],
             platforms=["linux-64"],
             sources=[],
         ).content_hash()
@@ -577,7 +585,7 @@ def test_aggregate_lock_specs():
         aggregate_lock_specs([base_spec, gpu_spec]).content_hash()
         != LockSpecification(
             dependencies=[_make_spec("pytorch"), _make_spec("python", "=3.7")],
-            channels=["conda-forge"],
+            channels=[Channel.from_string("conda-forge")],
             platforms=["linux-64"],
             sources=[],
         ).content_hash()
