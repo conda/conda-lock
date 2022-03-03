@@ -36,12 +36,17 @@ import copy
 import logging
 import os
 import re
+import typing
 
 from posixpath import expandvars
 from typing import FrozenSet, List, Optional, cast
 from urllib.parse import unquote, urlparse, urlunparse
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
+
+
+if typing.TYPE_CHECKING:
+    from pydantic.typing import ReprArgs
 
 
 logger = logging.getLogger(__name__)
@@ -77,9 +82,19 @@ class CondaUrl(BaseModel):
         return expanded_url
 
 
-class Channel(BaseModel):
+class ZeroValRepr(BaseModel):
+    """Repr helper that hides falsely values"""
+
+    def __repr_args__(self: BaseModel) -> "ReprArgs":
+        return [(key, value) for key, value in self.__dict__.items() if value]
+
+
+class Channel(ZeroValRepr, BaseModel):
     url: str
-    used_env_vars: FrozenSet[str]
+    used_env_vars: FrozenSet[str] = Field(default=frozenset())
+
+    def __lt__(self, other: "Channel") -> bool:
+        return tuple(self.dict().values()) < tuple(other.dict().values())
 
     class Config:
         frozen = True
@@ -214,7 +229,7 @@ def env_var_normalize(url: str) -> CondaUrl:
             # maybe we should raise here if we have mismatched env vars
             logger.warning("token url detected without env var")
         else:
-            new_path = token_pattern.sub(fr"\1/t/${token_env_var}\3", res_replaced.path)
+            new_path = token_pattern.sub(rf"\1/t/${token_env_var}\3", res_replaced.path)
             res_replaced = res_replaced._replace(path=new_path)
 
     return CondaUrl(
