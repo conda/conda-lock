@@ -17,6 +17,7 @@ from functools import partial
 from types import TracebackType
 from typing import (
     AbstractSet,
+    Any,
     Dict,
     Iterator,
     List,
@@ -1306,8 +1307,8 @@ def render(
 def _handle_exception_post_mortem(
     exc_type: Type[BaseException],
     exc_value: BaseException,
-    exc_traceback: TracebackType,
-) -> None:
+    exc_traceback: Optional[TracebackType],
+) -> Any:
     import pdb
 
     pdb.post_mortem(exc_traceback)

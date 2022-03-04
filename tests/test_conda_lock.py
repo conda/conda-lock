@@ -40,7 +40,11 @@ from conda_lock.conda_lock import (
     run_lock,
 )
 from conda_lock.conda_solver import fake_conda_environment
-from conda_lock.errors import MissingEnvVarError, PlatformValidationError
+from conda_lock.errors import (
+    ChannelAggregationError,
+    MissingEnvVarError,
+    PlatformValidationError,
+)
 from conda_lock.invoke_conda import _ensureconda, is_micromamba, reset_conda_pkgs_dir
 from conda_lock.models.channel import Channel
 from conda_lock.pypi_solver import parse_pip_requirement, solve_pypi
@@ -553,13 +557,7 @@ def _make_spec(name, constraint="*"):
 
 
 def test_aggregate_lock_specs():
-    gpu_spec = LockSpecification(
-        dependencies=[_make_spec("pytorch")],
-        channels=[Channel.from_string("pytorch"), Channel.from_string("conda-forge")],
-        platforms=["linux-64"],
-        sources=[pathlib.Path("ml-stuff.yml")],
-    )
-
+    """Ensure that the way two specs combine when both specify channels is correct"""
     base_spec = LockSpecification(
         dependencies=[_make_spec("python", "=3.7")],
         channels=[Channel.from_string("conda-forge")],
@@ -567,29 +565,94 @@ def test_aggregate_lock_specs():
         sources=[pathlib.Path("base-env.yml")],
     )
 
-    # NB: content hash explicitly does not depend on the source file names
-    assert (
-        aggregate_lock_specs([gpu_spec, base_spec]).content_hash()
-        == LockSpecification(
-            dependencies=[_make_spec("pytorch"), _make_spec("python", "=3.7")],
-            channels=[
-                Channel.from_string("pytorch"),
-                Channel.from_string("conda-forge"),
-            ],
-            platforms=["linux-64"],
-            sources=[],
-        ).content_hash()
+    gpu_spec = LockSpecification(
+        dependencies=[_make_spec("pytorch")],
+        channels=[Channel.from_string("pytorch"), Channel.from_string("conda-forge")],
+        platforms=["linux-64"],
+        sources=[pathlib.Path("ml-stuff.yml")],
     )
 
-    assert (
-        aggregate_lock_specs([base_spec, gpu_spec]).content_hash()
-        != LockSpecification(
-            dependencies=[_make_spec("pytorch"), _make_spec("python", "=3.7")],
-            channels=[Channel.from_string("conda-forge")],
-            platforms=["linux-64"],
-            sources=[],
-        ).content_hash()
+    # NB: content hash explicitly does not depend on the source file names
+    actual = aggregate_lock_specs([base_spec, gpu_spec])
+    expected = LockSpecification(
+        dependencies=[
+            _make_spec("python", "=3.7"),
+            _make_spec("pytorch"),
+        ],
+        channels=[
+            Channel.from_string("pytorch"),
+            Channel.from_string("conda-forge"),
+        ],
+        platforms=["linux-64"],
+        sources=[],
     )
+    assert actual.dict(exclude={"sources"}) == expected.dict(exclude={"sources"})
+    assert actual.content_hash() == expected.content_hash()
+
+
+def test_aggregate_lock_specs_override_version():
+    base_spec = LockSpecification(
+        dependencies=[_make_spec("package", "=1.0")],
+        channels=[Channel.from_string("conda-forge")],
+        platforms=["linux-64"],
+        sources=[pathlib.Path("base.yml")],
+    )
+
+    override_spec = LockSpecification(
+        dependencies=[_make_spec("package", "=2.0")],
+        channels=[Channel.from_string("internal"), Channel.from_string("conda-forge")],
+        platforms=["linux-64"],
+        sources=[pathlib.Path("override.yml")],
+    )
+
+    agg_spec = aggregate_lock_specs([base_spec, override_spec])
+
+    assert agg_spec.dependencies == override_spec.dependencies
+
+
+def test_aggregate_lock_specs_invalid_channels():
+    """Ensure that aggregating specs from mismatched channel orderings raises an error."""
+    base_spec = LockSpecification(
+        dependencies=[],
+        channels=[Channel.from_string("defaults")],
+        platforms=[],
+        sources=[],
+    )
+
+    add_conda_forge = base_spec.copy(
+        update={
+            "channels": [
+                Channel.from_string("conda-forge"),
+                Channel.from_string("defaults"),
+            ]
+        }
+    )
+    agg_spec = aggregate_lock_specs([base_spec, add_conda_forge])
+    assert agg_spec.channels == add_conda_forge.channels
+
+    # swap the order of the two channels, which is an error
+    flipped = base_spec.copy(
+        update={
+            "channels": [
+                Channel.from_string("defaults"),
+                Channel.from_string("conda-forge"),
+            ]
+        }
+    )
+
+    with pytest.raises(ChannelAggregationError):
+        agg_spec = aggregate_lock_specs([base_spec, add_conda_forge, flipped])
+
+    add_pytorch = base_spec.copy(
+        update={
+            "channels": [
+                Channel.from_string("pytorch"),
+                Channel.from_string("defaults"),
+            ]
+        }
+    )
+    with pytest.raises(ChannelAggregationError):
+        agg_spec = aggregate_lock_specs([base_spec, add_conda_forge, add_pytorch])
 
 
 @pytest.fixture(

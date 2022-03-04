@@ -9,7 +9,8 @@ from typing import ClassVar, Dict, List, Literal, Optional, Sequence, Set, Tuple
 
 from pydantic import BaseModel, Field, validator
 
-from conda_lock.common import ordered_union
+from conda_lock.common import ordered_union, suffix_union
+from conda_lock.errors import ChannelAggregationError
 from conda_lock.models.channel import Channel
 from conda_lock.virtual_package import FakeRepoData
 
@@ -326,15 +327,20 @@ def aggregate_lock_specs(
         key = (dep.manager, dep.name)
         if key in unique_deps:
             unique_deps[key].selectors |= dep.selectors
-        else:
-            unique_deps[key] = dep
+        # overrides always win.
+        unique_deps[key] = dep
 
     dependencies = list(unique_deps.values())
+    try:
+        channels = suffix_union(lock_spec.channels or [] for lock_spec in lock_specs)
+    except ValueError as e:
+        raise ChannelAggregationError(*e.args)
 
     return LockSpecification(
         dependencies=dependencies,
+        # Ensure channel are correctly ordered
+        channels=channels,
         # uniquify metadata, preserving order
-        channels=ordered_union(lock_spec.channels or [] for lock_spec in lock_specs),
         platforms=ordered_union(lock_spec.platforms or [] for lock_spec in lock_specs),
         sources=ordered_union(lock_spec.sources or [] for lock_spec in lock_specs),
     )
