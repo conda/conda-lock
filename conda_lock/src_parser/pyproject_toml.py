@@ -6,8 +6,9 @@ from functools import partial
 from typing import AbstractSet, Any, List, Mapping, Optional, Sequence, Union
 from urllib.parse import urldefrag
 
-from typing_extensions import Literal
 import toml
+
+from typing_extensions import Literal
 
 from conda_lock.common import get_in
 from conda_lock.lookup import get_forward_lookup as get_lookup
