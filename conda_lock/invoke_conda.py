@@ -55,7 +55,7 @@ def determine_conda_executable(
         if candidate is not None:
             if is_micromamba(candidate):
                 if ensureconda.api.determine_micromamba_version(
-                    candidate
+                    str(candidate)
                 ) < LooseVersion("0.17"):
                     mamba_root_prefix()
             return candidate
@@ -102,7 +102,7 @@ def _invoke_conda(
     if conda_flags:
         common_args.extend(shlex.split(conda_flags))
 
-    cmd = [str(conda), *command_args, *common_args, *post_args]
+    cmd = list(map(str, [str(conda), *command_args, *common_args, *post_args]))
 
     with subprocess.Popen(
         cmd,
