@@ -102,7 +102,7 @@ def _invoke_conda(
     if conda_flags:
         common_args.extend(shlex.split(conda_flags))
 
-    cmd = list(map(str, [str(conda), *command_args, *common_args, *post_args]))
+    cmd = [str(arg) for arg in [conda, *command_args, *common_args, *post_args]]
 
     with subprocess.Popen(
         cmd,

@@ -318,7 +318,7 @@ def solve_specs_for_arch(
     args.extend(specs)
     logger.info("%s using specs %s", platform, specs)
     proc = subprocess.run(
-        list(map(str, args)),
+        [str(arg) for arg in args],
         env=conda_env_override(platform),
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
@@ -441,9 +441,10 @@ def update_specs_for_arch(
                     *_get_conda_flags(channels=channels, platform=platform),
                 ]
             proc = subprocess.run(
-                list(
-                    map(str, args + ["-p", prefix, "--json", "--dry-run", *to_update])
-                ),
+                [
+                    str(arg)
+                    for arg in args + ["-p", prefix, "--json", "--dry-run", *to_update]
+                ],
                 env=conda_env_override(platform),
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
