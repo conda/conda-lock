@@ -8,3 +8,4 @@ click-default-group
 pydantic
 poetry
 ruamel.yaml
+typing_extensions

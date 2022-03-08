@@ -18,10 +18,11 @@ from typing import (
     MutableSequence,
     Optional,
     Sequence,
-    TypedDict,
     cast,
 )
 from urllib.parse import urlsplit, urlunsplit
+
+from typing_extensions import TypedDict
 
 from conda_lock.invoke_conda import (
     PathLike,
@@ -158,10 +159,10 @@ def solve_conda(
 
     def normalize_url(url: str) -> str:
         for channel in channels:
-            candidate1 = channel.conda_token_replaced_url()
-            url = re.sub(rf"^{candidate1}(.*)", rf"{channel.url}\1", url)
-            candidate2 = channel.env_replaced_url()
-            url = re.sub(rf"^{candidate2}(.*)", rf"{channel.url}\1", url)
+            candidate1 = re.escape(channel.conda_token_replaced_url())
+            url = re.sub(rf"^{candidate1}(.*)", rf"{re.escape(channel.url)}\1", url)
+            candidate2 = re.escape(channel.env_replaced_url())
+            url = re.sub(rf"^{candidate2}(.*)", rf"{re.escape(channel.url)}\1", url)
         return url
 
     # extract dependencies from package plan
@@ -437,7 +438,7 @@ def update_specs_for_arch(
                     *_get_conda_flags(channels=channels, platform=platform),
                 ]
             proc = subprocess.run(
-                map(str, args + ["-p", prefix, "--json", "--dry-run", *to_update])),
+                list(map(str, args + ["-p", prefix, "--json", "--dry-run", *to_update])),
                 env=conda_env_override(platform),
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,

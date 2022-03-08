@@ -3,9 +3,10 @@ import collections.abc
 import pathlib
 
 from functools import partial
-from typing import AbstractSet, Any, List, Literal, Mapping, Optional, Sequence, Union
+from typing import AbstractSet, Any, List, Mapping, Optional, Sequence, Union
 from urllib.parse import urldefrag
 
+from typing_extensions import Literal
 import toml
 
 from conda_lock.common import get_in
