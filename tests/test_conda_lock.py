@@ -416,7 +416,7 @@ def test_run_lock_with_locked_environment_files(
     make_lock_files = MagicMock()
     monkeypatch.setattr("conda_lock.conda_lock.make_lock_files", make_lock_files)
     run_lock(DEFAULT_FILES, conda_exe=conda_exe, update=["pydantic"])
-    assert [p.resolve() for p in make_lock_files.call_args.kwargs["src_files"]] == [
+    assert [p.resolve() for p in make_lock_files.call_args_list[0][1]["src_files"]] == [
         pathlib.Path(update_environment.parent / "environment-preupdate.yml")
     ]
 
