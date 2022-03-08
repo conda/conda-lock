@@ -159,10 +159,13 @@ def solve_conda(
 
     def normalize_url(url: str) -> str:
         for channel in channels:
-            candidate1 = re.escape(channel.conda_token_replaced_url())
-            url = re.sub(rf"^{candidate1}(.*)", rf"{re.escape(channel.url)}\1", url)
-            candidate2 = re.escape(channel.env_replaced_url())
-            url = re.sub(rf"^{candidate2}(.*)", rf"{re.escape(channel.url)}\1", url)
+            candidate1 = channel.conda_token_replaced_url()
+            if url.startswith(candidate1):
+                url = url.replace(candidate1, channel.url, 1)
+
+            candidate2 = channel.env_replaced_url()
+            if url.startswith(candidate2):
+                url = url.replace(candidate2, channel.url, 1)
         return url
 
     # extract dependencies from package plan
