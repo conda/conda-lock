@@ -5,9 +5,10 @@ import typing
 
 from collections import defaultdict, namedtuple
 from itertools import chain
-from typing import ClassVar, Dict, List, Literal, Optional, Sequence, Set, Tuple, Union
+from typing import ClassVar, Dict, List, Optional, Sequence, Set, Tuple, Union
 
 from pydantic import BaseModel, Field, validator
+from typing_extensions import Literal
 
 from conda_lock.common import ordered_union, suffix_union
 from conda_lock.errors import ChannelAggregationError

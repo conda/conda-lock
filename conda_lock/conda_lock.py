@@ -21,7 +21,6 @@ from typing import (
     Dict,
     Iterator,
     List,
-    Literal,
     Optional,
     Sequence,
     Set,
@@ -36,6 +35,7 @@ import pkg_resources
 import yaml
 
 from ensureconda import ensureconda
+from typing_extensions import Literal
 
 from conda_lock.click_helpers import OrderedGroup
 from conda_lock.common import read_file, read_json, relative_path, write_file
