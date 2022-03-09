@@ -39,7 +39,7 @@ from conda_lock.conda_lock import (
     parse_meta_yaml_file,
     run_lock,
 )
-from conda_lock.conda_solver import fake_conda_environment
+from conda_lock.conda_solver import extract_json_object, fake_conda_environment
 from conda_lock.errors import (
     ChannelAggregationError,
     MissingEnvVarError,
@@ -1192,3 +1192,9 @@ def test_private_lock(quetz_server, tmp_path, monkeypatch, capsys, conda_exe):
     monkeypatch.delenv("QUETZ_API_KEY")
     with pytest.raises(MissingEnvVarError):
         run_install()
+
+
+def test_extract_json_object():
+    """It should remove all the characters after the last }"""
+    assert extract_json_object(' ^[0m {"key1": true } ^[0m') == '{"key1": true }'
+    assert extract_json_object('{"key1": true }') == '{"key1": true }'

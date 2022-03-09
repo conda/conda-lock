@@ -103,6 +103,13 @@ def _to_match_spec(
     return ms.conda_build_form()
 
 
+def extract_json_object(proc_stdout: str) -> str:
+    try:
+        return proc_stdout[proc_stdout.index("{") : proc_stdout.rindex("}") + 1]
+    except ValueError:
+        return proc_stdout
+
+
 def solve_conda(
     conda: PathLike,
     specs: Dict[str, Dependency],
@@ -222,8 +229,11 @@ def _reconstruct_fetch_actions(
             pkgs_dirs = [
                 pathlib.Path(d)
                 for d in json.loads(
-                    subprocess.check_output(
-                        [str(conda), "info", "--json"], env=conda_env_override(platform)
+                    extract_json_object(
+                        subprocess.check_output(
+                            [str(conda), "info", "--json"],
+                            env=conda_env_override(platform),
+                        ).decode()
                     )
                 )["pkgs_dirs"]
             ]
@@ -356,7 +366,7 @@ def solve_specs_for_arch(
         raise
 
     try:
-        dryrun_install: DryRunInstall = json.loads(proc.stdout)
+        dryrun_install: DryRunInstall = json.loads(extract_json_object(proc.stdout))
         return _reconstruct_fetch_actions(conda, platform, dryrun_install)
     except json.JSONDecodeError:
         raise
