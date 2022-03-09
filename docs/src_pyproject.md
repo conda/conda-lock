@@ -115,6 +115,17 @@ conda-lock --extra mysql --extra pgsql -f pyproject.toml
 
 When generating lockfiles that make use of extras it is recommended to make use of `--filename-template` covered [here](#file-naming).
 
+!!! note ""
+
+    By default conda-lock will attempt to solve for *ALL* extras it discovers in sources.  This allows you to render explicit locks with subsets
+    of extras.
+
+    However this does make the assumption that your extras can all be installed in conjunction with each other.  If you want extras filtering
+    to happen at the solve stage use the flag `--filter-extras`
+
+    sh```
+    conda-lock --extra incompatiblea --filter-extras -f pyproject.toml
+    ```
 
 ## Extensions
 

@@ -86,6 +86,33 @@ conda-lock --no-dev-dependencies --file ./recipe/meta.yaml
 
 ---
 
+## --extras or --categories
+
+If your source files contains optional dependencies/extras these can be included in the output of a `render` by using the
+flag.
+
+```sh
+conda-lock --extra mysql --extra pgsql -f pyproject.toml
+```
+
+When generating lockfiles that make use of extras it is recommended to make use of `--filename-template` covered [here](#file-naming).
+
+!!! note ""
+
+    By default conda-lock will attempt to solve for *ALL* extras/categories it discovers in sources.  This allows you to _render_ or _install_
+    from lockfiles of extras without needing to re-lock.
+
+    However this does make the assumption that *all* extras are installed, *and* installable in conjunction with each other.
+    If you want extras filtering to happen at the before solving use the flag `--filter-categories` or `--filter-extras`
+
+    sh```
+    conda-lock --extra incompatiblea --filter-categories -f pyproject.toml
+    ```
+
+    This will use the `--extras/--categories` flag as a filter.
+
+---
+
 ## --check-input-hash
 
 Under some situation you may want to run conda lock in some kind of automated way (eg as a precommit) and want to not
