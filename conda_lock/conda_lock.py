@@ -57,6 +57,7 @@ try:
 except ImportError:
     PIP_SUPPORT = False
 from conda_lock.src_parser import (
+    Dependency,
     LockedDependency,
     Lockfile,
     LockMeta,
@@ -229,8 +230,9 @@ def make_lock_spec(
     virtual_package_repo: FakeRepoData,
     channel_overrides: Optional[Sequence[str]] = None,
     platform_overrides: Optional[Sequence[str]] = None,
+    required_categories: Optional[AbstractSet[str]] = None,
 ) -> LockSpecification:
-    """Generate the lockfile specs from a set of input src_files"""
+    """Generate the lockfile specs from a set of input src_files.  If required_categories is set filter out specs that do not match those"""
     lock_specs = parse_source_files(
         src_files=src_files, platform_overrides=platform_overrides or DEFAULT_PLATFORMS
     )
@@ -246,10 +248,22 @@ def make_lock_spec(
         list(platform_overrides) if platform_overrides else lock_spec.platforms
     ) or list(DEFAULT_PLATFORMS)
 
+    if required_categories is not None:
+
+        def dep_has_category(d: Dependency, categories: AbstractSet[str]) -> bool:
+            return d.category in categories
+
+        lock_spec.dependencies = [
+            d
+            for d in lock_spec.dependencies
+            if dep_has_category(d, categories=required_categories)
+        ]
+
     return lock_spec
 
 
 def make_lock_files(
+    *,
     conda: PathLike,
     src_files: List[pathlib.Path],
     kinds: Sequence[TKindAll],
@@ -260,6 +274,7 @@ def make_lock_files(
     update: Optional[List[str]] = None,
     include_dev_dependencies: bool = True,
     filename_template: Optional[str] = None,
+    filter_categories: bool = True,
     extras: Optional[AbstractSet[str]] = None,
     check_input_hash: bool = False,
 ) -> None:
@@ -291,6 +306,8 @@ def make_lock_files(
         Format for names of rendered explicit or env files. Must include {platform}.
     extras :
         Include the given extras in explicit or env output
+    filter_categories :
+        Filter out unused categories prior to solving
     check_input_hash :
         Do not re-solve for each target platform for which specifications are unchanged
     """
@@ -303,14 +320,20 @@ def make_lock_files(
     else:
         virtual_package_repo = default_virtual_package_repodata()
 
+    required_categories = {"main"}
+    if include_dev_dependencies:
+        required_categories.add("dev")
+    if extras is not None:
+        required_categories.update(extras)
+
     with virtual_package_repo:
         lock_spec = make_lock_spec(
             src_files=src_files,
             channel_overrides=channel_overrides,
             platform_overrides=platform_overrides,
             virtual_package_repo=virtual_package_repo,
+            required_categories=required_categories if filter_categories else None,
         )
-
         lock_content: Optional[Lockfile] = None
 
         platforms_to_lock: List[str] = []
@@ -869,6 +892,7 @@ def _render_lockfile_for_install(
 
 def run_lock(
     environment_files: List[pathlib.Path],
+    *,
     conda_exe: Optional[str],
     platforms: Optional[List[str]] = None,
     mamba: bool = False,
@@ -882,6 +906,7 @@ def run_lock(
     extras: Optional[AbstractSet[str]] = None,
     virtual_package_spec: Optional[pathlib.Path] = None,
     update: Optional[List[str]] = None,
+    filter_categories: bool = False,
 ) -> None:
     if environment_files == DEFAULT_FILES:
         if lockfile_path.exists():
@@ -925,6 +950,7 @@ def run_lock(
         include_dev_dependencies=include_dev_dependencies,
         extras=extras,
         check_input_hash=check_input_hash,
+        filter_categories=filter_categories,
     )
 
 
@@ -1012,10 +1038,18 @@ TLogLevel = Union[
 @click.option(
     "-e",
     "--extras",
+    "--category",
     default=[],
     type=str,
     multiple=True,
-    help="When used in conjunction with input sources that support extras (pyproject.toml) will add the deps from those extras to the input specification",
+    help="When used in conjunction with input sources that support extras/categories (pyproject.toml) will add the deps from those extras to the render specification",
+)
+@click.option(
+    "--filter-categories",
+    "--filter-extras",
+    is_flag=True,
+    default=False,
+    help="In conjunction with extras this will prune out dependencies that do not have the extras specified when loading files.",
 )
 @click.option(
     "--check-input-hash",
@@ -1057,6 +1091,7 @@ def lock(
     lockfile: PathLike,
     strip_auth: bool,
     extras: List[str],
+    filter_categories: bool,
     check_input_hash: bool,
     log_level: TLogLevel,
     pdb: bool,
@@ -1120,6 +1155,7 @@ def lock(
         extras=extras_,
         virtual_package_spec=virtual_package_spec,
         update=update,
+        filter_categories=filter_categories,
     )
     if strip_auth:
         with tempfile.TemporaryDirectory() as tempdir:
