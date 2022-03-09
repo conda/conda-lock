@@ -4,6 +4,8 @@ on:
   release:
     types:
       - published
+  push:
+    branches: [master, main]
 
 jobs:
   packages:
@@ -14,7 +16,7 @@ jobs:
     - name: Set up Python
       uses: actions/setup-python@v1
       with:
-        python-version: 3.6
+        python-version: 3.8
 
     - name: Get tags
       run: git fetch --depth=1 origin +refs/tags/*:refs/tags/*
@@ -26,7 +28,7 @@ jobs:
         python -m pip install -r requirements.txt
         python -m pip install 'importlib-metadata>=3.6'
         python setup.py sdist
-        
+
         pip wheel . -w dist --no-deps
 
     - name: Check files
@@ -40,6 +42,7 @@ jobs:
       shell: bash
 
     - name: Publish a Python distribution to PyPI
+      if: ${{ github.event_name == 'release' }}
       uses: pypa/gh-action-pypi-publish@master
       with:
         user: __token__
