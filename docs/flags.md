@@ -105,11 +105,11 @@ When generating lockfiles that make use of extras it is recommended to make use 
     However this does make the assumption that *all* extras are installed, *and* installable in conjunction with each other.
     If you want extras filtering to happen at the before solving use the flag `--filter-categories` or `--filter-extras`
 
-    sh```
+    ```sh
     conda-lock --extra incompatiblea --filter-categories -f pyproject.toml
     ```
 
-    This will use the `--extras/--categories` flag as a filter.
+    This will use categories from `--extras/--categories` flag as a filter at the specification build time.
 
 ---
 

@@ -123,7 +123,7 @@ When generating lockfiles that make use of extras it is recommended to make use 
     However this does make the assumption that your extras can all be installed in conjunction with each other.  If you want extras filtering
     to happen at the solve stage use the flag `--filter-extras`
 
-    sh```
+    ```sh
     conda-lock --extra incompatiblea --filter-extras -f pyproject.toml
     ```
 

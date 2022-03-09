@@ -230,8 +230,9 @@ def make_lock_spec(
     virtual_package_repo: FakeRepoData,
     channel_overrides: Optional[Sequence[str]] = None,
     platform_overrides: Optional[Sequence[str]] = None,
+    required_categories: Optional[AbstractSet[str]] = None,
 ) -> LockSpecification:
-    """Generate the lockfile specs from a set of input src_files"""
+    """Generate the lockfile specs from a set of input src_files.  If required_categories is set filter out specs that do not match those"""
     lock_specs = parse_source_files(
         src_files=src_files, platform_overrides=platform_overrides or DEFAULT_PLATFORMS
     )
@@ -246,6 +247,17 @@ def make_lock_spec(
     lock_spec.platforms = (
         list(platform_overrides) if platform_overrides else lock_spec.platforms
     ) or list(DEFAULT_PLATFORMS)
+
+    if required_categories is not None:
+
+        def dep_has_category(d: Dependency, categories: AbstractSet[str]) -> bool:
+            return d.category in categories
+
+        lock_spec.dependencies = [
+            d
+            for d in lock_spec.dependencies
+            if dep_has_category(d, categories=required_categories)
+        ]
 
     return lock_spec
 
@@ -308,30 +320,20 @@ def make_lock_files(
     else:
         virtual_package_repo = default_virtual_package_repodata()
 
+    required_categories = {"main"}
+    if include_dev_dependencies:
+        required_categories.add("dev")
+    if extras is not None:
+        required_categories.update(extras)
+
     with virtual_package_repo:
         lock_spec = make_lock_spec(
             src_files=src_files,
             channel_overrides=channel_overrides,
             platform_overrides=platform_overrides,
             virtual_package_repo=virtual_package_repo,
+            required_categories=required_categories if filter_categories else None,
         )
-        if filter_categories:
-
-            def dep_has_category(d: Dependency, categories: AbstractSet[str]) -> bool:
-                return d.category in categories
-
-            required_categories = {"main"}
-            if include_dev_dependencies:
-                required_categories.add("dev")
-            if extras is not None:
-                required_categories.update(extras)
-
-            lock_spec.dependencies = [
-                d
-                for d in lock_spec.dependencies
-                if dep_has_category(d, categories=required_categories)
-            ]
-
         lock_content: Optional[Lockfile] = None
 
         platforms_to_lock: List[str] = []

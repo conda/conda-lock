@@ -343,6 +343,39 @@ def test_parse_poetry(poetry_pyproject_toml):
     assert res.channels == [Channel.from_string("defaults")]
 
 
+def test_spec_poetry(poetry_pyproject_toml):
+
+    virtual_package_repo = default_virtual_package_repodata()
+    with virtual_package_repo:
+        spec = make_lock_spec(
+            src_files=[poetry_pyproject_toml], virtual_package_repo=virtual_package_repo
+        )
+        deps = {d.name for d in spec.dependencies}
+        assert "tomlkit" in deps
+        assert "pytest" in deps
+        assert "requests" in deps
+
+        spec = make_lock_spec(
+            src_files=[poetry_pyproject_toml],
+            virtual_package_repo=virtual_package_repo,
+            required_categories={"main", "dev"},
+        )
+        deps = {d.name for d in spec.dependencies}
+        assert "tomlkit" not in deps
+        assert "pytest" in deps
+        assert "requests" in deps
+
+        spec = make_lock_spec(
+            src_files=[poetry_pyproject_toml],
+            virtual_package_repo=virtual_package_repo,
+            required_categories={"main"},
+        )
+        deps = {d.name for d in spec.dependencies}
+        assert "tomlkit" not in deps
+        assert "pytest" not in deps
+        assert "requests" in deps
+
+
 def test_parse_flit(flit_pyproject_toml):
     res = parse_pyproject_toml(
         flit_pyproject_toml,
