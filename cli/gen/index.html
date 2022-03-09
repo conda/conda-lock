@@ -758,10 +758,16 @@ timestamp: The approximate timestamp of the output file in ISO8601 basic format.
 <td><code>False</code></td>
 </tr>
 <tr>
-<td><code>-e</code>, <code>--extras</code></td>
+<td><code>-e</code>, <code>--extras</code>, <code>--category</code></td>
 <td>text</td>
-<td>When used in conjunction with input sources that support extras (pyproject.toml) will add the deps from those extras to the input specification</td>
+<td>When used in conjunction with input sources that support extras/categories (pyproject.toml) will add the deps from those extras to the render specification</td>
 <td><code>[]</code></td>
+</tr>
+<tr>
+<td><code>--filter-categories</code>, <code>--filter-extras</code></td>
+<td>boolean</td>
+<td>In conjunction with extras this will prune out dependencies that do not have the extras specified when loading files.</td>
+<td><code>False</code></td>
 </tr>
 <tr>
 <td><code>--check-input-hash</code></td>

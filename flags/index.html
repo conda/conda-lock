@@ -389,6 +389,13 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#-extras-or-categories" class="md-nav__link">
+    --extras or --categories
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#-check-input-hash" class="md-nav__link">
     --check-input-hash
   </a>
@@ -582,6 +589,13 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#-extras-or-categories" class="md-nav__link">
+    --extras or --categories
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#-check-input-hash" class="md-nav__link">
     --check-input-hash
   </a>
@@ -706,6 +720,22 @@ override the values in the environment specification. If neither <code>platforms
 is being built from support them).  This can be disabled easily</p>
 <div class="highlight"><pre><span></span><code>conda-lock --no-dev-dependencies --file ./recipe/meta.yaml
 </code></pre></div>
+<hr />
+<h2 id="-extras-or-categories">--extras or --categories</h2>
+<p>If your source files contains optional dependencies/extras these can be included in the output of a <code>render</code> by using the
+flag.</p>
+<div class="highlight"><pre><span></span><code>conda-lock --extra mysql --extra pgsql -f pyproject.toml
+</code></pre></div>
+<p>When generating lockfiles that make use of extras it is recommended to make use of <code>--filename-template</code> covered <a href="#file-naming">here</a>.</p>
+<div class="admonition note">
+<p>By default conda-lock will attempt to solve for <em>ALL</em> extras/categories it discovers in sources.  This allows you to <em>render</em> or <em>install</em>
+from lockfiles of extras without needing to re-lock.</p>
+<p>However this does make the assumption that <em>all</em> extras are installed, <em>and</em> installable in conjunction with each other.
+If you want extras filtering to happen at the before solving use the flag <code>--filter-categories</code> or <code>--filter-extras</code></p>
+<div class="highlight"><pre><span></span><code>conda-lock --extra incompatiblea --filter-categories -f pyproject.toml
+</code></pre></div>
+<p>This will use categories from <code>--extras/--categories</code> flag as a filter at the specification build time.</p>
+</div>
 <hr />
 <h2 id="-check-input-hash">--check-input-hash</h2>
 <p>Under some situation you may want to run conda lock in some kind of automated way (eg as a precommit) and want to not
