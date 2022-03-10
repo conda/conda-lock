@@ -38,7 +38,13 @@ from ensureconda import ensureconda
 from typing_extensions import Literal
 
 from conda_lock.click_helpers import OrderedGroup
-from conda_lock.common import read_file, read_json, relative_path, write_file
+from conda_lock.common import (
+    read_file,
+    read_json,
+    relative_path,
+    temporary_file_with_contents,
+    write_file,
+)
 from conda_lock.conda_solver import solve_conda
 from conda_lock.errors import MissingEnvVarError, PlatformValidationError
 from conda_lock.invoke_conda import (
@@ -209,9 +215,8 @@ def do_conda_install(
     if not pip_requirements:
         return
 
-    with tempfile.NamedTemporaryFile() as tf:
-        write_file("\n".join(pip_requirements), tf.name)
-        _conda(["run"], ["pip", "install", "--no-deps", "-r", tf.name])
+    with temporary_file_with_contents("\n".join(pip_requirements)) as requirements_path:
+        _conda(["run"], ["pip", "install", "--no-deps", "-r", str(requirements_path)])
 
 
 def fn_to_dist_name(fn: str) -> str:
@@ -790,15 +795,8 @@ def _add_auth_to_lockfile(lockfile: str, auth: Dict[str, str]) -> str:
 @contextmanager
 def _add_auth(lockfile: str, auth: Dict[str, str]) -> Iterator[pathlib.Path]:
     lockfile_with_auth = _add_auth_to_lockfile(lockfile, auth)
-
-    # On Windows, NamedTemporaryFiles can't be opened a second time, so we have to close it first (and delete it manually later)
-    tf = tempfile.NamedTemporaryFile(delete=False)
-    try:
-        tf.close()
-        write_file(lockfile_with_auth, tf.name)
-        yield pathlib.Path(tf.name)
-    finally:
-        os.unlink(tf.name)
+    with temporary_file_with_contents(lockfile_with_auth) as path:
+        yield path
 
 
 def _strip_auth_from_line(line: str) -> str:
@@ -877,17 +875,15 @@ def _render_lockfile_for_install(
             f"Cannot run render lockfile.  Missing environment variables: {msg}"
         )
 
-    with tempfile.NamedTemporaryFile(mode="w") as tf:
-        content = render_lockfile_for_platform(
-            lockfile=lock_content,
-            kind="explicit",
-            platform=platform,
-            include_dev_dependencies=include_dev_dependencies,
-            extras=extras,
-        )
-        tf.write("\n".join(content) + "\n")
-        tf.flush()
-        yield pathlib.Path(tf.name)
+    content = render_lockfile_for_platform(
+        lockfile=lock_content,
+        kind="explicit",
+        platform=platform,
+        include_dev_dependencies=include_dev_dependencies,
+        extras=extras,
+    )
+    with temporary_file_with_contents("\n".join(content) + "\n") as path:
+        yield path
 
 
 def run_lock(
