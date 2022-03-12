@@ -144,6 +144,11 @@ def flit_pyproject_toml():
     return TEST_DIR.joinpath("test-flit").joinpath("pyproject.toml")
 
 
+@pytest.fixture
+def pdm_pyproject_toml():
+    return TEST_DIR.joinpath("test-pdm").joinpath("pyproject.toml")
+
+
 @pytest.fixture(
     scope="function",
     params=[
@@ -393,6 +398,33 @@ def test_parse_flit(flit_pyproject_toml):
     assert specs["pytest"].optional is True
     assert specs["pytest"].category == "dev"
 
+    assert res.channels == [Channel.from_string("defaults")]
+
+
+def test_parse_pdm(pdm_pyproject_toml):
+    res = parse_pyproject_toml(
+        pdm_pyproject_toml,
+    )
+
+    specs = {
+        dep.name: typing.cast(VersionedDependency, dep) for dep in res.dependencies
+    }
+
+    # Base dependencies
+    assert specs["requests"].version == ">=2.13.0"
+    assert specs["toml"].version == ">=0.10"
+    # conda-lock exclusives
+    assert specs["sqlite"].version == "<3.34"
+    assert specs["certifi"].version == ">=2019.11.28"
+    # PEP 621 optional dependencies (show up in package metadata)
+    assert specs["click"].version == ">=7.0"
+    assert specs["click"].optional is True
+    assert specs["click"].category == "cli"
+    # PDM dev extras
+    assert specs["pytest"].version == ">=5.1.0"
+    assert specs["pytest"].optional is True
+    assert specs["pytest"].category == "dev"
+    # Conda channels
     assert res.channels == [Channel.from_string("defaults")]
 
 
