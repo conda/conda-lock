@@ -319,7 +319,7 @@ def parse_pdm_pyproject_toml(
         contents,
         prefix=("project",),
         main_tag="dependencies",
-        optional_tag="optional-dependencies"
+        optional_tag="optional-dependencies",
     )
 
     dev_reqs = []
