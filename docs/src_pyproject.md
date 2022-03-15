@@ -26,7 +26,7 @@ is no lookup for the package it assumes that the PyPI name, and the conda name a
     build-backend = "poetry.masonry.api"
     ```
 
-=== "pep621 (flit)"
+=== "pep621 (flit, pdm)"
     ```{.toml title="pyproject.toml"}
     [project]
     dependencies = [
@@ -49,6 +49,13 @@ This will create a conda-lock specification with
 **dev**
 
     pytest >=5.1.0
+
+!!! note ""
+
+    PDM also has support for
+    [development dependencies not listed in distribution metadata](https://pdm.fming.dev/pyproject/tool-pdm/#development-dependencies).
+    Any dependency found in that section will be added to the `dev` category.
+    This behavior is experimental and may change in the future.
 
 ### pure pip dependencies
 
@@ -92,7 +99,7 @@ If your pyproject.toml file contains optional dependencies/extras these can be r
     pgsql = ["psycopg2"]
     ```
 
-=== "pep621 (flit)"
+=== "pep621 (flit, pdm)"
 
     ```{.toml title="pyproject.toml"}
     # pyproject.toml
