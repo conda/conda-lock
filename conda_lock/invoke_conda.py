@@ -110,6 +110,7 @@ def _invoke_conda(
         stderr=subprocess.PIPE,
         bufsize=1,
         universal_newlines=True,
+        encoding="utf-8",
     ) as p:
         stdout = []
         if p.stdout:
