@@ -627,7 +627,7 @@ package name to a corresponding conda package name (e.g. <code>docker</code> -&g
 is no lookup for the package it assumes that the PyPI name, and the conda name are the same.</p>
 <h2 id="features">Features</h2>
 <h3 id="dependency-resolution">dependency resolution</h3>
-<div class="tabbed-set tabbed-alternate" data-tabs="1:2"><input checked="checked" id="__tabbed_1_1" name="__tabbed_1" type="radio" /><input id="__tabbed_1_2" name="__tabbed_1" type="radio" /><div class="tabbed-labels"><label for="__tabbed_1_1">poetry</label><label for="__tabbed_1_2">pep621 (flit)</label></div>
+<div class="tabbed-set tabbed-alternate" data-tabs="1:2"><input checked="checked" id="__tabbed_1_1" name="__tabbed_1" type="radio" /><input id="__tabbed_1_2" name="__tabbed_1" type="radio" /><div class="tabbed-labels"><label for="__tabbed_1_1">poetry</label><label for="__tabbed_1_2">pep621 (flit, pdm)</label></div>
 <div class="tabbed-content">
 <div class="tabbed-block">
 <div class="highlight"><span class="filename">pyproject.toml</span><pre><span></span><code><span class="k">[tool.poetry.dependencies]</span><span class="w"></span>
@@ -664,6 +664,12 @@ toml &gt;=0.10
 <p><strong>dev</strong></p>
 <div class="highlight"><pre><span></span><code>pytest &gt;=5.1.0
 </code></pre></div>
+<div class="admonition note">
+<p>PDM also has support for
+<a href="https://pdm.fming.dev/pyproject/tool-pdm/#development-dependencies">development dependencies not listed in distribution metadata</a>.
+Any dependency found in that section will be added to the <code>dev</code> category.
+This behavior is experimental and may change in the future.</p>
+</div>
 <h3 id="pure-pip-dependencies">pure pip dependencies</h3>
 <p>If a dependency refers directly to a URL rather than a package name and version,
 <code>conda-lock</code> will assume it is pip-installable, e.g.:</p>
@@ -682,7 +688,7 @@ installed with <code>pip</code>, unless they were already requested by a <code>c
 dependency.</p>
 <h3 id="extras">Extras</h3>
 <p>If your pyproject.toml file contains optional dependencies/extras these can be referred to by using the <code>--extras</code> flag</p>
-<div class="tabbed-set tabbed-alternate" data-tabs="2:2"><input checked="checked" id="__tabbed_2_1" name="__tabbed_2" type="radio" /><input id="__tabbed_2_2" name="__tabbed_2" type="radio" /><div class="tabbed-labels"><label for="__tabbed_2_1">poetry</label><label for="__tabbed_2_2">pep621 (flit)</label></div>
+<div class="tabbed-set tabbed-alternate" data-tabs="2:2"><input checked="checked" id="__tabbed_2_1" name="__tabbed_2" type="radio" /><input id="__tabbed_2_2" name="__tabbed_2" type="radio" /><div class="tabbed-labels"><label for="__tabbed_2_1">poetry</label><label for="__tabbed_2_2">pep621 (flit, pdm)</label></div>
 <div class="tabbed-content">
 <div class="tabbed-block">
 <div class="highlight"><span class="filename">pyproject.toml</span><pre><span></span><code><span class="k">[tool.poetry.dependencies]</span><span class="w"></span>
