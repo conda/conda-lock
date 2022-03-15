@@ -237,8 +237,9 @@ Conda lock supports more than just [environment.yml][envyaml] specifications!
 
 Additionally conda-lock supports [meta.yaml][metayaml] (conda-build)
 and `pyproject.toml` (
-[flit](https://flit.readthedocs.io/en/latest/) and [poetry](https://python-poetry.org)
-based).  These do come with some gotchas but are generally good enough for the 90% use-case.
+[flit](https://flit.readthedocs.io/en/latest/), [pdm](https://pdm.fming.dev) and
+[poetry](https://python-poetry.org) based).  These do come with some gotchas but
+are generally good enough for the 90% use-case.
 
 ### meta.yaml
 

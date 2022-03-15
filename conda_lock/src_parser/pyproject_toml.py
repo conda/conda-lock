@@ -198,14 +198,18 @@ def parse_pyproject_toml(
     contents = toml.load(pyproject_toml)
     build_system = get_in(["build-system", "build-backend"], contents)
     pep_621_probe = get_in(["project", "dependencies"], contents)
+    pdm_probe = get_in(["tool", "pdm"], contents)
     parse = parse_poetry_pyproject_toml
     if pep_621_probe is not None:
-        parse = partial(
-            parse_requirements_pyproject_toml,
-            prefix=("project",),
-            main_tag="dependencies",
-            optional_tag="optional-dependencies",
-        )
+        if pdm_probe is None:
+            parse = partial(
+                parse_requirements_pyproject_toml,
+                prefix=("project",),
+                main_tag="dependencies",
+                optional_tag="optional-dependencies",
+            )
+        else:
+            parse = parse_pdm_pyproject_toml
     elif build_system.startswith("poetry"):
         parse = parse_poetry_pyproject_toml
     elif build_system.startswith("flit"):
@@ -300,3 +304,36 @@ def parse_requirements_pyproject_toml(
             )
 
     return specification_with_dependencies(pyproject_toml_path, contents, dependencies)
+
+
+def parse_pdm_pyproject_toml(
+    path: pathlib.Path,
+    contents: Mapping[str, Any],
+) -> LockSpecification:
+    """
+    PDM support. First, a regular PEP621 pass; then, add all dependencies listed
+    in the 'tool.pdm.dev-dependencies' table with the 'dev' category.
+    """
+    res = parse_requirements_pyproject_toml(
+        path,
+        contents,
+        prefix=("project",),
+        main_tag="dependencies",
+        optional_tag="optional-dependencies",
+    )
+
+    dev_reqs = []
+
+    for section, deps in get_in(["tool", "pdm", "dev-dependencies"], contents).items():
+        dev_reqs.extend(
+            [
+                parse_python_requirement(
+                    dep, manager="conda", category="dev", optional=True
+                )
+                for dep in deps
+            ]
+        )
+
+    res.dependencies.extend(dev_reqs)
+
+    return res
