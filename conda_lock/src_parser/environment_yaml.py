@@ -66,7 +66,10 @@ def parse_environment_file(
     for spec in specs:
         from ..vendor.conda.models.match_spec import MatchSpec
 
-        ms = MatchSpec(spec)
+        try:
+            ms = MatchSpec(spec)
+        except Exception as e:
+            raise RuntimeError(f"Failed to turn `{spec}` into a MatchSpec") from e
 
         dependencies.append(
             VersionedDependency(
