@@ -6,7 +6,12 @@ import jinja2
 import yaml
 
 from conda_lock.common import get_in
-from conda_lock.src_parser import Dependency, LockSpecification, aggregate_lock_specs
+from conda_lock.src_parser import (
+    Dependency,
+    LockSpecification,
+    VersionedDependency,
+    aggregate_lock_specs,
+)
 from conda_lock.src_parser.pyproject_toml import parse_python_requirement
 from conda_lock.src_parser.selectors import filter_platform_selectors
 
@@ -134,13 +139,22 @@ def _parse_meta_yaml_file_for_platform(
     def add_spec(spec: str, category: str) -> None:
         if spec is None:
             return
-        # TODO: This does not parse conda requirements with build strings
-        dep = parse_python_requirement(
-            spec,
+
+        from ..vendor.conda.models.match_spec import MatchSpec
+
+        try:
+            ms = MatchSpec(spec)
+        except Exception as e:
+            raise RuntimeError(f"Failed to turn `{spec}` into a MatchSpec") from e
+
+        dep = VersionedDependency(
+            name=ms.name,
+            version=ms.get("version", ""),
             manager="conda",
             optional=category != "main",
             category=category,
-            normalize_name=False,
+            extras=[],
+            build=ms.get("build"),
         )
         dep.selectors.platform = [platform]
         dependencies.append(dep)
