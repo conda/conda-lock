@@ -170,6 +170,17 @@ class Lockfile(StrictModel):
             else:
                 package.append(ours[key])
 
+        # Resort the conda packages topologically
+        final_package = self._toposort(package)
+        return Lockfile(package=final_package, metadata=other.metadata | self.metadata)
+
+    def toposort_inplace(self) -> None:
+        self.package = self._toposort(self.package)
+
+    @staticmethod
+    def _toposort(
+        package: List[LockedDependency], update: bool = False
+    ) -> List[LockedDependency]:
         platforms = {d.platform for d in package}
 
         # Resort the conda packages topologically
@@ -209,7 +220,7 @@ class Lockfile(StrictModel):
 
                     final_package.append(dep)
 
-        return Lockfile(package=final_package, metadata=other.metadata | self.metadata)
+        return final_package
 
 
 class LockSpecification(BaseModel):

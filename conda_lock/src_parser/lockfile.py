@@ -26,6 +26,7 @@ def parse_conda_lock_file(
 def write_conda_lock_file(
     content: Lockfile, path: pathlib.Path, include_help_text: bool = True
 ) -> None:
+    content.toposort_inplace()
     with path.open("w") as f:
         if include_help_text:
             categories = set(p.category for p in content.package)
