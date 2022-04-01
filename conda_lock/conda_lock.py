@@ -555,6 +555,10 @@ def render_lockfile_for_platform(  # noqa: C901
 
     conda_deps = []
     pip_deps = []
+
+    # ensure consistent ordering of generated file
+    lockfile.toposort_inplace()
+
     for p in lockfile.package:
         if p.platform == platform and ((not p.optional) or (p.category in categories)):
             if p.manager == "pip":
