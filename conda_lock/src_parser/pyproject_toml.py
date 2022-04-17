@@ -162,23 +162,32 @@ def parse_poetry_pyproject_toml(
 def specification_with_dependencies(
     path: pathlib.Path, toml_contents: Mapping[str, Any], dependencies: List[Dependency]
 ) -> LockSpecification:
+    force_pypi = set()
     for depname, depattrs in get_in(
         ["tool", "conda-lock", "dependencies"], toml_contents, {}
     ).items():
         if isinstance(depattrs, str):
             conda_version = depattrs
+            dependencies.append(
+                VersionedDependency(
+                    name=depname,
+                    version=conda_version,
+                    manager="conda",
+                    optional=False,
+                    category="main",
+                    extras=[],
+                )
+            )
+        elif isinstance(depattrs, collections.abc.Mapping):
+            if depattrs.get("source", None) == "pypi":
+                force_pypi.add(depname)
         else:
             raise TypeError(f"Unsupported type for dependency: {depname}: {depattrs:r}")
-        dependencies.append(
-            VersionedDependency(
-                name=depname,
-                version=conda_version,
-                manager="conda",
-                optional=False,
-                category="main",
-                extras=[],
-            )
-        )
+
+    if force_pypi:
+        for dep in dependencies:
+            if dep.name in force_pypi:
+                dep.manager = "pip"
 
     return LockSpecification(
         dependencies=dependencies,

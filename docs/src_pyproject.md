@@ -170,5 +170,17 @@ the following sections to the `pyproject.toml`
 sqlite = ">=3.34"
 ```
 
+### Force pypi dependencies
+
+While it is with poetry, it is not possible to indicate a package's source in a `pyproject.toml` which follows PEP621.
+
+In that case, it is possible to force resolving a dependency as a pip dependency by indicating it in the same `pyproject.toml` section.
+
+This is useful in particular for packages that are not present on conda channels.
+
+```{.toml title="pyproject.toml"}
+[tool.conda-lock.dependencies]
+numpy = {source = "pypi"}
+```
 
 [mapping]: https://github.com/regro/cf-graph-countyfair/blob/master/mappings/pypi/grayskull_pypi_mapping.yaml
