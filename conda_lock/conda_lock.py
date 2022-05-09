@@ -602,7 +602,7 @@ def render_lockfile_for_platform(  # noqa: C901
                 "dependencies:",
                 *(
                     f"  - {format_conda_requirement(dep, platform, direct=False)}"
-                    for dep in conda_deps
+                    for dep in sorted(conda_deps, key=lambda dep: dep.name)
                 ),
             ]
         )
@@ -611,7 +611,7 @@ def render_lockfile_for_platform(  # noqa: C901
                 "  - pip:",
                 *(
                     f"    - {format_pip_requirement(dep, platform, direct=False)}"
-                    for dep in pip_deps
+                    for dep in sorted(pip_deps, key=lambda dep: dep.name)
                 ),
             ]
             if pip_deps
