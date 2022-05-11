@@ -420,6 +420,7 @@ def do_render(
     filename_template: Optional[str] = None,
     extras: Optional[AbstractSet[str]] = None,
     check_input_hash: bool = False,
+    override_platform: Optional[Sequence[str]] = None,
 ) -> None:
     """Render the lock content for each platform in lockfile
 
@@ -437,9 +438,12 @@ def do_render(
         Include the given extras in output
     check_input_hash :
         Do not re-render if specifications are unchanged
-
+    override_platform :
+        Generate only this subset of the platform files
     """
     platforms = lockfile.metadata.platforms
+    if override_platform is not None and len(override_platform) > 0:
+        platforms = list(sorted(set(platforms) & set(override_platform)))
 
     if filename_template:
         if "{platform}" not in filename_template and len(platforms) > 1:
@@ -553,8 +557,8 @@ def render_lockfile_for_platform(  # noqa: C901
         *(["dev"] if include_dev_dependencies else []),
     }
 
-    conda_deps = []
-    pip_deps = []
+    conda_deps: List[LockedDependency] = []
+    pip_deps: List[LockedDependency] = []
 
     # ensure consistent ordering of generated file
     lockfile.toposort_inplace()
@@ -759,7 +763,7 @@ def parse_source_files(
     platform_overrides :
         Target platforms to render meta.yaml files for
     """
-    desired_envs = []
+    desired_envs: List[LockSpecification] = []
     for src_file in src_files:
         if src_file.name == "meta.yaml":
             desired_envs.append(
@@ -1094,7 +1098,7 @@ def lock(
     log_level: TLogLevel,
     pdb: bool,
     virtual_package_spec: Optional[PathLike],
-    update: bool = None,
+    update: Optional[List[str]] = None,
 ) -> None:
     """Generate fully reproducible lock files for conda environments.
 
@@ -1303,6 +1307,12 @@ def install(
 @click.option(
     "--pdb", is_flag=True, help="Drop into a postmortem debugger if conda-lock crashes"
 )
+@click.option(
+    "-p",
+    "--platform",
+    multiple=True,
+    help="render lock files for the following platforms",
+)
 @click.argument("lock-file", default=DEFAULT_LOCKFILE_NAME)
 @click.pass_context
 def render(
@@ -1314,6 +1324,7 @@ def render(
     log_level: TLogLevel,
     lock_file: PathLike,
     pdb: bool,
+    platform: Sequence[str],
 ) -> None:
     """Render multi-platform lockfile into single-platform env or explicit file"""
     logging.basicConfig(level=log_level)
@@ -1335,6 +1346,7 @@ def render(
         kinds=kind,
         include_dev_dependencies=dev_dependencies,
         extras=set(extras),
+        override_platform=platform,
     )
 
 
