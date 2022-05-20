@@ -578,9 +578,15 @@ def render_lockfile_for_platform(  # noqa: C901
         if spec.source and spec.source.type == "url":
             return f"{spec.name} @ {spec.source.url}"
         elif direct:
-            return f"{spec.name} @ {spec.url}#md5={spec.hash.md5}"
+            s = f"{spec.name} @ {spec.url}"
+            if spec.hash.sha256:
+                s += f"#sha256={spec.hash.sha256}"
+            return s
         else:
-            return f"{spec.name} === {spec.version} --hash=md5:{spec.hash.md5}"
+            s = f"{spec.name} === {spec.version}"
+            if spec.hash.sha256:
+                s += f"--hash=sha256:{spec.hash.sha256}"
+            return s
 
     def format_conda_requirement(
         spec: LockedDependency, platform: str, direct: bool = False
