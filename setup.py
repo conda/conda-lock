@@ -1,4 +1,7 @@
 from setuptools import setup
 
 
-setup(use_scm_version=True)
+setup(
+    name="conda_lock",
+    use_scm_version=True,
+)
