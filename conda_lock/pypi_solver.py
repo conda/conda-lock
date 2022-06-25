@@ -206,7 +206,7 @@ def solve_pypi(
         )
         for source in config.get("repositories", {}).items()
     ]
-    
+
     pypi = PyPiRepository()
     pool = Pool(repositories=[*repos, pypi])
 
