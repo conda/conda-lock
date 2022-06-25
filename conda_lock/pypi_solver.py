@@ -17,6 +17,7 @@ from poetry.repositories.pool import Pool
 from poetry.repositories.pypi_repository import PyPiRepository
 from poetry.repositories.repository import Repository
 from poetry.utils.env import Env
+from poetry.factory import Factory
 
 from conda_lock import src_parser
 from conda_lock.lookup import conda_name_to_pypi_name
@@ -197,8 +198,13 @@ def solve_pypi(
     for dep in dependencies:
         dummy_package.add_dependency(dep)
 
+    factory = Factory()
+    config =factory.create_config()
+    repos = [factory.create_legacy_repository({'name':source[0], 'url':source[1]['url']}, config) 
+                for source in config.get("repositories", {}).items()]
+
     pypi = PyPiRepository()
-    pool = Pool(repositories=[pypi])
+    pool = Pool(repositories=[*repos, pypi])
 
     installed = Repository()
     locked = Repository()
