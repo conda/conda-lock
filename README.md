@@ -143,6 +143,13 @@ The default category is `main`.
 [environment.yml][envyaml], using [Poetry's][poetry] dependency solver, if
 installed with the `pip_support` extra.
 
+### private pip repositories
+Right now `conda-lock` only supports [legacy](https://warehouse.pypa.io/api-reference/legacy.html) pypi repos with basic auth. Most self-hosted repositories like Nexus, Artifactory etc. use this. To use this feature, add your private repo into Poetry's config _including_ the basic auth in the url:
+
+```bash
+poetry config repositories.foo https://username:password@foo.repo/simple/
+```
+
 ### --dev-dependencies/--no-dev-dependencies
 
 By default conda-lock will include dev dependencies in the specification of the lock (if the files that the lock
