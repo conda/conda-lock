@@ -9,3 +9,4 @@ pydantic
 poetry
 ruamel.yaml
 typing-extensions
+gitpython
