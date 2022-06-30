@@ -2,8 +2,7 @@ import json
 import pathlib
 
 from textwrap import dedent
-from typing import Optional
-from typing import List
+from typing import List, Optional
 
 import yaml
 
@@ -72,9 +71,7 @@ def write_conda_lock_file(
                 )
             if extra_comment_lines is not None:
                 section_block = "\n".join(extra_comment_lines)
-                write_section(
-                    f"\n\n{section_block}\n\n"
-                )
+                write_section(f"\n\n{section_block}\n\n")
             write_section(
                 f"""
                 To update a single package to the latest version compatible with the version constraints in the source:
