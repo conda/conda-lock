@@ -269,11 +269,13 @@ def make_lock_spec(
 
 def get_time_metadata() -> List[str]:
     import time
+
     return [f"Lockfile created at: {time.asctime(time.gmtime(time.time()))}"]
 
 
 def get_git_metadata() -> List[str]:
     import git
+
     try:
         repo = git.Repo(search_parent_directories=True)
         git_sha = f"{repo.head.object.hexsha}{'-dirty' if repo.is_dirty() else ''}"
@@ -292,7 +294,7 @@ def get_input_md5(src_file: pathlib.Path) -> str:
     import hashlib
 
     hasher = hashlib.md5()
-    with src_file.open('r') as infile:
+    with src_file.open("r") as infile:
         hasher.update(infile.read().encode("utf-8"))
     return hasher.hexdigest()
 
@@ -466,9 +468,7 @@ def make_lock_files(
 
             if "lock" in kinds:
                 write_conda_lock_file(
-                    lock_content,
-                    lockfile_path,
-                    extra_comment_lines=extra_comment_lines
+                    lock_content, lockfile_path, extra_comment_lines=extra_comment_lines
                 )
                 print(
                     " - Install lock using:",
@@ -1170,23 +1170,23 @@ TLogLevel = Union[
 @click.option(
     "--add-inputs-metadata",
     is_flag=True,
-    help="If true add extra metadata to lockfile comments about the input files provided."
+    help="If true add extra metadata to lockfile comments about the input files provided.",
 )
 @click.option(
     "--add-git-metadata",
     is_flag=True,
-    help="If true add extra metadata to lockfile comments about the git-repo."
+    help="If true add extra metadata to lockfile comments about the git-repo.",
 )
 @click.option(
     "--add-time-metadata",
     is_flag=True,
-    help="If true add extra metadata to lockfile comments about the time of lockfile creation."
+    help="If true add extra metadata to lockfile comments about the time of lockfile creation.",
 )
 @click.option(
     "--extra-lockfile-comments",
     default=None,
     multiple=True,
-    help="Extra comments to add to the lockfile comments block."
+    help="Extra comments to add to the lockfile comments block.",
 )
 
 @click.pass_context
