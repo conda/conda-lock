@@ -2,6 +2,8 @@ import json
 import pathlib
 
 from textwrap import dedent
+from typing import Optional
+from typing import List
 
 import yaml
 
@@ -24,7 +26,10 @@ def parse_conda_lock_file(
 
 
 def write_conda_lock_file(
-    content: Lockfile, path: pathlib.Path, include_help_text: bool = True
+    content: Lockfile,
+    path: pathlib.Path,
+    include_help_text: bool = True,
+    extra_comment_lines: Optional[List[str]] = None,
 ) -> None:
     content.toposort_inplace()
     with path.open("w") as f:
@@ -64,6 +69,11 @@ def write_conda_lock_file(
                     This lock contains optional dependency categories {', '.join(extras)}. Include them in the installed environment with:
                         conda-lock install {' '.join('-e '+extra for extra in extras)} -n YOURENV --file {path.name}
                     """
+                )
+            if extra_comment_lines is not None:
+                section_block = "\n".join(extra_comment_lines)
+                write_section(
+                    f"\n\n{section_block}\n\n"
                 )
             write_section(
                 f"""
