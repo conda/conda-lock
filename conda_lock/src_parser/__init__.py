@@ -6,7 +6,7 @@ import typing
 
 from collections import defaultdict, namedtuple
 from itertools import chain
-from typing import Any, ClassVar, Dict, List, Optional, Sequence, Set, Tuple, Union
+from typing import ClassVar, Dict, List, Optional, Sequence, Set, Tuple, Union
 
 from pydantic import BaseModel, Field, validator
 from typing_extensions import Literal

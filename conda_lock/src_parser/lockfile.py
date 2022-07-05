@@ -2,7 +2,6 @@ import json
 import pathlib
 
 from textwrap import dedent
-from typing import Any, Dict, Optional
 
 import yaml
 
@@ -25,9 +24,7 @@ def parse_conda_lock_file(
 
 
 def write_conda_lock_file(
-    content: Lockfile,
-    path: pathlib.Path,
-    include_help_text: bool = True,
+    content: Lockfile, path: pathlib.Path, include_help_text: bool = True
 ) -> None:
     content.toposort_inplace()
     with path.open("w") as f:
