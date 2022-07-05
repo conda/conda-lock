@@ -1,8 +1,8 @@
 import hashlib
 import json
+import logging
 import pathlib
 import typing
-import logging
 
 from collections import defaultdict, namedtuple
 from itertools import chain
@@ -18,6 +18,7 @@ from conda_lock.virtual_package import FakeRepoData
 
 
 logger = logging.getLogger(__name__)
+
 
 class StrictModel(BaseModel):
     class Config:
@@ -109,10 +110,11 @@ class TimeMeta(StrictModel):
 
     created_at: str = Field(..., description="Time stamp of lock-file creation time")
 
-    def __init__(self) -> None:
+    @classmethod
+    def create(cls) -> "TimeMeta":
         import time
 
-        super().__init__(created_at=f"{time.asctime(time.gmtime(time.time()))}")
+        return cls(created_at=f"{time.asctime(time.gmtime(time.time()))}")
 
 
 class GitMeta(StrictModel):
@@ -121,9 +123,7 @@ class GitMeta(StrictModel):
     the git user generating the file.
     """
 
-    git_user_name: str = Field(
-        ..., description="Git user.name field of global config"
-    )
+    git_user_name: str = Field(..., description="Git user.name field of global config")
     git_user_email: str = Field(
         ..., description="Git user.email field of global config"
     )
@@ -131,7 +131,8 @@ class GitMeta(StrictModel):
         default=None, description="sha256 hash of the most recent git commit"
     )
 
-    def __init__(self) -> None:
+    @classmethod
+    def create(cls) -> "GitMeta":
         import git
 
         git_sha: Optional[str]
@@ -140,9 +141,9 @@ class GitMeta(StrictModel):
             git_sha = f"{repo.head.object.hexsha}{'-dirty' if repo.is_dirty() else ''}"
         except git.exc.InvalidGitRepositoryError:
             git_sha = None
-        super().__init__(
-            git_user_name=git.Git()().config('user.name'),
-            git_user_email=git.Git()().config('user.email'),
+        return cls(
+            git_user_name=git.Git()().config("user.name"),
+            git_user_email=git.Git()().config("user.email"),
             git_sha=git_sha,
         )
 
@@ -150,14 +151,11 @@ class GitMeta(StrictModel):
 class InputMeta(StrictModel):
     """Stores information about an input provided to generate the lockfile."""
 
-    md5: str = Field(
-        ..., description="md5 checksum for an input file"
-    )
+    md5: str = Field(..., description="md5 checksum for an input file")
 
-    def __init__(self, src_file: pathlib.Path) -> None:
-        super().__init__(
-            md5s=f"{self.get_input_md5(src_file=src_file)}"
-        )
+    @classmethod
+    def create(cls, src_file: pathlib.Path) -> "InputMeta":
+        return cls(md5=f"{cls.get_input_md5(src_file=src_file)}")
 
     @staticmethod
     def get_input_md5(src_file: pathlib.Path) -> str:
@@ -188,13 +186,15 @@ class LockMeta(StrictModel):
         None,
         description=(
             "Metadata dealing with the git repo the lockfile was created in and the user that created it"
-        )
+        ),
     )
     inputs_metadata: Optional[Dict[str, InputMeta]] = Field(
-        None, description="Metadata dealing with the input files used to create the lockfile"
+        None,
+        description="Metadata dealing with the input files used to create the lockfile",
     )
     custom_metadata: Optional[Dict[str, str]] = Field(
-        None, description="Custom metadata provided by the user to be added to the lockfile"
+        None,
+        description="Custom metadata provided by the user to be added to the lockfile",
     )
 
     def __or__(self, other: "LockMeta") -> "LockMeta":
