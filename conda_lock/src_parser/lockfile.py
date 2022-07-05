@@ -2,7 +2,7 @@ import json
 import pathlib
 
 from textwrap import dedent
-from typing import List, Optional
+from typing import Any, Dict, Optional
 
 import yaml
 
@@ -28,7 +28,6 @@ def write_conda_lock_file(
     content: Lockfile,
     path: pathlib.Path,
     include_help_text: bool = True,
-    extra_comment_lines: Optional[List[str]] = None,
 ) -> None:
     content.toposort_inplace()
     with path.open("w") as f:
@@ -69,9 +68,6 @@ def write_conda_lock_file(
                         conda-lock install {' '.join('-e '+extra for extra in extras)} -n YOURENV --file {path.name}
                     """
                 )
-            if extra_comment_lines is not None:
-                section_block = "\n".join(extra_comment_lines)
-                write_section(f"\n\n{section_block}\n\n")
             write_section(
                 f"""
                 To update a single package to the latest version compatible with the version constraints in the source:
