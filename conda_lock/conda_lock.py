@@ -65,10 +65,13 @@ except ImportError:
 from conda_lock.lookup import set_lookup_location
 from conda_lock.src_parser import (
     Dependency,
+    GitMeta,
+    InputMeta,
     LockedDependency,
     Lockfile,
     LockMeta,
     LockSpecification,
+    TimeMeta,
     UpdateSpecification,
     aggregate_lock_specs,
 )
@@ -267,46 +270,6 @@ def make_lock_spec(
 
     return lock_spec
 
-
-def get_time_metadata() -> List[str]:
-    import time
-
-    return [f"Lockfile created at: {time.asctime(time.gmtime(time.time()))}"]
-
-
-def get_git_metadata() -> List[str]:
-    import git
-
-    try:
-        repo = git.Repo(search_parent_directories=True)
-        git_sha = f"{repo.head.object.hexsha}{'-dirty' if repo.is_dirty() else ''}"
-    except git.exc.InvalidGitRepositoryError:
-        git_sha = "N/A"
-    return [
-        f"git sha: {git_sha}",
-        (
-            f"git user.name: {git.Git()().config('user.name')}"
-            + f" ({git.Git()().config('user.email')})"
-        ),
-    ]
-
-
-def get_input_md5(src_file: pathlib.Path) -> str:
-    import hashlib
-
-    hasher = hashlib.md5()
-    with src_file.open("r") as infile:
-        hasher.update(infile.read().encode("utf-8"))
-    return hasher.hexdigest()
-
-
-def get_inputs_metadata(src_files: List[pathlib.Path]) -> List[str]:
-    metadata = []
-    for src_file in src_files:
-        metadata.append(f"input {src_file} md5: {get_input_md5(src_file=src_file)}")
-    return metadata
-
-
 def make_lock_files(
     *,
     conda: PathLike,
@@ -325,7 +288,8 @@ def make_lock_files(
     add_inputs_metadata: bool = False,
     add_git_metadata: bool = False,
     add_time_metadata: bool = False,
-    extra_lockfile_comments: Optional[List[str]] = None,
+    metadata_jsons: Optional[List[pathlib.Path]] = None,
+    metadata_yamls: Optional[List[pathlib.Path]] = None,
 ) -> None:
     """
     Generate a lock file from the src files provided
@@ -365,8 +329,10 @@ def make_lock_files(
         If true add extra metadata to lockfile comments about the git-repo.
     add_time_metadata:
         If true add extra metadata to lockfile comments about the time of lockfile creation.
-    extra_lockfile_comments:
-        Strings to add to the lockfile comments block.
+    metadata_jsons:
+        JSON file(s) containing structured metadata to add to metadata section of the lockfile.
+    metadata_yamls:
+        YAML file(s) containing structured metadata to add to metadata section of the lockfile.
     """
 
     # initialize virtual package fake
@@ -443,33 +409,17 @@ def make_lock_files(
                 platforms=platforms_to_lock,
                 lockfile_path=lockfile_path,
                 update_spec=update_spec,
+                add_git_metadata=add_git_metadata,
+                add_time_metadata=add_time_metadata,
+                add_inputs_metadata=add_inputs_metadata,
+                src_files=src_files,
+                metadata_jsons=metadata_jsons,
+                metadata_yamls=metadata_yamls,
             )
-
-            if (
-                not add_git_metadata
-                and not add_time_metadata
-                and not add_inputs_metadata
-                and extra_lockfile_comments is None
-            ):
-                extra_comment_lines = None
-            else:
-                extra_comment_lines = []
-                if add_git_metadata:
-                    extra_comment_lines += get_git_metadata()
-                    extra_comment_lines.append("")
-                if add_time_metadata:
-                    extra_comment_lines += get_time_metadata()
-                    extra_comment_lines.append("")
-                if add_inputs_metadata:
-                    extra_comment_lines += get_inputs_metadata(src_files)
-                    extra_comment_lines.append("")
-                if extra_lockfile_comments is not None:
-                    extra_comment_lines += extra_lockfile_comments
-                    extra_comment_lines.append("")
 
             if "lock" in kinds:
                 write_conda_lock_file(
-                    lock_content, lockfile_path, extra_comment_lines=extra_comment_lines
+                    lock_content, lockfile_path
                 )
                 print(
                     " - Install lock using:",
@@ -791,6 +741,52 @@ def _solve_for_arch(
     return list(conda_deps.values()) + list(pip_deps.values())
 
 
+def convert_structured_metadata_yaml(
+    in_path: pathlib.Path
+) -> Dict[str, Any]:
+    import yaml
+
+    with in_path.open("r") as infile:
+        metadata = yaml.safe_load(infile)
+    return metadata
+
+
+def convert_structured_metadata_json(
+    in_path: pathlib.Path
+) -> Dict[str, Any]:
+    import json
+
+    with in_path.open("r") as infile:
+        metadata = json.load(infile)
+    return metadata
+
+
+def update_metadata(to_change: Dict[str, Any], change_source: Dict[str, Any]) -> None:
+    for key in change_source:
+        if key in to_change:
+            logger.warning(
+                f"Custom metadata field {key} provided twice overwriting value "
+                + f"{to_change[key]} with {change_source[key]}"
+            )
+    to_change.update(change_source)
+
+
+def get_custom_metadata(
+    metadata_jsons: Optional[List[pathlib.Path]] = None,
+    metadata_yamls: Optional[List[pathlib.Path]] = None,
+) -> Dict[str, str]:
+    custom_metadata_dict: Dict[str, Any] = {}
+    if metadata_jsons is not None:
+        for json_path in metadata_jsons:
+            new_metadata = convert_structured_metadata_json(json_path)
+            update_metadata(custom_metadata_dict, new_metadata)
+    if metadata_yamls is not None:
+        for yaml_path in metadata_yamls:
+            new_metadata = convert_structured_metadata_yaml(yaml_path)
+            update_metadata(custom_metadata_dict, new_metadata)
+    return custom_metadata_dict
+
+
 def create_lockfile_from_spec(
     *,
     conda: PathLike,
@@ -798,6 +794,12 @@ def create_lockfile_from_spec(
     platforms: List[str] = [],
     lockfile_path: pathlib.Path,
     update_spec: Optional[UpdateSpecification] = None,
+    add_git_metadata: bool,
+    add_time_metadata: bool,
+    add_inputs_metadata: bool,
+    src_files: List[pathlib.Path],
+    metadata_jsons: Optional[List[pathlib.Path]],
+    metadata_yamls: Optional[List[pathlib.Path]],
 ) -> Lockfile:
     """
     Solve or update specification
@@ -820,6 +822,22 @@ def create_lockfile_from_spec(
         for dep in deps:
             locked[(dep.manager, dep.name, dep.platform)] = dep
 
+    git_metadata = GitMeta() if add_git_metadata else None
+    time_metadata = TimeMeta() if add_time_metadata else None
+    inputs_metadata: Optional[Dict[str, InputMeta]] = (
+        {
+            str(src_file): InputMeta(src_file=src_file)
+            for src_file in src_files
+        }
+        if add_inputs_metadata
+        else None
+    )
+    custom_metadata: Optional[Dict[str, str]] = (
+        get_custom_metadata(metadata_jsons=metadata_jsons, metadata_yamls=metadata_yamls)
+        if metadata_jsons is not None or metadata_yamls is not None
+        else None
+    )
+
     return Lockfile(
         package=[locked[k] for k in locked],
         metadata=LockMeta(
@@ -827,6 +845,10 @@ def create_lockfile_from_spec(
             channels=[c for c in spec.channels],
             platforms=spec.platforms,
             sources=[str(source.resolve()) for source in spec.sources],
+            git_metadata=git_metadata,
+            time_metadata=time_metadata,
+            inputs_metadata=inputs_metadata,
+            custom_metadata=custom_metadata,
         ),
     )
 
@@ -994,7 +1016,8 @@ def run_lock(
     add_inputs_metadata: bool = False,
     add_git_metadata: bool = False,
     add_time_metadata: bool = False,
-    extra_lockfile_comments: Optional[List[str]] = None,
+    metadata_jsons: Optional[List[pathlib.Path]] = None,
+    metadata_yamls: Optional[List[pathlib.Path]] = None,
 ) -> None:
     if environment_files == DEFAULT_FILES:
         if lockfile_path.exists():
@@ -1042,7 +1065,8 @@ def run_lock(
         add_inputs_metadata=add_inputs_metadata,
         add_git_metadata=add_git_metadata,
         add_time_metadata=add_time_metadata,
-        extra_lockfile_comments=extra_lockfile_comments,
+        metadata_jsons=metadata_jsons,
+        metadata_yamls=metadata_yamls,
     )
 
 
@@ -1190,12 +1214,19 @@ TLogLevel = Union[
     help="If true add extra metadata to lockfile comments about the time of lockfile creation.",
 )
 @click.option(
-    "--extra-lockfile-comments",
+    "--metadata-jsons",
     default=None,
     multiple=True,
-    help="Extra comments to add to the lockfile comments block.",
+    type=click.Path(),
+    help="JSON file(s) containing structured metadata to add to metadata section of the lockfile.",
 )
-
+@click.option(
+    "--metadata-yamls",
+    default=None,
+    multiple=True,
+    type=click.Path(),
+    help="YAML file(s) containing structured metadata to add to metadata section of the lockfile.",
+)
 @click.pass_context
 def lock(
     ctx: click.Context,
@@ -1221,7 +1252,8 @@ def lock(
     add_inputs_metadata: bool = False,
     add_git_metadata: bool = False,
     add_time_metadata: bool = False,
-    extra_lockfile_comments: Optional[List[str]] = None,
+    metadata_jsons: Optional[List[pathlib.Path]] = None,
+    metadata_yamls: Optional[List[pathlib.Path]] = None,
 ) -> None:
     """Generate fully reproducible lock files for conda environments.
 
@@ -1240,6 +1272,10 @@ def lock(
     # Set Pypi <--> Conda lookup file location
     if pypi_to_conda_lookup_file:
         set_lookup_location(pypi_to_conda_lookup_file)
+    if metadata_jsons is not None:
+        metadata_jsons = [pathlib.Path(path) for path in metadata_jsons]
+    if metadata_yamls is not None:
+        metadata_yamls = [pathlib.Path(path) for path in metadata_yamls]
 
     # bail out if we do not encounter the default file if no files were passed
     if ctx.get_parameter_source("files") == click.core.ParameterSource.DEFAULT:
@@ -1288,7 +1324,8 @@ def lock(
         add_inputs_metadata=add_inputs_metadata,
         add_git_metadata=add_git_metadata,
         add_time_metadata=add_time_metadata,
-        extra_lockfile_comments=extra_lockfile_comments,
+        metadata_jsons=metadata_jsons,
+        metadata_yamls=metadata_yamls,
     )
     if strip_auth:
         with tempfile.TemporaryDirectory() as tempdir:

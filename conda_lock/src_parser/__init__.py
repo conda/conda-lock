@@ -2,10 +2,11 @@ import hashlib
 import json
 import pathlib
 import typing
+import logging
 
 from collections import defaultdict, namedtuple
 from itertools import chain
-from typing import ClassVar, Dict, List, Optional, Sequence, Set, Tuple, Union
+from typing import Any, ClassVar, Dict, List, Optional, Sequence, Set, Tuple, Union
 
 from pydantic import BaseModel, Field, validator
 from typing_extensions import Literal
@@ -15,6 +16,8 @@ from conda_lock.errors import ChannelAggregationError
 from conda_lock.models.channel import Channel
 from conda_lock.virtual_package import FakeRepoData
 
+
+logger = logging.getLogger(__name__)
 
 class StrictModel(BaseModel):
     class Config:
@@ -101,6 +104,71 @@ class LockedDependency(StrictModel):
         return v
 
 
+class TimeMeta(StrictModel):
+    """Stores information about when the lockfile was generated."""
+
+    created_at: str = Field(..., description="Time stamp of lock-file creation time")
+
+    def __init__(self) -> None:
+        import time
+
+        super().__init__(created_at=f"{time.asctime(time.gmtime(time.time()))}")
+
+
+class GitMeta(StrictModel):
+    """
+    Stores information about the git repo the lockfile is being generated in (if applicable) and
+    the git user generating the file.
+    """
+
+    git_user_name: str = Field(
+        ..., description="Git user.name field of global config"
+    )
+    git_user_email: str = Field(
+        ..., description="Git user.email field of global config"
+    )
+    git_sha: Optional[str] = Field(
+        default=None, description="sha256 hash of the most recent git commit"
+    )
+
+    def __init__(self) -> None:
+        import git
+
+        git_sha: Optional[str]
+        try:
+            repo = git.Repo(search_parent_directories=True)
+            git_sha = f"{repo.head.object.hexsha}{'-dirty' if repo.is_dirty() else ''}"
+        except git.exc.InvalidGitRepositoryError:
+            git_sha = None
+        super().__init__(
+            git_user_name=git.Git()().config('user.name'),
+            git_user_email=git.Git()().config('user.email'),
+            git_sha=git_sha,
+        )
+
+
+class InputMeta(StrictModel):
+    """Stores information about an input provided to generate the lockfile."""
+
+    md5: str = Field(
+        ..., description="md5 checksum for an input file"
+    )
+
+    def __init__(self, src_file: pathlib.Path) -> None:
+        super().__init__(
+            md5s=f"{self.get_input_md5(src_file=src_file)}"
+        )
+
+    @staticmethod
+    def get_input_md5(src_file: pathlib.Path) -> str:
+        import hashlib
+
+        hasher = hashlib.md5()
+        with src_file.open("r") as infile:
+            hasher.update(infile.read().encode("utf-8"))
+        return hasher.hexdigest()
+
+
 class LockMeta(StrictModel):
     content_hash: Dict[str, str] = Field(
         ..., description="Hash of dependencies for each target platform"
@@ -112,6 +180,21 @@ class LockMeta(StrictModel):
     sources: List[str] = Field(
         ...,
         description="paths to source files, relative to the parent directory of the lockfile",
+    )
+    time_metadata: Optional[TimeMeta] = Field(
+        None, description="Metadata dealing with the time lockfile was created"
+    )
+    git_metadata: Optional[GitMeta] = Field(
+        None,
+        description=(
+            "Metadata dealing with the git repo the lockfile was created in and the user that created it"
+        )
+    )
+    inputs_metadata: Optional[Dict[str, InputMeta]] = Field(
+        None, description="Metadata dealing with the input files used to create the lockfile"
+    )
+    custom_metadata: Optional[Dict[str, str]] = Field(
+        None, description="Custom metadata provided by the user to be added to the lockfile"
     )
 
     def __or__(self, other: "LockMeta") -> "LockMeta":
@@ -126,6 +209,10 @@ class LockMeta(StrictModel):
             channels=self.channels,
             platforms=sorted(set(self.platforms).union(other.platforms)),
             sources=ordered_union([self.sources, other.sources]),
+            time_metadata=other.time_metadata,
+            git_metadata=other.git_metadata,
+            inputs_metadata=other.inputs_metadata,
+            custom_metadata=other.custom_metadata,
         )
 
     @validator("channels", pre=True, always=True)
