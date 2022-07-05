@@ -269,6 +269,7 @@ def make_lock_spec(
 
     return lock_spec
 
+
 def make_lock_files(
     *,
     conda: PathLike,
@@ -410,16 +411,13 @@ def make_lock_files(
                 update_spec=update_spec,
                 add_git_metadata=add_git_metadata,
                 add_time_metadata=add_time_metadata,
-                add_inputs_metadata=add_inputs_metadata,
-                src_files=src_files,
+                src_files=src_files if add_inputs_metadata else None,
                 metadata_jsons=metadata_jsons,
                 metadata_yamls=metadata_yamls,
             )
 
             if "lock" in kinds:
-                write_conda_lock_file(
-                    lock_content, lockfile_path
-                )
+                write_conda_lock_file(lock_content, lockfile_path)
                 print(
                     " - Install lock using:",
                     KIND_USE_TEXT["lock"].format(lockfile=str(lockfile_path)),
@@ -740,9 +738,7 @@ def _solve_for_arch(
     return list(conda_deps.values()) + list(pip_deps.values())
 
 
-def convert_structured_metadata_yaml(
-    in_path: pathlib.Path
-) -> Dict[str, Any]:
+def convert_structured_metadata_yaml(in_path: pathlib.Path) -> Dict[str, Any]:
     import yaml
 
     with in_path.open("r") as infile:
@@ -750,9 +746,7 @@ def convert_structured_metadata_yaml(
     return metadata
 
 
-def convert_structured_metadata_json(
-    in_path: pathlib.Path
-) -> Dict[str, Any]:
+def convert_structured_metadata_json(in_path: pathlib.Path) -> Dict[str, Any]:
     import json
 
     with in_path.open("r") as infile:
@@ -793,12 +787,11 @@ def create_lockfile_from_spec(
     platforms: List[str] = [],
     lockfile_path: pathlib.Path,
     update_spec: Optional[UpdateSpecification] = None,
-    add_git_metadata: bool,
-    add_time_metadata: bool,
-    add_inputs_metadata: bool,
-    src_files: List[pathlib.Path],
-    metadata_jsons: Optional[List[pathlib.Path]],
-    metadata_yamls: Optional[List[pathlib.Path]],
+    add_git_metadata: bool = False,
+    add_time_metadata: bool = False,
+    metadata_jsons: Optional[List[pathlib.Path]] = None,
+    metadata_yamls: Optional[List[pathlib.Path]] = None,
+    src_files: Optional[List[pathlib.Path]] = None,
 ) -> Lockfile:
     """
     Solve or update specification
@@ -821,18 +814,17 @@ def create_lockfile_from_spec(
         for dep in deps:
             locked[(dep.manager, dep.name, dep.platform)] = dep
 
-    git_metadata = GitMeta() if add_git_metadata else None
-    time_metadata = TimeMeta() if add_time_metadata else None
+    git_metadata = GitMeta.create() if add_git_metadata else None
+    time_metadata = TimeMeta.create() if add_time_metadata else None
     inputs_metadata: Optional[Dict[str, InputMeta]] = (
-        {
-            str(src_file): InputMeta(src_file=src_file)
-            for src_file in src_files
-        }
-        if add_inputs_metadata
+        {str(src_file): InputMeta.create(src_file=src_file) for src_file in src_files}
+        if src_files is not None
         else None
     )
     custom_metadata: Optional[Dict[str, str]] = (
-        get_custom_metadata(metadata_jsons=metadata_jsons, metadata_yamls=metadata_yamls)
+        get_custom_metadata(
+            metadata_jsons=metadata_jsons, metadata_yamls=metadata_yamls
+        )
         if metadata_jsons is not None or metadata_yamls is not None
         else None
     )
