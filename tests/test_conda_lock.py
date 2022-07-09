@@ -51,6 +51,7 @@ from conda_lock.pypi_solver import parse_pip_requirement, solve_pypi
 from conda_lock.src_parser import (
     HashModel,
     LockedDependency,
+    Lockfile,
     LockSpecification,
     VersionedDependency,
 )
@@ -60,6 +61,7 @@ from conda_lock.src_parser.pyproject_toml import (
     parse_pyproject_toml,
     poetry_version_to_conda_version,
 )
+from conda_lock.vendor.conda.models.match_spec import MatchSpec
 
 
 TEST_DIR = pathlib.Path(__file__).parent
@@ -147,6 +149,11 @@ def flit_pyproject_toml():
 @pytest.fixture
 def pdm_pyproject_toml():
     return TEST_DIR.joinpath("test-pdm").joinpath("pyproject.toml")
+
+
+@pytest.fixture
+def channel_inversion():
+    return TEST_DIR.joinpath("test-channel-inversion").joinpath("environment.yaml")
 
 
 @pytest.fixture(
@@ -620,6 +627,22 @@ def test_poetry_version_parsing_constraints(package, version, url_pattern, capsy
         assert url_pattern in python.url
 
 
+def test_run_with_channel_inversion(monkeypatch, channel_inversion, mamba_exe):
+    with filelock.FileLock(str(channel_inversion.parent / "filelock")):
+        monkeypatch.chdir(channel_inversion.parent)
+        run_lock([channel_inversion], conda_exe=mamba_exe, platforms=["linux-64"])
+        lockfile = parse_conda_lock_file(
+            channel_inversion.parent / DEFAULT_LOCKFILE_NAME
+        )
+        for package in lockfile.package:
+            if package.name == "cuda-python":
+                ms = MatchSpec(package.url)
+                assert ms.get("channel") == "conda-forge"
+                break
+        else:
+            raise ValueError("cuda-python not found!")
+
+
 def _make_spec(name, constraint="*"):
     return VersionedDependency(
         name=name,
@@ -748,6 +771,20 @@ def conda_exe(request):
     if _conda_exe is not None:
         return _conda_exe
     raise pytest.skip(f"{request.param} is not installed")
+
+
+@pytest.fixture(scope="session")
+def mamba_exe():
+    kwargs = dict(
+        mamba=True,
+        micromamba=False,
+        conda=False,
+        conda_exe=False,
+    )
+    _conda_exe = _ensureconda(**kwargs)
+    if _conda_exe is not None:
+        return _conda_exe
+    raise pytest.skip("mamba is not installed")
 
 
 def _check_package_installed(package: str, prefix: str):

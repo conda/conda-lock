@@ -141,21 +141,9 @@ def _parse_meta_yaml_file_for_platform(
             return
 
         from ..vendor.conda.models.match_spec import MatchSpec
+        from .conda_common import conda_spec_to_versioned_dep
 
-        try:
-            ms = MatchSpec(spec)
-        except Exception as e:
-            raise RuntimeError(f"Failed to turn `{spec}` into a MatchSpec") from e
-
-        dep = VersionedDependency(
-            name=ms.name,
-            version=ms.get("version", ""),
-            manager="conda",
-            optional=category != "main",
-            category=category,
-            extras=[],
-            build=ms.get("build"),
-        )
+        dep = conda_spec_to_versioned_dep(spec, category)
         dep.selectors.platform = [platform]
         dependencies.append(dep)
 

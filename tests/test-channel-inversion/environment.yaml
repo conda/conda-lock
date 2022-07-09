@@ -1,0 +1,7 @@
+channels:
+  - rapidsai
+  - nvidia
+  - conda-forge
+dependencies:
+  - cudf
+  - conda-forge::cuda-python
