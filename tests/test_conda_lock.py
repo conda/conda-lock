@@ -1197,6 +1197,7 @@ def test_fake_conda_env(conda_exe, conda_lock_yaml):
             assert platform == path.parent.name
 
 
+@flaky
 def test_private_lock(quetz_server, tmp_path, monkeypatch, capsys, conda_exe):
     if is_micromamba(conda_exe):
         res = subprocess.run(
