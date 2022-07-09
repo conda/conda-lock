@@ -106,8 +106,10 @@ def _to_match_spec(
     ms = MatchSpec(**kwargs)
     # Since MatchSpec doesn't round trip to the cli well
     if conda_channel:
+        # this will return "channel_name::package_name"
         return str(ms)
     else:
+        # this will return only "package_name" even if there's a channel in the kwargs
         return ms.conda_build_form()
 
 
@@ -120,7 +122,7 @@ def extract_json_object(proc_stdout: str) -> str:
 
 def solve_conda(
     conda: PathLike,
-    specs: Dict[str, Dependency],
+    specs: Dict[str, VersionedDependency],
     locked: Dict[str, LockedDependency],
     update: List[str],
     platform: str,
