@@ -629,11 +629,11 @@ def test_poetry_version_parsing_constraints(package, version, url_pattern, capsy
 
 
 def test_run_with_channel_inversion(monkeypatch, channel_inversion, mamba_exe):
-    """Given that the cuda_python package is available from a few channels 
-        and three of those channels listed
-        and with conda-forge listed as the lowest priority channel
-        and with the cuda_python dependency listed as "conda-forge::cuda_python",
-        ensure that the lock file parse picks up conda-forge as the channel and not one of the higher priority channels
+    """Given that the cuda_python package is available from a few channels
+    and three of those channels listed
+    and with conda-forge listed as the lowest priority channel
+    and with the cuda_python dependency listed as "conda-forge::cuda_python",
+    ensure that the lock file parse picks up conda-forge as the channel and not one of the higher priority channels
     """
     with filelock.FileLock(str(channel_inversion.parent / "filelock")):
         monkeypatch.chdir(channel_inversion.parent)
