@@ -122,7 +122,7 @@ def extract_json_object(proc_stdout: str) -> str:
 
 def solve_conda(
     conda: PathLike,
-    specs: Dict[str, VersionedDependency],
+    specs: Dict[str, Dependency],
     locked: Dict[str, LockedDependency],
     update: List[str],
     platform: str,
