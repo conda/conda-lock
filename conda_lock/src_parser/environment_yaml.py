@@ -6,7 +6,8 @@ from typing import List, Tuple
 
 import yaml
 
-from conda_lock.src_parser import Dependency, LockSpecification, VersionedDependency
+from conda_lock.src_parser import Dependency, LockSpecification
+from conda_lock.src_parser.conda_common import conda_spec_to_versioned_dep
 from conda_lock.src_parser.selectors import filter_platform_selectors
 
 from .pyproject_toml import parse_python_requirement
@@ -64,24 +65,8 @@ def parse_environment_file(
     specs = [x for x in specs if isinstance(x, str)]
 
     for spec in specs:
-        from ..vendor.conda.models.match_spec import MatchSpec
-
-        try:
-            ms = MatchSpec(spec)
-        except Exception as e:
-            raise RuntimeError(f"Failed to turn `{spec}` into a MatchSpec") from e
-
-        dependencies.append(
-            VersionedDependency(
-                name=ms.name,
-                version=ms.get("version", ""),
-                manager="conda",
-                optional=category != "main",
-                category=category,
-                extras=[],
-                build=ms.get("build"),
-            )
-        )
+        vdep = conda_spec_to_versioned_dep(spec, category)
+        dependencies.append(vdep)
     for mapping_spec in mapping_specs:
         if "pip" in mapping_spec:
             if pip_support:

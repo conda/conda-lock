@@ -88,7 +88,10 @@ class DryRunInstall(TypedDict):
 
 
 def _to_match_spec(
-    conda_dep_name: str, conda_version: Optional[str], build: Optional[str]
+    conda_dep_name: str,
+    conda_version: Optional[str],
+    build: Optional[str],
+    conda_channel: Optional[str],
 ) -> str:
     kwargs = dict(name=conda_dep_name)
     if conda_version:
@@ -97,10 +100,17 @@ def _to_match_spec(
         kwargs["build"] = build
         if "version" not in kwargs:
             kwargs["version"] = "*"
+    if conda_channel:
+        kwargs["channel"] = conda_channel
 
     ms = MatchSpec(**kwargs)
     # Since MatchSpec doesn't round trip to the cli well
-    return ms.conda_build_form()
+    if conda_channel:
+        # this will return "channel_name::package_name"
+        return str(ms)
+    else:
+        # this will return only "package_name" even if there's a channel in the kwargs
+        return ms.conda_build_form()
 
 
 def extract_json_object(proc_stdout: str) -> str:
@@ -139,7 +149,7 @@ def solve_conda(
     """
 
     conda_specs = [
-        _to_match_spec(dep.name, dep.version, dep.build)
+        _to_match_spec(dep.name, dep.version, dep.build, dep.conda_channel)
         for dep in specs.values()
         if isinstance(dep, VersionedDependency) and dep.manager == "conda"
     ]
