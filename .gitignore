@@ -10,5 +10,9 @@ dist/
 venv/
 test_install*.yml
 test_install*.lock
+tests/**/*.lock
+tests/**/*.yml
+tests/**/*.bak
 site/
 filelock
+.coverage
