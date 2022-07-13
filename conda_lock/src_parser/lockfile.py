@@ -77,7 +77,9 @@ def write_conda_lock_file(
         yaml.dump(
             {
                 "version": Lockfile.version,
-                **json.loads(content.json(by_alias=True, exclude_unset=True)),
+                **json.loads(
+                    content.json(by_alias=True, exclude_unset=True, exclude_none=True)
+                ),
             },
             f,
         )

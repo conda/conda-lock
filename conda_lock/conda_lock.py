@@ -740,8 +740,6 @@ def _solve_for_arch(
 
 
 def convert_structured_metadata_yaml(in_path: pathlib.Path) -> Dict[str, Any]:
-    import yaml
-
     with in_path.open("r") as infile:
         metadata = yaml.safe_load(infile)
     return metadata
@@ -759,7 +757,7 @@ def update_metadata(to_change: Dict[str, Any], change_source: Dict[str, Any]) ->
     for key in change_source:
         if key in to_change:
             logger.warning(
-                f"Custom metadata field {key} provided twice overwriting value "
+                f"Custom metadata field {key} provided twice, overwriting value "
                 + f"{to_change[key]} with {change_source[key]}"
             )
     to_change.update(change_source)

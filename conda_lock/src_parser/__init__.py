@@ -159,8 +159,6 @@ class InputMeta(StrictModel):
 
     @staticmethod
     def get_input_md5(src_file: pathlib.Path) -> str:
-        import hashlib
-
         hasher = hashlib.md5()
         with src_file.open("r") as infile:
             hasher.update(infile.read().encode("utf-8"))
