@@ -68,7 +68,7 @@ from conda_lock.src_parser.pyproject_toml import (
     parse_pyproject_toml,
     poetry_version_to_conda_version,
 )
-from conda_lock.vendor.conda.models.match_spec import MatchSpec
+from conda_lock.vendor.conda.conda.models.match_spec import MatchSpec
 
 
 if typing.TYPE_CHECKING:
