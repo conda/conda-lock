@@ -39,7 +39,7 @@ from conda_lock.src_parser import (
     VersionedDependency,
     _apply_categories,
 )
-from conda_lock.vendor.conda.models.match_spec import MatchSpec
+from conda_lock.vendor.conda.conda.models.match_spec import MatchSpec
 
 
 logger = logging.getLogger(__name__)

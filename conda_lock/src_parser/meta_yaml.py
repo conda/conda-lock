@@ -140,7 +140,7 @@ def _parse_meta_yaml_file_for_platform(
         if spec is None:
             return
 
-        from ..vendor.conda.models.match_spec import MatchSpec
+        from ..vendor.conda.conda.models.match_spec import MatchSpec
         from .conda_common import conda_spec_to_versioned_dep
 
         dep = conda_spec_to_versioned_dep(spec, category)

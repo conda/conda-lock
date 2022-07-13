@@ -18,3 +18,41 @@ Whilst not strictly necessary; the CI run using github actions will run pre-comm
 
 8. `pre-commit install`
 
+
+# Keeping for historical reasons
+## Moving to git submodules
+All command blocks will start from the root of the conda_lock git repo
+
+0. Move the old vendored conda code to "old_conda"
+```
+cd conda_lock/vendor
+git mv conda old_comda
+git commit -m  "Move old conda vendor to 'old_conda'"
+```
+1. Init the submodule
+```
+cd conda_lock/vendor
+git submodule add https://github.com/conda/conda
+```
+2. Check out the commit where we initally copied the conda source from
+```
+cd conda_lock/vendor/conda
+git checkout 2967d902d
+# Then check out the conda-lock branch
+git checkout -b conda-lock
+```
+3. Copy over the old vendored conda code and commit that
+```
+cd conda_lock/vendor
+cp -r old_conda conda/conda
+git commit -m "Committing previous set of copy/pasted conda code"
+```
+4. Add a __init__.py file in the root of the conda submodule
+5. Fix up the conda imports from within conda_lock
+```
+from conda_lock.vendor.conda.<whatever>
+```
+needs to change to:
+```
+from conda_lock.vendor.conda.conda.<whatever>
+```
