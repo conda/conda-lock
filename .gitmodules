@@ -1,3 +1,3 @@
 [submodule "conda_lock/vendor/conda"]
 	path = conda_lock/vendor/conda
-	url = https://github.com/conda/conda
+	url = https://github.com/ericdill/conda
