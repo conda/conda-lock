@@ -12,6 +12,8 @@ jobs:
       FORCE_COLOR: "1"
     steps:
     - uses: actions/checkout@v3
+      with:
+        submodules: "recursive"
     - uses: actions/setup-python@v4
       with:
         python-version: '3.x'

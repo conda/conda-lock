@@ -14,6 +14,8 @@ jobs:
       fail-fast: false
     steps:
       - uses: actions/checkout@v3
+        with:
+          submodules: recursive
       - uses: conda-incubator/setup-miniconda@v2
         with:
           auto-update-conda: true
@@ -56,7 +58,8 @@ jobs:
       FORCE_COLOR: "1"
     steps:
       - uses: actions/checkout@v3
-        submodules: true
+        with:
+          submodules: recursive
 
       - uses: conda-incubator/setup-miniconda@v2
         with:
