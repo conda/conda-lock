@@ -50,7 +50,7 @@ if typing.TYPE_CHECKING:
 
 
 logger = logging.getLogger(__name__)
-token_pattern = re.compile(r"(.*)(/t/\$?[a-zA-Z0-9-_]*)(/.*)")
+token_pattern = re.compile(r"(.*)(/t/(?:\$\{?)?[a-zA-Z0-9-_]*(?:\}))(/.*)")
 
 
 class CondaUrl(BaseModel):
@@ -75,7 +75,7 @@ class CondaUrl(BaseModel):
         # TODO: pass in env vars maybe?
         expanded_url = expandvars(self.env_var_url)
         if token_pattern.match(expanded_url):
-            replaced, _ = token_pattern.subn(r"\1\3", expanded_url, 1)
+            replaced = token_pattern.sub(r"\1\3", expanded_url, 1)
             p = urlparse(replaced)
             replaced = urlunparse(p._replace(path="/t/<TOKEN>" + p.path))
             return replaced
