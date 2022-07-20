@@ -1205,8 +1205,9 @@ def test_fake_conda_env(conda_exe, conda_lock_yaml):
             assert platform == path.parent.name
 
 
+@pytest.mark.parametrize("placeholder", ["$QUETZ_API_KEY", "${QUETZ_API_KEY}"])
 @flaky
-def test_private_lock(quetz_server, tmp_path, monkeypatch, capsys, conda_exe):
+def test_private_lock(quetz_server, tmp_path, monkeypatch, capsys, conda_exe, placeholder):
     if is_micromamba(conda_exe):
         res = subprocess.run(
             [conda_exe, "--version"], stdout=subprocess.PIPE, encoding="utf8"
@@ -1220,7 +1221,7 @@ def test_private_lock(quetz_server, tmp_path, monkeypatch, capsys, conda_exe):
 
     content = yaml.safe_dump(
         {
-            "channels": [f"{quetz_server.url}/t/$QUETZ_API_KEY/get/proxy-channel"],
+            "channels": [f"{quetz_server.url}/t/{placeholder}/get/proxy-channel"],
             "platforms": [platform_subdir()],
             "dependencies": ["zlib"],
         }
