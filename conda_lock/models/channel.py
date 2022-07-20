@@ -127,7 +127,7 @@ class Channel(ZeroValRepr, BaseModel):
         # TODO: pass in env vars maybe?
         expanded_url = expandvars(self.url)
         if token_pattern.match(expanded_url):
-            replaced, _ = token_pattern.subn(r"\1\3", expanded_url, 1)
+            replaced = token_pattern.sub(r"\1\3", expanded_url, 1)
             p = urlparse(replaced)
             replaced = urlunparse(p._replace(path="/t/<TOKEN>" + p.path))
             return replaced
@@ -137,13 +137,13 @@ class Channel(ZeroValRepr, BaseModel):
 def detect_used_env_var(
     value: str, preferred_env_var_suffix: List[str]
 ) -> Optional[str]:
-    """Detects if the strincg exactly matches any current environment variable
+    """Detects if the string exactly matches any current environment variable
 
     Preference is given to variables that end in the suffixes provided
     """
 
     if value.startswith("$"):
-        return value.lstrip("$")
+        return value.lstrip("$").strip("{}")
     for suffix in preferred_env_var_suffix + [""]:
         candidates = {v: k for k, v in os.environ.items() if k.upper().endswith(suffix)}
         # try first with a simple match
