@@ -4,32 +4,58 @@ import requests
 import yaml
 
 
-PYPI_LOOKUP: Optional[Dict] = None
-CONDA_LOOKUP: Optional[Dict] = None
+class _LookupLoader:
+    def __init__(self) -> None:
+        self._mapping_url = "https://raw.githubusercontent.com/regro/cf-graph-countyfair/master/mappings/pypi/grayskull_pypi_mapping.yaml"
+        self._pypi_lookup: Optional[dict] = None
+        self._conda_lookup: Optional[dict] = None
 
-# TODO: make this configurable
-PYPI_TO_CONDA_NAME_LOOKUP = "https://raw.githubusercontent.com/regro/cf-graph-countyfair/master/mappings/pypi/grayskull_pypi_mapping.yaml"
+    def resolve(self) -> None:
+        res = requests.get(self._mapping_url)
+        res.raise_for_status()
+        self._pypi_lookup = yaml.safe_load(res.content)
+
+    @property
+    def pypi_lookup(self) -> dict:
+        if not self._pypi_lookup:
+            self.resolve()
+            assert isinstance(self._pypi_lookup, dict)
+        return self._pypi_lookup
+
+    @property
+    def conda_lookup(self) -> dict:
+        if not self._conda_lookup:
+            self._conda_lookup = {
+                record["conda_name"]: record for record in self.pypi_lookup.values()
+            }
+            assert isinstance(self._conda_lookup, dict)
+        return self._conda_lookup
+
+    def set_lookup(self, lookup_url: str) -> None:
+        self._pypi_lookup = None
+        self._conda_lookup = None
+        self._mapping_url = lookup_url
+
+
+LOOKUP_OBJECT = _LookupLoader()
 
 
 def get_forward_lookup() -> Dict:
-    global PYPI_LOOKUP
-    if PYPI_LOOKUP is None:
-        res = requests.get(PYPI_TO_CONDA_NAME_LOOKUP)
-        res.raise_for_status()
-        PYPI_LOOKUP = yaml.safe_load(res.content)
-    return PYPI_LOOKUP
+    global LOOKUP_OBJECT
+    return LOOKUP_OBJECT.pypi_lookup
 
 
 def get_lookup() -> Dict:
     """
     Reverse grayskull name mapping to map conda names onto PyPI
     """
-    global CONDA_LOOKUP
-    if CONDA_LOOKUP is None:
-        CONDA_LOOKUP = {
-            record["conda_name"]: record for record in get_forward_lookup().values()
-        }
-    return CONDA_LOOKUP
+    global LOOKUP_OBJECT
+    return LOOKUP_OBJECT.conda_lookup
+
+
+def set_lookup_location(lookup_url: str) -> None:
+    global LOOKUP_OBJECT
+    LOOKUP_OBJECT.set_lookup(lookup_url)
 
 
 def conda_name_to_pypi_name(name: str) -> str:
