@@ -11,7 +11,8 @@ import typing
 import uuid
 
 from glob import glob
-from typing import Any, Dict
+from pathlib import Path
+from typing import Any, Dict, Generator
 from unittest.mock import MagicMock
 from urllib.parse import urldefrag, urlsplit
 
@@ -45,7 +46,12 @@ from conda_lock.errors import (
     MissingEnvVarError,
     PlatformValidationError,
 )
-from conda_lock.invoke_conda import _ensureconda, is_micromamba, reset_conda_pkgs_dir
+from conda_lock.invoke_conda import (
+    PathLike,
+    _ensureconda,
+    is_micromamba,
+    reset_conda_pkgs_dir,
+)
 from conda_lock.models.channel import Channel
 from conda_lock.pypi_solver import parse_pip_requirement, solve_pypi
 from conda_lock.src_parser import (
@@ -64,7 +70,11 @@ from conda_lock.src_parser.pyproject_toml import (
 from conda_lock.vendor.conda.models.match_spec import MatchSpec
 
 
-TEST_DIR = pathlib.Path(__file__).parent
+if typing.TYPE_CHECKING:
+    from tests.conftest import QuetzServerInfo
+
+
+TEST_DIR = Path(__file__).parent
 
 
 @pytest.fixture(autouse=True)
@@ -77,84 +87,92 @@ def reset_global_conda_pkgs_dir():
     reset_conda_pkgs_dir()
 
 
-@pytest.fixture
-def gdal_environment():
-    return TEST_DIR.joinpath("gdal").joinpath("environment.yml")
+def clone_test_dir(name: str, tmp_path: Path) -> Path:
+    test_dir = TEST_DIR.joinpath(name)
+    assert test_dir.exists()
+    assert test_dir.is_dir()
+    shutil.copytree(test_dir, tmp_path, dirs_exist_ok=True)
+    return tmp_path
+
+
+@contextlib.contextmanager
+def install_lock():
+    with filelock.FileLock(str(TEST_DIR.joinpath("install.lock"))):
+        yield
 
 
 @pytest.fixture
-def pip_environment():
-    return TEST_DIR.joinpath("test-pypi-resolve").joinpath("environment.yml")
+def gdal_environment(tmp_path: Path):
+    return clone_test_dir("gdal", tmp_path).joinpath("environment.yml")
 
 
 @pytest.fixture
-def pip_environment_different_names_same_deps():
-    root = TEST_DIR.joinpath("test-pypi-resolve-namediff")
-    envfile = root.joinpath("environment.yml")
-    yield envfile
-    # for child in root.iterdir():
-    #     if child != envfile:
-    #         child.unlink()
+def pip_environment(tmp_path: Path):
+    return clone_test_dir("test-pypi-resolve", tmp_path).joinpath("environment.yml")
 
 
 @pytest.fixture
-def pip_environment_regression_gh155():
-    root = TEST_DIR.joinpath("test-pypi-resolve-gh155")
-    envfile = root.joinpath("environment.yml")
-    yield envfile
-    # for child in root.iterdir():
-    #     if child != envfile:
-    #         child.unlink()
-
-
-@pytest.fixture
-def pip_local_package_environment():
-    return TEST_DIR.joinpath("test-local-pip").joinpath("environment.yml")
-
-
-@pytest.fixture
-def zlib_environment():
-    return TEST_DIR.joinpath("zlib").joinpath("environment.yml")
-
-
-@pytest.fixture
-def input_hash_zlib_environment():
-    return (
-        pathlib.Path(__file__)
-        .parent.joinpath("test-input-hash-zlib")
-        .joinpath("environment.yml")
+def pip_environment_different_names_same_deps(tmp_path: Path):
+    return clone_test_dir("test-pypi-resolve-namediff", tmp_path).joinpath(
+        "environment.yml"
     )
 
 
 @pytest.fixture
-def blas_mkl_environment():
-    return TEST_DIR.joinpath("test-environment-blas-mkl").joinpath("environment.yml")
+def pip_environment_regression_gh155(tmp_path: Path):
+    return clone_test_dir("test-pypi-resolve-gh155", tmp_path).joinpath(
+        "environment.yml"
+    )
 
 
 @pytest.fixture
-def meta_yaml_environment():
-    return TEST_DIR.joinpath("test-recipe").joinpath("meta.yaml")
+def pip_local_package_environment(tmp_path: Path):
+    return clone_test_dir("test-local-pip", tmp_path).joinpath("environment.yml")
 
 
 @pytest.fixture
-def poetry_pyproject_toml():
-    return TEST_DIR.joinpath("test-poetry").joinpath("pyproject.toml")
+def zlib_environment(tmp_path: Path):
+    return clone_test_dir("zlib", tmp_path).joinpath("environment.yml")
 
 
 @pytest.fixture
-def flit_pyproject_toml():
-    return TEST_DIR.joinpath("test-flit").joinpath("pyproject.toml")
+def input_hash_zlib_environment(tmp_path: Path):
+    return clone_test_dir("test-input-hash-zlib", tmp_path).joinpath("environment.yml")
 
 
 @pytest.fixture
-def pdm_pyproject_toml():
-    return TEST_DIR.joinpath("test-pdm").joinpath("pyproject.toml")
+def blas_mkl_environment(tmp_path: Path):
+    return clone_test_dir("test-environment-blas-mkl", tmp_path).joinpath(
+        "environment.yml"
+    )
 
 
 @pytest.fixture
-def channel_inversion():
+def meta_yaml_environment(tmp_path: Path):
+    return clone_test_dir("test-recipe", tmp_path).joinpath("meta.yaml")
+
+
+@pytest.fixture
+def poetry_pyproject_toml(tmp_path: Path):
+    return clone_test_dir("test-poetry", tmp_path).joinpath("pyproject.toml")
+
+
+@pytest.fixture
+def flit_pyproject_toml(tmp_path: Path):
+    return clone_test_dir("test-flit", tmp_path).joinpath("pyproject.toml")
+
+
+@pytest.fixture
+def pdm_pyproject_toml(tmp_path: Path):
+    return clone_test_dir("test-pdm", tmp_path).joinpath("pyproject.toml")
+
+
+@pytest.fixture
+def channel_inversion(tmp_path: Path):
     """Path to an environment.yaml that has a hardcoded channel in one of the dependencies"""
-    return TEST_DIR.joinpath("test-channel-inversion").joinpath("environment.yaml")
+    return clone_test_dir("test-channel-inversion", tmp_path).joinpath(
+        "environment.yaml"
+    )
 
 
 @pytest.fixture(
@@ -168,7 +186,7 @@ def include_dev_dependencies(request: Any) -> bool:
     return request.param
 
 
-def test_parse_environment_file(gdal_environment):
+def test_parse_environment_file(gdal_environment: Path):
     res = parse_environment_file(gdal_environment, pip_support=True)
     assert all(
         x in res.dependencies
@@ -196,7 +214,7 @@ def test_parse_environment_file(gdal_environment):
     )
 
 
-def test_parse_environment_file_with_pip(pip_environment):
+def test_parse_environment_file_with_pip(pip_environment: Path):
     res = parse_environment_file(pip_environment, pip_support=True)
     assert [dep for dep in res.dependencies if dep.manager == "pip"] == [
         VersionedDependency(
@@ -317,11 +335,13 @@ def test_choose_wheel() -> None:
         ),
     ],
 )
-def test_parse_pip_requirement(requirement, parsed):
+def test_parse_pip_requirement(
+    requirement: str, parsed: "Dict[str, str | None]"
+) -> None:
     assert parse_pip_requirement(requirement) == parsed
 
 
-def test_parse_meta_yaml_file(meta_yaml_environment):
+def test_parse_meta_yaml_file(meta_yaml_environment: Path):
     res = parse_meta_yaml_file(meta_yaml_environment, ["linux-64", "osx-64"])
     specs = {dep.name: dep for dep in res.dependencies}
     assert all(x in specs for x in ["python", "numpy"])
@@ -333,7 +353,7 @@ def test_parse_meta_yaml_file(meta_yaml_environment):
     assert specs["pytest"].optional is True
 
 
-def test_parse_poetry(poetry_pyproject_toml):
+def test_parse_poetry(poetry_pyproject_toml: Path):
     res = parse_pyproject_toml(
         poetry_pyproject_toml,
     )
@@ -356,7 +376,7 @@ def test_parse_poetry(poetry_pyproject_toml):
     assert res.channels == [Channel.from_string("defaults")]
 
 
-def test_spec_poetry(poetry_pyproject_toml):
+def test_spec_poetry(poetry_pyproject_toml: Path):
 
     virtual_package_repo = default_virtual_package_repodata()
     with virtual_package_repo:
@@ -389,7 +409,7 @@ def test_spec_poetry(poetry_pyproject_toml):
         assert "requests" in deps
 
 
-def test_parse_flit(flit_pyproject_toml):
+def test_parse_flit(flit_pyproject_toml: Path):
     res = parse_pyproject_toml(
         flit_pyproject_toml,
     )
@@ -409,7 +429,7 @@ def test_parse_flit(flit_pyproject_toml):
     assert res.channels == [Channel.from_string("defaults")]
 
 
-def test_parse_pdm(pdm_pyproject_toml):
+def test_parse_pdm(pdm_pyproject_toml: Path):
     res = parse_pyproject_toml(
         pdm_pyproject_toml,
     )
@@ -436,34 +456,41 @@ def test_parse_pdm(pdm_pyproject_toml):
     assert res.channels == [Channel.from_string("defaults")]
 
 
-def test_run_lock(monkeypatch, zlib_environment, conda_exe):
+def test_run_lock(
+    monkeypatch: "pytest.MonkeyPatch", zlib_environment: Path, conda_exe: str
+):
     monkeypatch.chdir(zlib_environment.parent)
     if is_micromamba(conda_exe):
         monkeypatch.setenv("CONDA_FLAGS", "-v")
     run_lock([zlib_environment], conda_exe=conda_exe)
 
 
-def test_run_lock_blas_mkl(monkeypatch, blas_mkl_environment, conda_exe):
+def test_run_lock_blas_mkl(
+    monkeypatch: "pytest.MonkeyPatch", blas_mkl_environment: Path, conda_exe: str
+):
     monkeypatch.chdir(blas_mkl_environment.parent)
     run_lock([blas_mkl_environment], conda_exe=conda_exe)
 
 
 @pytest.fixture
-def update_environment():
-    base_dir = TEST_DIR.joinpath("test-update")
-    with filelock.FileLock(str(base_dir / "filelock")):
-        env = base_dir.joinpath("environment-postupdate.yml")
-        lock = env.parent / DEFAULT_LOCKFILE_NAME
-        shutil.copy(lock, lock.with_suffix(".bak"))
-        yield env
-        shutil.copy(lock.with_suffix(".bak"), lock)
+def update_environment(tmp_path: Path) -> Path:
+    return clone_test_dir("test-update", tmp_path).joinpath(
+        "environment-postupdate.yml"
+    )
 
 
-@pytest.mark.timeout(90)
-def test_run_lock_with_update(monkeypatch, update_environment, conda_exe):
+@flaky
+@pytest.mark.timeout(120)
+def test_run_lock_with_update(
+    monkeypatch: "pytest.MonkeyPatch", update_environment: Path, conda_exe: str
+):
     monkeypatch.chdir(update_environment.parent)
     if is_micromamba(conda_exe):
         monkeypatch.setenv("CONDA_FLAGS", "-v")
+    pre_environment = update_environment.parent / "environment-preupdate.yml"
+    run_lock([pre_environment], conda_exe="mamba")
+    # files should be ready now
+    run_lock([pre_environment], conda_exe=conda_exe, update=["pydantic"])
     pre_lock = {
         p.name: p
         for p in parse_conda_lock_file(
@@ -477,15 +504,19 @@ def test_run_lock_with_update(monkeypatch, update_environment, conda_exe):
             update_environment.parent / DEFAULT_LOCKFILE_NAME
         ).package
     }
-    assert post_lock["pydantic"].version == "1.8.2"
-    assert post_lock["python"].version == pre_lock["python"].version
+    assert pre_lock["pydantic"].version == "1.7"
+    assert post_lock["pydantic"].version == "1.9.0"
+    assert pre_lock["flask"].version.startswith("1.")
+    assert post_lock["flask"].version == pre_lock["flask"].version
 
 
 def test_run_lock_with_locked_environment_files(
-    monkeypatch, update_environment, conda_exe
+    monkeypatch: "pytest.MonkeyPatch", update_environment: Path, conda_exe: str
 ):
     """run_lock() with default args uses source files from lock"""
     monkeypatch.chdir(update_environment.parent)
+    pre_environment = update_environment.parent / "environment-preupdate.yml"
+    run_lock([pre_environment], conda_exe="mamba")
     make_lock_files = MagicMock()
     monkeypatch.setattr("conda_lock.conda_lock.make_lock_files", make_lock_files)
     run_lock(DEFAULT_FILES, conda_exe=conda_exe, update=["pydantic"])
@@ -496,11 +527,13 @@ def test_run_lock_with_locked_environment_files(
         src_files = make_lock_files.call_args.kwargs["src_files"]
 
     assert [p.resolve() for p in src_files] == [
-        pathlib.Path(update_environment.parent / "environment-preupdate.yml")
+        Path(update_environment.parent / "environment-preupdate.yml")
     ]
 
 
-def test_run_lock_with_pip(monkeypatch, pip_environment, conda_exe):
+def test_run_lock_with_pip(
+    monkeypatch: "pytest.MonkeyPatch", pip_environment: Path, conda_exe: str
+):
     monkeypatch.chdir(pip_environment.parent)
     if is_micromamba(conda_exe):
         monkeypatch.setenv("CONDA_FLAGS", "-v")
@@ -508,82 +541,85 @@ def test_run_lock_with_pip(monkeypatch, pip_environment, conda_exe):
 
 
 def test_run_lock_with_pip_environment_different_names_same_deps(
-    monkeypatch, pip_environment_different_names_same_deps, conda_exe
+    monkeypatch: "pytest.MonkeyPatch",
+    pip_environment_different_names_same_deps: Path,
+    conda_exe: str,
 ):
-    with filelock.FileLock(
-        str(pip_environment_different_names_same_deps.parent / "filelock")
-    ):
-        monkeypatch.chdir(pip_environment_different_names_same_deps.parent)
-        if is_micromamba(conda_exe):
-            monkeypatch.setenv("CONDA_FLAGS", "-v")
-        run_lock([pip_environment_different_names_same_deps], conda_exe=conda_exe)
+    monkeypatch.chdir(pip_environment_different_names_same_deps.parent)
+    if is_micromamba(conda_exe):
+        monkeypatch.setenv("CONDA_FLAGS", "-v")
+    run_lock([pip_environment_different_names_same_deps], conda_exe=conda_exe)
 
 
 def test_run_lock_regression_gh155(
-    monkeypatch, pip_environment_regression_gh155, conda_exe
+    monkeypatch: "pytest.MonkeyPatch",
+    pip_environment_regression_gh155: Path,
+    conda_exe: str,
 ):
-    with filelock.FileLock(str(pip_environment_regression_gh155.parent / "filelock")):
-        monkeypatch.chdir(pip_environment_regression_gh155.parent)
-        if is_micromamba(conda_exe):
-            monkeypatch.setenv("CONDA_FLAGS", "-v")
-        run_lock([pip_environment_regression_gh155], conda_exe=conda_exe)
+    monkeypatch.chdir(pip_environment_regression_gh155.parent)
+    if is_micromamba(conda_exe):
+        monkeypatch.setenv("CONDA_FLAGS", "-v")
+    run_lock([pip_environment_regression_gh155], conda_exe=conda_exe)
 
 
 def test_run_lock_with_local_package(
-    monkeypatch, pip_local_package_environment, conda_exe
+    monkeypatch: "pytest.MonkeyPatch",
+    pip_local_package_environment: Path,
+    conda_exe: str,
 ):
-    with filelock.FileLock(str(pip_local_package_environment.parent / "filelock")):
-        monkeypatch.chdir(pip_local_package_environment.parent)
-        if is_micromamba(conda_exe):
-            monkeypatch.setenv("CONDA_FLAGS", "-v")
-        virtual_package_repo = default_virtual_package_repodata()
+    monkeypatch.chdir(pip_local_package_environment.parent)
+    if is_micromamba(conda_exe):
+        monkeypatch.setenv("CONDA_FLAGS", "-v")
+    virtual_package_repo = default_virtual_package_repodata()
 
-        with virtual_package_repo:
-            lock_spec = make_lock_spec(
-                src_files=[pip_local_package_environment],
-                virtual_package_repo=virtual_package_repo,
-            )
-        assert not any(
-            p.manager == "pip" for p in lock_spec.dependencies
-        ), "conda-lock ignores editable pip deps"
+    with virtual_package_repo:
+        lock_spec = make_lock_spec(
+            src_files=[pip_local_package_environment],
+            virtual_package_repo=virtual_package_repo,
+        )
+    assert not any(
+        p.manager == "pip" for p in lock_spec.dependencies
+    ), "conda-lock ignores editable pip deps"
 
 
 def test_run_lock_with_input_hash_check(
-    monkeypatch, input_hash_zlib_environment: pathlib.Path, conda_exe, capsys
+    monkeypatch: "pytest.MonkeyPatch",
+    input_hash_zlib_environment: Path,
+    conda_exe: str,
+    capsys: "pytest.CaptureFixture[str]",
 ):
-    with filelock.FileLock(str(input_hash_zlib_environment.parent / "filelock")):
-        monkeypatch.chdir(input_hash_zlib_environment.parent)
-        if is_micromamba(conda_exe):
-            monkeypatch.setenv("CONDA_FLAGS", "-v")
-        lockfile = input_hash_zlib_environment.parent / "conda-linux-64.lock"
-        if lockfile.exists():
-            lockfile.unlink()
+    monkeypatch.chdir(input_hash_zlib_environment.parent)
+    if is_micromamba(conda_exe):
+        monkeypatch.setenv("CONDA_FLAGS", "-v")
+    lockfile = input_hash_zlib_environment.parent / "conda-linux-64.lock"
+    if lockfile.exists():
+        lockfile.unlink()
 
-        run_lock(
-            [input_hash_zlib_environment],
-            platforms=["linux-64"],
-            conda_exe=conda_exe,
-            check_input_hash=True,
-        )
-        stat = lockfile.stat()
-        created = stat.st_mtime_ns
+    run_lock(
+        [input_hash_zlib_environment],
+        platforms=["linux-64"],
+        conda_exe=conda_exe,
+        check_input_hash=True,
+    )
+    stat = lockfile.stat()
+    created = stat.st_mtime_ns
 
-        with open(lockfile) as f:
-            previous_hash = extract_input_hash(f.read())
-            assert previous_hash is not None
-            assert len(previous_hash) == 64
+    with open(lockfile) as f:
+        previous_hash = extract_input_hash(f.read())
+        assert previous_hash is not None
+        assert len(previous_hash) == 64
 
-        capsys.readouterr()
-        run_lock(
-            [input_hash_zlib_environment],
-            platforms=["linux-64"],
-            conda_exe=conda_exe,
-            check_input_hash=True,
-        )
-        stat = lockfile.stat()
-        assert stat.st_mtime_ns == created
-        output = capsys.readouterr()
-        assert "Spec hash already locked for" in output.err
+    capsys.readouterr()
+    run_lock(
+        [input_hash_zlib_environment],
+        platforms=["linux-64"],
+        conda_exe=conda_exe,
+        check_input_hash=True,
+    )
+    stat = lockfile.stat()
+    assert stat.st_mtime_ns == created
+    output = capsys.readouterr()
+    assert "Spec hash already locked for" in output.err
 
 
 @pytest.mark.parametrize(
@@ -594,7 +630,9 @@ def test_run_lock_with_input_hash_check(
         ("python", "^2.7", "/python-2.7"),
     ],
 )
-def test_poetry_version_parsing_constraints(package, version, url_pattern, capsys):
+def test_poetry_version_parsing_constraints(
+    package: str, version: str, url_pattern: str, capsys: "pytest.CaptureFixture[str]"
+):
     _conda_exe = determine_conda_executable(None, mamba=False, micromamba=False)
 
     vpr = default_virtual_package_repodata()
@@ -615,42 +653,41 @@ def test_poetry_version_parsing_constraints(package, version, url_pattern, capsy
                 platforms=["linux-64"],
                 # NB: this file must exist for relative path resolution to work
                 # in create_lockfile_from_spec
-                sources=[pathlib.Path(tf.name)],
+                sources=[Path(tf.name)],
                 virtual_package_repo=vpr,
             )
             lockfile_contents = create_lockfile_from_spec(
                 conda=_conda_exe,
                 spec=spec,
-                lockfile_path=pathlib.Path(DEFAULT_LOCKFILE_NAME),
+                lockfile_path=Path(DEFAULT_LOCKFILE_NAME),
             )
 
         python = next(p for p in lockfile_contents.package if p.name == "python")
         assert url_pattern in python.url
 
 
-def test_run_with_channel_inversion(monkeypatch, channel_inversion, mamba_exe):
+def test_run_with_channel_inversion(
+    monkeypatch: "pytest.MonkeyPatch", channel_inversion: Path, mamba_exe: str
+):
     """Given that the cuda_python package is available from a few channels
     and three of those channels listed
     and with conda-forge listed as the lowest priority channel
     and with the cuda_python dependency listed as "conda-forge::cuda_python",
     ensure that the lock file parse picks up conda-forge as the channel and not one of the higher priority channels
     """
-    with filelock.FileLock(str(channel_inversion.parent / "filelock")):
-        monkeypatch.chdir(channel_inversion.parent)
-        run_lock([channel_inversion], conda_exe=mamba_exe, platforms=["linux-64"])
-        lockfile = parse_conda_lock_file(
-            channel_inversion.parent / DEFAULT_LOCKFILE_NAME
-        )
-        for package in lockfile.package:
-            if package.name == "cuda-python":
-                ms = MatchSpec(package.url)
-                assert ms.get("channel") == "conda-forge"
-                break
-        else:
-            raise ValueError("cuda-python not found!")
+    monkeypatch.chdir(channel_inversion.parent)
+    run_lock([channel_inversion], conda_exe=mamba_exe, platforms=["linux-64"])
+    lockfile = parse_conda_lock_file(channel_inversion.parent / DEFAULT_LOCKFILE_NAME)
+    for package in lockfile.package:
+        if package.name == "cuda-python":
+            ms = MatchSpec(package.url)
+            assert ms.get("channel") == "conda-forge"
+            break
+    else:
+        raise ValueError("cuda-python not found!")
 
 
-def _make_spec(name, constraint="*"):
+def _make_spec(name: str, constraint: str = "*"):
     return VersionedDependency(
         name=name,
         version=constraint,
@@ -663,14 +700,14 @@ def test_aggregate_lock_specs():
         dependencies=[_make_spec("python", "=3.7")],
         channels=[Channel.from_string("conda-forge")],
         platforms=["linux-64"],
-        sources=[pathlib.Path("base-env.yml")],
+        sources=[Path("base-env.yml")],
     )
 
     gpu_spec = LockSpecification(
         dependencies=[_make_spec("pytorch")],
         channels=[Channel.from_string("pytorch"), Channel.from_string("conda-forge")],
         platforms=["linux-64"],
-        sources=[pathlib.Path("ml-stuff.yml")],
+        sources=[Path("ml-stuff.yml")],
     )
 
     # NB: content hash explicitly does not depend on the source file names
@@ -696,14 +733,14 @@ def test_aggregate_lock_specs_override_version():
         dependencies=[_make_spec("package", "=1.0")],
         channels=[Channel.from_string("conda-forge")],
         platforms=["linux-64"],
-        sources=[pathlib.Path("base.yml")],
+        sources=[Path("base.yml")],
     )
 
     override_spec = LockSpecification(
         dependencies=[_make_spec("package", "=2.0")],
         channels=[Channel.from_string("internal"), Channel.from_string("conda-forge")],
         platforms=["linux-64"],
-        sources=[pathlib.Path("override.yml")],
+        sources=[Path("override.yml")],
     )
 
     agg_spec = aggregate_lock_specs([base_spec, override_spec])
@@ -765,7 +802,7 @@ def test_aggregate_lock_specs_invalid_channels():
         # pytest.param("conda_exe"),
     ],
 )
-def conda_exe(request):
+def conda_exe(request: "pytest.FixtureRequest") -> PathLike:
     kwargs = dict(
         mamba=False,
         micromamba=False,
@@ -804,11 +841,11 @@ def _check_package_installed(package: str, prefix: str):
     for fn in files:
         data = json.load(open(fn))
         for expected_file in data["files"]:
-            assert (pathlib.Path(prefix) / pathlib.Path(expected_file)).exists()
+            assert (Path(prefix) / Path(expected_file)).exists()
     return True
 
 
-def conda_supports_env(conda_exe):
+def conda_supports_env(conda_exe: str):
     try:
         subprocess.check_call(
             [conda_exe, "env"], stdout=subprocess.PIPE, stderr=subprocess.PIPE
@@ -821,7 +858,13 @@ def conda_supports_env(conda_exe):
 @pytest.mark.parametrize("kind", ["explicit", "env"])
 @flaky
 def test_install(
-    request, kind, tmp_path, conda_exe, zlib_environment, monkeypatch, capsys
+    request: "pytest.FixtureRequest",
+    kind: str,
+    tmp_path: Path,
+    conda_exe: str,
+    zlib_environment: Path,
+    monkeypatch: "pytest.MonkeyPatch",
+    capsys: "pytest.CaptureFixture[str]",
 ):
     if is_micromamba(conda_exe):
         monkeypatch.setenv("CONDA_FLAGS", "-v")
@@ -873,7 +916,7 @@ def test_install(
 
     env_name = "test_env"
 
-    def invoke_install(*extra_args):
+    def invoke_install(*extra_args: str):
         with capsys.disabled():
             return runner.invoke(
                 main,
@@ -895,14 +938,14 @@ def test_install(
         # since by default we do platform validation we would expect this to fail
         context = pytest.raises(PlatformValidationError)
 
-    with context:
+    with context, install_lock():
         result = invoke_install()
     print(result.stdout, file=sys.stdout)
     print(result.stderr, file=sys.stderr)
-    if pathlib.Path(lock_filename).exists:
+    if Path(lock_filename).exists():
         logging.debug(
             "lockfile contents: \n\n=======\n%s\n\n==========",
-            pathlib.Path(lock_filename).read_text(),
+            Path(lock_filename).read_text(),
         )
 
     if sys.platform.lower().startswith("linux"):
@@ -933,7 +976,7 @@ def test_install(
         ),
     ),
 )
-def test__strip_auth_from_line(line, stripped):
+def test__strip_auth_from_line(line: str, stripped: str):
     assert _strip_auth_from_line(line) == stripped
 
 
@@ -944,11 +987,11 @@ def test__strip_auth_from_line(line, stripped):
         ("http://conda.mychannel.cloud/mypackage", "conda.mychannel.cloud"),
     ),
 )
-def test__extract_domain(line, stripped):
+def test__extract_domain(line: str, stripped: str):
     assert _extract_domain(line) == stripped
 
 
-def _read_file(filepath):
+def _read_file(filepath: "str | Path") -> str:
     with open(filepath, mode="r") as file_pointer:
         return file_pointer.read()
 
@@ -958,12 +1001,12 @@ def _read_file(filepath):
     tuple(
         (
             _read_file(
-                pathlib.Path(__file__)
+                Path(__file__)
                 .parent.joinpath("test-lockfile")
                 .joinpath(f"{filename}.lock")
             ),
             _read_file(
-                pathlib.Path(__file__)
+                Path(__file__)
                 .parent.joinpath("test-stripped-lockfile")
                 .joinpath(f"{filename}.lock")
             ),
@@ -971,7 +1014,7 @@ def _read_file(filepath):
         for filename in ("test", "no-auth")
     ),
 )
-def test__strip_auth_from_lockfile(lockfile, stripped_lockfile):
+def test__strip_auth_from_lockfile(lockfile: str, stripped_lockfile: str):
     assert _strip_auth_from_lockfile(lockfile) == stripped_lockfile
 
 
@@ -1003,7 +1046,7 @@ def test__strip_auth_from_lockfile(lockfile, stripped_lockfile):
         ),
     ),
 )
-def test__add_auth_to_line(line, auth, line_with_auth):
+def test__add_auth_to_line(line: str, auth: Dict[str, str], line_with_auth: str):
     assert _add_auth_to_line(line, auth) == line_with_auth
 
 
@@ -1025,12 +1068,19 @@ def auth_():
         for filename in ("test",)
     ),
 )
-def test__add_auth_to_lockfile(stripped_lockfile, lockfile_with_auth, auth):
+def test__add_auth_to_lockfile(
+    stripped_lockfile: str, lockfile_with_auth: str, auth: Dict[str, str]
+):
     assert _add_auth_to_lockfile(stripped_lockfile, auth) == lockfile_with_auth
 
 
 @pytest.mark.parametrize("kind", ["explicit", "env"])
-def test_virtual_packages(conda_exe, monkeypatch, kind, capsys):
+def test_virtual_packages(
+    conda_exe: str,
+    monkeypatch: "pytest.MonkeyPatch",
+    kind: str,
+    capsys: "pytest.CaptureFixture[str]",
+):
     test_dir = TEST_DIR.joinpath("test-cuda")
     monkeypatch.chdir(test_dir)
 
@@ -1139,13 +1189,11 @@ def test_default_virtual_package_input_hash_stability():
 @pytest.fixture
 def conda_lock_yaml():
     return (
-        pathlib.Path(__file__)
-        .parent.joinpath("test-lockfile")
-        .joinpath(DEFAULT_LOCKFILE_NAME)
+        Path(__file__).parent.joinpath("test-lockfile").joinpath(DEFAULT_LOCKFILE_NAME)
     )
 
 
-def test_fake_conda_env(conda_exe, conda_lock_yaml):
+def test_fake_conda_env(conda_exe: str, conda_lock_yaml: Path):
 
     lockfile_content = parse_conda_lock_file(conda_lock_yaml)
 
@@ -1206,7 +1254,13 @@ def test_fake_conda_env(conda_exe, conda_lock_yaml):
 
 
 @flaky
-def test_private_lock(quetz_server, tmp_path, monkeypatch, capsys, conda_exe):
+def test_private_lock(
+    quetz_server: "QuetzServerInfo",
+    tmp_path: Path,
+    monkeypatch: "pytest.MonkeyPatch",
+    capsys: "pytest.CaptureFixture[str]",
+    conda_exe: str,
+):
     if is_micromamba(conda_exe):
         res = subprocess.run(
             [conda_exe, "--version"], stdout=subprocess.PIPE, encoding="utf8"
@@ -1248,18 +1302,19 @@ def test_private_lock(quetz_server, tmp_path, monkeypatch, capsys, conda_exe):
             env_name = uuid.uuid4().hex
             env_prefix = tmp_path / env_name
 
-            result: Result = runner.invoke(
-                main,
-                [
-                    "install",
-                    "--conda",
-                    conda_exe,
-                    "--prefix",
-                    str(env_prefix),
-                    str(tmp_path / "conda-lock.yml"),
-                ],
-                catch_exceptions=False,
-            )
+            with install_lock():
+                result: Result = runner.invoke(
+                    main,
+                    [
+                        "install",
+                        "--conda",
+                        conda_exe,
+                        "--prefix",
+                        str(env_prefix),
+                        str(tmp_path / "conda-lock.yml"),
+                    ],
+                    catch_exceptions=False,
+                )
 
         print(result.stdout, file=sys.stdout)
         print(result.stderr, file=sys.stderr)
