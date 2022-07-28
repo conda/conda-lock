@@ -4,4 +4,5 @@ platforms:
   - linux-64
 dependencies:
   - python
-  - pydantic <=1.8.2
+  - pydantic >=1.9.0,<1.9.1
+  - flask >2
