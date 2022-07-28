@@ -3,6 +3,7 @@ import json
 import logging
 import os
 import pathlib
+import platform
 import shutil
 import subprocess
 import sys
@@ -491,6 +492,11 @@ def update_environment(tmp_path: Path) -> Path:
 def test_run_lock_with_update(
     monkeypatch: "pytest.MonkeyPatch", update_environment: Path, conda_exe: str
 ):
+    if platform.system().lower() == "windows" and conda_exe == "conda":
+        raise pytest.skip(
+            reason="this test just takes too long on windows, due to the slow conda solver"
+        )
+
     monkeypatch.chdir(update_environment.parent)
     if is_micromamba(conda_exe):
         monkeypatch.setenv("CONDA_FLAGS", "-v")
