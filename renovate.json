@@ -1,0 +1,13 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:base"
+  ],
+  "packageRules": [
+    {
+      "matchManagers": ["setup-cfg", "pip_requirements"],
+      "enabled": true,
+      "rangeStrategy": "replace"
+    }
+  ]
+}

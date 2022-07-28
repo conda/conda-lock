@@ -10,7 +10,7 @@ This is defined by a [pydantic](https://pydantic-docs.helpmanual.io/usage/models
 In order to explicitly use this format
 
 ```shell
-conda-lock --kind lockfile
+conda-lock --kind lock
 ```
 
 To install from one of these lockfiles
@@ -19,9 +19,11 @@ To install from one of these lockfiles
 conda-lock install conda-lock.yml
 ```
 
+For proper parsing the unified lockfile must have the proper `.conda-lock.yml` extension (e.g foo.conda-lock.yml)
+
 ### Render
 
-The unified lockfile can be rendered into the various other lockfile formats
+The unified lockfile can be rendered into the various other lockfile formats.
 
 Generate both formats using
 

@@ -11,14 +11,14 @@ jobs:
     env:
       FORCE_COLOR: "1"
     steps:
-    - uses: actions/checkout@v1
-    - uses: actions/setup-python@v2
+    - uses: actions/checkout@v3
+    - uses: actions/setup-python@v4
       with:
         python-version: '3.x'
     - id: file_changes
-      uses: trilom/file-changes-action@v1.2.3
+      uses: trilom/file-changes-action@v1.2.4
       with:
         output: ' '
-    - uses: pre-commit/action@v2.0.0
+    - uses: pre-commit/action@v3.0.0
       with:
         extra_args: --files ${{ steps.file_changes.outputs.files}}

@@ -14,13 +14,13 @@ jobs:
     runs-on: ubuntu-latest
     concurrency: ci-${{ github.ref }}
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
         with:
           submodules: "recursive"
           fetch-depth: 0       # Fetch all history for .GitInfo and .Lastmod
 
       - name: Setup Python
-        uses: actions/setup-python@v1
+        uses: actions/setup-python@v4
         with:
           python-version: '3.9'
           architecture: 'x64'

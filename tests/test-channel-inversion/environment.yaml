@@ -1,0 +1,12 @@
+channels:
+  # This example is constructed in this way to mirror a real life packaging
+  # issue that was experienced in 2022-07.
+  # In this case we have the channel order as recommended by rapids ai for
+  # installing cudf, but we want to force getting cuda-python from conda-forge
+  # instead of from the nvidia channel which would normally have higher priority
+  - rapidsai
+  - nvidia
+  - conda-forge
+dependencies:
+  - cudf
+  - conda-forge::cuda-python

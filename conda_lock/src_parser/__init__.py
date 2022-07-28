@@ -55,7 +55,8 @@ class Dependency(StrictModel):
 
 class VersionedDependency(Dependency):
     version: str
-    build: Optional[str]
+    build: Optional[str] = None
+    conda_channel: Optional[str] = None
 
 
 class URLDependency(Dependency):

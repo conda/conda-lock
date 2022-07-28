@@ -10,6 +10,7 @@ from clikit.api.io.flags import VERY_VERBOSE
 from clikit.io import ConsoleIO, NullIO
 from packaging.tags import compatible_tags, cpython_tags
 from poetry.core.packages import Dependency, Package, ProjectPackage, URLDependency
+from poetry.factory import Factory
 from poetry.installation.chooser import Chooser
 from poetry.installation.operations.uninstall import Uninstall
 from poetry.puzzle import Solver
@@ -197,8 +198,17 @@ def solve_pypi(
     for dep in dependencies:
         dummy_package.add_dependency(dep)
 
+    factory = Factory()
+    config = factory.create_config()
+    repos = [
+        factory.create_legacy_repository(
+            {"name": source[0], "url": source[1]["url"]}, config
+        )
+        for source in config.get("repositories", {}).items()
+    ]
+
     pypi = PyPiRepository()
-    pool = Pool(repositories=[pypi])
+    pool = Pool(repositories=[*repos, pypi])
 
     installed = Repository()
     locked = Repository()
