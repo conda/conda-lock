@@ -101,6 +101,16 @@ def clone_test_dir(name: str, tmp_path: Path) -> Path:
     return tmp_path
 
 
+def find_dependency(
+    lockfile: Lockfile, name: str, manager: str = "conda"
+) -> LockedDependency:
+    for dep in lockfile.package:
+        if dep.name == name and dep.manager == manager:
+            return dep
+    else:
+        raise ValueError(f"Dependency {name} not found in lockfile")
+
+
 @contextlib.contextmanager
 def install_lock():
     with filelock.FileLock(str(TEST_DIR.joinpath("install.lock"))):
@@ -478,6 +488,12 @@ def test_run_lock_blas_mkl(
 ):
     monkeypatch.chdir(blas_mkl_environment.parent)
     run_lock([blas_mkl_environment], conda_exe=conda_exe)
+    lockfile = parse_conda_lock_file(
+        blas_mkl_environment.parent / DEFAULT_LOCKFILE_NAME
+    )
+    dep = find_dependency(lockfile, "libblas")
+    assert "mkl" in dep.url
+    assert "mkl" in dep.dependencies
 
 
 @pytest.fixture
