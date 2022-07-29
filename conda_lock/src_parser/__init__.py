@@ -114,7 +114,7 @@ class TimeMeta(StrictModel):
     def create(cls) -> "TimeMeta":
         import time
 
-        return cls(created_at=f"{time.asctime(time.gmtime(time.time()))}")
+        return cls(created_at=datetime.datetime.utcnow().isoformat() + 'Z')
 
 
 class GitMeta(StrictModel):
