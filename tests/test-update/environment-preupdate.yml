@@ -5,3 +5,4 @@ platforms:
 dependencies:
   - python ==3.9.6
   - pydantic ==1.7
+  - flask <2
