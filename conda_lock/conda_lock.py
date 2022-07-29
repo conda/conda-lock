@@ -62,6 +62,7 @@ try:
     PIP_SUPPORT = True
 except ImportError:
     PIP_SUPPORT = False
+from conda_lock.lookup import set_lookup_location
 from conda_lock.src_parser import (
     Dependency,
     LockedDependency,
@@ -1084,6 +1085,11 @@ TLogLevel = Union[
     multiple=True,
     help="Packages to update to their latest versions. If empty, update all.",
 )
+@click.option(
+    "--pypi_to_conda_lookup_file",
+    type=str,
+    help="Location of the lookup file containing Pypi package names to conda names.",
+)
 @click.pass_context
 def lock(
     ctx: click.Context,
@@ -1104,6 +1110,7 @@ def lock(
     log_level: TLogLevel,
     pdb: bool,
     virtual_package_spec: Optional[PathLike],
+    pypi_to_conda_lookup_file: Optional[str],
     update: Optional[List[str]] = None,
 ) -> None:
     """Generate fully reproducible lock files for conda environments.
@@ -1119,6 +1126,10 @@ def lock(
         timestamp: The approximate timestamp of the output file in ISO8601 basic format.
     """
     logging.basicConfig(level=log_level)
+
+    # Set Pypi <--> Conda lookup file location
+    if pypi_to_conda_lookup_file:
+        set_lookup_location(pypi_to_conda_lookup_file)
 
     # bail out if we do not encounter the default file if no files were passed
     if ctx.get_parameter_source("files") == click.core.ParameterSource.DEFAULT:
