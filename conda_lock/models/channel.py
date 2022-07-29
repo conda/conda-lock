@@ -50,7 +50,7 @@ if typing.TYPE_CHECKING:
 
 
 logger = logging.getLogger(__name__)
-token_pattern = re.compile(r"(.*)(/t/(?:\$\{?)?[a-zA-Z0-9-_]*(?:\}))(/.*)")
+token_pattern = re.compile(r"(.*)(/t/\$?\{??[a-zA-Z0-9-_]*\}?)(/.*)")
 
 
 class CondaUrl(BaseModel):
