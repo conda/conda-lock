@@ -62,6 +62,7 @@ try:
     PIP_SUPPORT = True
 except ImportError:
     PIP_SUPPORT = False
+from conda_lock.lookup import set_lookup_location
 from conda_lock.src_parser import (
     Dependency,
     GitMeta,
@@ -1210,6 +1211,11 @@ TLogLevel = Union[
     type=click.Path(),
     help="YAML file(s) containing structured metadata to add to metadata section of the lockfile.",
 )
+@click.option(
+    "--pypi_to_conda_lookup_file",
+    type=str,
+    help="Location of the lookup file containing Pypi package names to conda names.",
+)
 @click.pass_context
 def lock(
     ctx: click.Context,
@@ -1230,6 +1236,7 @@ def lock(
     log_level: TLogLevel,
     pdb: bool,
     virtual_package_spec: Optional[PathLike],
+    pypi_to_conda_lookup_file: Optional[str],
     update: Optional[List[str]] = None,
     add_inputs_metadata: bool = False,
     add_git_metadata: bool = False,
@@ -1255,6 +1262,9 @@ def lock(
         metadata_jsons = [pathlib.Path(path) for path in metadata_jsons]
     if metadata_yamls is not None:
         metadata_yamls = [pathlib.Path(path) for path in metadata_yamls]
+    # Set Pypi <--> Conda lookup file location
+    if pypi_to_conda_lookup_file:
+        set_lookup_location(pypi_to_conda_lookup_file)
 
     # bail out if we do not encounter the default file if no files were passed
     if ctx.get_parameter_source("files") == click.core.ParameterSource.DEFAULT:
