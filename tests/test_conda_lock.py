@@ -1274,7 +1274,7 @@ def test_private_lock(
     monkeypatch: "pytest.MonkeyPatch",
     capsys: "pytest.CaptureFixture[str]",
     conda_exe: str,
-    placeholder
+    placeholder,
 ):
     if is_micromamba(conda_exe):
         res = subprocess.run(
