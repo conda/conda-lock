@@ -185,6 +185,16 @@ def solve_conda(
                 url = url.replace(candidate2, channel.url, 1)
         return url
 
+    def extract_dependencies(action: FetchAction) -> Dict[str, str]:
+        item: str
+        res: Dict[str, str] = {}
+        for item in action.get("depends", []) or []:
+            item = item.strip()
+            if item:
+                name, *version = item.split()
+                res[name] = " ".join(version)
+        return res
+
     # extract dependencies from package plan
     planned = {
         action["name"]: LockedDependency(
@@ -192,10 +202,7 @@ def solve_conda(
             version=action["version"],
             manager="conda",
             platform=platform,
-            dependencies={
-                item.split()[0]: " ".join(item.split(" ")[1:])
-                for item in action.get("depends") or []
-            },
+            dependencies=extract_dependencies(action),
             # TODO: Normalize URL here and inject env vars
             url=normalize_url(action["url"]),
             # NB: virtual packages may have no hash
@@ -206,6 +213,11 @@ def solve_conda(
         )
         for action in dry_run_install["actions"]["FETCH"]
     }
+
+    # exclude pip as a dependency from python
+    for package, dep in planned.items():
+        if package == "python":
+            dep.dependencies.pop("pip", None)
 
     # propagate categories from explicit to transitive dependencies
     _apply_categories(
