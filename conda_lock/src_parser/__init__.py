@@ -1,3 +1,4 @@
+import datetime
 import hashlib
 import json
 import logging
@@ -6,7 +7,21 @@ import typing
 
 from collections import defaultdict, namedtuple
 from itertools import chain
-from typing import ClassVar, Dict, List, Optional, Sequence, Set, Tuple, Union
+from typing import (
+    TYPE_CHECKING,
+    ClassVar,
+    Dict,
+    List,
+    Optional,
+    Sequence,
+    Set,
+    Tuple,
+    Union,
+)
+
+
+if TYPE_CHECKING:
+    from hashlib import _Hash
 
 from pydantic import BaseModel, Field, validator
 from typing_extensions import Literal
@@ -114,7 +129,9 @@ class TimeMeta(StrictModel):
     def create(cls) -> "TimeMeta":
         import time
 
-        return cls(created_at=datetime.datetime.utcnow().isoformat(timespec="seconds") + 'Z')
+        return cls(
+            created_at=datetime.datetime.utcnow().isoformat(timespec="seconds") + "Z"
+        )
 
 
 class GitMeta(StrictModel):
@@ -152,14 +169,27 @@ class InputMeta(StrictModel):
     """Stores information about an input provided to generate the lockfile."""
 
     md5: str = Field(..., description="md5 checksum for an input file")
+    sha256: str = Field(..., description="md5 checksum for an input file")
 
     @classmethod
     def create(cls, src_file: pathlib.Path) -> "InputMeta":
-        return cls(md5=f"{cls.get_input_md5(src_file=src_file)}")
+        return cls(
+            md5=f"{cls.get_input_md5(src_file=src_file)}",
+            sha256=f"{cls.get_input_sha256(src_file=src_file)}",
+        )
+
+    @classmethod
+    def get_input_md5(cls, src_file: pathlib.Path) -> str:
+        hasher = hashlib.md5()
+        return cls.hash_file(src_file=src_file, hasher=hasher)
+
+    @classmethod
+    def get_input_sha256(cls, src_file: pathlib.Path) -> str:
+        hasher = hashlib.sha256()
+        return cls.hash_file(src_file=src_file, hasher=hasher)
 
     @staticmethod
-    def get_input_md5(src_file: pathlib.Path) -> str:
-        hasher = hashlib.md5()
+    def hash_file(src_file: pathlib.Path, hasher: "_Hash") -> str:
         with src_file.open("r") as infile:
             hasher.update(infile.read().encode("utf-8"))
         return hasher.hexdigest()
@@ -202,6 +232,28 @@ class LockMeta(StrictModel):
         elif not isinstance(other, LockMeta):
             raise TypeError
 
+        if self.inputs_metadata is None:
+            new_inputs_metadata = other.inputs_metadata
+        elif other.input_metadata is None:
+            new_inputs_metadata = self.inputs_metadata
+        else:
+            new_inputs_metadata = self.inputs_metadata
+            new_inputs_metadata.update(other.inputs_metadata)
+
+        if self.custom_metadata is None:
+            new_custom_metadata = other.custom_metadata
+        elif other.custom_metadata is None:
+            new_custom_metadata = self.custom_metadata
+        else:
+            new_custom_metadata = self.custom_metadata
+            for key in other.custom_metadata:
+                if key in new_custom_metadata:
+                    logger.warning(
+                        f"Custom metadata key {key} provided twice, overwriting original value"
+                        + f"({new_custom_metadata[key]}) with new value "
+                        + f"({other.custom_metadata[key]})"
+                    )
+            new_custom_metadata.update(other.custom_metadata)
         return LockMeta(
             content_hash={**self.content_hash, **other.content_hash},
             channels=self.channels,
@@ -209,8 +261,8 @@ class LockMeta(StrictModel):
             sources=ordered_union([self.sources, other.sources]),
             time_metadata=other.time_metadata,
             git_metadata=other.git_metadata,
-            inputs_metadata=other.inputs_metadata,
-            custom_metadata=other.custom_metadata,
+            inputs_metadata=new_inputs_metadata,
+            custom_metadata=new_custom_metadata,
         )
 
     @validator("channels", pre=True, always=True)
