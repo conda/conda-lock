@@ -932,15 +932,15 @@ def run_lock(
             if all(p.exists() for p in locked_environment_files):
                 environment_files = locked_environment_files
             else:
-                environment_files = DEFAULT_FILES
                 missing = [p for p in locked_environment_files if not p.exists()]
                 print(
                     f"{lockfile_path} was created from {[str(p) for p in locked_environment_files]},"
                     f" but some files ({[str(p) for p in missing]}) do not exist. Falling back to"
-                    f" {[str(p) for p in environment_files]}.",
+                    f" {[str(p) for p in DEFAULT_FILES]}.",
                     file=sys.stderr,
                 )
-        else:
+        # always re-check in case no files from the lockfile were assigned
+        if len(environment_files) == 0:
             # bail out if we do not encounter any default .y(a)ml files
             candidates = [
                 p if p.exists() else p.with_suffix(".yaml") for p in DEFAULT_FILES
