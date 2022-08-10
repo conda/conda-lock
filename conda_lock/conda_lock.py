@@ -917,7 +917,8 @@ def run_lock(
     update: Optional[List[str]] = None,
     filter_categories: bool = False,
 ) -> None:
-    if environment_files == DEFAULT_FILES:
+    # no environment files specified => from lockfile or defaults
+    if len(environment_files) == 0:
         if lockfile_path.exists():
             lock_content = parse_conda_lock_file(lockfile_path)
             # reconstruct native paths
@@ -931,6 +932,7 @@ def run_lock(
             if all(p.exists() for p in locked_environment_files):
                 environment_files = locked_environment_files
             else:
+                environment_files = DEFAULT_FILES
                 missing = [p for p in locked_environment_files if not p.exists()]
                 print(
                     f"{lockfile_path} was created from {[str(p) for p in locked_environment_files]},"
@@ -1139,6 +1141,11 @@ def lock(
     # Set Pypi <--> Conda lookup file location
     if pypi_to_conda_lookup_file:
         set_lookup_location(pypi_to_conda_lookup_file)
+
+    # we need to distinguish between unspecified files and specified but same as default
+    # (while keeping the CLI default to have it in the --help)
+    if ctx.get_parameter_source("files") == click.core.ParameterSource.DEFAULT:
+        files = []
 
     if pdb:
         sys.excepthook = _handle_exception_post_mortem

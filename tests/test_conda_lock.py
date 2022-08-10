@@ -24,7 +24,6 @@ import yaml
 from flaky import flaky
 
 from conda_lock.conda_lock import (
-    DEFAULT_FILES,
     DEFAULT_LOCKFILE_NAME,
     _add_auth_to_line,
     _add_auth_to_lockfile,
@@ -532,7 +531,7 @@ def test_run_lock_with_locked_environment_files(
     run_lock([pre_environment], conda_exe="mamba")
     make_lock_files = MagicMock()
     monkeypatch.setattr("conda_lock.conda_lock.make_lock_files", make_lock_files)
-    run_lock(DEFAULT_FILES, conda_exe=conda_exe, update=["pydantic"])
+    run_lock([], conda_exe=conda_exe, update=["pydantic"])
     if sys.version_info < (3, 8):
         # backwards compat
         src_files = make_lock_files.call_args_list[0][1]["src_files"]
