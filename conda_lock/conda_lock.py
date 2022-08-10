@@ -939,9 +939,18 @@ def run_lock(
                     file=sys.stderr,
                 )
         else:
-            long_ext_file = pathlib.Path("environment.yaml")
-            if long_ext_file.exists() and not environment_files[0].exists():
-                environment_files = [long_ext_file]
+            # bail out if we do not encounter any default .y(a)ml files
+            candidates = [
+                p if p.exists() else p.with_suffix(".yaml") for p in DEFAULT_FILES
+            ]
+            environment_files = [p for p in candidates if p.exists()]
+            if len(environment_files) == 0:
+                print(
+                    f"No files exist matching the defaults"
+                    f" ({[str(p.with_suffix('.y(a)ml')) for p in DEFAULT_FILES]}).",
+                    file=sys.stderr,
+                )
+                sys.exit(1)
 
     _conda_exe = determine_conda_executable(
         conda_exe, mamba=mamba, micromamba=micromamba
@@ -1130,17 +1139,6 @@ def lock(
     # Set Pypi <--> Conda lookup file location
     if pypi_to_conda_lookup_file:
         set_lookup_location(pypi_to_conda_lookup_file)
-
-    # bail out if we do not encounter the default file if no files were passed
-    if ctx.get_parameter_source("files") == click.core.ParameterSource.DEFAULT:
-        candidates = list(files)
-        candidates += [f.with_name(f.name.replace(".yml", ".yaml")) for f in candidates]
-        for f in candidates:
-            if f.exists():
-                break
-        else:
-            print(ctx.get_help())
-            sys.exit(1)
 
     if pdb:
         sys.excepthook = _handle_exception_post_mortem
