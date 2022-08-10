@@ -562,14 +562,14 @@ def test_run_lock_with_input_metadata(
     run_lock([zlib_environment], conda_exe=conda_exe, add_inputs_metadata=True)
     lockfile = parse_conda_lock_file(zlib_environment.parent / DEFAULT_LOCKFILE_NAME)
 
-    print(lockfile.metadata.inputs_metadata)
+    inputs_metadata = lockfile.metadata.inputs_metadata
+    assert inputs_metadata is not None, "Inputs Metadata was None"
     assert (
-        lockfile.metadata.inputs_metadata["environment.yml"].md5
-        == "5473161eb8500056d793df7ac720a36f"
+        inputs_metadata["environment.yml"].md5 == "5473161eb8500056d793df7ac720a36f"
     ), "Input md5 didn't match expectation"
     expected_shasum = "1177fb37f73bebd39bba9e504cb03495136b1961126475a5839da2e878b2afda"
     assert (
-        lockfile.metadata.inputs_metadata["environment.yml"].sha256 == expected_shasum
+        inputs_metadata["environment.yml"].sha256 == expected_shasum
     ), "Input shasum didn't match expectation"
 
 
@@ -586,11 +586,11 @@ def test_run_lock_with_time_metadata(
     end_time = datetime.datetime.utcnow()
     lockfile = parse_conda_lock_file(TIME_DIR / DEFAULT_LOCKFILE_NAME)
 
+    time_metadata = lockfile.metadata.time_metadata
+    assert time_metadata is not None, "Time metadata was None"
     assert (
         start_time
-        < datetime.datetime.fromisoformat(
-            lockfile.metadata.time_metadata.created_at.rstrip("Z")
-        )
+        < datetime.datetime.fromisoformat(time_metadata.created_at.rstrip("Z"))
         < end_time
     ), (
         "Datetime added to lockfile didn't match expectation based on timestamps at start and end"
