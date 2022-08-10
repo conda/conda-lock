@@ -1,4 +1,5 @@
 import contextlib
+import datetime
 import json
 import logging
 import os
@@ -192,6 +193,40 @@ def channel_inversion(tmp_path: Path):
 )
 def include_dev_dependencies(request: Any) -> bool:
     return request.param
+
+
+JSON_FIELDS: Dict[str, str] = {"json_unique_field": "test1", "common_field": "test2"}
+
+YAML_FIELDS: Dict[str, str] = {"yaml_unique_field": "test3", "common_field": "test4"}
+
+EXPECTED_CUSTOM_FIELDS: Dict[str, str] = {
+    "json_unique_field": "test1",
+    "yaml_unique_field": "test3",
+    "common_field": "test4",
+}
+
+
+@pytest.fixture
+def custom_metadata_environment(tmp_path: Path):
+    return clone_test_dir("zlib", tmp_path / "test-custom-metadata")
+
+
+@pytest.fixture
+def custom_yaml_metadata(custom_metadata_environment: Path) -> Path:
+    outfile = custom_metadata_environment / "custom_metadata.yaml"
+    with outfile.open("w") as out_yaml:
+        yaml.dump(YAML_FIELDS, out_yaml)
+
+    return outfile
+
+
+@pytest.fixture
+def custom_json_metadata(custom_metadata_environment: Path) -> Path:
+    outfile = custom_metadata_environment / "custom_metadata.json"
+    with outfile.open("w") as out_json:
+        json.dump(JSON_FIELDS, out_json)
+
+    return outfile
 
 
 def test_parse_environment_file(gdal_environment: Path):
@@ -471,6 +506,100 @@ def test_run_lock(
     if is_micromamba(conda_exe):
         monkeypatch.setenv("CONDA_FLAGS", "-v")
     run_lock([zlib_environment], conda_exe=conda_exe)
+
+
+def test_run_lock_with_input_metadata(
+    monkeypatch: "pytest.MonkeyPatch", zlib_environment: Path, conda_exe: str
+):
+    monkeypatch.chdir(zlib_environment.parent)
+    if is_micromamba(conda_exe):
+        monkeypatch.setenv("CONDA_FLAGS", "-v")
+    run_lock([zlib_environment], conda_exe=conda_exe, add_inputs_metadata=True)
+    lockfile = parse_conda_lock_file(zlib_environment.parent / DEFAULT_LOCKFILE_NAME)
+
+    print(lockfile.metadata.inputs_metadata)
+    assert (
+        lockfile.metadata.inputs_metadata["environment.yml"].md5
+        == "5473161eb8500056d793df7ac720a36f"
+    ), "Input md5 didn't match expectation"
+    expected_shasum = "1177fb37f73bebd39bba9e504cb03495136b1961126475a5839da2e878b2afda"
+    assert (
+        lockfile.metadata.inputs_metadata["environment.yml"].sha256 == expected_shasum
+    ), "Input shasum didn't match expectation"
+
+
+def test_run_lock_with_time_metadata(
+    monkeypatch: "pytest.MonkeyPatch", zlib_environment: Path, conda_exe: str
+):
+    TIME_DIR = TEST_DIR / "test-time-metadata"
+
+    start_time = datetime.datetime.utcnow()
+    monkeypatch.chdir(TIME_DIR)
+    if is_micromamba(conda_exe):
+        monkeypatch.setenv("CONDA_FLAGS", "-v")
+    run_lock([zlib_environment], conda_exe=conda_exe, add_time_metadata=True)
+    end_time = datetime.datetime.utcnow()
+    lockfile = parse_conda_lock_file(TIME_DIR / DEFAULT_LOCKFILE_NAME)
+
+    assert (
+        start_time
+        < datetime.datetime.fromisoformat(
+            lockfile.metadata.time_metadata.created_at.rstrip("Z")
+        )
+        < end_time
+    ), (
+        "Datetime added to lockfile didn't match expectation based on timestamps at start and end"
+        + " of test"
+    )
+
+
+def test_run_lock_with_git_metadata(
+    monkeypatch: "pytest.MonkeyPatch", zlib_environment: Path, conda_exe: str
+):
+    GIT_DIR = TEST_DIR / "test-git-metadata"
+    monkeypatch.chdir(GIT_DIR)
+    if is_micromamba(conda_exe):
+        monkeypatch.setenv("CONDA_FLAGS", "-v")
+    run_lock([zlib_environment], conda_exe=conda_exe, add_git_metadata=True)
+    lockfile = parse_conda_lock_file(GIT_DIR / DEFAULT_LOCKFILE_NAME)
+
+    assert (
+        lockfile.metadata.git_metadata is not None
+    ), "Git metadata was None, should be some value"
+    assert (
+        lockfile.metadata.git_metadata.git_user_name is not None
+    ), "Git metadata user.name was None, should be some value"
+    assert (
+        lockfile.metadata.git_metadata.git_user_email is not None
+    ), "Git metadata user.email was None, should be some value"
+
+
+def test_run_lock_with_custom_metadata(
+    monkeypatch: "pytest.MonkeyPatch",
+    custom_metadata_environment: Path,
+    custom_yaml_metadata: Path,
+    custom_json_metadata: Path,
+    conda_exe: str,
+):
+    monkeypatch.chdir(custom_yaml_metadata.parent)
+    if is_micromamba(conda_exe):
+        monkeypatch.setenv("CONDA_FLAGS", "-v")
+    run_lock(
+        [custom_metadata_environment / "environment.yml"],
+        conda_exe=conda_exe,
+        metadata_jsons=[custom_json_metadata],
+        metadata_yamls=[custom_yaml_metadata],
+    )
+    lockfile = parse_conda_lock_file(
+        custom_yaml_metadata.parent / DEFAULT_LOCKFILE_NAME
+    )
+
+    assert (
+        lockfile.metadata.custom_metadata is not None
+    ), "Custom metadata was None unexpectedly"
+    assert (
+        lockfile.metadata.custom_metadata == EXPECTED_CUSTOM_FIELDS
+    ), "Custom metadata didn't get written as expected"
 
 
 def test_run_lock_blas_mkl(
