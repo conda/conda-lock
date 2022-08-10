@@ -234,7 +234,7 @@ class LockMeta(StrictModel):
 
         if self.inputs_metadata is None:
             new_inputs_metadata = other.inputs_metadata
-        elif other.input_metadata is None:
+        elif other.inputs_metadata is None:
             new_inputs_metadata = self.inputs_metadata
         else:
             new_inputs_metadata = self.inputs_metadata
