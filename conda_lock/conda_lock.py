@@ -412,7 +412,7 @@ def make_lock_files(
                 update_spec=update_spec,
                 add_git_metadata=add_git_metadata,
                 add_time_metadata=add_time_metadata,
-                src_files=src_files if add_inputs_metadata else None,
+                add_inputs_metadata=add_inputs_metadata,
                 metadata_jsons=metadata_jsons,
                 metadata_yamls=metadata_yamls,
             )
@@ -790,7 +790,7 @@ def create_lockfile_from_spec(
     add_time_metadata: bool = False,
     metadata_jsons: Optional[List[pathlib.Path]] = None,
     metadata_yamls: Optional[List[pathlib.Path]] = None,
-    src_files: Optional[List[pathlib.Path]] = None,
+    add_inputs_metadata: bool = False,
 ) -> Lockfile:
     """
     Solve or update specification
@@ -815,14 +815,14 @@ def create_lockfile_from_spec(
 
     git_metadata = GitMeta.create() if add_git_metadata else None
     time_metadata = TimeMeta.create() if add_time_metadata else None
+
+    spec_sources = {str(source.resolve()): source for source in spec.sources}
     inputs_metadata: Optional[Dict[str, InputMeta]] = (
         {
-            relative_path(lockfile_path.parent, src_file): InputMeta.create(
-                src_file=src_file
-            )
-            for src_file in src_files
+            resolved_key: InputMeta.create(src_file=src_file)
+            for resolved_key, src_file in spec_sources
         }
-        if src_files is not None
+        if add_inputs_metadata is not None
         else None
     )
     custom_metadata: Optional[Dict[str, str]] = (
@@ -839,7 +839,7 @@ def create_lockfile_from_spec(
             content_hash=spec.content_hash(),
             channels=[c for c in spec.channels],
             platforms=spec.platforms,
-            sources=[str(source.resolve()) for source in spec.sources],
+            sources=list(spec_sources.keys()),
             git_metadata=git_metadata,
             time_metadata=time_metadata,
             inputs_metadata=inputs_metadata,
