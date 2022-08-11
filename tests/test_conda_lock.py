@@ -814,7 +814,6 @@ def test_poetry_version_parsing_constraints(
                 lockfile_path=Path(DEFAULT_LOCKFILE_NAME),
                 add_git_metadata=False,
                 add_time_metadata=False,
-                src_files=None,
                 metadata_jsons=None,
                 metadata_yamls=None,
             )
