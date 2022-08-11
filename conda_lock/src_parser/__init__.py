@@ -140,9 +140,11 @@ class GitMeta(StrictModel):
     the git user generating the file.
     """
 
-    git_user_name: str = Field(..., description="Git user.name field of global config")
-    git_user_email: str = Field(
-        ..., description="Git user.email field of global config"
+    git_user_name: Optional[str] = Field(
+        default=None, description="Git user.name field of global config"
+    )
+    git_user_email: Optional[str] = Field(
+        default=None, description="Git user.email field of global config"
     )
     git_sha: Optional[str] = Field(
         default=None, description="sha256 hash of the most recent git commit"
@@ -158,9 +160,15 @@ class GitMeta(StrictModel):
             git_sha = f"{repo.head.object.hexsha}{'-dirty' if repo.is_dirty() else ''}"
         except git.exc.InvalidGitRepositoryError:
             git_sha = None
+        try:
+            git_user_name = git.Git()().config("user.name")
+            git_user_email = git.Git()().config("user.email")
+        except git.exc.GitCommandError:
+            git_user_name = None
+            git_user_email = None
         return cls(
-            git_user_name=git.Git()().config("user.name"),
-            git_user_email=git.Git()().config("user.email"),
+            git_user_name=git_user_name,
+            git_user_email=git_user_email,
             git_sha=git_sha,
         )
 
