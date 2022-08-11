@@ -820,7 +820,7 @@ def create_lockfile_from_spec(
     inputs_metadata: Optional[Dict[str, InputMeta]] = (
         {
             resolved_key: InputMeta.create(src_file=src_file)
-            for resolved_key, src_file in spec_sources
+            for resolved_key, src_file in spec_sources.items()
         }
         if add_inputs_metadata is not None
         else None
