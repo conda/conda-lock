@@ -609,7 +609,7 @@ def test_run_lock_with_git_metadata(
     import git
 
     try:
-        _ = git.Git()().config("user.name"),
+        _ = git.Git()().config("user.name")
     except git.exc.GitCommandError:
         pytest.xfail("Git config not initialized, so expected to fail.")
 
