@@ -560,6 +560,14 @@ def test_run_lock_with_git_metadata(
     monkeypatch.chdir(GIT_DIR)
     if is_micromamba(conda_exe):
         monkeypatch.setenv("CONDA_FLAGS", "-v")
+
+    import git
+
+    try:
+        _ = git.Git()().config("user.name"),
+    except git.exc.GitCommandError:
+        pytest.xfail("Git config not initialized, so expected to fail.")
+
     run_lock([zlib_environment], conda_exe=conda_exe, add_git_metadata=True)
     lockfile = parse_conda_lock_file(GIT_DIR / DEFAULT_LOCKFILE_NAME)
 
