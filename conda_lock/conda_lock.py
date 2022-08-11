@@ -816,11 +816,11 @@ def create_lockfile_from_spec(
     git_metadata = GitMeta.create() if add_git_metadata else None
     time_metadata = TimeMeta.create() if add_time_metadata else None
 
-    spec_sources = {str(source.resolve()): source for source in spec.sources}
+    spec_sources = {relative_path(lockfile_path.parent, source): source for source in spec.sources}
     inputs_metadata: Optional[Dict[str, InputMeta]] = (
         {
-            resolved_key: InputMeta.create(src_file=src_file)
-            for resolved_key, src_file in spec_sources.items()
+            relative_path: InputMeta.create(src_file=src_file)
+            for relative_path, src_file in spec_sources.items()
         }
         if add_inputs_metadata is not None
         else None

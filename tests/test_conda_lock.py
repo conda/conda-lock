@@ -519,6 +519,7 @@ def test_run_lock_with_input_metadata(
 
     inputs_metadata = lockfile.metadata.inputs_metadata
     assert inputs_metadata is not None, "Inputs Metadata was None"
+    print(inputs_metadata)
     assert (
         inputs_metadata["environment.yml"].md5 == "5473161eb8500056d793df7ac720a36f"
     ), "Input md5 didn't match expectation"
