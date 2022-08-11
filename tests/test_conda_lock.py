@@ -534,6 +534,7 @@ def test_run_lock_with_time_metadata(
     TIME_DIR = TEST_DIR / "test-time-metadata"
 
     start_time = datetime.datetime.utcnow()
+    TIME_DIR.mkdir(exist_ok=True)
     monkeypatch.chdir(TIME_DIR)
     if is_micromamba(conda_exe):
         monkeypatch.setenv("CONDA_FLAGS", "-v")
@@ -557,6 +558,7 @@ def test_run_lock_with_git_metadata(
     monkeypatch: "pytest.MonkeyPatch", zlib_environment: Path, conda_exe: str
 ):
     GIT_DIR = TEST_DIR / "test-git-metadata"
+    GIT_DIR.mkdir(exist_ok=True)
     monkeypatch.chdir(GIT_DIR)
     if is_micromamba(conda_exe):
         monkeypatch.setenv("CONDA_FLAGS", "-v")
