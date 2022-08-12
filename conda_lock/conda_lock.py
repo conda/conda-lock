@@ -841,7 +841,7 @@ def create_lockfile_from_spec(
             content_hash=spec.content_hash(),
             channels=[c for c in spec.channels],
             platforms=spec.platforms,
-            sources=list(spec_sources.keys()),
+            sources=[str(source.resolve()) for source in spec.sources],
             git_metadata=git_metadata,
             time_metadata=time_metadata,
             inputs_metadata=inputs_metadata,
