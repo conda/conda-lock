@@ -821,11 +821,11 @@ def create_lockfile_from_spec(
         inputs_metadata = {}
         for source in spec.sources:
             try:
-                path = pathlib.Path(relative_path(lockfile_path.parent, source))
+                path = relative_path(lockfile_path.parent, source)
             except ValueError as e:
                 if "Paths don't have the same drive" not in str(e):
                     raise e
-                path = source.resolve()
+                path = str(source.resolve())
             inputs_metadata[path] = InputMeta.create(src_file=source)
 
     custom_metadata: Optional[Dict[str, str]] = (
