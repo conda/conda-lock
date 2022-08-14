@@ -819,14 +819,18 @@ def create_lockfile_from_spec(
     spec_sources = {
         relative_path(lockfile_path.parent, source): source for source in spec.sources
     }
-    inputs_metadata: Optional[Dict[str, InputMeta]] = (
-        {
-            relative_path: InputMeta.create(src_file=src_file)
-            for relative_path, src_file in spec_sources.items()
-        }
-        if add_inputs_metadata is not None
-        else None
-    )
+    inputs_metadata: Optional[Dict[str, InputMeta]] = None
+    if add_inputs_metadata:
+        inputs_metadata = {}
+        for source in spec.sources:
+            try:
+                path = relative_path(lockfile_path.parent, source)
+            except ValueError as e:
+                if "Paths don't have the same drive" not in str(e):
+                    raise e
+                path = source.resolve()
+            inputs_metadata[path] = InputMeta.create(src_file=source)
+
     custom_metadata: Optional[Dict[str, str]] = (
         get_custom_metadata(
             metadata_jsons=metadata_jsons, metadata_yamls=metadata_yamls
