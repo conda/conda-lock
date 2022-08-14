@@ -816,15 +816,12 @@ def create_lockfile_from_spec(
     git_metadata = GitMeta.create() if add_git_metadata else None
     time_metadata = TimeMeta.create() if add_time_metadata else None
 
-    spec_sources = {
-        relative_path(lockfile_path.parent, source): source for source in spec.sources
-    }
     inputs_metadata: Optional[Dict[str, InputMeta]] = None
     if add_inputs_metadata:
         inputs_metadata = {}
         for source in spec.sources:
             try:
-                path = relative_path(lockfile_path.parent, source)
+                path = pathlib.Path(relative_path(lockfile_path.parent, source))
             except ValueError as e:
                 if "Paths don't have the same drive" not in str(e):
                     raise e
