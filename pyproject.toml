@@ -66,6 +66,11 @@ filename = "requirements.txt"
 [tool.hatch.version]
 source = "vcs"
 
+[tool.hatch.build]
+exclude = [
+    "tests",
+]
+
 [tool.isort]
 atomic = true
 force_grid_wrap = 0
