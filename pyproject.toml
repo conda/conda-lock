@@ -38,7 +38,6 @@ Homepage = "https://github.com/conda-incubator/conda-lock"
 Repository = "https://github.com/conda-incubator/conda-lock"
 Documentation = "https://conda-incubator.github.io/conda-lock/"
 "Issue Tracker" = "https://github.com/conda-incubator/conda-lock/issues"
-PyPI = "https://pypi.org/project/conda-lock/"
 "Conda-Forge Feedstock" = "https://github.com/conda-forge/conda-lock-feedstock"
 "Anaconda.org" = "https://anaconda.org/conda-forge/conda-lock"
 
