@@ -276,7 +276,10 @@ def solve_pypi(
             else:
                 link = chooser.choose_for(op.package)
                 url = link.url_without_fragment
-                hash = src_parser.HashModel(**{link.hash_name: link.hash})
+                hashes: Dict[str, str] = {}
+                if link.hash_name is not None and link.hash is not None:
+                    hashes[link.hash_name] = link.hash
+                hash = src_parser.HashModel.parse_obj(hashes)
 
             requirements.append(
                 src_parser.LockedDependency(
