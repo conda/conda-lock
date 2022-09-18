@@ -33,6 +33,7 @@ class FakePackage(BaseModel):
     noarch: str = ""
     depends: Tuple[str, ...] = Field(default_factory=tuple)
     timestamp: int = DEFAULT_TIME
+    package_type: Optional[str] = "virtual_system"
 
     def to_repodata_entry(self) -> Tuple[str, Dict[str, Any]]:
         out = self.dict()
