@@ -59,7 +59,9 @@ ignore = [
 omit = [
     "conda_lock/vendor/*",
 ]
-source = "conda_lock/*"
+source = [
+    "conda_lock/*",
+]
 
 [tool.hatch.metadata.hooks.requirements_txt]
 filename = "requirements.txt"
