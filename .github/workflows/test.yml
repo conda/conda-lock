@@ -24,7 +24,6 @@ jobs:
         run: |
           conda activate test
           conda install mamba pip pytest-cov pytest-xdist
-          python -m pip install -r requirements.txt
           python -m pip install -r requirements-dev.txt
 
       - name: install lib
@@ -71,7 +70,6 @@ jobs:
           echo "${PATH}"
           which pip
           which python
-          python -m pip install -r requirements.txt
           python -m pip install -r requirements-dev.txt
 
       - name: install lib
