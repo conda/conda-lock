@@ -4,7 +4,7 @@
 For the most up-to-date instructions see the github actions [test.yml workflow](./github/workflows.test.yml)
 
 1. Ensure conda and mamba are installed. Install [mambaforge](https://github.com/conda-forge/miniforge#mambaforge) if you're otherwise not sure which one to pick.
-2. `mamba create -n conda-lock-dev pip pytest-cov pytest-xdist pip`
+2. `mamba create -n conda-lock-dev pip pytest-cov pytest-xdist`
 3. `conda activate conda-lock-dev`
 4. `python -m pip install -r requirements-dev.txt`
 5. `pip install -e . --no-deps --force-reinstall`
