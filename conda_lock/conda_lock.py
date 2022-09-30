@@ -964,6 +964,7 @@ def run_lock(
 
 
 @click.group(cls=OrderedGroup, default="lock", default_if_no_args=True)
+@click.version_option()
 def main() -> None:
     """To get help for subcommands, use the conda-lock <SUBCOMMAND> --help"""
     pass
