@@ -1,12 +1,11 @@
-PyYaml >= 5.1
-requests >=2
-Jinja2
-toml
-ensureconda >=1.3
 click >=8.0
 click-default-group
-pydantic >=1.8.1
+ensureconda >=1.3
+jinja2
 poetry <1.2
+pydantic >=1.8.1
+pyyaml >= 5.1
+requests >=2
 ruamel.yaml
-poetry
+toml
 typing-extensions
