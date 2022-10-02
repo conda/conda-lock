@@ -23,6 +23,7 @@ import yaml
 
 from flaky import flaky
 
+from conda_lock import __version__
 from conda_lock.conda_lock import (
     DEFAULT_FILES,
     DEFAULT_LOCKFILE_NAME,
@@ -1346,3 +1347,23 @@ def test_extract_json_object():
     """It should remove all the characters after the last }"""
     assert extract_json_object(' ^[0m {"key1": true } ^[0m') == '{"key1": true }'
     assert extract_json_object('{"key1": true }') == '{"key1": true }'
+
+
+def test_cli_version(capsys: "pytest.CaptureFixture[str]"):
+    """It should correctly report its version."""
+
+    from click.testing import CliRunner
+
+    with capsys.disabled():
+        runner = CliRunner(mix_stderr=False)
+        result = runner.invoke(
+            main,
+            [
+                "--version",
+            ],
+            catch_exceptions=False,
+        )
+    print(result.stdout, file=sys.stdout)
+    print(result.stderr, file=sys.stderr)
+    assert result.exit_code == 0
+    assert __version__ in result.stdout
