@@ -6,6 +6,7 @@ from functools import partial
 from typing import AbstractSet, Any, List, Mapping, Optional, Sequence, Union
 from urllib.parse import urldefrag
 
+
 try:
     from tomllib import load as toml_load
 except ImportError:
