@@ -199,7 +199,8 @@ def to_match_spec(conda_dep_name: str, conda_version: Optional[str]) -> str:
 def parse_pyproject_toml(
     pyproject_toml: pathlib.Path,
 ) -> LockSpecification:
-    contents = toml_load(pyproject_toml)
+    with pyproject_toml.open("rb") as fp:
+        contents = toml_load(fp)
     build_system = get_in(["build-system", "build-backend"], contents)
     pep_621_probe = get_in(["project", "dependencies"], contents)
     pdm_probe = get_in(["tool", "pdm"], contents)
