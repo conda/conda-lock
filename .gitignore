@@ -16,3 +16,4 @@ tests/**/*.bak
 site/
 filelock
 .coverage
+.micromamba/
