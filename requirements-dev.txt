@@ -17,7 +17,7 @@ pytest-cov
 pytest-flake8
 pytest-xdist
 pytest-timeout
-toml
+tomli; python_version<"3.11"
 twine
 wheel
 mkdocs
