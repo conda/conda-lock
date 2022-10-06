@@ -3,25 +3,22 @@
 # SPDX-License-Identifier: BSD-3-Clause
 from __future__ import absolute_import, division, print_function, unicode_literals
 
+from contextlib import contextmanager
+from functools import lru_cache, wraps
 import logging
-from os.path import dirname
+from os.path import abspath, join, isfile, basename, dirname
+from os import environ
+from pathlib import Path
 import re
 import sys
 
-from .auxlib.decorators import memoize
-from .auxlib.compat import shlex_split_unicode, string_types, Utf8NamedTemporaryFile
+from . import CondaError
+from .auxlib.compat import shlex_split_unicode, Utf8NamedTemporaryFile
 from .common.compat import on_win, isiterable
-
 from .common.path import win_path_to_unix, which
 from .common.url import path_to_url
-from os.path import abspath, join, isfile, basename
-from os import environ
 
 log = logging.getLogger(__name__)
-
-# in conda/exports.py
-memoized = memoize
-
 
 def path_identity(path):
     """Used as a dummy path converter where no conversion necessary"""
@@ -238,7 +235,7 @@ def hashsum_file(path, mode='md5'):  # pragma: no cover
     return h.hexdigest()
 
 
-@memoize
+@lru_cache(maxsize=None)
 def sys_prefix_unfollowed():
     """Since conda is installed into non-root environments as a symlink only
     and because sys.prefix follows symlinks, this function can be used to
@@ -260,35 +257,57 @@ def sys_prefix_unfollowed():
     return unfollowed
 
 
-def quote_for_shell(*arguments, shell=None):
+def quote_for_shell(*arguments):
+    """Properly quote arguments for command line passing.
+
+    For POSIX uses `shlex.join`, for Windows uses a custom implementation to properly escape
+    metacharacters.
+
+    :param arguments: Arguments to quote.
+    :type arguments: list of str
+    :return: Quoted arguments.
+    :rtype: str
+    """
     # [backport] Support passing in a list of strings or args of string.
     if len(arguments) == 1 and isiterable(arguments[0]):
         arguments = arguments[0]
 
-    if (not shell and on_win) or shell == "cmd.exe":
-        # [note] `subprocess.list2cmdline` is not a public function.
-        from subprocess import list2cmdline
+    return _args_join(arguments)
 
-        return list2cmdline(arguments)
 
-    # If any multiline argument gets mixed with any other argument (which is true if we've
-    # arrived in this function) then we just quote it. This assumes something like:
-    #   ['python', '-c', 'a\nmultiline\nprogram\n']
-    # There is no way of knowing why newlines are included, must ensure they are escaped/quoted.
-    quoted = []
-    # This could all be replaced with some regex wizardry but that is less readable and
-    # for code like this, readability is very important.
-    for arg in arguments:
-        if '"' in arg:
-            quote = "'"
-        elif "'" in arg:
-            quote = '"'
-        elif not any(c in arg for c in (" ", "\n")):
-            quote = ""
-        else:
-            quote = '"'
-        quoted.append(f"{quote}{arg}{quote}")
-    return " ".join(quoted)
+if on_win:
+    # https://ss64.com/nt/syntax-esc.html
+    # https://docs.microsoft.com/en-us/archive/blogs/twistylittlepassagesallalike/everyone-quotes-command-line-arguments-the-wrong-way
+
+    _RE_UNSAFE = re.compile(r'["%\s^<>&|]')
+    _RE_DBL = re.compile(r'(["%])')
+
+    def _args_join(args):
+        """Return a shell-escaped string from *args*."""
+
+        def quote(s):
+            # derived from shlex.quote
+            if not s:
+                return '""'
+            # if any unsafe chars are present we must quote
+            if not _RE_UNSAFE.search(s):
+                return s
+            # double escape (" -> "")
+            s = _RE_DBL.sub(r"\1\1", s)
+            # quote entire string
+            return f'"{s}"'
+
+        return " ".join(quote(arg) for arg in args)
+else:
+    try:
+        from shlex import join as _args_join
+    except ImportError:
+        # [backport] Python <3.8
+        def _args_join(args):
+            """Return a shell-escaped string from *args*."""
+            from shlex import quote
+
+            return " ".join(quote(arg) for arg in args)
 
 
 # Ensures arguments are a tuple or a list. Strings are converted
@@ -306,7 +325,7 @@ def massage_arguments(arguments, errors='assert'):
     #    if not isinstance(arguments, list):
     #        arguments = list(map(escape_for_winpath, arguments))
 
-    if isinstance(arguments, string_types):
+    if isinstance(arguments, str):
         if errors == 'assert':
             # This should be something like 'conda programming bug', it is an assert
             assert False, 'Please ensure arguments are not strings'
@@ -343,7 +362,7 @@ def wrap_subprocess_call(
     if on_win:
         comspec = get_comspec()  # fail early with KeyError if undefined
         if dev_mode:
-            from conda import CONDA_PACKAGE_ROOT
+            from conda_lock.vendor.conda import CONDA_PACKAGE_ROOT
             conda_bat = join(CONDA_PACKAGE_ROOT, 'shell', 'condabin', 'conda.bat')
         else:
             conda_bat = environ.get("CONDA_BAT",
@@ -464,3 +483,49 @@ def get_comspec():
 
     # fails with KeyError if still undefined
     return environ["COMSPEC"]
+
+
+def ensure_dir_exists(func):
+    """
+    Ensures that the directory exists for functions returning
+    a Path object containing a directory
+    """
+
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        result = func(*args, **kwargs)
+
+        if isinstance(result, Path):
+            try:
+                result.mkdir(parents=True, exist_ok=True)
+            except OSError as exc:
+                raise CondaError(
+                    "Error encountered while attempting to create cache directory."
+                    f"\n  Directory: {result}"
+                    f"\n  Exception: {exc}"
+                )
+
+        return result
+
+    return wrapper
+
+
+@contextmanager
+def safe_open(*args, **kwargs):
+    """
+    Allows us to open files while catching any exceptions
+    and raise them as CondaErrors instead.
+
+    We do this to provide a more informative/actionable error output.
+    """
+    try:
+        fp = open(*args, **kwargs)
+        yield fp
+    except OSError as exc:
+        raise CondaError(
+            "Error encountered while reading or writing from cache."
+            f"\n  File: {args[0]}"
+            f"\n  Exception: {exc}"
+        )
+
+    fp.close()

@@ -6,28 +6,18 @@ from __future__ import absolute_import, division, print_function, unicode_litera
 import json
 from logging import getLogger
 
-from .compat import PY2, odict, ensure_text_type
-from ..auxlib.decorators import memoize
+from .compat import odict, ensure_text_type
 from ..auxlib.entity import EntityEncoder
 
-log = getLogger(__name__)
-
-
-@memoize
-def get_yaml():
+try:
+    import ruamel_yaml as yaml
+except ImportError:  # pragma: no cover
     try:
-        import ruamel_yaml as yaml
-    except ImportError:  # pragma: no cover
-        try:
-            import ruamel.yaml as yaml
-        except ImportError:
-            raise ImportError("No yaml library available.\n"
-                              "To proceed, conda install "
-                              "ruamel_yaml")
-    return yaml
+        import ruamel.yaml as yaml
+    except ImportError:
+        raise ImportError("No yaml library available. To proceed, conda install ruamel_yaml")
 
-
-yaml = get_yaml()
+log = getLogger(__name__)
 
 
 def represent_ordereddict(dumper, data):
@@ -44,13 +34,6 @@ def represent_ordereddict(dumper, data):
 
 yaml.representer.RoundTripRepresenter.add_representer(odict, represent_ordereddict)
 yaml.representer.SafeRepresenter.add_representer(odict, represent_ordereddict)
-
-if PY2:
-    def represent_unicode(self, data):
-        return self.represent_str(data.encode('utf-8'))
-
-
-    yaml.representer.RoundTripRepresenter.add_representer(unicode, represent_unicode)  # NOQA
 
 
 def yaml_round_trip_load(string):

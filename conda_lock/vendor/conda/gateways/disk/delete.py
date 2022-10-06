@@ -6,7 +6,7 @@ from __future__ import absolute_import, division, print_function, unicode_litera
 from errno import ENOENT
 import fnmatch
 from logging import getLogger
-from os import environ, getcwd, makedirs, rename, rmdir, unlink, walk
+from os import environ, getcwd, makedirs, rename, rmdir, scandir, unlink, walk
 from os.path import abspath, basename, dirname, exists, isdir, isfile, join, normpath, split
 import shutil
 from subprocess import CalledProcessError, STDOUT, check_output
@@ -17,7 +17,7 @@ from .link import islink, lexists
 from .permissions import make_writable, recursive_make_writable
 from ...base.constants import CONDA_TEMP_EXTENSION
 from ...base.context import context
-from ...common.compat import on_win, scandir
+from ...common.compat import on_win
 
 if not on_win:
     from ...common.path import which
@@ -46,8 +46,8 @@ def rmtree(path, *args, **kwargs):
             try:
                 # Try to delete in Unicode
                 name = None
-                from conda.auxlib.compat import Utf8NamedTemporaryFile
-                from conda.utils import quote_for_shell
+                from conda_lock.vendor.conda.auxlib.compat import Utf8NamedTemporaryFile
+                from conda_lock.vendor.conda.utils import quote_for_shell
 
                 with Utf8NamedTemporaryFile(mode="w", suffix=".bat", delete=False) as batch_file:
                     batch_file.write("RD /S {}\n".format(quote_for_shell(path)))

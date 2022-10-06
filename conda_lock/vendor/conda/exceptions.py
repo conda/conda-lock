@@ -5,8 +5,9 @@ from __future__ import absolute_import, division, print_function, unicode_litera
 
 from datetime import timedelta
 from errno import ENOSPC
-from functools import partial
+from functools import lru_cache, partial
 import json
+from json.decoder import JSONDecodeError
 from logging import getLogger
 import os
 from os.path import join
@@ -15,13 +16,20 @@ from textwrap import dedent
 from traceback import format_exception, format_exception_only
 import getpass
 
-from . import CondaError, CondaExitZero, CondaMultiError, text_type
+try:
+    from tlz.itertoolz import groupby
+except ImportError:
+    from conda_lock.vendor.conda._vendor.toolz.itertoolz import groupby
+
+from .models.channel import Channel
+from .common.url import join_url, maybe_unquote
+from . import CondaError, CondaExitZero, CondaMultiError
 from .auxlib.entity import EntityEncoder
 from .auxlib.ish import dals
+from .auxlib.logz import stringify
 from .auxlib.type_coercion import boolify
-from ._vendor.toolz import groupby
 from .base.constants import COMPATIBLE_SHELLS, PathConflict, SafetyChecks
-from .common.compat import PY2, ensure_text_type, input, iteritems, iterkeys, on_win, string_types
+from .common.compat import ensure_text_type, on_win
 from .common.io import dashlist, timeout
 from .common.signals import get_signal_name
 
@@ -53,15 +61,6 @@ class ArgumentError(CondaError):
 
     def __init__(self, message, **kwargs):
         super(ArgumentError, self).__init__(message, **kwargs)
-
-
-class CommandArgumentError(ArgumentError):
-    # TODO: Consolidate with ArgumentError.
-    return_code = 2
-
-    def __init__(self, message, **kwargs):
-        command = ' '.join(ensure_text_type(s) for s in sys.argv)
-        super(CommandArgumentError, self).__init__(message, command=command, **kwargs)
 
 
 class Help(CondaError):
@@ -142,17 +141,6 @@ class TooManyArgumentsError(ArgumentError):
         super(TooManyArgumentsError, self).__init__(msg, *args)
 
 
-class TooFewArgumentsError(ArgumentError):
-    def __init__(self, expected, received, optional_message='', *args):
-        self.expected = expected
-        self.received = received
-        self.optional_message = optional_message
-
-        msg = ('%s Got %s arguments but expected %s.' %
-               (optional_message, received, expected))
-        super(TooFewArgumentsError, self).__init__(msg, *args)
-
-
 class ClobberError(CondaError):
     def __init__(self, message, path_conflict, **kwargs):
         self.path_conflict = path_conflict
@@ -230,7 +218,7 @@ class SharedLinkPathClobberError(ClobberError):
         super(SharedLinkPathClobberError, self).__init__(
             message, context.path_conflict,
             target_path=target_path,
-            incompatible_packages=', '.join(text_type(d) for d in incompatible_package_dists),
+            incompatible_packages=', '.join(str(d) for d in incompatible_package_dists),
         )
 
 
@@ -245,7 +233,7 @@ class CommandNotFoundError(CondaError):
             'clean',
             'config',
             'create',
-            'help',
+            '--help',  # https://github.com/conda/conda/issues/11585
             'info',
             'install',
             'list',
@@ -368,7 +356,7 @@ class DryRunExit(CondaExitZero):
 
 class CondaSystemExit(CondaExitZero, SystemExit):
     def __init__(self, *args):
-        msg = ' '.join(text_type(arg) for arg in self.args)
+        msg = ' '.join(str(arg) for arg in self.args)
         super(CondaSystemExit, self).__init__(msg)
 
 
@@ -428,13 +416,11 @@ class ChannelError(CondaError):
 
 class ChannelNotAllowed(ChannelError):
     def __init__(self, channel):
-        from .models.channel import Channel
-        from .common.url import maybe_unquote
         channel = Channel(channel)
         channel_name = channel.name
         channel_url = maybe_unquote(channel.base_url)
         message = dals("""
-        Channel not included in whitelist:
+        Channel not included in allowlist:
           channel name: %(channel_name)s
           channel url: %(channel_url)s
         """)
@@ -444,34 +430,66 @@ class ChannelNotAllowed(ChannelError):
 
 class UnavailableInvalidChannel(ChannelError):
 
-    def __init__(self, channel, error_code):
-        from .models.channel import Channel
-        from .common.url import join_url, maybe_unquote
+    def __init__(self, channel, status_code, response=None):
+
+        # parse channel
         channel = Channel(channel)
         channel_name = channel.name
         channel_url = maybe_unquote(channel.base_url)
-        message = dals("""
-        The channel is not accessible or is invalid.
-          channel name: %(channel_name)s
-          channel url: %(channel_url)s
-          error code: %(error_code)d
 
-        You will need to adjust your conda configuration to proceed.
-        Use `conda config --show channels` to view your configuration's current state,
-        and use `conda config --show-sources` to view config file locations.
-        """)
+        # define hardcoded/default reason/message
+        reason = getattr(response, "reason", None)
+        message = dals(
+            """
+            The channel is not accessible or is invalid.
 
-        if channel.scheme == 'file':
-            message += dedent("""
-            As of conda 4.3, a valid channel must contain a `noarch/repodata.json` and
-            associated `noarch/repodata.json.bz2` file, even if `noarch/repodata.json` is
-            empty. Use `conda index %s`, or create `noarch/repodata.json`
-            and associated `noarch/repodata.json.bz2`.
-            """) % join_url(channel.location, channel.name)
+            You will need to adjust your conda configuration to proceed.
+            Use `conda config --show channels` to view your configuration's current state,
+            and use `conda config --show-sources` to view config file locations.
+            """
+        )
+        if channel.scheme == "file":
+            url = join_url(channel.location, channel.name)
+            message += dedent(
+                f"""
+                As of conda 4.3, a valid channel must contain a `noarch/repodata.json` and
+                associated `noarch/repodata.json.bz2` file, even if `noarch/repodata.json` is
+                empty. Use `conda index {url}`, or create `noarch/repodata.json`
+                and associated `noarch/repodata.json.bz2`.
+                """
+            )
 
-        super(UnavailableInvalidChannel, self).__init__(message, channel_url=channel_url,
-                                                        channel_name=channel_name,
-                                                        error_code=error_code)
+        # if response includes a valid json body we prefer the reason/message defined there
+        try:
+            body = response.json()
+        except (AttributeError, JSONDecodeError):
+            body = {}
+        else:
+            reason = body.get("reason", None) or reason
+            message = body.get("message", None) or message
+
+        # standardize arguments
+        status_code = status_code or "000"
+        reason = reason or "UNAVAILABLE OR INVALID"
+        if isinstance(reason, str):
+            reason = reason.upper()
+
+        super().__init__(
+            dals(
+                f"""
+                HTTP {status_code} {reason} for channel {channel_name} <{channel_url}>
+
+                """
+            )
+            # since message may include newlines don't include in f-string/dals above
+            + message,
+            channel_name=channel_name,
+            channel_url=channel_url,
+            status_code=status_code,
+            reason=reason,
+            response_details=stringify(response, content_max_len=1024) or "",
+            json=body,
+        )
 
 
 class OperationNotAllowed(CondaError):
@@ -507,7 +525,6 @@ class ChecksumMismatchError(CondaError):
           expected %(checksum_type)s: %(expected_checksum)s
           actual %(checksum_type)s: %(actual_checksum)s
         """)
-        from .common.url import maybe_unquote
         url = maybe_unquote(url)
         super(ChecksumMismatchError, self).__init__(
             message, url=url, target_full_path=target_full_path, checksum_type=checksum_type,
@@ -530,37 +547,55 @@ class PackageNotInstalledError(CondaError):
 class CondaHTTPError(CondaError):
     def __init__(self, message, url, status_code, reason, elapsed_time, response=None,
                  caused_by=None):
-        from .common.url import maybe_unquote
-        _message = dals("""
-        HTTP %(status_code)s %(reason)s for url <%(url)s>
-        Elapsed: %(elapsed_time)s
-        """)
-        cf_ray = getattr(response, 'headers', {}).get('CF-RAY')
-        _message += "CF-RAY: %s\n\n" % cf_ray if cf_ray else "\n"
-        message = _message + message
+        # if response includes a valid json body we prefer the reason/message defined there
+        try:
+            body = response.json()
+        except (AttributeError, JSONDecodeError):
+            body = {}
+        else:
+            reason = body.get("reason", None) or reason
+            message = body.get("message", None) or message
 
+        # standardize arguments
+        url = maybe_unquote(url)
         status_code = status_code or '000'
         reason = reason or 'CONNECTION FAILED'
-        elapsed_time = elapsed_time or '-'
-
-        from .auxlib.logz import stringify
-        response_details = (stringify(response, content_max_len=1024) or '') if response else ''
-
-        url = maybe_unquote(url)
-        if isinstance(elapsed_time, timedelta):
-            elapsed_time = text_type(elapsed_time).split(':', 1)[-1]
-        if isinstance(reason, string_types):
+        if isinstance(reason, str):
             reason = reason.upper()
-        super(CondaHTTPError, self).__init__(message, url=url, status_code=status_code,
-                                             reason=reason, elapsed_time=elapsed_time,
-                                             response_details=response_details,
-                                             caused_by=caused_by)
+        elapsed_time = elapsed_time or '-'
+        if isinstance(elapsed_time, timedelta):
+            elapsed_time = str(elapsed_time).split(":", 1)[-1]
+
+        # extract CF-RAY
+        try:
+            cf_ray = response.headers["CF-RAY"]
+        except (AttributeError, KeyError):
+            cf_ray = ""
+        else:
+            cf_ray = f"CF-RAY: {cf_ray}\n"
+
+        super().__init__(
+            dals(
+                f"""
+                HTTP {status_code} {reason} for url <{url}>
+                Elapsed: {elapsed_time}
+                {cf_ray}
+                """
+            )
+            # since message may include newlines don't include in f-string/dals above
+            + message,
+            url=url,
+            status_code=status_code,
+            reason=reason,
+            elapsed_time=elapsed_time,
+            response_details=stringify(response, content_max_len=1024) or "",
+            json=body,
+            caused_by=caused_by,
+        )
 
 
-class CondaRevisionError(CondaError):
-    def __init__(self, message):
-        msg = "%s." % message
-        super(CondaRevisionError, self).__init__(msg)
+class CondaSSLError(CondaError):
+    pass
 
 
 class AuthenticationError(CondaError):
@@ -571,7 +606,7 @@ class PackagesNotFoundError(CondaError):
 
     def __init__(self, packages, channel_urls=()):
 
-        format_list = lambda iterable: '  - ' + '\n  - '.join(text_type(x) for x in iterable)
+        format_list = lambda iterable: '  - ' + '\n  - '.join(str(x) for x in iterable)
 
         if channel_urls:
             message = dals("""
@@ -626,14 +661,14 @@ class UnsatisfiableError(CondaError):
             key = (dep[0],) + tuple(v[0] for v in dep1)
             vals = ('',) + tuple(v[2] for v in dep1)
             found = False
-            for key2, csets in iteritems(chains):
+            for key2, csets in chains.items():
                 if key2[:len(key)] == key:
                     for cset, val in zip(csets, vals):
                         cset.add(val)
                     found = True
             if not found:
                 chains[key] = [{val} for val in vals]
-        for key, csets in iteritems(chains):
+        for key, csets in chains.items():
             deps = []
             for name, cset in zip(key, csets):
                 if '' not in cset:
@@ -647,8 +682,7 @@ class UnsatisfiableError(CondaError):
                     name = 'feature:' + name[1:]
                 deps.append('%s %s' % (name, '|'.join(sorted(cset))) if cset else name)
             chains[key] = ' -> '.join(deps)
-        bad_deps = [chains[key] for key in sorted(iterkeys(chains))]
-        return bad_deps
+        return [chains[key] for key in sorted(chains.keys())]
 
     def __init__(self, bad_deps, chains=True, strict=False):
         from .models.match_spec import MatchSpec
@@ -687,6 +721,7 @@ Your installed version is: {ref}
 ''')}
 
         msg = ""
+        self.unsatisfiable = []
         if len(bad_deps) == 0:
             msg += '''
 Did not find conflicting dependencies. If you would like to know which
@@ -712,6 +747,7 @@ conda config --set unsatisfiable_hints True
                             if len(chain) > 1:
                                 msg += "\n\nPackage %s conflicts for:\n" % dep
                                 msg += "\n".join([" -> ".join([str(i) for i in c]) for c in chain])
+                                self.unsatisfiable += [tuple(entries) for entries in chain]
                     else:
                         for dep_chain, installed_blocker in dep_class:
                             # Remove any target values from the MatchSpecs, convert to strings
@@ -729,12 +765,6 @@ conda config --set unsatisfiable_hints True
                     'packages required for satisfiability.')
 
         super(UnsatisfiableError, self).__init__(msg)
-
-
-class InstallError(CondaError):
-    def __init__(self, message):
-        msg = '%s' % message
-        super(InstallError, self).__init__(msg)
 
 
 class RemoveError(CondaError):
@@ -783,12 +813,6 @@ class CondaValueError(CondaError, ValueError):
         super(CondaValueError, self).__init__(message, *args, **kwargs)
 
 
-class CondaTypeError(CondaError, TypeError):
-    def __init__(self, expected_type, received_type, optional_message):
-        msg = "Expected type '%s' and got type '%s'. %s"
-        super(CondaTypeError, self).__init__(msg)
-
-
 class CyclicalDependencyError(CondaError, ValueError):
     def __init__(self, packages_with_cycles, **kwargs):
         from .models.records import PackageRecord
@@ -828,21 +852,6 @@ class CondaUpgradeError(CondaError):
     def __init__(self, message):
         msg = "%s" % message
         super(CondaUpgradeError, self).__init__(msg)
-
-
-class CaseInsensitiveFileSystemError(CondaError):
-    def __init__(self, package_location, extract_location, **kwargs):
-        message = dals("""
-        Cannot extract package to a case-insensitive file system.
-          package location: %(package_location)s
-          extract location: %(extract_location)s
-        """)
-        super(CaseInsensitiveFileSystemError, self).__init__(
-            message,
-            package_location=package_location,
-            extract_location=extract_location,
-            **kwargs
-        )
 
 
 class CondaVerificationError(CondaError):
@@ -1005,6 +1014,46 @@ class NoSpaceLeftError(CondaError):
         super(NoSpaceLeftError, self).__init__(message, caused_by=caused_by, **kwargs)
 
 
+class CondaEnvException(CondaError):
+    def __init__(self, message, *args, **kwargs):
+        msg = "%s" % message
+        super(CondaEnvException, self).__init__(msg, *args, **kwargs)
+
+
+class EnvironmentFileNotFound(CondaEnvException):
+    def __init__(self, filename, *args, **kwargs):
+        msg = "'{}' file not found".format(filename)
+        self.filename = filename
+        super(EnvironmentFileNotFound, self).__init__(msg, *args, **kwargs)
+
+
+class EnvironmentFileExtensionNotValid(CondaEnvException):
+    def __init__(self, filename, *args, **kwargs):
+        msg = "'{}' file extension must be one of '.txt', '.yaml' or '.yml'".format(filename)
+        self.filename = filename
+        super(EnvironmentFileExtensionNotValid, self).__init__(msg, *args, **kwargs)
+
+
+class EnvironmentFileEmpty(CondaEnvException):
+    def __init__(self, filename, *args, **kwargs):
+        self.filename = filename
+        msg = f"'{filename}' is empty"
+        super().__init__(msg, *args, **kwargs)
+
+
+class EnvironmentFileNotDownloaded(CondaError):
+    def __init__(self, username, packagename, *args, **kwargs):
+        msg = "{}/{} file not downloaded".format(username, packagename)
+        self.username = username
+        self.packagename = packagename
+        super(EnvironmentFileNotDownloaded, self).__init__(msg, *args, **kwargs)
+
+
+class SpecNotFound(CondaError):
+    def __init__(self, msg, *args, **kwargs):
+        super(SpecNotFound, self).__init__(msg, *args, **kwargs)
+
+
 def maybe_raise(error, context):
     if isinstance(error, CondaMultiError):
         groups = groupby(lambda e: isinstance(e, ClobberError), error.errors)
@@ -1078,18 +1127,16 @@ class ExceptionHandler(object):
     def __call__(self, func, *args, **kwargs):
         try:
             return func(*args, **kwargs)
-        except:  # lgtm [py/catch-base-exception]
+        except:
             _, exc_val, exc_tb = sys.exc_info()
             return self.handle_exception(exc_val, exc_tb)
 
-    def write_out(self, content_str):
+    def write_out(self, *content):
         from .base.context import context
-        if True:
-            logger = getLogger("conda.%s" % ("stdout" if context.json else "stderr"))
-            logger.info(content_str)
-        else:
-            stream = sys.stdout if context.json else sys.stderr
-            stream.write(content_str)
+        from .cli.main import init_loggers
+
+        init_loggers(context)
+        getLogger("conda.stderr").info("\n".join(content))
 
     @property
     def http_timeout(self):
@@ -1112,8 +1159,6 @@ class ExceptionHandler(object):
                 return self.handle_reportable_application_exception(exc_val, exc_tb)
             else:
                 return self.handle_application_exception(exc_val, exc_tb)
-        if isinstance(exc_val, UnicodeError) and PY2:
-            return self.handle_application_exception(EncodingError(exc_val), exc_tb)
         if isinstance(exc_val, EnvironmentError):
             if getattr(exc_val, 'errno', None) == ENOSPC:
                 return self.handle_application_exception(NoSpaceLeftError(exc_val), exc_tb)
@@ -1136,11 +1181,7 @@ class ExceptionHandler(object):
     def handle_unexpected_exception(self, exc_val, exc_tb):
         error_report = self.get_error_report(exc_val, exc_tb)
         self.print_unexpected_error_report(error_report)
-        ask_for_upload, do_upload = self._calculate_ask_do_upload()
-        do_upload, ask_response = self.ask_for_upload() if ask_for_upload else (do_upload, None)
-        if do_upload:
-            self._execute_upload(error_report)
-        self.print_upload_confirm(do_upload, ask_for_upload, ask_response)
+        self._upload(error_report)
         rc = getattr(exc_val, 'return_code', None)
         return rc if rc is not None else 1
 
@@ -1150,11 +1191,7 @@ class ExceptionHandler(object):
         if context.json:
             error_report.update(exc_val.dump_map())
         self.print_expected_error_report(error_report)
-        ask_for_upload, do_upload = self._calculate_ask_do_upload()
-        do_upload, ask_response = self.ask_for_upload() if ask_for_upload else (do_upload, None)
-        if do_upload:
-            self._execute_upload(error_report)
-        self.print_upload_confirm(do_upload, ask_for_upload, ask_response)
+        self._upload(error_report)
         return exc_val.return_code
 
     def get_error_report(self, exc_val, exc_tb):
@@ -1171,14 +1208,14 @@ class ExceptionHandler(object):
                 info_dict = {
                     'error': repr(info_e),
                     'exception_name': info_e.__class__.__name__,
-                    'exception_type': text_type(exc_val.__class__),
+                    'exception_type': str(exc_val.__class__),
                     'traceback': info_traceback,
                 }
 
         error_report = {
             'error': repr(exc_val),
             'exception_name': exc_val.__class__.__name__,
-            'exception_type': text_type(exc_val.__class__),
+            'exception_type': str(exc_val.__class__),
             'command': command,
             'traceback': _format_exc(exc_val, exc_tb),
             'conda_info': info_dict,
@@ -1219,7 +1256,7 @@ class ExceptionHandler(object):
                 "An unexpected error has occurred. Conda has prepared the above report."
             )
             message_builder.append('')
-            self.write_out('\n'.join(message_builder))
+            self.write_out(*message_builder)
 
     def print_expected_error_report(self, error_report):
         from .base.context import context
@@ -1254,50 +1291,66 @@ class ExceptionHandler(object):
                 "A reportable application error has occurred. Conda has prepared the above report."
             )
             message_builder.append('')
-            self.write_out('\n'.join(message_builder))
+            self.write_out(*message_builder)
 
-    def _calculate_ask_do_upload(self):
+    # FUTURE: Python 3.8+, replace with functools.cached_property
+    @property
+    @lru_cache(maxsize=None)
+    def _isatty(self):
+        try:
+            return os.isatty(0) or on_win
+        except Exception as e:
+            log.debug("%r", e)
+            return True
+
+    def _upload(self, error_report) -> None:
+        """Determine whether or not to upload the error report."""
         from .base.context import context
 
-        try:
-            isatty = os.isatty(0) or on_win
-        except Exception as e:
-            log.debug('%r', e)
-            # given how the rest of this function is constructed, better to assume True here
-            isatty = True
-
+        post_upload = False
         if context.report_errors is False:
-            ask_for_upload = False
+            # no prompt and no submission
             do_upload = False
         elif context.report_errors is True or context.always_yes:
-            ask_for_upload = False
+            # no prompt and submit
             do_upload = True
-        elif context.json or context.quiet:
-            ask_for_upload = False
-            do_upload = not context.offline and context.always_yes
-        elif not isatty:
-            ask_for_upload = False
-            do_upload = not context.offline and context.always_yes
+        elif context.json or context.quiet or not self._isatty:
+            # never prompt under these conditions, submit iff always_yes
+            do_upload = bool(not context.offline and context.always_yes)
         else:
-            ask_for_upload = True
-            do_upload = False
+            # prompt whether to submit
+            do_upload = self._ask_upload()
+            post_upload = True
 
-        return ask_for_upload, do_upload
+        # the upload state is one of the following:
+        #   - True: upload error report
+        #   - False: do not upload error report
+        #   - None: while prompting a timeout occurred
 
-    def ask_for_upload(self):
-        self.write_out(dals("""
-        If submitted, this report will be used by core maintainers to improve
-        future releases of conda.
-        Would you like conda to send this report to the core maintainers?
-        """))
-        ask_response = None
+        if do_upload:
+            # user wants report to be submitted
+            self._execute_upload(error_report)
+
+        if post_upload:
+            # post submission text
+            self._post_upload(do_upload)
+
+    def _ask_upload(self):
         try:
-            ask_response = timeout(40, partial(input, "[y/N]: "))
-            do_upload = ask_response and boolify(ask_response)
-        except Exception as e:  # pragma: no cover
-            log.debug('%r', e)
-            do_upload = False
-        return do_upload, ask_response
+            do_upload = timeout(
+                40,
+                partial(
+                    input,
+                    "If submitted, this report will be used by core maintainers to improve\n"
+                    "future releases of conda.\n"
+                    "Would you like conda to send this report to the core maintainers? "
+                    "[y/N]: ",
+                ),
+            )
+            return do_upload and boolify(do_upload)
+        except Exception as e:
+            log.debug("%r", e)
+            return False
 
     def _execute_upload(self, error_report):
         headers = {
@@ -1341,29 +1394,33 @@ class ExceptionHandler(object):
         except Exception as e:
             log.debug("%r" % e)
 
-    def print_upload_confirm(self, do_upload, ask_for_upload, ask_response):
-        if ask_response and do_upload:
+    def _post_upload(self, do_upload):
+        if do_upload is True:
+            # report was submitted
             self.write_out(
-                "\n"
-                "Thank you for helping to improve conda.\n"
-                "Opt-in to always sending reports (and not see this message again)\n"
-                "by running\n"
-                "\n"
-                "    $ conda config --set report_errors true\n"
-                "\n"
+                "",
+                "Thank you for helping to improve conda.",
+                "Opt-in to always sending reports (and not see this message again)",
+                "by running",
+                "",
+                "    $ conda config --set report_errors true",
+                "",
             )
-        elif ask_response is None and ask_for_upload:
-            # means timeout was reached for `input`
-            self.write_out(  # lgtm [py/unreachable-statement]
-                '\nTimeout reached. No report sent.\n'
-            )
-        elif ask_for_upload:
+        elif do_upload is None:
+            # timeout was reached while prompting user
             self.write_out(
-                "\n"
-                "No report sent. To permanently opt-out, use\n"
-                "\n"
-                "    $ conda config --set report_errors false\n"
-                "\n"
+                "",
+                "Timeout reached. No report sent.",
+                "",
+            )
+        else:
+            # no report submitted
+            self.write_out(
+                "",
+                "No report sent. To permanently opt-out, use",
+                "",
+                "    $ conda config --set report_errors false",
+                "",
             )
 
 

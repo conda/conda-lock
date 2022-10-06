@@ -4,18 +4,17 @@
 from __future__ import absolute_import, division, print_function, unicode_literals
 
 from collections import OrderedDict
+from functools import lru_cache
 from genericpath import exists
 from logging import getLogger
+from os import scandir
 import sys
-
-from ...auxlib.decorators import memoize
-from ..compat import iteritems, scandir
 
 
 log = getLogger(__name__)
 
 
-@memoize
+@lru_cache(maxsize=None)
 def linux_get_libc_version():
     """
     If on linux, returns (libc_family, version), otherwise (None, None).
@@ -33,7 +32,7 @@ def linux_get_libc_version():
                                           ('CS_GNU_LIBPTHREAD_VERSION', 3)])
 
     val = None
-    for k, v in iteritems(confstr_names_fallback):
+    for k, v in confstr_names_fallback.items():
         assert k not in confstr_names or confstr_names[k] == v, (
             "confstr_names_fallback for %s is %s yet in confstr_names it is %s"
             "" % (k, confstr_names_fallback[k], confstr_names[k])

@@ -5,16 +5,21 @@ from __future__ import absolute_import, division, print_function, unicode_litera
 
 from collections import defaultdict, OrderedDict, deque
 import copy
+from functools import lru_cache
 from logging import DEBUG, getLogger
 
-from .auxlib.collection import frozendict
-from .auxlib.decorators import memoize, memoizemethod
-from ._vendor.toolz import concat, groupby
+try:
+    from tlz.itertoolz import concat, groupby
+except ImportError:
+    from conda_lock.vendor.conda._vendor.toolz.itertoolz import concat, groupby
+
+from .auxlib.decorators import memoizemethod
+from ._vendor.frozendict import FrozenOrderedDict as frozendict
 from ._vendor.tqdm import tqdm
 from .base.constants import ChannelPriority, MAX_CHANNEL_PRIORITY, SatSolverChoice
 from .base.context import context
-from .common.compat import iteritems, iterkeys, itervalues, odict, on_win, text_type
-from .common.io import time_recorder
+from .common.compat import on_win
+from .common.io import dashlist, time_recorder
 from .common.logic import (Clauses, PycoSatSolver, PyCryptoSatSolver, PySatSolver, TRUE,
                            minimal_unsatisfiable_subset)
 from .common.toposort import toposort
@@ -33,14 +38,14 @@ stdoutlog = getLogger('conda.stdoutlog')
 Unsatisfiable = UnsatisfiableError
 ResolvePackageNotFound = ResolvePackageNotFound
 
-_sat_solvers = odict([
-    (SatSolverChoice.PYCOSAT, PycoSatSolver),
-    (SatSolverChoice.PYCRYPTOSAT, PyCryptoSatSolver),
-    (SatSolverChoice.PYSAT, PySatSolver),
-])
+_sat_solvers = {
+    SatSolverChoice.PYCOSAT: PycoSatSolver,
+    SatSolverChoice.PYCRYPTOSAT: PyCryptoSatSolver,
+    SatSolverChoice.PYSAT: PySatSolver,
+}
 
 
-@memoize
+@lru_cache(maxsize=None)
 def _get_sat_solver_cls(sat_solver_choice=SatSolverChoice.PYCOSAT):
     def try_out_solver(sat_solver):
         c = Clauses(sat_solver=sat_solver)
@@ -71,10 +76,6 @@ def _get_sat_solver_cls(sat_solver_choice=SatSolverChoice.PYCOSAT):
     raise CondaDependencyError("Cannot run solver. No functioning SAT implementations available.")
 
 
-def dashlist(iterable, indent=2):
-    return ''.join('\n' + ' ' * indent + '- ' + str(x) for x in iterable)
-
-
 def exactness_and_number_of_deps(resolve_obj, ms):
     """Sorting key to emphasize packages that have more strict
     requirements. More strict means the reduced index can be reduced
@@ -101,7 +102,7 @@ class Resolve(object):
         self._channel_priority = context.channel_priority
         self._solver_ignore_timestamps = context.solver_ignore_timestamps
 
-        groups = groupby("name", itervalues(index))
+        groups = groupby("name", index.values())
         trackers = defaultdict(list)
 
         for name in groups:
@@ -153,7 +154,7 @@ class Resolve(object):
         else:
             filter.clear()
 
-        filter.update({make_feature_record(fstr): False for fstr in iterkeys(self.trackers)})
+        filter.update({make_feature_record(fstr): False for fstr in self.trackers.keys()})
         if features:
             filter.update({make_feature_record(fstr): True for fstr in features})
         return filter
@@ -554,7 +555,7 @@ class Resolve(object):
         else:
             pool = self.get_reduced_index(specs)
             grouped_pool = groupby(lambda x: x.name, pool)
-            pool = {k: set(v) for k, v in iteritems(grouped_pool)}
+            pool = {k: set(v) for k, v in grouped_pool.items()}
             self._pool_cache[specs] = pool
         return pool
 
@@ -571,11 +572,11 @@ class Resolve(object):
 
         if log.isEnabledFor(DEBUG):
             log.debug('Retrieving packages for: %s', dashlist(
-                sorted(text_type(s) for s in explicit_specs)))
+                sorted(str(s) for s in explicit_specs)))
 
         explicit_specs, features = self.verify_specs(explicit_specs)
         filter_out = {prec: False if val else "feature not enabled"
-                      for prec, val in iteritems(self.default_filter(features))}
+                      for prec, val in self.default_filter(features).items()}
         snames = set()
         top_level_spec = None
         cp_filter_applied = set()  # values are package names
@@ -718,7 +719,7 @@ class Resolve(object):
                         specs.insert(0, dep)
                     specs_by_name[dep.name] = specs
 
-                while(dep_specs):
+                while dep_specs:
                     # used for debugging
                     # size_index = len(reduced_index2)
                     # specs_added = []
@@ -783,7 +784,7 @@ class Resolve(object):
                 self.trackers.get(feature_name, ()) for feature_name in feature_names
             )
         else:
-            candidate_precs = itervalues(self.index)
+            candidate_precs = self.index.values()
 
         res = tuple(p for p in candidate_precs if spec.match(p))
         self._cached_find_matches[spec] = res
@@ -818,7 +819,7 @@ class Resolve(object):
 
     @staticmethod
     def _make_channel_priorities(channels):
-        priorities_map = odict()
+        priorities_map = {}
         for priority_counter, chn in enumerate(concat(
             (Channel(cc) for cc in c._channels) if isinstance(c, MultiChannel) else (c,)
             for c in (Channel(c) for c in channels)
@@ -843,7 +844,7 @@ class Resolve(object):
         if isinstance(val, PackageRecord):
             return val.dist_str()
         elif isinstance(val, MatchSpec):
-            return '@s@' + text_type(val) + ('?' if val.optional else '')
+            return '@s@' + str(val) + ('?' if val.optional else '')
         else:
             raise NotImplementedError()
 
@@ -894,7 +895,7 @@ class Resolve(object):
     @time_recorder(module_name=__name__)
     def gen_clauses(self):
         C = Clauses(sat_solver=_get_sat_solver_cls(context.sat_solver))
-        for name, group in iteritems(self.groups):
+        for name, group in self.groups.items():
             group = [self.to_sat_name(prec) for prec in group]
             # Create one variable for each package
             for sat_name in group:
@@ -907,7 +908,7 @@ class Resolve(object):
             C.Require(C.ExactlyOne, group + [C.Not(m)])
 
         # If a package is installed, its dependencies must be as well
-        for prec in itervalues(self.index):
+        for prec in self.index.values():
             nkey = C.Not(self.to_sat_name(prec))
             for ms in self.ms_depends(prec):
                 # Virtual packages can't be installed, we ignore them
@@ -928,7 +929,7 @@ class Resolve(object):
 
     def generate_feature_count(self, C):
         result = {self.push_MatchSpec(C, MatchSpec(track_features=name)): 1
-                  for name in iterkeys(self.trackers)}
+                  for name in self.trackers.keys()}
         if log.isEnabledFor(DEBUG):
             log.debug(
                 "generate_feature_count returning with clause count: %d", C.get_clause_count())
@@ -944,7 +945,7 @@ class Resolve(object):
         # - The prec does NOT require the feature
         # - At least one package in the group DOES require the feature
         # - A package that tracks the feature is installed
-        for name, group in iteritems(self.groups):
+        for name, group in self.groups.items():
             prec_feats = {self.to_sat_name(prec): set(prec.features) for prec in group}
             active_feats = set.union(*prec_feats.values()).intersection(self.trackers)
             for feat in active_feats:
@@ -987,7 +988,7 @@ class Resolve(object):
             #         if self.index[dist].get('priority', 0) < MAX_CHANNEL_PRIORITY:
             #             rec.append(dist)
 
-        for name, targets in iteritems(sdict):
+        for name, targets in sdict.items():
             pkgs = [(self.version_key(p), p) for p in self.groups.get(name, [])]
             pkey = None
             # keep in mind that pkgs is already sorted according to version_key (a tuple,
@@ -1037,7 +1038,7 @@ class Resolve(object):
         assert isinstance(must_have, dict)
 
         digraph = {}  # Dict[package_name, Set[dependent_package_names]]
-        for package_name, prec in iteritems(must_have):
+        for package_name, prec in must_have.items():
             if prec in self.index:
                 digraph[package_name] = set(ms.name for ms in self.ms_depends(prec))
 
@@ -1054,7 +1055,7 @@ class Resolve(object):
         #    See issue #6057.
 
         if on_win and 'conda' in digraph:
-            for package_name, dist in iteritems(must_have):
+            for package_name, dist in must_have.items():
                 record = self.index.get(prec)
                 if hasattr(record, 'noarch') and record.noarch == NoarchType.python:
                     digraph[package_name].add('conda')
@@ -1123,7 +1124,7 @@ class Resolve(object):
         for prec in installed:
             sat_name_map[self.to_sat_name(prec)] = prec
             specs.append(MatchSpec('%s %s %s' % (prec.name, prec.version, prec.build)))
-        new_index = {prec: prec for prec in itervalues(sat_name_map)}
+        new_index = {prec: prec for prec in sat_name_map.values()}
         name_map = {p.name: p for p in new_index}
         if 'python' in name_map and 'pip' not in name_map:
             python_prec = new_index[name_map['python']]
@@ -1157,7 +1158,7 @@ class Resolve(object):
                 get_(MatchSpec(spec).name, snames)
             if len(snames) < len(sat_name_map):
                 limit = snames
-                xtra = [rec for sat_name, rec in iteritems(sat_name_map)
+                xtra = [rec for sat_name, rec in sat_name_map.items()
                         if rec['name'] not in snames]
                 log.debug('Limiting solver to the following packages: %s', ', '.join(limit))
         if xtra:
@@ -1243,15 +1244,16 @@ class Resolve(object):
     def solve(self, specs, returnall=False, _remove=False, specs_to_add=None, history_specs=None,
               should_retry_solve=False):
         # type: (List[str], bool) -> List[PackageRecord]
-        if log.isEnabledFor(DEBUG):
-            dlist = dashlist(text_type(
-                '%i: %s target=%s optional=%s' % (i, s, s.target, s.optional))
-                for i, s in enumerate(specs))
-            log.debug('Solving for: %s', dlist)
 
         if specs and not isinstance(specs[0], MatchSpec):
             specs = tuple(MatchSpec(_) for _ in specs)
+
         specs = set(specs)
+        if log.isEnabledFor(DEBUG):
+            dlist = dashlist(str(
+                '%i: %s target=%s optional=%s' % (i, s, s.target, s.optional))
+                for i, s in enumerate(specs))
+            log.debug('Solving for: %s', dlist)
 
         if not specs:
             return tuple()
@@ -1337,10 +1339,10 @@ class Resolve(object):
         speca.extend(MatchSpec(s) for s in specm)
 
         if log.isEnabledFor(DEBUG):
-            log.debug('Requested specs: %s', dashlist(sorted(text_type(s) for s in specr)))
-            log.debug('Optional specs: %s', dashlist(sorted(text_type(s) for s in speco)))
-            log.debug('All other specs: %s', dashlist(sorted(text_type(s) for s in speca)))
-            log.debug('missing specs: %s', dashlist(sorted(text_type(s) for s in specm)))
+            log.debug('Requested specs: %s', dashlist(sorted(str(s) for s in specr)))
+            log.debug('Optional specs: %s', dashlist(sorted(str(s) for s in speco)))
+            log.debug('All other specs: %s', dashlist(sorted(str(s) for s in speca)))
+            log.debug('missing specs: %s', dashlist(sorted(str(s) for s in specm)))
 
         # Removed packages: minimize count
         log.debug("Solve: minimize removed packages")
@@ -1451,7 +1453,7 @@ class Resolve(object):
         # def stripfeat(sol):
         #     return sol.split('[')[0]
 
-        new_index = {self.to_sat_name(prec): prec for prec in itervalues(self.index)}
+        new_index = {self.to_sat_name(prec): prec for prec in self.index.values()}
 
         if returnall:
             if len(psolutions) > 1:

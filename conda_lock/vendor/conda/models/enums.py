@@ -11,14 +11,13 @@ from enum import Enum
 from ..auxlib.decorators import classproperty
 from ..auxlib.ish import dals
 from ..auxlib.type_coercion import TypeCoercionError, boolify
-from ..common.compat import string_types
 from ..exceptions import CondaUpgradeError
 
 
 class Arch(Enum):
     x86 = 'x86'
     x86_64 = 'x86_64'
-    # arm64 is for macOS only
+    # arm64 is for macOS and Windows
     arm64 = 'arm64'
     armv6l = 'armv6l'
     armv7l = 'armv7l'
@@ -167,7 +166,7 @@ class NoarchType(Enum):
             return valtype
         if isinstance(val, bool):
             val = NoarchType.generic if val else None
-        if isinstance(val, string_types):
+        if isinstance(val, str):
             val = val.lower()
             if val == 'python':
                 val = NoarchType.python
@@ -183,10 +182,3 @@ class NoarchType(Enum):
                     Please update conda.
                     """ % val))
         return val
-
-
-class MetadataSignatureStatus(Enum):
-    # TODO (AV): more detailed error states?
-    unsigned = -1
-    verified = 0
-    error = 1

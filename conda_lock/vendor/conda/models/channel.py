@@ -7,11 +7,15 @@ from copy import copy
 from itertools import chain
 from logging import getLogger
 
+try:
+    from tlz.itertoolz import concat, concatv
+except ImportError:
+    from conda_lock.vendor.conda._vendor.toolz.itertoolz import concat, concatv
+
 from .._vendor.boltons.setutils import IndexedSet
-from .._vendor.toolz import concat, concatv, drop
 from ..base.constants import DEFAULTS_CHANNEL_NAME, MAX_CHANNEL_PRIORITY, UNKNOWN_CHANNEL
-from ..base.context import context
-from ..common.compat import ensure_text_type, isiterable, iteritems, odict, with_metaclass
+from ..base.context import context, Context
+from ..common.compat import ensure_text_type, isiterable, odict
 from ..common.path import is_package_file, is_path, win_path_backout
 from ..common.url import (Url, has_scheme, is_url, join_url, path_to_url,
                           split_conda_url_easy_parts, split_platform, split_scheme_auth_token,
@@ -47,8 +51,7 @@ class ChannelType(type):
                 return super(ChannelType, cls).__call__(*args, **kwargs)
 
 
-@with_metaclass(ChannelType)
-class Channel(object):
+class Channel(metaclass=ChannelType):
     """
     Channel:
     scheme <> auth <> location <> token <> channel <> subchannel <> platform <> package_filename
@@ -129,7 +132,7 @@ class Channel(object):
                 location, name = ca.location, test_url.replace(ca.location, '', 1)
             else:
                 url_parts = urlparse(test_url)
-                location = Url(host=url_parts.host, port=url_parts.port).url
+                location = str(Url(hostname=url_parts.hostname, port=url_parts.port))
                 name = url_parts.path or ''
             return Channel(scheme=scheme, auth=auth, location=location, token=token,
                            name=name.strip('/'))
@@ -144,7 +147,7 @@ class Channel(object):
         except AttributeError:
             pass
 
-        for multiname, channels in iteritems(context.custom_multichannels):
+        for multiname, channels in context.custom_multichannels.items():
             for channel in channels:
                 if self.name == channel.name:
                     cn = self.__canonical_name = multiname
@@ -197,7 +200,6 @@ class Channel(object):
                     yield subdir
 
         bases = (join_url(base, p) for p in _platforms())
-
         if with_credentials and self.auth:
             return ["%s://%s@%s" % (self.scheme, self.auth, b) for b in bases]
         else:
@@ -347,7 +349,7 @@ def tokenized_startswith(test_iterable, startswith_iterable):
 
 def tokenized_conda_url_startswith(test_url, startswith_url):
     test_url, startswith_url = urlparse(test_url), urlparse(startswith_url)
-    if test_url.host != startswith_url.host or test_url.port != startswith_url.port:
+    if test_url.hostname != startswith_url.hostname or test_url.port != startswith_url.port:
         return False
     norm_url_path = lambda url: url.path.strip('/') or '/'
     return tokenized_startswith(norm_url_path(test_url).split('/'),
@@ -385,11 +387,11 @@ def _read_channel_configuration(scheme, host, port, path):
     # return location, name, scheme, auth, token
 
     path = path and path.rstrip('/')
-    test_url = Url(host=host, port=port, path=path).url
+    test_url = str(Url(hostname=host, port=port, path=path))
 
     # Step 1. No path given; channel name is None
     if not path:
-        return Url(host=host, port=port).url.rstrip('/'), None, scheme or None, None, None
+        return str(Url(hostname=host, port=port)).rstrip("/"), None, scheme or None, None, None
 
     # Step 2. migrated_custom_channels matches
     for name, location in sorted(context.migrated_custom_channels.items(), reverse=True,
@@ -438,11 +440,16 @@ def _read_channel_configuration(scheme, host, port, path):
     #  but bump the first token of paths starting with /conda for compatibility with
     #  Anaconda Enterprise Repository software.
     bump = None
-    path_parts = path.strip('/').split('/')
-    if path_parts and path_parts[0] == 'conda':
-        bump, path = 'conda', '/'.join(drop(1, path_parts))
-    return (Url(host=host, port=port, path=bump).url.rstrip('/'), path.strip('/') or None,
-            scheme or None, None, None)
+    path_parts = path.strip("/").split("/")
+    if path_parts and path_parts[0] == "conda":
+        bump, path = "conda", "/".join(path_parts[1:])
+    return (
+        str(Url(hostname=host, port=port, path=bump)).rstrip("/"),
+        path.strip("/") or None,
+        scheme or None,
+        None,
+        None,
+    )
 
 
 def parse_conda_channel_url(url):
@@ -498,6 +505,11 @@ def all_channel_urls(channels, subdirs=None, with_credentials=True):
 
 def offline_keep(url):
     return not context.offline or not is_url(url) or url.startswith('file:/')
+
+
+def get_channel_objs(ctx: Context):
+    """Return current channels as Channel objects"""
+    return tuple(Channel(chn) for chn in ctx.channels)
 
 
 context.register_reset_callaback(Channel._reset_state)

@@ -75,7 +75,7 @@ from logging import getLogger
 from os import getenv, listdir, remove
 from os.path import abspath, dirname, expanduser, isdir, isfile, join
 from re import compile
-from .compat import shlex_split_unicode
+from conda_lock.vendor.conda.auxlib.compat import shlex_split_unicode
 from subprocess import CalledProcessError, PIPE, Popen
 import sys
 

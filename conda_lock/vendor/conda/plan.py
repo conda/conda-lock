@@ -16,12 +16,15 @@ from collections import defaultdict
 from logging import getLogger
 import sys
 
+try:
+    from tlz.itertoolz import concatv, groupby
+except ImportError:
+    from conda_lock.vendor.conda._vendor.toolz.itertoolz import concatv, groupby
+
 from ._vendor.boltons.setutils import IndexedSet
-from ._vendor.toolz import concatv
 from .base.constants import DEFAULTS_CHANNEL_NAME, UNKNOWN_CHANNEL
 from .base.context import context, stack_context_default
-from .common.compat import itervalues, text_type
-from .common.io import env_vars, time_recorder
+from .common.io import dashlist, env_vars, time_recorder
 from .core.index import LAST_CHANNEL_URLS, _supplement_index_with_prefix
 from .core.link import PrefixSetup, UnlinkLinkTransaction
 from .core.solve import diff_for_unlink_link_precs
@@ -35,7 +38,7 @@ from .models.match_spec import ChannelMatch
 from .models.prefix_graph import PrefixGraph
 from .models.records import PackageRecord
 from .models.version import normalized_version
-from .resolve import MatchSpec, dashlist
+from .resolve import MatchSpec
 from .utils import human_bytes
 
 log = getLogger(__name__)
@@ -61,11 +64,11 @@ def display_actions(actions, index, show_channel_urls=None, specs_to_remove=(), 
         builder.append('')
     if specs_to_remove:
         builder.append('  removed specs: %s'
-                       % dashlist(sorted(text_type(s) for s in specs_to_remove), indent=4))
+                       % dashlist(sorted(str(s) for s in specs_to_remove), indent=4))
         builder.append('')
     if specs_to_add:
         builder.append('  added / updated specs: %s'
-                       % dashlist(sorted(text_type(s) for s in specs_to_add), indent=4))
+                       % dashlist(sorted(str(s) for s in specs_to_add), indent=4))
         builder.append('')
     print('\n'.join(builder))
 
@@ -284,7 +287,7 @@ def revert_actions(prefix, revision=-1, index=None):
     #       Either need to wipe out history after ``revision``, or add the correct
     #       history information to the new entry about to be created.
     # TODO: This is wrong!!!!!!!!!!
-    user_requested_specs = itervalues(h.get_requested_specs_map())
+    user_requested_specs = h.get_requested_specs_map().values()
     try:
         target_state = {MatchSpec.from_dist_str(dist_str) for dist_str in h.get_state(revision)}
     except IndexError:
@@ -295,7 +298,7 @@ def revert_actions(prefix, revision=-1, index=None):
     not_found_in_index_specs = set()
     link_precs = set()
     for spec in target_state:
-        precs = tuple(prec for prec in itervalues(index) if spec.match(prec))
+        precs = tuple(prec for prec in index.values() if spec.match(prec))
         if not precs:
             not_found_in_index_specs.add(spec)
         elif len(precs) > 1:
@@ -371,7 +374,6 @@ def _plan_from_actions(actions, index):  # pragma: no cover
 def _inject_UNLINKLINKTRANSACTION(plan, index, prefix, axn, specs):  # pragma: no cover
     from os.path import isdir
     from .models.dist import Dist
-    from ._vendor.toolz.itertoolz import groupby
     from .instructions import LINK, PROGRESSIVEFETCHEXTRACT, UNLINK, UNLINKLINKTRANSACTION
     from .core.package_cache_data import ProgressiveFetchExtract
     from .core.link import PrefixSetup, UnlinkLinkTransaction
@@ -445,7 +447,7 @@ def install_actions(prefix, index, specs, force=False, only_names=None, always_c
     }, stack_callback=stack_context_default):
         from os.path import basename
         from ._vendor.boltons.setutils import IndexedSet
-        from .core.solve import Solver
+        from .core.solve import _get_solver_class
         from .models.channel import Channel
         from .models.dist import Dist
         if channel_priority_map:
@@ -468,9 +470,9 @@ def install_actions(prefix, index, specs, force=False, only_names=None, always_c
         from .core.prefix_data import PrefixData
         PrefixData._cache_.clear()
 
-        solver = Solver(prefix, channels, subdirs, specs_to_add=specs)
+        solver = _get_solver_class()(prefix, channels, subdirs, specs_to_add=specs)
         if index:
-            solver._index = {prec: prec for prec in itervalues(index)}
+            solver._index = {prec: prec for prec in index.values()}
         txn = solver.solve_for_transaction(prune=prune, ignore_pinned=not pinned)
         prefix_setup = txn.prefix_setups[prefix]
         actions = get_blank_actions(prefix)

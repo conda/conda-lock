@@ -17,10 +17,16 @@ from ... import CondaError
 from ...auxlib.ish import dals
 from ...auxlib.logz import stringify
 from ...base.context import context
-from ...common.compat import text_type
 from ...common.io import time_recorder
-from ...exceptions import (BasicClobberError, CondaDependencyError, CondaHTTPError,
-                           ChecksumMismatchError, maybe_raise, ProxyError)
+from ...exceptions import (
+    BasicClobberError,
+    CondaDependencyError,
+    CondaHTTPError,
+    CondaSSLError,
+    ChecksumMismatchError,
+    maybe_raise,
+    ProxyError,
+)
 
 log = getLogger(__name__)
 
@@ -118,7 +124,7 @@ def download(
         raise ProxyError()  # see #3962
 
     except InvalidSchema as e:
-        if 'SOCKS' in text_type(e):
+        if 'SOCKS' in str(e):
             message = dals("""
                 Requests has identified that your current working environment is configured
                 to use a SOCKS proxy, but pysocks is not installed.  To proceed, remove your
@@ -129,7 +135,33 @@ def download(
         else:
             raise
 
-    except (ConnectionError, HTTPError, SSLError) as e:
+    except SSLError as e:
+        # SSLError: either an invalid certificate or OpenSSL is unavailable
+        try:
+            import ssl  # noqa: F401
+        except ImportError:
+            raise CondaSSLError(
+                dals(
+                    f"""
+                    OpenSSL appears to be unavailable on this machine. OpenSSL is required to
+                    download and install packages.
+
+                    Exception: {e}
+                    """
+                )
+            )
+        else:
+            raise CondaSSLError(
+                dals(
+                    f"""
+                    Encountered an SSL error. Most likely a certificate verification issue.
+
+                    Exception: {e}
+                    """
+                )
+            )
+
+    except (ConnectionError, HTTPError) as e:
         help_message = dals("""
         An HTTP error occurred when trying to retrieve this URL.
         HTTP errors are often intermittent, and a simple retry will get you on your way.
@@ -156,7 +188,7 @@ def download_text(url):
     except RequestsProxyError:
         raise ProxyError()  # see #3962
     except InvalidSchema as e:
-        if 'SOCKS' in text_type(e):
+        if 'SOCKS' in str(e):
             message = dals("""
                 Requests has identified that your current working environment is configured
                 to use a SOCKS proxy, but pysocks is not installed.  To proceed, remove your

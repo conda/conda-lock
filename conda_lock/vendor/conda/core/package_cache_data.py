@@ -6,21 +6,26 @@ from __future__ import absolute_import, division, print_function, unicode_litera
 import codecs
 from collections import defaultdict
 from errno import EACCES, ENOENT, EPERM, EROFS
+from json import JSONDecodeError
 from logging import getLogger
+from os import scandir
 from os.path import basename, dirname, getsize, join
 from sys import platform
 from tarfile import ReadError
+
+try:
+    from tlz.itertoolz import concat, concatv, groupby
+except ImportError:
+    from conda_lock.vendor.conda._vendor.toolz.itertoolz import concat, concatv, groupby
 
 from .path_actions import CacheUrlAction, ExtractPackageAction
 from .. import CondaError, CondaMultiError, conda_signal_handler
 from ..auxlib.collection import first
 from ..auxlib.decorators import memoizemethod
-from .._vendor.toolz import concat, concatv, groupby
 from ..base.constants import (CONDA_PACKAGE_EXTENSIONS, CONDA_PACKAGE_EXTENSION_V1,
                               CONDA_PACKAGE_EXTENSION_V2, PACKAGE_CACHE_MAGIC_FILE)
 from ..base.context import context
-from ..common.compat import (JSONDecodeError, iteritems, itervalues, odict, scandir,
-                             string_types, text_type, with_metaclass)
+from ..common.compat import odict
 from ..common.constants import NULL
 from ..common.io import ProgressBar, time_recorder
 from ..common.path import expand, strip_pkg_extension, url_to_path
@@ -44,6 +49,7 @@ try:
 except NameError:
     FileNotFoundError = IOError
 
+
 class PackageCacheType(type):
     """
     This metaclass does basic caching of PackageCache instance objects.
@@ -60,8 +66,7 @@ class PackageCacheType(type):
             return package_cache_instance
 
 
-@with_metaclass(PackageCacheType)
-class PackageCacheData(object):
+class PackageCacheData(metaclass=PackageCacheType):
     _cache_ = {}
 
     def __init__(self, pkgs_dir):
@@ -120,14 +125,15 @@ class PackageCacheData(object):
     def query(self, package_ref_or_match_spec):
         # returns a generator
         param = package_ref_or_match_spec
-        if isinstance(param, string_types):
+        if isinstance(param, str):
             param = MatchSpec(param)
         if isinstance(param, MatchSpec):
-            return (pcrec for pcrec in itervalues(self._package_cache_records)
+            return (pcrec for pcrec in self._package_cache_records.values()
                     if param.match(pcrec))
         else:
             assert isinstance(param, PackageRecord)
-            return (pcrec for pcrec in itervalues(self._package_cache_records) if pcrec == param)
+            return (pcrec for pcrec in self._package_cache_records.values()
+                    if pcrec == param)
 
     def iter_records(self):
         return iter(self._package_cache_records)
@@ -193,8 +199,11 @@ class PackageCacheData(object):
     @classmethod
     def get_all_extracted_entries(cls):
         package_caches = (cls(pd) for pd in context.pkgs_dirs)
-        return tuple(pc_entry for pc_entry in concat(map(itervalues, package_caches))
-                     if pc_entry.is_extracted)
+        return tuple(
+            pc_entry
+            for pc_entry in concat((package_cache.values() for package_cache in package_caches))
+            if pc_entry.is_extracted
+        )
 
     @classmethod
     def get_entry_to_link(cls, package_ref):
@@ -232,7 +241,7 @@ class PackageCacheData(object):
         tarball_full_path, md5sum = self._clean_tarball_path_and_get_md5sum(tarball_path, md5sum)
         tarball_basename = basename(tarball_full_path)
         pc_entry = first(
-            (pc_entry for pc_entry in itervalues(self)),
+            (pc_entry for pc_entry in self.values()),
             key=lambda pce: pce.tarball_basename == tarball_basename and pce.md5 == md5sum
         )
         return pc_entry
@@ -321,7 +330,7 @@ class PackageCacheData(object):
                 # JsonDecodeError if info/index.json is partially extracted or corrupted
                 #   python 2.7 raises ValueError instead of JsonDecodeError
                 #   ValueError("No JSON object could be decoded")
-                log.debug("unable to read %s\n  because",
+                log.debug("unable to read %s\n  because %r",
                           join(extracted_package_dir, 'info', 'index.json'), e)
 
                 if isdir(extracted_package_dir) and not isfile(package_tarball_full_path):
@@ -614,11 +623,11 @@ class ProgressiveFetchExtract(object):
 
     @property
     def cache_actions(self):
-        return tuple(axns[0] for axns in itervalues(self.paired_actions) if axns[0])
+        return tuple(axns[0] for axns in self.paired_actions.values() if axns[0])
 
     @property
     def extract_actions(self):
-        return tuple(axns[1] for axns in itervalues(self.paired_actions) if axns[1])
+        return tuple(axns[1] for axns in self.paired_actions.values() if axns[1])
 
     def execute(self):
         if self._executed:
@@ -640,12 +649,12 @@ class ProgressiveFetchExtract(object):
                       "    %s\n"
                       "  extract_actions:\n"
                       "    %s\n",
-                      '\n    '.join(text_type(ca) for ca in self.cache_actions),
-                      '\n    '.join(text_type(ea) for ea in self.extract_actions))
+                      '\n    '.join(str(ca) for ca in self.cache_actions),
+                      '\n    '.join(str(ea) for ea in self.extract_actions))
 
         exceptions = []
         with signal_handler(conda_signal_handler), time_recorder("fetch_extract_execute"):
-            for prec_or_spec, prec_actions in iteritems(self.paired_actions):
+            for prec_or_spec, prec_actions in self.paired_actions.items():
                 exc = self._execute_actions(prec_or_spec, prec_actions)
                 if exc:
                     log.debug('%r'.encode('utf-8'), exc, exc_info=True)
