@@ -9,3 +9,4 @@ requests >=2
 ruamel.yaml
 tomli; python_version<"3.11"
 typing-extensions
+toolz ==0.12.0
