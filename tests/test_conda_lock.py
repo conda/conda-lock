@@ -13,7 +13,7 @@ import uuid
 
 from glob import glob
 from pathlib import Path
-from typing import Any, Dict, Generator
+from typing import Any, Dict
 from unittest.mock import MagicMock
 from urllib.parse import urldefrag, urlsplit
 
@@ -24,6 +24,7 @@ import yaml
 from flaky import flaky
 
 from conda_lock import __version__
+from conda_lock._vendor.conda.models.match_spec import MatchSpec
 from conda_lock.conda_lock import (
     DEFAULT_FILES,
     DEFAULT_LOCKFILE_NAME,
@@ -59,7 +60,6 @@ from conda_lock.pypi_solver import parse_pip_requirement, solve_pypi
 from conda_lock.src_parser import (
     HashModel,
     LockedDependency,
-    Lockfile,
     LockSpecification,
     VersionedDependency,
 )
@@ -69,7 +69,6 @@ from conda_lock.src_parser.pyproject_toml import (
     parse_pyproject_toml,
     poetry_version_to_conda_version,
 )
-from conda_lock.vendor.conda.models.match_spec import MatchSpec
 
 
 if typing.TYPE_CHECKING:

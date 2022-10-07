@@ -1,4 +1,4 @@
-exclude: ^conda_lock/vendor/.*$
+exclude: ^conda_lock/_vendor/.*$
 
 repos:
 - repo: https://github.com/pre-commit/pre-commit-hooks

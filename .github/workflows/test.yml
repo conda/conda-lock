@@ -46,7 +46,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ ubuntu-latest, macos-latest ]
-        python-version: [ 3.7, 3.8 ]
+        python-version: [ '3.7', '3.8' ]
     defaults:
       run:
         shell: bash -l {0}
