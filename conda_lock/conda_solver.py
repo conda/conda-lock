@@ -24,6 +24,7 @@ from urllib.parse import urlsplit, urlunsplit
 
 from typing_extensions import TypedDict
 
+from conda_lock._vendor.conda.models.match_spec import MatchSpec
 from conda_lock.invoke_conda import (
     PathLike,
     _get_conda_flags,
@@ -39,7 +40,6 @@ from conda_lock.src_parser import (
     VersionedDependency,
     _apply_categories,
 )
-from conda_lock.vendor.conda.models.match_spec import MatchSpec
 
 
 logger = logging.getLogger(__name__)

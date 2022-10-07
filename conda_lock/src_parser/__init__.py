@@ -187,7 +187,7 @@ class Lockfile(StrictModel):
         # Resort the conda packages topologically
         final_package: List[LockedDependency] = []
         for platform in sorted(platforms):
-            from ..vendor.conda.common.toposort import toposort
+            from .._vendor.conda.common.toposort import toposort
 
             # Add the remaining non-conda packages in the order in which they appeared.
             # Order the pip packages topologically ordered (might be not 100% perfect if they depend on

@@ -1,0 +1,2 @@
+# install conda from github
+git+https://github.com/conda/conda.git@22.9.0

@@ -1,0 +1,2 @@
+# Treat vendor folder as vendored and generated
+conda_lock/_vendor/** linguist-vendored linguist-generated
