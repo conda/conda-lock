@@ -1365,4 +1365,8 @@ def test_cli_version(capsys: "pytest.CaptureFixture[str]"):
     print(result.stdout, file=sys.stdout)
     print(result.stderr, file=sys.stderr)
     assert result.exit_code == 0
-    assert __version__ in result.stdout
+    # Sometimes __version__ looks like "0.11.3.dev370+g315f170" and the part after
+    # ".dev" is often out-of-sync when doing local development. So we check only for
+    # the part before, in this case just "0.11.3".
+    version_without_dev = __version__.split(".dev")[0]
+    assert version_without_dev in result.stdout
