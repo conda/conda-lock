@@ -1,2 +1,7 @@
+# Poetry-related:
+cleo==0.8.1 --hash=sha256:3d0e22d30117851b45970b6c14aca4ab0b18b1b53c8af57bed13208147e4069f
+poetry==1.1.15 --hash=sha256:a373848fd205f31b2f6bee6b87a201ea1e09ca573a2f40d0991539f564cedffd
+poetry-core==1.0.8 --hash=sha256:951fc7c1f8d710a94cb49019ee3742125039fc659675912ea614ac2aa405b118
+
 # install conda from github
 git+https://github.com/conda/conda.git@22.9.0

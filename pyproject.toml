@@ -94,12 +94,20 @@ flake8-ignore = ["docs/* ALL", "conda_lock/_version.py ALL"]
 destination = "conda_lock/_vendor"
 namespace = "conda_lock._vendor"
 requirements = "conda_lock/_vendor/vendor.txt"
-protected-files = ["__init__.py", "README.md", "vendor.txt"]
+protected-files = ["__init__.py", "README.md", "LICENSES.md", "vendor.txt"]
+patches-dir = "conda_lock/scripts/vendor_poetry/patches"
 
 [tool.vendoring.transformations]
 drop = [
     "bin",
     "conda_env",
+    # From cleo we only need cleo.io.io_mixin
+    '^cleo\/(?!io$|io\/io_mixin\.py$).*$',
+    "poetry/console",
+    "poetry/publishing",
+    "poetry/utils/shell.py",
+    "poetry/core/_vendor/six.py",
+    "poetry/core/_vendor/six.LICENSE",
 ]
 substitute = [
     # simple substitution patch to fix conda.exports
