@@ -22,9 +22,10 @@ SOFTWARE.
 
 ---
 
-Conda-lock incorporates the following libraries into its distributed code:
+Conda-lock incorporates the following libraries, sometimes with modification,
+into its distributed code:
 
-* conda, license as BSD-3-Clause
+* conda, licensed as BSD-3-Clause
   * auxlib, licensed as ISC
   * boltons, licensed as BSD-3-Clause
   * pytoolz, licensed as BSD-3-Clause
