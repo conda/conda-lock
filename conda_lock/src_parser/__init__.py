@@ -339,8 +339,10 @@ def aggregate_lock_specs(
     ):
         key = (dep.manager, dep.name)
         if key in unique_deps:
-            unique_deps[key].selectors |= dep.selectors
-        # overrides always win.
+            # Override existing, but merge selectors
+            previous_selectors = unique_deps[key].selectors
+            previous_selectors |= dep.selectors
+            dep.selectors = previous_selectors
         unique_deps[key] = dep
 
     dependencies = list(unique_deps.values())

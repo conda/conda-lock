@@ -61,6 +61,7 @@ from conda_lock.src_parser import (
     HashModel,
     LockedDependency,
     LockSpecification,
+    Selectors,
     VersionedDependency,
 )
 from conda_lock.src_parser.environment_yaml import parse_environment_file
@@ -353,6 +354,13 @@ def test_parse_meta_yaml_file(meta_yaml_environment: Path):
     res = parse_meta_yaml_file(meta_yaml_environment, ["linux-64", "osx-64"])
     specs = {dep.name: dep for dep in res.dependencies}
     assert all(x in specs for x in ["python", "numpy"])
+    assert all(
+        dep.selectors
+        == Selectors(
+            platform=None
+        )  # Platform will be set to None if all dependencies are the same
+        for dep in specs.values()
+    )
     # Ensure that this dep specified by a python selector is ignored
     assert "enum34" not in specs
     # Ensure that this platform specific dep is included
@@ -707,6 +715,16 @@ def _make_spec(name: str, constraint: str = "*"):
     )
 
 
+def _make_dependency_with_platforms(
+    name: str, platforms: typing.List[str], constraint: str = "*"
+):
+    return VersionedDependency(
+        name=name,
+        version=constraint,
+        selectors=Selectors(platform=platforms),
+    )
+
+
 def test_aggregate_lock_specs():
     """Ensure that the way two specs combine when both specify channels is correct"""
     base_spec = LockSpecification(
@@ -735,6 +753,38 @@ def test_aggregate_lock_specs():
             Channel.from_string("conda-forge"),
         ],
         platforms=["linux-64"],
+        sources=[],
+    )
+    assert actual.dict(exclude={"sources"}) == expected.dict(exclude={"sources"})
+    assert actual.content_hash() == expected.content_hash()
+
+
+def test_aggregate_lock_specs_multiple_platforms():
+    """Ensure that plaforms are merged correctly"""
+    linux_spec = LockSpecification(
+        dependencies=[_make_dependency_with_platforms("python", ["linux-64"], "=3.7")],
+        channels=[Channel.from_string("conda-forge")],
+        platforms=["linux-64"],
+        sources=[Path("base-env.yml")],
+    )
+
+    osx_spec = LockSpecification(
+        dependencies=[_make_dependency_with_platforms("python", ["osx-64"], "=3.7")],
+        channels=[Channel.from_string("conda-forge")],
+        platforms=["osx-64"],
+        sources=[Path("base-env.yml")],
+    )
+
+    # NB: content hash explicitly does not depend on the source file names
+    actual = aggregate_lock_specs([linux_spec, osx_spec])
+    expected = LockSpecification(
+        dependencies=[
+            _make_dependency_with_platforms("python", ["linux-64", "osx-64"], "=3.7")
+        ],
+        channels=[
+            Channel.from_string("conda-forge"),
+        ],
+        platforms=["linux-64", "osx-64"],
         sources=[],
     )
     assert actual.dict(exclude={"sources"}) == expected.dict(exclude={"sources"})
