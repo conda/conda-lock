@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import hashlib
 import re
 import tarfile
 
@@ -72,26 +71,19 @@ class License(BaseModel):
 class DependencyData(BaseModel):
     name: str
     version: str | None = None
-    sha256: str | None = None
     discovered_licenses: list[License] = []
     directly_vendored: bool
 
     @classmethod
     def from_line(cls, line: str) -> DependencyData:
         """Read a requirement from a line in vendor.txt"""
-        main_and_sha256 = line.split("--hash=sha256:", 1)
-        main = main_and_sha256[0]
-        if len(main_and_sha256) == 2:
-            sha256 = main_and_sha256[1].strip()
-        else:
-            sha256 = None
-        name_and_version = main.split("==", 1)
+        name_and_version = line.split("==", 1)
         name = name_and_version[0].strip()
         if len(name_and_version) == 2:
             version = name_and_version[1].strip()
         else:
             version = None
-        return cls(name=name, version=version, sha256=sha256, directly_vendored=True)
+        return cls(name=name, version=version, directly_vendored=True)
 
     @property
     def _sdist_obj(self) -> pkginfo.SDist:
@@ -107,8 +99,6 @@ class DependencyData(BaseModel):
     def _tarfile_obj(self) -> tarfile.TarFile:
         if self.version is None:
             raise RuntimeError(f"Cannot get tarfile for {self.name} without version.")
-        if self.sha256 is None:
-            raise RuntimeError(f"Cannot get tarfile for {self.name} without sha256.")
         url = (
             f"https://pypi.io/packages/source/{self.name[0]}/{self.name}"
             f"/{self.name}-{self.version}.tar.gz"
@@ -116,7 +106,6 @@ class DependencyData(BaseModel):
         response = requests.get(url, allow_redirects=True)
         response.raise_for_status()
         tarfile_bytes = response.content
-        assert hashlib.sha256(tarfile_bytes).hexdigest() == self.sha256
         return tarfile.open(fileobj=BytesIO(tarfile_bytes))
 
     def tarinfo_to_str(self, tarinfo: tarfile.TarInfo) -> str:
