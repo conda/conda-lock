@@ -9,17 +9,22 @@ from urllib.parse import urldefrag
 from clikit.api.io.flags import VERY_VERBOSE
 from clikit.io import ConsoleIO, NullIO
 from packaging.tags import compatible_tags, cpython_tags
-from poetry.core.packages import Dependency, Package, ProjectPackage, URLDependency
-from poetry.factory import Factory
-from poetry.installation.chooser import Chooser
-from poetry.installation.operations.uninstall import Uninstall
-from poetry.puzzle import Solver
-from poetry.repositories.pool import Pool
-from poetry.repositories.pypi_repository import PyPiRepository
-from poetry.repositories.repository import Repository
-from poetry.utils.env import Env
 
 from conda_lock import src_parser
+from conda_lock._vendor.poetry.core.packages import (
+    Dependency,
+    Package,
+    ProjectPackage,
+    URLDependency,
+)
+from conda_lock._vendor.poetry.factory import Factory
+from conda_lock._vendor.poetry.installation.chooser import Chooser
+from conda_lock._vendor.poetry.installation.operations.uninstall import Uninstall
+from conda_lock._vendor.poetry.puzzle import Solver
+from conda_lock._vendor.poetry.repositories.pool import Pool
+from conda_lock._vendor.poetry.repositories.pypi_repository import PyPiRepository
+from conda_lock._vendor.poetry.repositories.repository import Repository
+from conda_lock._vendor.poetry.utils.env import Env
 from conda_lock.lookup import conda_name_to_pypi_name
 
 
