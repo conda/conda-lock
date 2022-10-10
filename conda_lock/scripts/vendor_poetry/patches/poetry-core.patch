@@ -1,0 +1,30 @@
+diff --git a/conda_lock/_vendor/poetry/core/packages/dependency.py b/conda_lock/_vendor/poetry/core/packages/dependency.py
+index 9ad16dc..6154943 100644
+--- a/conda_lock/_vendor/poetry/core/packages/dependency.py
++++ b/conda_lock/_vendor/poetry/core/packages/dependency.py
+@@ -5,8 +5,6 @@ from typing import List
+ from typing import Optional
+ from typing import Union
+ 
+-import poetry.core.packages
+-
+ from poetry.core.semver import Version
+ from poetry.core.semver import VersionConstraint
+ from poetry.core.semver import VersionRange
+@@ -25,6 +23,7 @@ from .utils.utils import convert_markers
+ 
+ if TYPE_CHECKING:
+     from poetry.core.version.markers import BaseMarker  # noqa
++    from poetry.core.packages import Package  # noqa
+     from poetry.core.version.markers import VersionTypes  # noqa
+ 
+     from .constraints import BaseConstraint  # noqa
+@@ -213,7 +212,7 @@ class Dependency(PackageSpecification):
+     def is_url(self):  # type: () -> bool
+         return False
+ 
+-    def accepts(self, package):  # type: (poetry.core.packages.Package) -> bool
++    def accepts(self, package):  # type: (Package) -> bool
+         """
+         Determines if the given package matches this dependency.
+         """

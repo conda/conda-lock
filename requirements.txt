@@ -2,11 +2,36 @@ click >=8.0
 click-default-group
 ensureconda >=1.3
 jinja2
-poetry <1.2
 pydantic >=1.8.1
 pyyaml >= 5.1
-requests >=2
 ruamel.yaml
 tomli; python_version<"3.11"
 typing-extensions
 toolz >=0.12.0,<1.0.0
+# poetry:
+cachecontrol[filecache] >=0.12.9
+# poetry:
+cachy >=0.3.0
+# cleo, poetry:
+clikit >=0.6.2
+# poetry:
+crashtest >=0.3.0
+# poetry:
+html5lib >=1.0
+# poetry, poetry-core:
+importlib-metadata >=1.7.0; python_version <= "3.7"
+# poetry:
+keyring >=21.2.0
+# poetry:
+packaging >=20.4
+# poetry:
+# poetry:
+pkginfo >=1.4
+# poetry, conda-lock:
+requests >=2.18
+# poetry:
+# poetry:
+# poetry:
+tomlkit >=0.7.0
+# poetry:
+virtualenv >=20.0.26

@@ -220,7 +220,7 @@ def _supplement_index_with_system(index):
 
 
 def get_archspec_name():
-    from conda_lock._vendor.conda.base.context import non_x86_machines, _arch_names, _platform_map
+    from conda_lock.vendor.conda.base.context import non_x86_machines, _arch_names, _platform_map
 
     target_plat, target_arch = context.subdir.split("-")
     # This has to reverse what Context.subdir is doing

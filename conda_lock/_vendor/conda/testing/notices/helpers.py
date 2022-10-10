@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import Optional, Sequence
 from unittest import mock
 
-from conda_lock._vendor.conda.base.context import Context
+from conda_lock.vendor.conda.base.context import Context
 from conda_lock._vendor.conda.notices.core import get_channel_name_and_urls
 from conda_lock._vendor.conda.notices.types import ChannelNoticeResponse
 from conda_lock._vendor.conda.models.channel import get_channel_objs
