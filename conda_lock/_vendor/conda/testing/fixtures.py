@@ -8,7 +8,7 @@ import pytest
 from conda_lock._vendor.conda.gateways.disk.create import TemporaryDirectory
 from conda_lock._vendor.conda.core.subdir_data import SubdirData
 from conda_lock._vendor.conda.auxlib.ish import dals
-from conda_lock._vendor.conda.base.context import reset_context, context
+from conda_lock.vendor.conda.base.context import reset_context, context
 from conda_lock._vendor.conda.common.configuration import YamlRawParameter
 from conda_lock._vendor.conda.common.compat import odict
 from conda_lock._vendor.conda.common.serialize import yaml_round_trip_load

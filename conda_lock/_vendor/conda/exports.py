@@ -55,7 +55,7 @@ md5_file = compute_md5sum
 
 from .models.version import VersionOrder, normalized_version  # noqa: F401
 from .models.channel import Channel  # noqa: F401
-import conda_lock._vendor.conda.base.context
+import conda_lock.vendor.conda.base.context
 from .base.context import get_prefix, non_x86_machines, reset_context, sys_rc_path  # noqa: F401
 
 non_x86_linux_machines = non_x86_machines
@@ -73,25 +73,25 @@ from .base.constants import PREFIX_PLACEHOLDER
 
 _PREFIX_PLACEHOLDER = prefix_placeholder = PREFIX_PLACEHOLDER
 
-arch_name = conda_lock._vendor.conda.base.context.context.arch_name
-binstar_upload = conda_lock._vendor.conda.base.context.context.anaconda_upload
-bits = conda_lock._vendor.conda.base.context.context.bits
-default_prefix = conda_lock._vendor.conda.base.context.context.default_prefix
-default_python = conda_lock._vendor.conda.base.context.context.default_python
-envs_dirs = conda_lock._vendor.conda.base.context.context.envs_dirs
-pkgs_dirs = conda_lock._vendor.conda.base.context.context.pkgs_dirs
-platform = conda_lock._vendor.conda.base.context.context.platform
-root_dir = conda_lock._vendor.conda.base.context.context.root_prefix
-root_writable = conda_lock._vendor.conda.base.context.context.root_writable
-subdir = conda_lock._vendor.conda.base.context.context.subdir
-conda_private = conda_lock._vendor.conda.base.context.context.conda_private
-conda_build = conda_lock._vendor.conda.base.context.context.conda_build
+arch_name = conda_lock.vendor.conda.base.context.context.arch_name
+binstar_upload = conda_lock.vendor.conda.base.context.context.anaconda_upload
+bits = conda_lock.vendor.conda.base.context.context.bits
+default_prefix = conda_lock.vendor.conda.base.context.context.default_prefix
+default_python = conda_lock.vendor.conda.base.context.context.default_python
+envs_dirs = conda_lock.vendor.conda.base.context.context.envs_dirs
+pkgs_dirs = conda_lock.vendor.conda.base.context.context.pkgs_dirs
+platform = conda_lock.vendor.conda.base.context.context.platform
+root_dir = conda_lock.vendor.conda.base.context.context.root_prefix
+root_writable = conda_lock.vendor.conda.base.context.context.root_writable
+subdir = conda_lock.vendor.conda.base.context.context.subdir
+conda_private = conda_lock.vendor.conda.base.context.context.conda_private
+conda_build = conda_lock.vendor.conda.base.context.context.conda_build
 
 from .models.channel import get_conda_build_local_url  # NOQA
 
-get_rc_urls = lambda: list(conda_lock._vendor.conda.base.context.context.channels)
+get_rc_urls = lambda: list(conda_lock.vendor.conda.base.context.context.channels)
 get_local_urls = lambda: list(get_conda_build_local_url()) or []
-load_condarc = lambda fn: conda_lock._vendor.conda.base.context.reset_context([fn])
+load_condarc = lambda fn: conda_lock.vendor.conda.base.context.reset_context([fn])
 
 from .exceptions import PaddingError, LinkError, CondaOSError, PathNotFoundError  # NOQA
 

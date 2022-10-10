@@ -34,7 +34,7 @@ import pytest
 from conda_lock._vendor.conda.auxlib.compat import Utf8NamedTemporaryFile
 from conda_lock._vendor.conda.auxlib.entity import EntityEncoder
 from conda_lock._vendor.conda.base.constants import PACKAGE_CACHE_MAGIC_FILE
-from conda_lock._vendor.conda.base.context import context, reset_context, conda_tests_ctxt_mgmt_def_pol
+from conda_lock.vendor.conda.base.context import context, reset_context, conda_tests_ctxt_mgmt_def_pol
 from conda_lock._vendor.conda.cli.conda_argparse import do_call
 from conda_lock._vendor.conda.cli.main import generate_parser, init_loggers
 from conda_lock._vendor.conda.common.compat import encode_arguments, on_win
