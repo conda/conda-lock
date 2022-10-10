@@ -25,15 +25,12 @@ keyring >=21.2.0
 # poetry:
 packaging >=20.4,<21.0
 # poetry:
-pexpect >=4.7.0,<5.0.0
 # poetry:
 pkginfo >=1.4,<2.0
 # poetry, conda-lock:
 requests >=2.18,<3.0
 # poetry:
-requests-toolbelt >=0.9.1,<0.10.0
 # poetry:
-shellingham >=1.1,<2.0
 # poetry:
 tomlkit >=0.7.0,<1.0.0
 # poetry:
