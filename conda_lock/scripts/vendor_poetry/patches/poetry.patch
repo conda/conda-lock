@@ -1,0 +1,34 @@
+diff --git a/conda_lock/_vendor/poetry/packages/locker.py b/conda_lock/_vendor/poetry/packages/locker.py
+index bad461f..12cefb8 100644
+--- a/conda_lock/_vendor/poetry/packages/locker.py
++++ b/conda_lock/_vendor/poetry/packages/locker.py
+@@ -22,7 +22,7 @@ from tomlkit import item
+ from tomlkit import table
+ from tomlkit.exceptions import TOMLKitError
+ 
+-import poetry.repositories
++from poetry.repositories import Repository
+ 
+ from poetry.core.packages import dependency_from_pep_508
+ from poetry.core.packages.dependency import Dependency
+@@ -87,17 +87,17 @@ class Locker(object):
+ 
+     def locked_repository(
+         self, with_dev_reqs=False
+-    ):  # type: (bool) -> poetry.repositories.Repository
++    ):  # type: (bool) -> Repository
+         """
+         Searches and returns a repository of locked packages.
+         """
+         from poetry.factory import Factory
+ 
+         if not self.is_locked():
+-            return poetry.repositories.Repository()
++            return Repository()
+ 
+         lock_data = self.lock_data
+-        packages = poetry.repositories.Repository()
++        packages = Repository()
+ 
+         if with_dev_reqs:
+             locked_packages = lock_data["package"]

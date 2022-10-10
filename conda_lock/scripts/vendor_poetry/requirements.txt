@@ -1,0 +1,8 @@
+migrate-code
+pkginfo
+requests
+toml
+pydantic
+pipreqs
+vendoring
+pre-commit

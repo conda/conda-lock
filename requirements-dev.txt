@@ -7,6 +7,7 @@ flake8
 flake8-builtins
 flake8-comprehensions
 flake8-mutable
+build
 isort
 mypy
 pre_commit
@@ -16,8 +17,7 @@ pytest-cov
 pytest-flake8
 pytest-xdist
 pytest-timeout
-setuptools_scm
-toml
+tomli; python_version<"3.11"
 twine
 wheel
 mkdocs

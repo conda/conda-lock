@@ -1,3 +1,115 @@
 [build-system]
-requires = ["setuptools>=41.2", "setuptools_scm", "wheel"]
-build-backend = "setuptools.build_meta"
+requires = ["hatchling", "hatch-requirements-txt", "hatch-vcs"]
+build-backend = "hatchling.build"
+
+[project]
+name = "conda_lock"
+description = "Lockfiles for conda"
+authors = [
+    { "name" = "Marius van Niekerk", email = "marius.v.niekerk@gmail.com" },
+]
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.6"
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Intended Audience :: Science/Research",
+    "Operating System :: OS Independent",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.6",
+    "Programming Language :: Python :: 3.7",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+]
+dynamic = ["dependencies", "version"]
+license-files = { paths = ["LICENSE"] }
+
+[project.optional-dependencies]
+pip_support = ["poetry ==1.1.*"]
+
+[project.scripts]
+conda-lock = "conda_lock:main"
+
+[project.urls]
+Homepage = "https://github.com/conda-incubator/conda-lock"
+Repository = "https://github.com/conda-incubator/conda-lock"
+Documentation = "https://conda-incubator.github.io/conda-lock/"
+"Issue Tracker" = "https://github.com/conda-incubator/conda-lock/issues"
+"Conda-Forge Feedstock" = "https://github.com/conda-forge/conda-lock-feedstock"
+"Anaconda.org" = "https://anaconda.org/conda-forge/conda-lock"
+
+[tool]
+
+[tool.check-manifest]
+ignore = [
+    "*.yml",
+    ".coveragerc",
+    "Makefile",
+    "docs",
+    "docs/*",
+    "*.enc",
+    "tests",
+    "tests/*",
+]
+
+[tool.coverage.run]
+omit = [
+    "conda_lock/vendor/*",
+]
+source = [
+    "conda_lock/*",
+]
+
+[tool.hatch.metadata.hooks.requirements_txt]
+filename = "requirements.txt"
+
+[tool.hatch.version]
+source = "vcs"
+
+[tool.hatch.build]
+exclude = [
+    "tests",
+]
+
+[tool.isort]
+atomic = true
+force_grid_wrap = 0
+include_trailing_comma = true
+lines_after_imports = 2
+lines_between_types = 1
+multi_line_output = 3
+use_parentheses = true
+known_first_party = "attr"
+
+[tool.pytest.ini_options]
+addopts = "-vrsx -n auto"
+flake8-max-line-length = 105
+flake8-ignore = ["docs/* ALL", "conda_lock/_version.py ALL"]
+
+
+[tool.vendoring]
+destination = "conda_lock/_vendor"
+namespace = "conda_lock._vendor"
+requirements = "conda_lock/_vendor/vendor.txt"
+protected-files = ["__init__.py", "README.md", "LICENSES.md", "vendor.txt"]
+patches-dir = "conda_lock/scripts/vendor_poetry/patches"
+
+[tool.vendoring.transformations]
+drop = [
+    "bin",
+    "conda_env",
+    # From cleo we only need cleo.io.io_mixin
+    '^cleo\/(?!io$|io\/io_mixin\.py$).*$',
+    "poetry/console",
+    "poetry/publishing",
+    "poetry/utils/shell.py",
+    "poetry/core/_vendor/six.py",
+    "poetry/core/_vendor/six.LICENSE",
+]
+substitute = [
+    # simple substitution patch to fix conda.exports
+    { match = 'conda\.base\.context', replace = 'conda_lock.vendor.conda.base.context' }
+]

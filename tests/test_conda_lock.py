@@ -14,7 +14,7 @@ import uuid
 
 from glob import glob
 from pathlib import Path
-from typing import Any, Dict, Generator
+from typing import Any, Dict
 from unittest.mock import MagicMock
 from urllib.parse import urldefrag, urlsplit
 
@@ -24,6 +24,8 @@ import yaml
 
 from flaky import flaky
 
+from conda_lock import __version__
+from conda_lock._vendor.conda.models.match_spec import MatchSpec
 from conda_lock.conda_lock import (
     DEFAULT_FILES,
     DEFAULT_LOCKFILE_NAME,
@@ -59,8 +61,8 @@ from conda_lock.pypi_solver import parse_pip_requirement, solve_pypi
 from conda_lock.src_parser import (
     HashModel,
     LockedDependency,
-    Lockfile,
     LockSpecification,
+    Selectors,
     VersionedDependency,
 )
 from conda_lock.src_parser.environment_yaml import parse_environment_file
@@ -69,7 +71,6 @@ from conda_lock.src_parser.pyproject_toml import (
     parse_pyproject_toml,
     poetry_version_to_conda_version,
 )
-from conda_lock.vendor.conda.models.match_spec import MatchSpec
 
 
 if typing.TYPE_CHECKING:
@@ -388,6 +389,13 @@ def test_parse_meta_yaml_file(meta_yaml_environment: Path):
     res = parse_meta_yaml_file(meta_yaml_environment, ["linux-64", "osx-64"])
     specs = {dep.name: dep for dep in res.dependencies}
     assert all(x in specs for x in ["python", "numpy"])
+    assert all(
+        dep.selectors
+        == Selectors(
+            platform=None
+        )  # Platform will be set to None if all dependencies are the same
+        for dep in specs.values()
+    )
     # Ensure that this dep specified by a python selector is ignored
     assert "enum34" not in specs
     # Ensure that this platform specific dep is included
@@ -851,6 +859,16 @@ def _make_spec(name: str, constraint: str = "*"):
     )
 
 
+def _make_dependency_with_platforms(
+    name: str, platforms: typing.List[str], constraint: str = "*"
+):
+    return VersionedDependency(
+        name=name,
+        version=constraint,
+        selectors=Selectors(platform=platforms),
+    )
+
+
 def test_aggregate_lock_specs():
     """Ensure that the way two specs combine when both specify channels is correct"""
     base_spec = LockSpecification(
@@ -879,6 +897,38 @@ def test_aggregate_lock_specs():
             Channel.from_string("conda-forge"),
         ],
         platforms=["linux-64"],
+        sources=[],
+    )
+    assert actual.dict(exclude={"sources"}) == expected.dict(exclude={"sources"})
+    assert actual.content_hash() == expected.content_hash()
+
+
+def test_aggregate_lock_specs_multiple_platforms():
+    """Ensure that plaforms are merged correctly"""
+    linux_spec = LockSpecification(
+        dependencies=[_make_dependency_with_platforms("python", ["linux-64"], "=3.7")],
+        channels=[Channel.from_string("conda-forge")],
+        platforms=["linux-64"],
+        sources=[Path("base-env.yml")],
+    )
+
+    osx_spec = LockSpecification(
+        dependencies=[_make_dependency_with_platforms("python", ["osx-64"], "=3.7")],
+        channels=[Channel.from_string("conda-forge")],
+        platforms=["osx-64"],
+        sources=[Path("base-env.yml")],
+    )
+
+    # NB: content hash explicitly does not depend on the source file names
+    actual = aggregate_lock_specs([linux_spec, osx_spec])
+    expected = LockSpecification(
+        dependencies=[
+            _make_dependency_with_platforms("python", ["linux-64", "osx-64"], "=3.7")
+        ],
+        channels=[
+            Channel.from_string("conda-forge"),
+        ],
+        platforms=["linux-64", "osx-64"],
         sources=[],
     )
     assert actual.dict(exclude={"sources"}) == expected.dict(exclude={"sources"})
@@ -1315,7 +1365,7 @@ def test_virtual_package_input_hash_stability():
         sources=[],
         virtual_package_repo=vpr,
     )
-    expected = "d8d0e556f97aed2eaa05fe9728b5a1c91c1b532d3eed409474e8a9b85b633a26"
+    expected = "8ee5fc79fca4cb7732d2e88443209e0a3a354da9899cb8899d94f9b1dcccf975"
     assert spec.content_hash() == {"linux-64": expected}
 
 
@@ -1325,12 +1375,12 @@ def test_default_virtual_package_input_hash_stability():
     vpr = default_virtual_package_repodata()
 
     expected = {
-        "linux-64": "93c22a62ca75ed0fd7649a6c9fbac611fd42a694465841b141c91aa2d4edf1b3",
-        "linux-aarch64": "e1115c4d229438be0bd3e79c3734afb1f2fb8db42cf0c20c0e2ede5405e97e25",
-        "linux-ppc64le": "d980051789ba7e6374c0833bf615b060bc0c5dfa63907eb4f11ac85f4dbb80da",
-        "osx-64": "8e2e62ea8061892d10606e9a10f05f4c7358c798e5a2d390b1206568bf9338a2",
-        "osx-arm64": "00eb1bef60572765717bba1fd86da4527f3b69bd40eb51cd0b60cdc89c27f5a6",
-        "win-64": "d97edec84c3f450ac23bd2fbac57f77c0b0bffd5313114c1fa8c28c4df8ead6e",
+        "linux-64": "dbd71bccc4b3be81038e44b1f14891ccec40a6d70a43cfe02295fc77a2ea9eb5",
+        "linux-aarch64": "023611fb84c00fb5aaeddde1e0ac62e6ae007aecf6f69ccb5dbfc3cd6d945436",
+        "linux-ppc64le": "8533a7bd0e950f7b085eeef7686d2c4895e84b8ffdbfba6d62863072ac41090c",
+        "osx-64": "b7eebe4be0654740f67e3023f2ede298f390119ef225f50ad7e7288ea22d5c93",
+        "osx-arm64": "cc82018d1b1809b9aebacacc5ed05ee6a4318b3eba039607d2a6957571f8bf2b",
+        "win-64": "44239e9f0175404e62e4a80bb8f4be72e38c536280d6d5e484e52fa04b45c9f6",
     }
 
     spec = LockSpecification(
@@ -1410,6 +1460,7 @@ def test_fake_conda_env(conda_exe: str, conda_lock_yaml: Path):
             assert platform == path.parent.name
 
 
+@pytest.mark.parametrize("placeholder", ["$QUETZ_API_KEY", "${QUETZ_API_KEY}"])
 @flaky
 def test_private_lock(
     quetz_server: "QuetzServerInfo",
@@ -1417,6 +1468,7 @@ def test_private_lock(
     monkeypatch: "pytest.MonkeyPatch",
     capsys: "pytest.CaptureFixture[str]",
     conda_exe: str,
+    placeholder,
 ):
     if is_micromamba(conda_exe):
         res = subprocess.run(
@@ -1431,7 +1483,7 @@ def test_private_lock(
 
     content = yaml.safe_dump(
         {
-            "channels": [f"{quetz_server.url}/t/$QUETZ_API_KEY/get/proxy-channel"],
+            "channels": [f"{quetz_server.url}/t/{placeholder}/get/proxy-channel"],
             "platforms": [platform_subdir()],
             "dependencies": ["zlib"],
         }
@@ -1488,3 +1540,27 @@ def test_extract_json_object():
     """It should remove all the characters after the last }"""
     assert extract_json_object(' ^[0m {"key1": true } ^[0m') == '{"key1": true }'
     assert extract_json_object('{"key1": true }') == '{"key1": true }'
+
+
+def test_cli_version(capsys: "pytest.CaptureFixture[str]"):
+    """It should correctly report its version."""
+
+    from click.testing import CliRunner
+
+    with capsys.disabled():
+        runner = CliRunner(mix_stderr=False)
+        result = runner.invoke(
+            main,
+            [
+                "--version",
+            ],
+            catch_exceptions=False,
+        )
+    print(result.stdout, file=sys.stdout)
+    print(result.stderr, file=sys.stderr)
+    assert result.exit_code == 0
+    # Sometimes __version__ looks like "0.11.3.dev370+g315f170" and the part after
+    # ".dev" is often out-of-sync when doing local development. So we check only for
+    # the part before, in this case just "0.11.3".
+    version_without_dev = __version__.split(".dev")[0]
+    assert version_without_dev in result.stdout

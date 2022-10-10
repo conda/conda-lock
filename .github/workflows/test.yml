@@ -24,7 +24,6 @@ jobs:
         run: |
           conda activate test
           conda install mamba pip pytest-cov pytest-xdist
-          python -m pip install -r requirements.txt
           python -m pip install -r requirements-dev.txt
 
       - name: install lib
@@ -47,7 +46,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ ubuntu-latest, macos-latest ]
-        python-version: [ 3.7, 3.8 ]
+        python-version: [ '3.7', '3.8' ]
     defaults:
       run:
         shell: bash -l {0}
@@ -71,7 +70,6 @@ jobs:
           echo "${PATH}"
           which pip
           which python
-          python -m pip install -r requirements.txt
           python -m pip install -r requirements-dev.txt
 
       - name: install lib

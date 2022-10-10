@@ -1,0 +1,7 @@
+# Poetry-related:
+cleo==0.8.1
+poetry==1.1.15
+poetry-core==1.0.8
+
+# install conda from github
+git+https://github.com/conda/conda.git@22.9.0

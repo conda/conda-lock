@@ -332,7 +332,7 @@ class Lockfile(StrictModel):
         # Resort the conda packages topologically
         final_package: List[LockedDependency] = []
         for platform in sorted(platforms):
-            from ..vendor.conda.common.toposort import toposort
+            from .._vendor.conda.common.toposort import toposort
 
             # Add the remaining non-conda packages in the order in which they appeared.
             # Order the pip packages topologically ordered (might be not 100% perfect if they depend on
@@ -484,8 +484,10 @@ def aggregate_lock_specs(
     ):
         key = (dep.manager, dep.name)
         if key in unique_deps:
-            unique_deps[key].selectors |= dep.selectors
-        # overrides always win.
+            # Override existing, but merge selectors
+            previous_selectors = unique_deps[key].selectors
+            previous_selectors |= dep.selectors
+            dep.selectors = previous_selectors
         unique_deps[key] = dep
 
     dependencies = list(unique_deps.values())

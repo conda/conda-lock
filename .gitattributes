@@ -1,0 +1,7 @@
+* text eol=lf
+*.patch binary
+*.bat binary
+*.exe binary
+*.ico binary
+# Treat vendor folder as vendored and generated
+conda_lock/_vendor/** linguist-vendored linguist-generated

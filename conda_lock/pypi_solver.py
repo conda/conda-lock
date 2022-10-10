@@ -9,17 +9,22 @@ from urllib.parse import urldefrag
 from clikit.api.io.flags import VERY_VERBOSE
 from clikit.io import ConsoleIO, NullIO
 from packaging.tags import compatible_tags, cpython_tags
-from poetry.core.packages import Dependency, Package, ProjectPackage, URLDependency
-from poetry.factory import Factory
-from poetry.installation.chooser import Chooser
-from poetry.installation.operations.uninstall import Uninstall
-from poetry.puzzle import Solver
-from poetry.repositories.pool import Pool
-from poetry.repositories.pypi_repository import PyPiRepository
-from poetry.repositories.repository import Repository
-from poetry.utils.env import Env
 
 from conda_lock import src_parser
+from conda_lock._vendor.poetry.core.packages import (
+    Dependency,
+    Package,
+    ProjectPackage,
+    URLDependency,
+)
+from conda_lock._vendor.poetry.factory import Factory
+from conda_lock._vendor.poetry.installation.chooser import Chooser
+from conda_lock._vendor.poetry.installation.operations.uninstall import Uninstall
+from conda_lock._vendor.poetry.puzzle import Solver
+from conda_lock._vendor.poetry.repositories.pool import Pool
+from conda_lock._vendor.poetry.repositories.pypi_repository import PyPiRepository
+from conda_lock._vendor.poetry.repositories.repository import Repository
+from conda_lock._vendor.poetry.utils.env import Env
 from conda_lock.lookup import conda_name_to_pypi_name
 
 
@@ -214,18 +219,19 @@ def solve_pypi(
     locked = Repository()
 
     python_packages = dict()
-    for dep in conda_locked.values():
-        if dep.name.startswith("__"):
+    locked_dep: src_parser.LockedDependency
+    for locked_dep in conda_locked.values():
+        if locked_dep.name.startswith("__"):
             continue
         try:
-            pypi_name = conda_name_to_pypi_name(dep.name).lower()
+            pypi_name = conda_name_to_pypi_name(locked_dep.name).lower()
         except KeyError:
             continue
         # Prefer the Python package when its name collides with the Conda package
         # for the underlying library, e.g. python-xxhash (pypi: xxhash) over xxhash
         # (pypi: no equivalent)
-        if pypi_name not in python_packages or pypi_name != dep.name:
-            python_packages[pypi_name] = dep.version
+        if pypi_name not in python_packages or pypi_name != locked_dep.name:
+            python_packages[pypi_name] = locked_dep.version
     # treat conda packages as both locked and installed
     for name, version in python_packages.items():
         for repo in (locked, installed):
@@ -275,7 +281,10 @@ def solve_pypi(
             else:
                 link = chooser.choose_for(op.package)
                 url = link.url_without_fragment
-                hash = src_parser.HashModel(**{link.hash_name: link.hash})
+                hashes: Dict[str, str] = {}
+                if link.hash_name is not None and link.hash is not None:
+                    hashes[link.hash_name] = link.hash
+                hash = src_parser.HashModel.parse_obj(hashes)
 
             requirements.append(
                 src_parser.LockedDependency(
@@ -299,13 +308,13 @@ def solve_pypi(
         # prefer conda packages so add them afterwards
     }
 
-    for conda_name, dep in conda_locked.items():
+    for conda_name, locked_dep in conda_locked.items():
         try:
             pypi_name = conda_name_to_pypi_name(conda_name).lower()
         except KeyError:
             # no conda-name found, assuming conda packages do NOT intersect with the pip package
             continue
-        planned[pypi_name] = dep
+        planned[pypi_name] = locked_dep
 
     src_parser._apply_categories(requested=pip_specs, planned=planned)
 
