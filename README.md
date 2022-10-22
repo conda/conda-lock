@@ -368,6 +368,13 @@ python = "3.9"
 ampel-ztf = {version = "^0.8.0-alpha.2", source = "pypi"}
 ```
 
+A dependency will also be treated as a `pip` dependency if explicitly marked with `source = "pypi"` in the `[tool.conda-lock.dependencies]` section, e.g.:
+
+```toml
+[tool.conda-lock.dependencies]
+ampel-ztf = {source = "pypi"}
+```
+
 In both these cases, the dependencies of `pip`-installable packages will also be
 installed with `pip`, unless they were already requested by a `conda`
 dependency.

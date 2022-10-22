@@ -442,6 +442,8 @@ def test_parse_flit(flit_pyproject_toml: Path):
     assert specs["pytest"].optional is True
     assert specs["pytest"].category == "dev"
 
+    assert specs["toml"].manager == "pip"
+
     assert res.channels == [Channel.from_string("defaults")]
 
 
