@@ -917,7 +917,8 @@ def run_lock(
     update: Optional[List[str]] = None,
     filter_categories: bool = False,
 ) -> None:
-    if environment_files == DEFAULT_FILES:
+    # no environment files specified => from lockfile or defaults
+    if len(environment_files) == 0:
         if lockfile_path.exists():
             lock_content = parse_conda_lock_file(lockfile_path)
             # reconstruct native paths
@@ -935,13 +936,23 @@ def run_lock(
                 print(
                     f"{lockfile_path} was created from {[str(p) for p in locked_environment_files]},"
                     f" but some files ({[str(p) for p in missing]}) do not exist. Falling back to"
-                    f" {[str(p) for p in environment_files]}.",
+                    f" {[str(p) for p in DEFAULT_FILES]}.",
                     file=sys.stderr,
                 )
-        else:
-            long_ext_file = pathlib.Path("environment.yaml")
-            if long_ext_file.exists() and not environment_files[0].exists():
-                environment_files = [long_ext_file]
+        # always re-check in case no files from the lockfile were assigned
+        if len(environment_files) == 0:
+            # bail out if we do not encounter any default .y(a)ml files
+            candidates = [
+                p if p.exists() else p.with_suffix(".yaml") for p in DEFAULT_FILES
+            ]
+            environment_files = [p for p in candidates if p.exists()]
+            if len(environment_files) == 0:
+                print(
+                    f"No files exist matching the defaults"
+                    f" ({[str(p.with_suffix('.y(a)ml')) for p in DEFAULT_FILES]}).",
+                    file=sys.stderr,
+                )
+                sys.exit(1)
 
     _conda_exe = determine_conda_executable(
         conda_exe, mamba=mamba, micromamba=micromamba
@@ -1132,16 +1143,10 @@ def lock(
     if pypi_to_conda_lookup_file:
         set_lookup_location(pypi_to_conda_lookup_file)
 
-    # bail out if we do not encounter the default file if no files were passed
+    # we need to distinguish between unspecified files and specified but same as default
+    # (while keeping the CLI default to have it in the --help)
     if ctx.get_parameter_source("files") == click.core.ParameterSource.DEFAULT:
-        candidates = list(files)
-        candidates += [f.with_name(f.name.replace(".yml", ".yaml")) for f in candidates]
-        for f in candidates:
-            if f.exists():
-                break
-        else:
-            print(ctx.get_help())
-            sys.exit(1)
+        files = []
 
     if pdb:
         sys.excepthook = _handle_exception_post_mortem
