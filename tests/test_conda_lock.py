@@ -596,7 +596,7 @@ def test_run_lock_uppercase_pip(
     env_with_uppercase_pip: Path,
     conda_exe: str,
 ):
-    monkeypatch.chdir(pip_environment_regression_gh155.parent)
+    monkeypatch.chdir(env_with_uppercase_pip.parent)
     if is_micromamba(conda_exe):
         monkeypatch.setenv("CONDA_FLAGS", "-v")
     run_lock([env_with_uppercase_pip], conda_exe=conda_exe)
