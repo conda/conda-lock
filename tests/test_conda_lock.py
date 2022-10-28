@@ -184,6 +184,12 @@ def channel_inversion(tmp_path: Path):
     )
 
 
+@pytest.fixture
+def env_with_uppercase_pip(tmp_path: Path):
+    """Path to an environment.yaml that has a hardcoded channel in one of the dependencies"""
+    return clone_test_dir("test-uppercase-pip", tmp_path).joinpath("environment.yaml")
+
+
 @pytest.fixture(
     scope="function",
     params=[
@@ -583,6 +589,17 @@ def test_run_lock_regression_gh155(
     if is_micromamba(conda_exe):
         monkeypatch.setenv("CONDA_FLAGS", "-v")
     run_lock([pip_environment_regression_gh155], conda_exe=conda_exe)
+
+
+def test_run_lock_uppercase_pip(
+    monkeypatch: "pytest.MonkeyPatch",
+    env_with_uppercase_pip: Path,
+    conda_exe: str,
+):
+    monkeypatch.chdir(pip_environment_regression_gh155.parent)
+    if is_micromamba(conda_exe):
+        monkeypatch.setenv("CONDA_FLAGS", "-v")
+    run_lock([env_with_uppercase_pip], conda_exe=conda_exe)
 
 
 def test_run_lock_with_local_package(
