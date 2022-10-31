@@ -1281,7 +1281,7 @@ def install(
     with _render_lockfile_for_install(
         lock_file, include_dev_dependencies=dev, extras=set(extras)
     ) as lockfile:
-        if _auth:
+        if _auth is not None:
             with _add_auth(read_file(lockfile), _auth) as lockfile_with_auth:
                 install_func(file=lockfile_with_auth)
         else:
