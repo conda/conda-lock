@@ -187,7 +187,7 @@ def channel_inversion(tmp_path: Path):
 @pytest.fixture
 def env_with_uppercase_pip(tmp_path: Path):
     """Path to an environment.yaml that has a hardcoded channel in one of the dependencies"""
-    return clone_test_dir("test-uppercase-pip", tmp_path).joinpath("environment.yaml")
+    return clone_test_dir("test-uppercase-pip", tmp_path).joinpath("environment.yml")
 
 
 @pytest.fixture(
