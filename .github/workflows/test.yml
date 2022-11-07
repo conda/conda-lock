@@ -10,8 +10,6 @@ jobs:
       PYTHONUNBUFFERED: "1"
       FORCE_COLOR: "1"
     runs-on: windows-latest
-    strategy:
-      fail-fast: false
     steps:
       - uses: actions/checkout@v3
       - uses: conda-incubator/setup-miniconda@v2
@@ -20,11 +18,12 @@ jobs:
           channels: conda-forge
           miniforge-variant: Mambaforge
           miniforge-version: 22.9.0-1
+          auto-update-conda: false
 
       - name: Install deps
         run: |
           conda activate test
-          conda install mamba pip pytest-cov pytest-xdist
+          mamba install pip pytest-cov pytest-xdist
           python -m pip install -r requirements-dev.txt
 
       - name: install lib
@@ -47,7 +46,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ ubuntu-latest, macos-latest ]
-        python-version: [ '3.7', '3.8' ]
+        python-version: [ '3.7', '3.8', "3.10" ]
     defaults:
       run:
         shell: bash -l {0}
@@ -63,11 +62,12 @@ jobs:
           channels: conda-forge
           miniforge-variant: Mambaforge
           miniforge-version: 22.9.0-1
+          auto-update-conda: false
 
       - name: Install deps
         run: |
           conda activate test
-          conda install mamba pip pytest-cov pytest-xdist
+          mamba install pip pytest-cov pytest-xdist
           set -x
           echo "${PATH}"
           which pip
