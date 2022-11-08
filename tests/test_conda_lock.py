@@ -201,6 +201,35 @@ def include_dev_dependencies(request: Any) -> bool:
     return request.param
 
 
+@pytest.fixture(
+    scope="session",
+    params=[
+        pytest.param("conda"),
+        pytest.param("mamba"),
+        pytest.param("micromamba"),
+    ],
+)
+def _conda_exe_type(request: Any) -> str:
+    "Internal fixture to iterate over"
+    return request.param
+
+
+@pytest.fixture(scope="session")
+def conda_exe(_conda_exe_type: str) -> PathLike:
+    kwargs = dict(
+        mamba=False,
+        micromamba=False,
+        conda=False,
+        conda_exe=False,
+    )
+    kwargs[_conda_exe_type] = True
+    _conda_exe = _ensureconda(**kwargs)
+
+    if _conda_exe is not None:
+        return _conda_exe
+    raise pytest.skip(f"{_conda_exe_type} is not installed")
+
+
 def test_parse_environment_file(gdal_environment: Path):
     res = parse_environment_file(gdal_environment, pip_support=True)
     assert all(
@@ -506,10 +535,13 @@ def update_environment(tmp_path: Path) -> Path:
 @flaky
 @pytest.mark.timeout(120)
 def test_run_lock_with_update(
-    monkeypatch: "pytest.MonkeyPatch", update_environment: Path, conda_exe: str
+    monkeypatch: "pytest.MonkeyPatch",
+    update_environment: Path,
+    conda_exe: str,
+    _conda_exe_type: str,
 ):
-    if platform.system().lower() == "windows" and conda_exe == "conda":
-        raise pytest.skip(
+    if platform.system().lower() == "windows" and _conda_exe_type == "conda":
+        pytest.skip(
             reason="this test just takes too long on windows, due to the slow conda solver"
         )
 
@@ -873,30 +905,6 @@ def test_aggregate_lock_specs_invalid_channels():
     )
     with pytest.raises(ChannelAggregationError):
         agg_spec = aggregate_lock_specs([base_spec, add_conda_forge, add_pytorch])
-
-
-@pytest.fixture(
-    scope="session",
-    params=[
-        pytest.param("conda"),
-        pytest.param("mamba"),
-        pytest.param("micromamba"),
-        # pytest.param("conda_exe"),
-    ],
-)
-def conda_exe(request: "pytest.FixtureRequest") -> PathLike:
-    kwargs = dict(
-        mamba=False,
-        micromamba=False,
-        conda=False,
-        conda_exe=False,
-    )
-    kwargs[request.param] = True
-    _conda_exe = _ensureconda(**kwargs)
-
-    if _conda_exe is not None:
-        return _conda_exe
-    raise pytest.skip(f"{request.param} is not installed")
 
 
 @pytest.fixture(scope="session")
