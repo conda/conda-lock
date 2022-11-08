@@ -1218,7 +1218,10 @@ def lock(
 @click.option(
     "--copy",
     is_flag=True,
-    help="Install using `--copy`.  This is useful for building containers",
+    help=(
+        "Install using `--copy` to prevent links. "
+        "This is useful for building containers"
+    ),
 )
 @click.option("-p", "--prefix", help="Full path to environment location (i.e. prefix).")
 @click.option("-n", "--name", help="Name of environment.")

@@ -21,7 +21,7 @@ You want a dockerfile that is structured something similar to this
 # -----------------
 FROM continuumio/miniconda:latest as builder
 
-ADD conda-linux-64.lock /locks/conda-linux-64.lock
+COPY conda-linux-64.lock /locks/conda-linux-64.lock
 RUN conda create -p /opt/env --copy --file /locks/conda-linux-64.lock
 
 # -----------------
@@ -48,7 +48,7 @@ always exactly reproducible.
 
 ## conda-lock inside a build container
 
-You can also use conda-lock with a build-container style system if you mnake use of
+You can also use conda-lock with a build-container style system if you make use of
 the `--copy` flag from `conda-lock install`
 
 ```Dockerfile
