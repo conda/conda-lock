@@ -184,6 +184,12 @@ def channel_inversion(tmp_path: Path):
     )
 
 
+@pytest.fixture
+def env_with_uppercase_pip(tmp_path: Path):
+    """Path to an environment.yaml that has a hardcoded channel in one of the dependencies"""
+    return clone_test_dir("test-uppercase-pip", tmp_path).joinpath("environment.yml")
+
+
 @pytest.fixture(
     scope="function",
     params=[
@@ -193,6 +199,35 @@ def channel_inversion(tmp_path: Path):
 )
 def include_dev_dependencies(request: Any) -> bool:
     return request.param
+
+
+@pytest.fixture(
+    scope="session",
+    params=[
+        pytest.param("conda"),
+        pytest.param("mamba"),
+        pytest.param("micromamba"),
+    ],
+)
+def _conda_exe_type(request: Any) -> str:
+    "Internal fixture to iterate over"
+    return request.param
+
+
+@pytest.fixture(scope="session")
+def conda_exe(_conda_exe_type: str) -> PathLike:
+    kwargs = dict(
+        mamba=False,
+        micromamba=False,
+        conda=False,
+        conda_exe=False,
+    )
+    kwargs[_conda_exe_type] = True
+    _conda_exe = _ensureconda(**kwargs)
+
+    if _conda_exe is not None:
+        return _conda_exe
+    raise pytest.skip(f"{_conda_exe_type} is not installed")
 
 
 def test_parse_environment_file(gdal_environment: Path):
@@ -500,10 +535,13 @@ def update_environment(tmp_path: Path) -> Path:
 @flaky
 @pytest.mark.timeout(120)
 def test_run_lock_with_update(
-    monkeypatch: "pytest.MonkeyPatch", update_environment: Path, conda_exe: str
+    monkeypatch: "pytest.MonkeyPatch",
+    update_environment: Path,
+    conda_exe: str,
+    _conda_exe_type: str,
 ):
-    if platform.system().lower() == "windows" and conda_exe == "conda":
-        raise pytest.skip(
+    if platform.system().lower() == "windows" and _conda_exe_type == "conda":
+        pytest.skip(
             reason="this test just takes too long on windows, due to the slow conda solver"
         )
 
@@ -583,6 +621,17 @@ def test_run_lock_regression_gh155(
     if is_micromamba(conda_exe):
         monkeypatch.setenv("CONDA_FLAGS", "-v")
     run_lock([pip_environment_regression_gh155], conda_exe=conda_exe)
+
+
+def test_run_lock_uppercase_pip(
+    monkeypatch: "pytest.MonkeyPatch",
+    env_with_uppercase_pip: Path,
+    conda_exe: str,
+):
+    monkeypatch.chdir(env_with_uppercase_pip.parent)
+    if is_micromamba(conda_exe):
+        monkeypatch.setenv("CONDA_FLAGS", "-v")
+    run_lock([env_with_uppercase_pip], conda_exe=conda_exe)
 
 
 def test_run_lock_with_local_package(
@@ -856,30 +905,6 @@ def test_aggregate_lock_specs_invalid_channels():
     )
     with pytest.raises(ChannelAggregationError):
         agg_spec = aggregate_lock_specs([base_spec, add_conda_forge, add_pytorch])
-
-
-@pytest.fixture(
-    scope="session",
-    params=[
-        pytest.param("conda"),
-        pytest.param("mamba"),
-        pytest.param("micromamba"),
-        # pytest.param("conda_exe"),
-    ],
-)
-def conda_exe(request: "pytest.FixtureRequest") -> PathLike:
-    kwargs = dict(
-        mamba=False,
-        micromamba=False,
-        conda=False,
-        conda_exe=False,
-    )
-    kwargs[request.param] = True
-    _conda_exe = _ensureconda(**kwargs)
-
-    if _conda_exe is not None:
-        return _conda_exe
-    raise pytest.skip(f"{request.param} is not installed")
 
 
 @pytest.fixture(scope="session")
