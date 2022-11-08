@@ -23,11 +23,13 @@ class _LookupLoader:
         res = requests.get(self._mapping_url)
         res.raise_for_status()
         self._pypi_lookup = yaml.safe_load(res.content)
-        # lowercase the pypi names
+        # lowercase and kebabcase the pypi names
         assert self._pypi_lookup is not None
-        self._pypi_lookup = {k.lower(): v for k, v in self._pypi_lookup.items()}
+        self._pypi_lookup = {
+            k.lower().replace("_", "-"): v for k, v in self._pypi_lookup.items()
+        }
         for v in self._pypi_lookup.values():
-            v["pypi_name"] = v["pypi_name"].lower()
+            v["pypi_name"] = v["pypi_name"].lower().replace("_", "-")
 
     @property
     def pypi_lookup(self) -> Dict[str, MappingEntry]:

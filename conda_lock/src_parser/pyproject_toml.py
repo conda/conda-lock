@@ -30,6 +30,7 @@ def join_version_components(pieces: Sequence[Union[str, int]]) -> str:
 
 
 def normalize_pypi_name(name: str) -> str:
+    name = name.replace("_", "-").lower()
     if name in get_lookup():
         lookup = get_lookup()[name]
         res = lookup.get("conda_name") or lookup.get("conda_forge")
