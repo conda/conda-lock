@@ -265,6 +265,8 @@ def parse_python_requirement(
     name = parsed_req.unsafe_name.lower()
     collapsed_version = ",".join("".join(spec) for spec in parsed_req.specs)
     conda_version = poetry_version_to_conda_version(collapsed_version)
+    if conda_version:
+        conda_version = ",".join(sorted(conda_version.split(",")))
 
     if normalize_name:
         conda_dep_name = normalize_pypi_name(name)
