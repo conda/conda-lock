@@ -28,7 +28,7 @@ Use one of
 pipx install conda-lock
 condax install conda-lock
 pip install conda-lock
-conda install -c conda-forge conda-lock
+conda install -c conda-forge -n base conda-lock
 ```
 
 The first two options are recommended since they install conda-lock into an isolated environment. (Otherwise there is a risk of dependency conflicts.)
