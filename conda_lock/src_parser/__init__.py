@@ -147,17 +147,38 @@ class GitMeta(StrictModel):
         default=None, description="Git user.email field of global config"
     )
     git_sha: Optional[str] = Field(
-        default=None, description="sha256 hash of the most recent git commit"
+        default=None,
+        description=(
+            "sha256 hash of the most recent git commit that modified one of the input files for "
+            + "this lockfile"
+        )
     )
 
     @classmethod
-    def create(cls) -> "GitMeta":
+    def create(cls, src_files: List[pathlib.Path]) -> "GitMeta":
         import git
 
         git_sha: Optional[str]
         try:
+            most_recent_datetime: Optional[datetime.datetime] = None
             repo = git.Repo(search_parent_directories=True)
-            git_sha = f"{repo.head.object.hexsha}{'-dirty' if repo.is_dirty() else ''}"
+            for src_file in src_files:
+                commit = list(repo.iter_commits(paths=src_file, max_count=1))[0]
+                if repo.is_dirty(path=commit.path):
+                    logger.warning(
+                        f"One of the inputs to conda-lock is dirty, using commit hash of head +"
+                        " \"dirty\""
+                    )
+                    git_sha = f"{repo.head.object.hexsha}-dirty"
+                    break
+                else:
+                    if (
+                        most_recent_datetime is None
+                        or most_recent_datetime < commit.committed_datetime
+                    ):
+                        most_recent_datetime = commit.committed_datetime
+                        git_sha = commit.hexsha
+            git_sha = git_sha
         except git.exc.InvalidGitRepositoryError:
             git_sha = None
         try:
