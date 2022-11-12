@@ -631,11 +631,13 @@ def test_run_lock_with_git_metadata(
 
     import git
 
-    try:
-        _ = git.Git()().config("user.name")
-    except git.exc.GitCommandError:
-        pytest.xfail("Git config not initialized, so expected to fail.")
-
+    repo = git.Repo(search_parent_directories = True)
+    current_user_name = repo.config_reader().get_value("user", "name", None)
+    current_user_email = repo.config_reader().get_value("user", "email", None)
+    if current_user_name is None:
+        repo.config_writer().set_value("user", "name", "my_test_username").release()
+    if current_user_email is None:
+        repo.config_writer().set_value("user", "email", "my_test_email").release()
     run_lock(
         [zlib_environment],
         conda_exe=conda_exe,
@@ -658,6 +660,12 @@ def test_run_lock_with_git_metadata(
     assert (
         lockfile.metadata.git_metadata.git_user_email is not None
     ), "Git metadata user.email was None, should be some value"
+    if current_user_name is None:
+        repo.config_writer().remove_option("user", "name")
+        repo.config_writer().release()
+    if current_user_email is None:
+        repo.config_writer().remove_option("user", "email")
+        repo.config_writer().release()
 
 
 def test_run_lock_with_custom_metadata(

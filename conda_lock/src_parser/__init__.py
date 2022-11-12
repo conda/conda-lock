@@ -172,11 +172,11 @@ class GitMeta(StrictModel):
     ) -> "GitMeta":
         import git
 
-        if MetadataOption.GitSha in metadata_choices:
-            git_sha: Optional[str]
-            try:
+        try:
+            repo = git.Repo(search_parent_directories=True)
+            if MetadataOption.GitSha in metadata_choices:
+                git_sha: Optional[str]
                 most_recent_datetime: Optional[datetime.datetime] = None
-                repo = git.Repo(search_parent_directories=True)
                 for src_file in src_files:
                     relative_src_file_path = relative_path(
                         pathlib.Path(repo.working_tree_dir), src_file
@@ -199,18 +199,15 @@ class GitMeta(StrictModel):
                             most_recent_datetime = commit.committed_datetime
                             git_sha = commit.hexsha
                 git_sha = git_sha
-            except git.exc.InvalidGitRepositoryError:
-                git_sha = None
-        if MetadataOption.GitUserName in metadata_choices:
-            try:
-                git_user_name = git.Git()().config("user.name")
-            except git.exc.GitCommandError:
-                git_user_name = None
-        if MetadataOption.GitUserEmail in metadata_choices:
-            try:
-                git_user_email = git.Git()().config("user.email")
-            except git.exc.GitCommandError:
-                git_user_email = None
+            if MetadataOption.GitUserName in metadata_choices:
+                git_user_name = repo.config_reader().get_value("user", "name", None)
+            if MetadataOption.GitUserEmail in metadata_choices:
+                git_user_email = repo.config_reader().get_value("user", "email", None)
+        except git.exc.InvalidGitRepositoryError:
+            git_sha = None
+            git_user_name = None
+            git_user_email = None
+
         return cls(
             git_user_name=git_user_name,
             git_user_email=git_user_email,
