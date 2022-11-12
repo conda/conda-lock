@@ -1207,35 +1207,6 @@ TLogLevel = Union[
     help="Packages to update to their latest versions. If empty, update all.",
 )
 @click.option(
-    "--add-inputs-metadata",
-    is_flag=True,
-    help="If true add extra metadata to lockfile comments about the input files provided.",
-)
-@click.option(
-    "--add-git-metadata",
-    is_flag=True,
-    help="If true add extra metadata to lockfile comments about the git-repo.",
-)
-@click.option(
-    "--add-time-metadata",
-    is_flag=True,
-    help="If true add extra metadata to lockfile comments about the time of lockfile creation.",
-)
-@click.option(
-    "--metadata-jsons",
-    default=None,
-    multiple=True,
-    type=click.Path(),
-    help="JSON file(s) containing structured metadata to add to metadata section of the lockfile.",
-)
-@click.option(
-    "--metadata-yamls",
-    default=None,
-    multiple=True,
-    type=click.Path(),
-    help="YAML file(s) containing structured metadata to add to metadata section of the lockfile.",
-)
-@click.option(
     "--pypi_to_conda_lookup_file",
     type=str,
     help="Location of the lookup file containing Pypi package names to conda names.",
