@@ -630,9 +630,7 @@ def test_run_lock_with_git_metadata(
     git_metadata_zlib_environment: Path,
     conda_exe: str,
 ):
-    GIT_DIR = TEST_DIR / "test-git-metadata"
-    GIT_DIR.mkdir(exist_ok=True)
-    monkeypatch.chdir(GIT_DIR)
+    monkeypatch.chdir(git_metadata_zlib_environment.parent)
     if is_micromamba(conda_exe):
         monkeypatch.setenv("CONDA_FLAGS", "-v")
 
@@ -663,7 +661,9 @@ def test_run_lock_with_git_metadata(
             ]
         ),
     )
-    lockfile = parse_conda_lock_file(GIT_DIR / DEFAULT_LOCKFILE_NAME)
+    lockfile = parse_conda_lock_file(
+        git_metadata_zlib_environment.parent / DEFAULT_LOCKFILE_NAME
+    )
 
     assert (
         lockfile.metadata.git_metadata is not None
