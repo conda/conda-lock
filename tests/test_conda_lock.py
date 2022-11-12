@@ -63,8 +63,8 @@ from conda_lock.src_parser import (
     HashModel,
     LockedDependency,
     LockSpecification,
-    Selectors,
     MetadataOption,
+    Selectors,
     VersionedDependency,
 )
 from conda_lock.src_parser.environment_yaml import parse_environment_file
@@ -902,8 +902,6 @@ def test_poetry_version_parsing_constraints(
                 conda=_conda_exe,
                 spec=spec,
                 lockfile_path=Path(DEFAULT_LOCKFILE_NAME),
-                add_git_metadata=False,
-                add_time_metadata=False,
                 metadata_jsons=None,
                 metadata_yamls=None,
             )
