@@ -23,6 +23,7 @@ import pytest
 import yaml
 
 from flaky import flaky
+from freezegun import freeze_time
 
 from conda_lock import __version__
 from conda_lock._vendor.conda.models.match_spec import MatchSpec
@@ -63,6 +64,7 @@ from conda_lock.src_parser import (
     LockedDependency,
     LockSpecification,
     Selectors,
+    MetadataOption,
     VersionedDependency,
 )
 from conda_lock.src_parser.environment_yaml import parse_environment_file
@@ -559,7 +561,16 @@ def test_run_lock_with_input_metadata(
     monkeypatch.chdir(zlib_environment.parent)
     if is_micromamba(conda_exe):
         monkeypatch.setenv("CONDA_FLAGS", "-v")
-    run_lock([zlib_environment], conda_exe=conda_exe, add_inputs_metadata=True)
+    run_lock(
+        [zlib_environment],
+        conda_exe=conda_exe,
+        metadata_choices=set(
+            [
+                MetadataOption.InputMd5,
+                MetadataOption.InputSha,
+            ]
+        ),
+    )
     lockfile = parse_conda_lock_file(zlib_environment.parent / DEFAULT_LOCKFILE_NAME)
 
     inputs_metadata = lockfile.metadata.inputs_metadata
@@ -579,21 +590,30 @@ def test_run_lock_with_time_metadata(
 ):
     TIME_DIR = TEST_DIR / "test-time-metadata"
 
-    start_time = datetime.datetime.utcnow()
     TIME_DIR.mkdir(exist_ok=True)
     monkeypatch.chdir(TIME_DIR)
     if is_micromamba(conda_exe):
         monkeypatch.setenv("CONDA_FLAGS", "-v")
-    run_lock([zlib_environment], conda_exe=conda_exe, add_time_metadata=True)
-    end_time = datetime.datetime.utcnow()
+    frozen_datetime = datetime.datetime(
+        year=1, month=7, day=12, hour=15, minute=6, second=3
+    )
+    with freeze_time(frozen_datetime):
+        run_lock(
+            [zlib_environment],
+            conda_exe=conda_exe,
+            metadata_choices=set(
+                [
+                    MetadataOption.TimeStamp,
+                ]
+            ),
+        )
     lockfile = parse_conda_lock_file(TIME_DIR / DEFAULT_LOCKFILE_NAME)
 
     time_metadata = lockfile.metadata.time_metadata
     assert time_metadata is not None, "Time metadata was None"
     assert (
-        start_time
-        < datetime.datetime.fromisoformat(time_metadata.created_at.rstrip("Z"))
-        < end_time
+        datetime.datetime.fromisoformat(time_metadata.created_at.rstrip("Z"))
+        == frozen_datetime
     ), (
         "Datetime added to lockfile didn't match expectation based on timestamps at start and end"
         + " of test"
@@ -616,7 +636,17 @@ def test_run_lock_with_git_metadata(
     except git.exc.GitCommandError:
         pytest.xfail("Git config not initialized, so expected to fail.")
 
-    run_lock([zlib_environment], conda_exe=conda_exe, add_git_metadata=True)
+    run_lock(
+        [zlib_environment],
+        conda_exe=conda_exe,
+        metadata_choices=set(
+            [
+                MetadataOption.GitSha,
+                MetadataOption.GitUserName,
+                MetadataOption.GitUserEmail,
+            ]
+        ),
+    )
     lockfile = parse_conda_lock_file(GIT_DIR / DEFAULT_LOCKFILE_NAME)
 
     assert (
@@ -872,10 +902,6 @@ def test_poetry_version_parsing_constraints(
                 conda=_conda_exe,
                 spec=spec,
                 lockfile_path=Path(DEFAULT_LOCKFILE_NAME),
-                add_git_metadata=False,
-                add_time_metadata=False,
-                metadata_jsons=None,
-                metadata_yamls=None,
             )
 
         python = next(p for p in lockfile_contents.package if p.name == "python")

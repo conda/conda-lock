@@ -71,6 +71,7 @@ from conda_lock.src_parser import (
     Lockfile,
     LockMeta,
     LockSpecification,
+    MetadataOption,
     TimeMeta,
     UpdateSpecification,
     aggregate_lock_specs,
@@ -286,9 +287,7 @@ def make_lock_files(
     filter_categories: bool = True,
     extras: Optional[AbstractSet[str]] = None,
     check_input_hash: bool = False,
-    add_inputs_metadata: bool = False,
-    add_git_metadata: bool = False,
-    add_time_metadata: bool = False,
+    metadata_choices: Optional[Set[MetadataOption]] = None,
     metadata_jsons: Optional[List[pathlib.Path]] = None,
     metadata_yamls: Optional[List[pathlib.Path]] = None,
 ) -> None:
@@ -324,12 +323,8 @@ def make_lock_files(
         Filter out unused categories prior to solving
     check_input_hash :
         Do not re-solve for each target platform for which specifications are unchanged
-    add_inputs_metadata:
-        If true add extra metadata to lockfile comments about the input files provided.
-    add_git_metadata:
-        If true add extra metadata to lockfile comments about the git-repo.
-    add_time_metadata:
-        If true add extra metadata to lockfile comments about the time of lockfile creation.
+    metadata_choices:
+        Set of selected metadata fields to generate for this lockfile.
     metadata_jsons:
         JSON file(s) containing structured metadata to add to metadata section of the lockfile.
     metadata_yamls:
@@ -410,15 +405,17 @@ def make_lock_files(
                 platforms=platforms_to_lock,
                 lockfile_path=lockfile_path,
                 update_spec=update_spec,
-                add_git_metadata=add_git_metadata,
-                add_time_metadata=add_time_metadata,
-                add_inputs_metadata=add_inputs_metadata,
+                metadata_choices=metadata_choices,
                 metadata_jsons=metadata_jsons,
                 metadata_yamls=metadata_yamls,
             )
 
             if "lock" in kinds:
-                write_conda_lock_file(lock_content, lockfile_path)
+                write_conda_lock_file(
+                    lock_content,
+                    lockfile_path,
+                    metadata_choices=metadata_choices,
+                )
                 print(
                     " - Install lock using:",
                     KIND_USE_TEXT["lock"].format(lockfile=str(lockfile_path)),
@@ -786,11 +783,9 @@ def create_lockfile_from_spec(
     platforms: List[str] = [],
     lockfile_path: pathlib.Path,
     update_spec: Optional[UpdateSpecification] = None,
-    add_git_metadata: bool = False,
-    add_time_metadata: bool = False,
+    metadata_choices: Optional[Set[MetadataOption]] = None,
     metadata_jsons: Optional[List[pathlib.Path]] = None,
     metadata_yamls: Optional[List[pathlib.Path]] = None,
-    add_inputs_metadata: bool = False,
 ) -> Lockfile:
     """
     Solve or update specification
@@ -813,20 +808,43 @@ def create_lockfile_from_spec(
         for dep in deps:
             locked[(dep.manager, dep.name, dep.platform)] = dep
 
-    time_metadata = TimeMeta.create() if add_time_metadata else None
-
     spec_sources = {
         relative_path(lockfile_path.parent, source): source for source in spec.sources
     }
-    git_metadata = GitMeta.create(
-        src_files=list(spec_sources.keys())
-    ) if add_git_metadata else None
+
+    time_metadata = (
+        TimeMeta.create()
+        if metadata_choices is not None and MetadataOption.TimeStamp in metadata_choices
+        else None
+    )
+    git_metadata = (
+        GitMeta.create(
+            metadata_choices=metadata_choices,
+            src_files=spec.sources,
+        )
+        if metadata_choices is not None
+        and any(
+            x in metadata_choices
+            for x in [
+                MetadataOption.GitSha,
+                MetadataOption.GitUserEmail,
+                MetadataOption.GitUserName,
+            ]
+        )
+        else None
+    )
     inputs_metadata: Optional[Dict[str, InputMeta]] = (
         {
-            relative_path: InputMeta.create(src_file=src_file)
+            relative_path: InputMeta.create(
+                metadata_choices=metadata_choices, src_file=src_file
+            )
             for relative_path, src_file in spec_sources.items()
         }
-        if add_inputs_metadata is not None
+        if metadata_choices is not None
+        and any(
+            x in metadata_choices
+            for x in [MetadataOption.InputSha, MetadataOption.InputMd5]
+        )
         else None
     )
     custom_metadata: Optional[Dict[str, str]] = (
@@ -1012,9 +1030,7 @@ def run_lock(
     virtual_package_spec: Optional[pathlib.Path] = None,
     update: Optional[List[str]] = None,
     filter_categories: bool = False,
-    add_inputs_metadata: bool = False,
-    add_git_metadata: bool = False,
-    add_time_metadata: bool = False,
+    metadata_choices: Optional[Set[MetadataOption]] = None,
     metadata_jsons: Optional[List[pathlib.Path]] = None,
     metadata_yamls: Optional[List[pathlib.Path]] = None,
 ) -> None:
@@ -1061,9 +1077,7 @@ def run_lock(
         extras=extras,
         check_input_hash=check_input_hash,
         filter_categories=filter_categories,
-        add_inputs_metadata=add_inputs_metadata,
-        add_git_metadata=add_git_metadata,
-        add_time_metadata=add_time_metadata,
+        metadata_choices=metadata_choices,
         metadata_jsons=metadata_jsons,
         metadata_yamls=metadata_yamls,
     )
@@ -1198,19 +1212,13 @@ TLogLevel = Union[
     help="Location of the lookup file containing Pypi package names to conda names.",
 )
 @click.option(
-    "--add-inputs-metadata",
-    is_flag=True,
-    help="If true add extra metadata to lockfile comments about the input files provided.",
-)
-@click.option(
-    "--add-git-metadata",
-    is_flag=True,
-    help="If true add extra metadata to lockfile comments about the git-repo.",
-)
-@click.option(
-    "--add-time-metadata",
-    is_flag=True,
-    help="If true add extra metadata to lockfile comments about the time of lockfile creation.",
+    "--md",
+    "--metadata",
+    "metadata_choices",
+    default=[],
+    multiple=True,
+    type=click.Choice([md.value for md in MetadataOption]),
+    help="Metadata fields to include in lock-file",
 )
 @click.option(
     "--metadata-jsons",
@@ -1248,9 +1256,7 @@ def lock(
     virtual_package_spec: Optional[PathLike],
     pypi_to_conda_lookup_file: Optional[str],
     update: Optional[List[str]] = None,
-    add_inputs_metadata: bool = False,
-    add_git_metadata: bool = False,
-    add_time_metadata: bool = False,
+    metadata_choices: List[str] = [],
     metadata_jsons: Optional[List[pathlib.Path]] = None,
     metadata_yamls: Optional[List[pathlib.Path]] = None,
 ) -> None:
@@ -1271,6 +1277,9 @@ def lock(
     # Set Pypi <--> Conda lookup file location
     if pypi_to_conda_lookup_file:
         set_lookup_location(pypi_to_conda_lookup_file)
+
+    metadata_enum_choices = set(MetadataOption(md) for md in metadata_choices)
+
     if metadata_jsons is not None:
         metadata_jsons = [pathlib.Path(path) for path in metadata_jsons]
     if metadata_yamls is not None:
@@ -1320,9 +1329,7 @@ def lock(
         virtual_package_spec=virtual_package_spec,
         update=update,
         filter_categories=filter_categories,
-        add_inputs_metadata=add_inputs_metadata,
-        add_git_metadata=add_git_metadata,
-        add_time_metadata=add_time_metadata,
+        metadata_choices=metadata_enum_choices,
         metadata_jsons=metadata_jsons,
         metadata_yamls=metadata_yamls,
     )

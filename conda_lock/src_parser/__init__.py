@@ -1,4 +1,5 @@
 import datetime
+import enum
 import hashlib
 import json
 import logging
@@ -26,7 +27,7 @@ if TYPE_CHECKING:
 from pydantic import BaseModel, Field, validator
 from typing_extensions import Literal
 
-from conda_lock.common import ordered_union, suffix_union
+from conda_lock.common import ordered_union, relative_path, suffix_union
 from conda_lock.errors import ChannelAggregationError
 from conda_lock.models.channel import Channel
 from conda_lock.virtual_package import FakeRepoData
@@ -120,6 +121,15 @@ class LockedDependency(StrictModel):
         return v
 
 
+class MetadataOption(enum.Enum):
+    TimeStamp = "timestamp"
+    GitSha = "git_sha"
+    GitUserName = "git_user_name"
+    GitUserEmail = "git_user_email"
+    InputMd5 = "input_md5"
+    InputSha = "input_sha"
+
+
 class TimeMeta(StrictModel):
     """Stores information about when the lockfile was generated."""
 
@@ -151,42 +161,56 @@ class GitMeta(StrictModel):
         description=(
             "sha256 hash of the most recent git commit that modified one of the input files for "
             + "this lockfile"
-        )
+        ),
     )
 
     @classmethod
-    def create(cls, src_files: List[pathlib.Path]) -> "GitMeta":
+    def create(
+        cls,
+        metadata_choices: Set[MetadataOption],
+        src_files: List[pathlib.Path],
+    ) -> "GitMeta":
         import git
 
-        git_sha: Optional[str]
-        try:
-            most_recent_datetime: Optional[datetime.datetime] = None
-            repo = git.Repo(search_parent_directories=True)
-            for src_file in src_files:
-                commit = list(repo.iter_commits(paths=src_file, max_count=1))[0]
-                if repo.is_dirty(path=commit.path):
-                    logger.warning(
-                        f"One of the inputs to conda-lock is dirty, using commit hash of head +"
-                        " \"dirty\""
+        if MetadataOption.GitSha in metadata_choices:
+            git_sha: Optional[str]
+            try:
+                most_recent_datetime: Optional[datetime.datetime] = None
+                repo = git.Repo(search_parent_directories=True)
+                for src_file in src_files:
+                    relative_src_file_path = relative_path(
+                        pathlib.Path(repo.working_tree_dir), src_file
                     )
-                    git_sha = f"{repo.head.object.hexsha}-dirty"
-                    break
-                else:
-                    if (
-                        most_recent_datetime is None
-                        or most_recent_datetime < commit.committed_datetime
-                    ):
-                        most_recent_datetime = commit.committed_datetime
-                        git_sha = commit.hexsha
-            git_sha = git_sha
-        except git.exc.InvalidGitRepositoryError:
-            git_sha = None
-        try:
-            git_user_name = git.Git()().config("user.name")
-            git_user_email = git.Git()().config("user.email")
-        except git.exc.GitCommandError:
-            git_user_name = None
-            git_user_email = None
+                    commit = list(
+                        repo.iter_commits(paths=relative_src_file_path, max_count=1)
+                    )[0]
+                    if repo.is_dirty(path=relative_src_file_path):
+                        logger.warning(
+                            "One of the inputs to conda-lock is dirty, using commit hash of head +"
+                            ' "dirty"'
+                        )
+                        git_sha = f"{repo.head.object.hexsha}-dirty"
+                        break
+                    else:
+                        if (
+                            most_recent_datetime is None
+                            or most_recent_datetime < commit.committed_datetime
+                        ):
+                            most_recent_datetime = commit.committed_datetime
+                            git_sha = commit.hexsha
+                git_sha = git_sha
+            except git.exc.InvalidGitRepositoryError:
+                git_sha = None
+        if MetadataOption.GitUserName in metadata_choices:
+            try:
+                git_user_name = git.Git()().config("user.name")
+            except git.exc.GitCommandError:
+                git_user_name = None
+        if MetadataOption.GitUserEmail in metadata_choices:
+            try:
+                git_user_email = git.Git()().config("user.email")
+            except git.exc.GitCommandError:
+                git_user_email = None
         return cls(
             git_user_name=git_user_name,
             git_user_email=git_user_email,
@@ -197,14 +221,24 @@ class GitMeta(StrictModel):
 class InputMeta(StrictModel):
     """Stores information about an input provided to generate the lockfile."""
 
-    md5: str = Field(..., description="md5 checksum for an input file")
-    sha256: str = Field(..., description="md5 checksum for an input file")
+    md5: Optional[str] = Field(..., description="md5 checksum for an input file")
+    sha256: Optional[str] = Field(..., description="md5 checksum for an input file")
 
     @classmethod
-    def create(cls, src_file: pathlib.Path) -> "InputMeta":
+    def create(
+        cls, metadata_choices: Set[MetadataOption], src_file: pathlib.Path
+    ) -> "InputMeta":
+        if MetadataOption.InputSha in metadata_choices:
+            sha256 = cls.get_input_sha256(src_file=src_file)
+        else:
+            sha256 = None
+        if MetadataOption.InputMd5 in metadata_choices:
+            md5 = cls.get_input_md5(src_file=src_file)
+        else:
+            md5 = None
         return cls(
-            md5=f"{cls.get_input_md5(src_file=src_file)}",
-            sha256=f"{cls.get_input_sha256(src_file=src_file)}",
+            md5=md5,
+            sha256=sha256,
         )
 
     @classmethod
