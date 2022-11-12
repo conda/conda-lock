@@ -808,9 +808,15 @@ def create_lockfile_from_spec(
         for dep in deps:
             locked[(dep.manager, dep.name, dep.platform)] = dep
 
-    spec_sources = {
-        relative_path(lockfile_path.parent, source): source for source in spec.sources
-    }
+    spec_sources: Dict[str, pathlib.Path] = {}
+    for source in spec.sources:
+        try:
+            path = relative_path(lockfile_path.parent, source)
+        except ValueError as e:
+            if "Paths don't have the same drive" not in str(e):
+                raise e
+            path = str(source.resolve())
+        spec_sources[path] = source
 
     time_metadata = (
         TimeMeta.create()
