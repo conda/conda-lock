@@ -680,11 +680,13 @@ def test_run_lock_with_git_metadata(
         lockfile.metadata.git_metadata.git_user_email is not None
     ), "Git metadata user.email was None, should be some value"
     if current_user_name is None:
-        repo.config_writer().remove_option("user", "name")
-        repo.config_writer().release()
+        config = repo.config_writer()
+        config.remove_option("user", "name")
+        config.release()
     if current_user_email is None:
-        repo.config_writer().remove_option("user", "email")
-        repo.config_writer().release()
+        config = repo.config_writer()
+        config.remove_option("user", "email")
+        config.release()
 
 
 def test_run_lock_with_custom_metadata(
