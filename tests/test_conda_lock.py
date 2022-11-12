@@ -631,7 +631,7 @@ def test_run_lock_with_git_metadata(
 
     import git
 
-    repo = git.Repo(search_parent_directories = True)
+    repo = git.Repo(search_parent_directories=True)
     current_user_name = repo.config_reader().get_value("user", "name", None)
     current_user_email = repo.config_reader().get_value("user", "email", None)
     if current_user_name is None:
