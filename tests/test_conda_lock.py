@@ -193,6 +193,11 @@ def env_with_uppercase_pip(tmp_path: Path):
     return clone_test_dir("test-uppercase-pip", tmp_path).joinpath("environment.yml")
 
 
+@pytest.fixture
+def git_metadata_zlib_environment(tmp_path: Path):
+    return clone_test_dir("zlib", tmp_path).joinpath("environment.yml")
+
+
 @pytest.fixture(
     scope="function",
     params=[
@@ -621,7 +626,9 @@ def test_run_lock_with_time_metadata(
 
 
 def test_run_lock_with_git_metadata(
-    monkeypatch: "pytest.MonkeyPatch", zlib_environment: Path, conda_exe: str
+    monkeypatch: "pytest.MonkeyPatch",
+    git_metadata_zlib_environment: Path,
+    conda_exe: str,
 ):
     GIT_DIR = TEST_DIR / "test-git-metadata"
     GIT_DIR.mkdir(exist_ok=True)
@@ -631,7 +638,14 @@ def test_run_lock_with_git_metadata(
 
     import git
 
-    repo = git.Repo(search_parent_directories=True)
+    try:
+        repo = git.Repo(search_parent_directories=True)
+    except git.exc.InvalidGitRepositoryError:
+        repo = git.Repo.init()
+        repo.index.add([git_metadata_zlib_environment])
+        repo.index.commit(
+            "temporary commit for running via github actions without failure"
+        )
     current_user_name = repo.config_reader().get_value("user", "name", None)
     current_user_email = repo.config_reader().get_value("user", "email", None)
     if current_user_name is None:
@@ -639,7 +653,7 @@ def test_run_lock_with_git_metadata(
     if current_user_email is None:
         repo.config_writer().set_value("user", "email", "my_test_email").release()
     run_lock(
-        [zlib_environment],
+        [git_metadata_zlib_environment],
         conda_exe=conda_exe,
         metadata_choices=set(
             [
