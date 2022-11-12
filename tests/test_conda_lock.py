@@ -23,6 +23,7 @@ import pytest
 import yaml
 
 from flaky import flaky
+from freezegun import freeze_time
 
 from conda_lock import __version__
 from conda_lock._vendor.conda.models.match_spec import MatchSpec
@@ -63,6 +64,7 @@ from conda_lock.src_parser import (
     LockedDependency,
     LockSpecification,
     Selectors,
+    MetadataOption,
     VersionedDependency,
 )
 from conda_lock.src_parser.environment_yaml import parse_environment_file
@@ -185,6 +187,12 @@ def channel_inversion(tmp_path: Path):
     )
 
 
+@pytest.fixture
+def env_with_uppercase_pip(tmp_path: Path):
+    """Path to an environment.yaml that has a hardcoded channel in one of the dependencies"""
+    return clone_test_dir("test-uppercase-pip", tmp_path).joinpath("environment.yml")
+
+
 @pytest.fixture(
     scope="function",
     params=[
@@ -194,6 +202,35 @@ def channel_inversion(tmp_path: Path):
 )
 def include_dev_dependencies(request: Any) -> bool:
     return request.param
+
+
+@pytest.fixture(
+    scope="session",
+    params=[
+        pytest.param("conda"),
+        pytest.param("mamba"),
+        pytest.param("micromamba"),
+    ],
+)
+def _conda_exe_type(request: Any) -> str:
+    "Internal fixture to iterate over"
+    return request.param
+
+
+@pytest.fixture(scope="session")
+def conda_exe(_conda_exe_type: str) -> PathLike:
+    kwargs = dict(
+        mamba=False,
+        micromamba=False,
+        conda=False,
+        conda_exe=False,
+    )
+    kwargs[_conda_exe_type] = True
+    _conda_exe = _ensureconda(**kwargs)
+
+    if _conda_exe is not None:
+        return _conda_exe
+    raise pytest.skip(f"{_conda_exe_type} is not installed")
 
 
 JSON_FIELDS: Dict[str, str] = {"json_unique_field": "test1", "common_field": "test2"}
@@ -477,6 +514,8 @@ def test_parse_flit(flit_pyproject_toml: Path):
     assert specs["pytest"].optional is True
     assert specs["pytest"].category == "dev"
 
+    assert specs["toml"].manager == "pip"
+
     assert res.channels == [Channel.from_string("defaults")]
 
 
@@ -522,7 +561,16 @@ def test_run_lock_with_input_metadata(
     monkeypatch.chdir(zlib_environment.parent)
     if is_micromamba(conda_exe):
         monkeypatch.setenv("CONDA_FLAGS", "-v")
-    run_lock([zlib_environment], conda_exe=conda_exe, add_inputs_metadata=True)
+    run_lock(
+        [zlib_environment],
+        conda_exe=conda_exe,
+        metadata_choices=set(
+            [
+                MetadataOption.InputMd5,
+                MetadataOption.InputSha,
+            ]
+        ),
+    )
     lockfile = parse_conda_lock_file(zlib_environment.parent / DEFAULT_LOCKFILE_NAME)
 
     inputs_metadata = lockfile.metadata.inputs_metadata
@@ -542,21 +590,30 @@ def test_run_lock_with_time_metadata(
 ):
     TIME_DIR = TEST_DIR / "test-time-metadata"
 
-    start_time = datetime.datetime.utcnow()
     TIME_DIR.mkdir(exist_ok=True)
     monkeypatch.chdir(TIME_DIR)
     if is_micromamba(conda_exe):
         monkeypatch.setenv("CONDA_FLAGS", "-v")
-    run_lock([zlib_environment], conda_exe=conda_exe, add_time_metadata=True)
-    end_time = datetime.datetime.utcnow()
+    frozen_datetime = datetime.datetime(
+        year=1, month=7, day=12, hour=15, minute=6, second=3
+    )
+    with freeze_time(frozen_datetime):
+        run_lock(
+            [zlib_environment],
+            conda_exe=conda_exe,
+            metadata_choices=set(
+                [
+                    MetadataOption.TimeStamp,
+                ]
+            ),
+        )
     lockfile = parse_conda_lock_file(TIME_DIR / DEFAULT_LOCKFILE_NAME)
 
     time_metadata = lockfile.metadata.time_metadata
     assert time_metadata is not None, "Time metadata was None"
     assert (
-        start_time
-        < datetime.datetime.fromisoformat(time_metadata.created_at.rstrip("Z"))
-        < end_time
+        datetime.datetime.fromisoformat(time_metadata.created_at.rstrip("Z"))
+        == frozen_datetime
     ), (
         "Datetime added to lockfile didn't match expectation based on timestamps at start and end"
         + " of test"
@@ -579,7 +636,17 @@ def test_run_lock_with_git_metadata(
     except git.exc.GitCommandError:
         pytest.xfail("Git config not initialized, so expected to fail.")
 
-    run_lock([zlib_environment], conda_exe=conda_exe, add_git_metadata=True)
+    run_lock(
+        [zlib_environment],
+        conda_exe=conda_exe,
+        metadata_choices=set(
+            [
+                MetadataOption.GitSha,
+                MetadataOption.GitUserName,
+                MetadataOption.GitUserEmail,
+            ]
+        ),
+    )
     lockfile = parse_conda_lock_file(GIT_DIR / DEFAULT_LOCKFILE_NAME)
 
     assert (
@@ -638,10 +705,13 @@ def update_environment(tmp_path: Path) -> Path:
 @flaky
 @pytest.mark.timeout(120)
 def test_run_lock_with_update(
-    monkeypatch: "pytest.MonkeyPatch", update_environment: Path, conda_exe: str
+    monkeypatch: "pytest.MonkeyPatch",
+    update_environment: Path,
+    conda_exe: str,
+    _conda_exe_type: str,
 ):
-    if platform.system().lower() == "windows" and conda_exe == "conda":
-        raise pytest.skip(
+    if platform.system().lower() == "windows" and _conda_exe_type == "conda":
+        pytest.skip(
             reason="this test just takes too long on windows, due to the slow conda solver"
         )
 
@@ -721,6 +791,17 @@ def test_run_lock_regression_gh155(
     if is_micromamba(conda_exe):
         monkeypatch.setenv("CONDA_FLAGS", "-v")
     run_lock([pip_environment_regression_gh155], conda_exe=conda_exe)
+
+
+def test_run_lock_uppercase_pip(
+    monkeypatch: "pytest.MonkeyPatch",
+    env_with_uppercase_pip: Path,
+    conda_exe: str,
+):
+    monkeypatch.chdir(env_with_uppercase_pip.parent)
+    if is_micromamba(conda_exe):
+        monkeypatch.setenv("CONDA_FLAGS", "-v")
+    run_lock([env_with_uppercase_pip], conda_exe=conda_exe)
 
 
 def test_run_lock_with_local_package(
@@ -998,30 +1079,6 @@ def test_aggregate_lock_specs_invalid_channels():
     )
     with pytest.raises(ChannelAggregationError):
         agg_spec = aggregate_lock_specs([base_spec, add_conda_forge, add_pytorch])
-
-
-@pytest.fixture(
-    scope="session",
-    params=[
-        pytest.param("conda"),
-        pytest.param("mamba"),
-        pytest.param("micromamba"),
-        # pytest.param("conda_exe"),
-    ],
-)
-def conda_exe(request: "pytest.FixtureRequest") -> PathLike:
-    kwargs = dict(
-        mamba=False,
-        micromamba=False,
-        conda=False,
-        conda_exe=False,
-    )
-    kwargs[request.param] = True
-    _conda_exe = _ensureconda(**kwargs)
-
-    if _conda_exe is not None:
-        return _conda_exe
-    raise pytest.skip(f"{request.param} is not installed")
 
 
 @pytest.fixture(scope="session")

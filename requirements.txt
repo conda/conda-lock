@@ -36,3 +36,4 @@ requests >=2.18
 tomlkit >=0.7.0
 # poetry:
 virtualenv >=20.0.26
+gitpython

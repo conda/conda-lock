@@ -1,5 +1,6 @@
 import collections
 import collections.abc
+import logging
 import pathlib
 
 from functools import partial
@@ -29,9 +30,15 @@ def join_version_components(pieces: Sequence[Union[str, int]]) -> str:
 
 
 def normalize_pypi_name(name: str) -> str:
+    name = name.replace("_", "-").lower()
     if name in get_lookup():
         lookup = get_lookup()[name]
-        return lookup.get("conda_name") or lookup.get("conda_forge")
+        res = lookup.get("conda_name") or lookup.get("conda_forge")
+        if res is not None:
+            return res
+        else:
+            logging.warning(f"Could not find conda name for {name}. Assuming identity.")
+            return name
     else:
         return name
 
@@ -162,23 +169,32 @@ def parse_poetry_pyproject_toml(
 def specification_with_dependencies(
     path: pathlib.Path, toml_contents: Mapping[str, Any], dependencies: List[Dependency]
 ) -> LockSpecification:
+    force_pypi = set()
     for depname, depattrs in get_in(
         ["tool", "conda-lock", "dependencies"], toml_contents, {}
     ).items():
         if isinstance(depattrs, str):
             conda_version = depattrs
+            dependencies.append(
+                VersionedDependency(
+                    name=depname,
+                    version=conda_version,
+                    manager="conda",
+                    optional=False,
+                    category="main",
+                    extras=[],
+                )
+            )
+        elif isinstance(depattrs, collections.abc.Mapping):
+            if depattrs.get("source", None) == "pypi":
+                force_pypi.add(depname)
         else:
             raise TypeError(f"Unsupported type for dependency: {depname}: {depattrs:r}")
-        dependencies.append(
-            VersionedDependency(
-                name=depname,
-                version=conda_version,
-                manager="conda",
-                optional=False,
-                category="main",
-                extras=[],
-            )
-        )
+
+    if force_pypi:
+        for dep in dependencies:
+            if dep.name in force_pypi:
+                dep.manager = "pip"
 
     return LockSpecification(
         dependencies=dependencies,
@@ -246,7 +262,7 @@ def parse_python_requirement(
     from pkg_resources import Requirement
 
     parsed_req = Requirement.parse(requirement_specifier)
-    name = parsed_req.unsafe_name
+    name = parsed_req.unsafe_name.lower()
     collapsed_version = ",".join("".join(spec) for spec in parsed_req.specs)
     conda_version = poetry_version_to_conda_version(collapsed_version)
 
