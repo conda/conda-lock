@@ -644,8 +644,13 @@ def test_run_lock_with_git_metadata(
         repo.index.commit(
             "temporary commit for running via github actions without failure"
         )
-    current_user_name = repo.config_reader().get_value("user", "name", None)
-    current_user_email = repo.config_reader().get_value("user", "email", None)
+    if repo.has_section("user"):
+        current_user_name = repo.config_reader().get_value("user", "name", None)
+        current_user_email = repo.config_reader().get_value("user", "email", None)
+    else:
+        current_user_name = None
+        current_user_email = None
+
     if current_user_name is None:
         repo.config_writer().set_value("user", "name", "my_test_username").release()
     if current_user_email is None:
