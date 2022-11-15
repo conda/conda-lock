@@ -873,7 +873,13 @@ def _render_lockfile_for_install(
     platform = platform_subdir()
     if platform not in lock_content.metadata.platforms:
         raise PlatformValidationError(
-            f"Dependencies are not locked for the current platform ({platform})"
+            f"The lockfile {filename} does not contain a solution for the current "
+            f"platform {platform}. The lockfile only contains solutions for the "
+            f"following platforms: {', '.join(lock_content.metadata.platforms)}. In "
+            f"order to support {platform}, you must regenerate the lockfile. Either "
+            f"add a 'platforms:' section to your environment.yml containing "
+            f"'- {platform}', or add the '--platform={platform}' argument to the "
+            f"conda-lock command."
         )
 
     # TODO: Move to LockFile
