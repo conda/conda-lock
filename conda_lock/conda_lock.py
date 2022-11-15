@@ -190,7 +190,11 @@ def do_validate_platform(lockfile: str) -> None:
 
 
 def do_conda_install(
-    conda: PathLike, prefix: Optional[str], name: Optional[str], file: pathlib.Path
+    conda: PathLike,
+    prefix: "str | None",
+    name: "str | None",
+    file: pathlib.Path,
+    copy: bool,
 ) -> None:
 
     _conda = partial(_invoke_conda, conda, prefix, name, check_call=True)
@@ -207,13 +211,18 @@ def do_conda_install(
     else:
         pip_requirements = []
 
+    env_prefix = ["env"] if kind == "env" and not is_micromamba(conda) else []
+    copy_arg = ["--copy"] if kind != "env" and copy else []
+    yes_arg = ["--yes"] if kind != "env" else []
+
     _conda(
         [
-            *(["env"] if kind == "env" and not is_micromamba(conda) else []),
+            *env_prefix,
             "create",
+            *copy_arg,
             "--file",
             str(file),
-            *([] if kind == "env" else ["--yes"]),
+            *yes_arg,
         ],
     )
 
@@ -954,8 +963,22 @@ def _render_lockfile_for_install(
 
     platform = platform_subdir()
     if platform not in lock_content.metadata.platforms:
+        suggested_platforms_section = "platforms:\n- "
+        suggested_platforms_section += "\n- ".join(
+            [platform] + lock_content.metadata.platforms
+        )
+        suggested_platform_args = "--platform=" + " --platform=".join(
+            [platform] + lock_content.metadata.platforms
+        )
         raise PlatformValidationError(
-            f"Dependencies are not locked for the current platform ({platform})"
+            f"The lockfile {filename} does not contain a solution for the current "
+            f"platform {platform}. The lockfile only contains solutions for the "
+            f"following platforms: {', '.join(lock_content.metadata.platforms)}. In "
+            f"order to add support for {platform}, you must regenerate the lockfile. "
+            f"Either add the following section to your environment.yml:\n\n"
+            f"{suggested_platforms_section}\n\n"
+            f"or add the following arguments to the conda-lock command:\n\n"
+            f"{suggested_platform_args}\n\n"
         )
 
     # TODO: Move to LockFile
@@ -1319,6 +1342,14 @@ def lock(
     default=False,
     help="don't attempt to use or install micromamba.",
 )
+@click.option(
+    "--copy",
+    is_flag=True,
+    help=(
+        "Install using `--copy` to prevent links. "
+        "This is useful for building containers"
+    ),
+)
 @click.option("-p", "--prefix", help="Full path to environment location (i.e. prefix).")
 @click.option("-n", "--name", help="Name of environment.")
 @click.option(
@@ -1360,6 +1391,7 @@ def install(
     conda: Optional[str],
     mamba: bool,
     micromamba: bool,
+    copy: bool,
     prefix: Optional[str],
     name: Optional[str],
     lock_file: pathlib.Path,
@@ -1382,7 +1414,9 @@ def install(
         yaml.safe_load(auth) if auth else read_json(auth_file) if auth_file else None
     )
     _conda_exe = determine_conda_executable(conda, mamba=mamba, micromamba=micromamba)
-    install_func = partial(do_conda_install, conda=_conda_exe, prefix=prefix, name=name)
+    install_func = partial(
+        do_conda_install, conda=_conda_exe, prefix=prefix, name=name, copy=copy
+    )
     if validate_platform and not lock_file.name.endswith(DEFAULT_LOCKFILE_NAME):
         lockfile_contents = read_file(lock_file)
         try:
