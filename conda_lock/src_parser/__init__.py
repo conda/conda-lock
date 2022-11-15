@@ -138,8 +138,6 @@ class TimeMeta(StrictModel):
 
     @classmethod
     def create(cls) -> "TimeMeta":
-        import time
-
         return cls(
             created_at=datetime.datetime.utcnow().isoformat(timespec="seconds") + "Z"
         )
@@ -272,20 +270,20 @@ class LockMeta(StrictModel):
         description="paths to source files, relative to the parent directory of the lockfile",
     )
     time_metadata: Optional[TimeMeta] = Field(
-        None, description="Metadata dealing with the time lockfile was created"
+        default=None, description="Metadata dealing with the time lockfile was created"
     )
     git_metadata: Optional[GitMeta] = Field(
-        None,
+        default=None,
         description=(
             "Metadata dealing with the git repo the lockfile was created in and the user that created it"
         ),
     )
     inputs_metadata: Optional[Dict[str, InputMeta]] = Field(
-        None,
+        default=None,
         description="Metadata dealing with the input files used to create the lockfile",
     )
     custom_metadata: Optional[Dict[str, str]] = Field(
-        None,
+        default=None,
         description="Custom metadata provided by the user to be added to the lockfile",
     )
 

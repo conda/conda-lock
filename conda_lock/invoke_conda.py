@@ -10,7 +10,7 @@ import tempfile
 from distutils.version import LooseVersion
 from typing import IO, Dict, Iterator, List, Optional, Sequence, Union
 
-from ensureconda.api import ensureconda
+from ensureconda.api import determine_micromamba_version, ensureconda
 
 from conda_lock.models.channel import Channel
 
@@ -56,9 +56,7 @@ def determine_conda_executable(
     for candidate in _determine_conda_executable(conda_executable, mamba, micromamba):
         if candidate is not None:
             if is_micromamba(candidate):
-                if ensureconda.api.determine_micromamba_version(
-                    str(candidate)
-                ) < LooseVersion("0.17"):
+                if determine_micromamba_version(str(candidate)) < LooseVersion("0.17"):
                     mamba_root_prefix()
             return candidate
     raise RuntimeError("Could not find conda (or compatible) executable")
