@@ -22,10 +22,17 @@ various places.
 
 ## Installation
 
+Use *one* of the following commands:
+
 ```bash
+pipx install conda-lock
+condax install conda-lock
 pip install conda-lock
-conda install -c conda-forge conda-lock
+conda install --channel=conda-forge --name=base conda-lock
+mamba install --channel=conda-forge --name=base conda-lock
 ```
+
+The first two options are recommended since they install conda-lock into an isolated environment. (Otherwise there is a risk of dependency conflicts.)
 
 ## Basic usage
 
