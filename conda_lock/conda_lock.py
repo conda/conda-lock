@@ -186,7 +186,11 @@ def do_validate_platform(lockfile: str) -> None:
 
 
 def do_conda_install(
-    conda: PathLike, prefix: str, name: str, file: pathlib.Path
+    conda: PathLike,
+    prefix: "str | None",
+    name: "str | None",
+    file: pathlib.Path,
+    copy: bool,
 ) -> None:
 
     _conda = partial(_invoke_conda, conda, prefix, name, check_call=True)
@@ -203,13 +207,18 @@ def do_conda_install(
     else:
         pip_requirements = []
 
+    env_prefix = ["env"] if kind == "env" and not is_micromamba(conda) else []
+    copy_arg = ["--copy"] if kind != "env" and copy else []
+    yes_arg = ["--yes"] if kind != "env" else []
+
     _conda(
         [
-            *(["env"] if kind == "env" and not is_micromamba(conda) else []),
+            *env_prefix,
             "create",
+            *copy_arg,
             "--file",
             str(file),
-            *([] if kind == "env" else ["--yes"]),
+            *yes_arg,
         ],
     )
 
@@ -1220,6 +1229,14 @@ def lock(
     default=False,
     help="don't attempt to use or install micromamba.",
 )
+@click.option(
+    "--copy",
+    is_flag=True,
+    help=(
+        "Install using `--copy` to prevent links. "
+        "This is useful for building containers"
+    ),
+)
 @click.option("-p", "--prefix", help="Full path to environment location (i.e. prefix).")
 @click.option("-n", "--name", help="Name of environment.")
 @click.option(
@@ -1261,6 +1278,7 @@ def install(
     conda: Optional[str],
     mamba: bool,
     micromamba: bool,
+    copy: bool,
     prefix: Optional[str],
     name: Optional[str],
     lock_file: pathlib.Path,
@@ -1283,7 +1301,9 @@ def install(
         yaml.safe_load(auth) if auth else read_json(auth_file) if auth_file else None
     )
     _conda_exe = determine_conda_executable(conda, mamba=mamba, micromamba=micromamba)
-    install_func = partial(do_conda_install, conda=_conda_exe, prefix=prefix, name=name)
+    install_func = partial(
+        do_conda_install, conda=_conda_exe, prefix=prefix, name=name, copy=copy
+    )
     if validate_platform and not lock_file.name.endswith(DEFAULT_LOCKFILE_NAME):
         lockfile_contents = read_file(lock_file)
         try:

@@ -64,8 +64,8 @@ def determine_conda_executable(
 
 def _invoke_conda(
     conda: PathLike,
-    prefix: str,
-    name: str,
+    prefix: "str | None",
+    name: "str | None",
     command_args: Sequence[PathLike],
     post_args: Sequence[PathLike] = [],
     check_call: bool = False,
@@ -95,9 +95,11 @@ def _invoke_conda(
     if prefix:
         common_args.append("--prefix")
         common_args.append(prefix)
-    if name:
+    elif name:
         common_args.append("--name")
         common_args.append(name)
+    else:
+        raise ValueError("Neither prefix, nor name provided.")
     conda_flags = os.environ.get("CONDA_FLAGS")
     if conda_flags:
         common_args.extend(shlex.split(conda_flags))
