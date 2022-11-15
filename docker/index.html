@@ -389,9 +389,40 @@
         
       
       
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          Docker
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
       <a href="./" class="md-nav__link md-nav__link--active">
         Docker
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#conda-lock-inside-a-build-container" class="md-nav__link">
+    conda-lock inside a build container
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
       
     </li>
   
@@ -438,6 +469,21 @@
     
   
   
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#conda-lock-inside-a-build-container" class="md-nav__link">
+    conda-lock inside a build container
+  </a>
+  
+</li>
+      
+    </ul>
+  
 </nav>
                   </div>
                 </div>
@@ -459,31 +505,77 @@
 <h1 id="docker">Docker</h1>
 <p>In order to use conda-lock in a docker-style context you want to add the lockfile to the
 docker container.  This avoids the case where the <code>conda install xyz</code> statement is cached.</p>
-<p>Given a file tree like
+<p>Given a file tree like</p>
 <div class="highlight"><pre><span></span><code>  Dockerfile
   environment.yaml
 * conda-linux-64.lock
-</code></pre></div></p>
+</code></pre></div>
 <p>You want a dockerfile that is structured something similar to this</p>
 <div class="highlight"><pre><span></span><code><span class="c"># Dockerfile</span>
 
-<span class="c"># Build container</span>
-<span class="k">FROM</span><span class="w"> </span><span class="s">continuumio/miniconda:latest</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="s">conda</span>
+<span class="c"># -----------------</span>
+<span class="c"># Builder container</span>
+<span class="c"># -----------------</span>
+<span class="k">FROM</span><span class="w"> </span><span class="s">continuumio/miniconda:latest</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="s">builder</span>
 
-<span class="k">ADD</span><span class="w"> </span>conda-linux-64.lock /locks/conda-linux-64.lock
+<span class="k">COPY</span><span class="w"> </span>conda-linux-64.lock /locks/conda-linux-64.lock
 <span class="k">RUN</span><span class="w"> </span>conda create -p /opt/env --copy --file /locks/conda-linux-64.lock
 
+<span class="c"># -----------------</span>
 <span class="c"># Primary container</span>
+<span class="c"># -----------------</span>
 <span class="k">FROM</span><span class="w"> </span><span class="s">gcr.io/distroless/base-debian10</span>
 <span class="c"># copy over the generated environment</span>
-<span class="k">COPY</span><span class="w"> </span>--from<span class="o">=</span>conda /opt/env /opt/env
+<span class="k">COPY</span><span class="w"> </span>--from<span class="o">=</span>builder /opt/env /opt/env
+<span class="k">ENV</span><span class="w"> </span><span class="nv">PATH</span><span class="o">=</span><span class="s2">&quot;/opt/env/bin:</span><span class="si">${</span><span class="nv">PATH</span><span class="si">}</span><span class="s2">&quot;</span>
 </code></pre></div>
-<p>To get this to work nicely generate the platform specific lock run</p>
-<div class="highlight"><pre><span></span><code>conda lock --format explicit --platform linux-64
-docker build .
+<p>To get this to work nicely generate the platform specific lock run something
+like this in your shell</p>
+<div class="highlight"><pre><span></span><code><span class="c1"># Update the lockfile</span>
+conda lock --format explicit --platform linux-64
+<span class="c1"># build the image</span>
+docker build -t myimagename:mytag .
 </code></pre></div>
 <p>This will ensure that your conda dependencies used in this docker container are
 always exactly reproducible.</p>
+<h2 id="conda-lock-inside-a-build-container">conda-lock inside a build container</h2>
+<p>You can also use conda-lock with a build-container style system if you make use of
+the <code>--copy</code> flag from <code>conda-lock install</code></p>
+<div class="highlight"><pre><span></span><code><span class="c"># -----------------</span>
+<span class="c"># Builder container</span>
+<span class="c"># -----------------</span>
+<span class="k">FROM</span><span class="w"> </span><span class="s">condaforge/mambaforge:4.14.0-0</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="s">builder</span>
+
+<span class="k">COPY</span><span class="w"> </span>environment.yml /docker/environment.yml
+
+<span class="k">RUN</span><span class="w"> </span>. /opt/conda/etc/profile.d/conda.sh <span class="o">&amp;&amp;</span> <span class="se">\</span>
+    mamba create --name lock <span class="o">&amp;&amp;</span> <span class="se">\</span>
+    conda activate lock <span class="o">&amp;&amp;</span> <span class="se">\</span>
+    mamba env list <span class="o">&amp;&amp;</span> <span class="se">\</span>
+    mamba install --yes pip conda-lock&gt;<span class="o">=</span><span class="m">1</span>.2.2 setuptools wheel <span class="o">&amp;&amp;</span> <span class="se">\</span>
+    conda-lock lock <span class="se">\</span>
+        --platform linux-64 <span class="se">\</span>
+        --file /docker/environment.yml <span class="se">\</span>
+        --kind lock <span class="se">\</span>
+        --lockfile /docker/conda-lock.yml
+
+<span class="k">RUN</span><span class="w"> </span>. /opt/conda/etc/profile.d/conda.sh <span class="o">&amp;&amp;</span> <span class="se">\</span>
+    conda activate lock <span class="o">&amp;&amp;</span> <span class="se">\</span>
+    conda-lock install <span class="se">\</span>
+        --mamba <span class="se">\</span>
+        --copy <span class="se">\</span>
+        --prefix /opt/env <span class="se">\</span>
+        /docker/conda-lock.yml
+<span class="c"># optionally you can perfom some more cleanup on your conda install after this</span>
+<span class="c"># to get a leaner conda environment</span>
+
+<span class="c"># -----------------</span>
+<span class="c"># Primary container</span>
+<span class="c"># -----------------</span>
+<span class="k">FROM</span><span class="w"> </span><span class="s">gcr.io/distroless/base-debian10</span>
+<span class="k">COPY</span><span class="w"> </span>--from<span class="o">=</span>builder /opt/env /opt/env
+<span class="k">ENV</span><span class="w"> </span><span class="nv">PATH</span><span class="o">=</span><span class="s2">&quot;/opt/env/bin:</span><span class="si">${</span><span class="nv">PATH</span><span class="si">}</span><span class="s2">&quot;</span>
+</code></pre></div>
 
 
 
