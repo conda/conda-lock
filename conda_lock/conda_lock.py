@@ -878,8 +878,9 @@ def _render_lockfile_for_install(
             f"following platforms: {', '.join(lock_content.metadata.platforms)}. In "
             f"order to support {platform}, you must regenerate the lockfile. Either "
             f"add a 'platforms:' section to your environment.yml containing "
-            f"'- {platform}', or add the '--platform={platform}' argument to the "
-            f"conda-lock command."
+            f"'- {platform}', or by adding the arguments '--platform="
+            f"{' --platform='.join([platform] + lock_content.metadata.platforms)}' "
+            f"to the conda-lock command."
         )
 
     # TODO: Move to LockFile
