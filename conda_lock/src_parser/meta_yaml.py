@@ -38,7 +38,7 @@ class UndefinedNeverFail(jinja2.Undefined):
     def __init__(  # type: ignore
         self,
         hint=None,
-        obj=jinja2.runtime.missing,
+        obj=jinja2.utils.missing,
         name=None,
         exc=jinja2.exceptions.UndefinedError,
     ) -> None:
@@ -61,7 +61,7 @@ class UndefinedNeverFail(jinja2.Undefined):
         try:
             return object.__getattr__(self, k)  # type: ignore
         except AttributeError:
-            return self._return_undefined(self._undefined_name + "." + k)
+            return self._return_undefined(self._undefined_name + "." + k)  # type: ignore
 
     # Unlike the methods above, Python requires that these
     # few methods must always return the correct type

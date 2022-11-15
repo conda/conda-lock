@@ -10,6 +10,7 @@ from collections import defaultdict, namedtuple
 from itertools import chain
 from typing import (
     TYPE_CHECKING,
+    AbstractSet,
     ClassVar,
     Dict,
     List,
@@ -167,19 +168,22 @@ class GitMeta(StrictModel):
     @classmethod
     def create(
         cls,
-        metadata_choices: Set[MetadataOption],
+        metadata_choices: AbstractSet[MetadataOption],
         src_files: List[pathlib.Path],
-    ) -> "GitMeta":
+    ) -> "GitMeta | None":
         import git
 
+        git_sha: "str | None" = None
+        git_user_name: "str | None" = None
+        git_user_email: "str | None" = None
+
         try:
-            repo = git.Repo(search_parent_directories=True)
+            repo = git.Repo(search_parent_directories=True)  # type: ignore
             if MetadataOption.GitSha in metadata_choices:
-                git_sha: Optional[str]
                 most_recent_datetime: Optional[datetime.datetime] = None
                 for src_file in src_files:
                     relative_src_file_path = relative_path(
-                        pathlib.Path(repo.working_tree_dir), src_file
+                        pathlib.Path(repo.working_tree_dir), src_file  # type: ignore
                     )
                     commit = list(
                         repo.iter_commits(paths=relative_src_file_path, max_count=1)
@@ -198,21 +202,21 @@ class GitMeta(StrictModel):
                         ):
                             most_recent_datetime = commit.committed_datetime
                             git_sha = commit.hexsha
-                git_sha = git_sha
             if MetadataOption.GitUserName in metadata_choices:
-                git_user_name = repo.config_reader().get_value("user", "name", None)
+                git_user_name = repo.config_reader().get_value("user", "name", None)  # type: ignore
             if MetadataOption.GitUserEmail in metadata_choices:
-                git_user_email = repo.config_reader().get_value("user", "email", None)
-        except git.exc.InvalidGitRepositoryError:
-            git_sha = None
-            git_user_name = None
-            git_user_email = None
+                git_user_email = repo.config_reader().get_value("user", "email", None)  # type: ignore
+        except git.exc.InvalidGitRepositoryError:  # type: ignore
+            pass
 
-        return cls(
-            git_user_name=git_user_name,
-            git_user_email=git_user_email,
-            git_sha=git_sha,
-        )
+        if any([git_sha, git_user_name, git_user_email]):
+            return cls(
+                git_sha=git_sha,
+                git_user_name=git_user_name,
+                git_user_email=git_user_email,
+            )
+        else:
+            return None
 
 
 class InputMeta(StrictModel):
@@ -223,7 +227,7 @@ class InputMeta(StrictModel):
 
     @classmethod
     def create(
-        cls, metadata_choices: Set[MetadataOption], src_file: pathlib.Path
+        cls, metadata_choices: AbstractSet[MetadataOption], src_file: pathlib.Path
     ) -> "InputMeta":
         if MetadataOption.InputSha in metadata_choices:
             sha256 = cls.get_input_sha256(src_file=src_file)
@@ -436,7 +440,7 @@ class LockSpecification(BaseModel):
         }
 
     def content_hash_for_platform(self, platform: str) -> str:
-        data: dict = {
+        data = {
             "channels": [c.json() for c in self.channels],
             "specs": [
                 p.dict()

@@ -223,6 +223,7 @@ def _conda_exe_type(request: Any) -> str:
 
 
 @pytest.fixture(scope="session")
+@typing.no_type_check
 def conda_exe(_conda_exe_type: str) -> PathLike:
     kwargs = dict(
         mamba=False,
@@ -235,7 +236,7 @@ def conda_exe(_conda_exe_type: str) -> PathLike:
 
     if _conda_exe is not None:
         return _conda_exe
-    raise pytest.skip(f"{_conda_exe_type} is not installed")
+    pytest.skip(f"{_conda_exe_type} is not installed")
 
 
 JSON_FIELDS: Dict[str, str] = {"json_unique_field": "test1", "common_field": "test2"}
@@ -637,9 +638,9 @@ def test_run_lock_with_git_metadata(
     import git
 
     try:
-        repo = git.Repo(search_parent_directories=True)
-    except git.exc.InvalidGitRepositoryError:
-        repo = git.Repo.init()
+        repo = git.Repo(search_parent_directories=True)  # type: ignore
+    except git.exc.InvalidGitRepositoryError:  # type: ignore
+        repo = git.Repo.init()  # type: ignore
         repo.index.add([git_metadata_zlib_environment])
         repo.index.commit(
             "temporary commit for running via github actions without failure"
@@ -702,8 +703,7 @@ def test_run_lock_with_custom_metadata(
     run_lock(
         [custom_metadata_environment / "environment.yml"],
         conda_exe=conda_exe,
-        metadata_jsons=[custom_json_metadata],
-        metadata_yamls=[custom_yaml_metadata],
+        metadata_yamls=[custom_json_metadata, custom_yaml_metadata],
     )
     lockfile = parse_conda_lock_file(
         custom_yaml_metadata.parent / DEFAULT_LOCKFILE_NAME
@@ -931,8 +931,7 @@ def test_poetry_version_parsing_constraints(
                 conda=_conda_exe,
                 spec=spec,
                 lockfile_path=Path(DEFAULT_LOCKFILE_NAME),
-                metadata_jsons=None,
-                metadata_yamls=None,
+                metadata_yamls=(),
             )
 
         python = next(p for p in lockfile_contents.package if p.name == "python")
@@ -953,7 +952,7 @@ def test_run_with_channel_inversion(
     lockfile = parse_conda_lock_file(channel_inversion.parent / DEFAULT_LOCKFILE_NAME)
     for package in lockfile.package:
         if package.name == "cuda-python":
-            ms = MatchSpec(package.url)
+            ms = MatchSpec(package.url)  # type: ignore
             assert ms.get("channel") == "conda-forge"
             break
     else:
@@ -1120,7 +1119,7 @@ def mamba_exe():
     _conda_exe = _ensureconda(**kwargs)
     if _conda_exe is not None:
         return _conda_exe
-    raise pytest.skip("mamba is not installed")
+    pytest.skip("mamba is not installed")
 
 
 def _check_package_installed(package: str, prefix: str):
@@ -1193,7 +1192,7 @@ def test_install(
                 "-p",
                 platform,
                 "-f",
-                zlib_environment,
+                str(zlib_environment),
                 "-k",
                 kind,
                 "--filename-template",
@@ -1216,7 +1215,7 @@ def test_install(
                     "--conda",
                     conda_exe,
                     "--prefix",
-                    tmp_path / env_name,
+                    str(tmp_path / env_name),
                     *extra_args,
                     lock_filename,
                 ],
@@ -1425,7 +1424,7 @@ def test_virtual_packages(
             "-k",
             kind,
             "--virtual-package-spec",
-            test_dir / "virtual-packages-old-glibc.yaml",
+            str(test_dir / "virtual-packages-old-glibc.yaml"),
         ],
     )
 

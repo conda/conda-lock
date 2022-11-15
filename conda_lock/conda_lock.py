@@ -34,7 +34,7 @@ import click
 import pkg_resources
 import yaml
 
-from ensureconda import ensureconda
+from ensureconda.api import ensureconda
 from typing_extensions import Literal
 
 from conda_lock.click_helpers import OrderedGroup
@@ -190,7 +190,7 @@ def do_validate_platform(lockfile: str) -> None:
 
 
 def do_conda_install(
-    conda: PathLike, prefix: str, name: str, file: pathlib.Path
+    conda: PathLike, prefix: Optional[str], name: Optional[str], file: pathlib.Path
 ) -> None:
 
     _conda = partial(_invoke_conda, conda, prefix, name, check_call=True)
@@ -287,9 +287,8 @@ def make_lock_files(
     filter_categories: bool = True,
     extras: Optional[AbstractSet[str]] = None,
     check_input_hash: bool = False,
-    metadata_choices: Optional[Set[MetadataOption]] = None,
-    metadata_jsons: Optional[List[pathlib.Path]] = None,
-    metadata_yamls: Optional[List[pathlib.Path]] = None,
+    metadata_choices: AbstractSet[MetadataOption] = frozenset(),
+    metadata_yamls: Sequence[pathlib.Path] = (),
 ) -> None:
     """
     Generate a lock file from the src files provided
@@ -325,10 +324,8 @@ def make_lock_files(
         Do not re-solve for each target platform for which specifications are unchanged
     metadata_choices:
         Set of selected metadata fields to generate for this lockfile.
-    metadata_jsons:
-        JSON file(s) containing structured metadata to add to metadata section of the lockfile.
     metadata_yamls:
-        YAML file(s) containing structured metadata to add to metadata section of the lockfile.
+        YAML or JSON file(s) containing structured metadata to add to metadata section of the lockfile.
     """
 
     # initialize virtual package fake
@@ -406,7 +403,6 @@ def make_lock_files(
                 lockfile_path=lockfile_path,
                 update_spec=update_spec,
                 metadata_choices=metadata_choices,
-                metadata_jsons=metadata_jsons,
                 metadata_yamls=metadata_yamls,
             )
 
@@ -742,14 +738,6 @@ def convert_structured_metadata_yaml(in_path: pathlib.Path) -> Dict[str, Any]:
     return metadata
 
 
-def convert_structured_metadata_json(in_path: pathlib.Path) -> Dict[str, Any]:
-    import json
-
-    with in_path.open("r") as infile:
-        metadata = json.load(infile)
-    return metadata
-
-
 def update_metadata(to_change: Dict[str, Any], change_source: Dict[str, Any]) -> None:
     for key in change_source:
         if key in to_change:
@@ -761,19 +749,15 @@ def update_metadata(to_change: Dict[str, Any], change_source: Dict[str, Any]) ->
 
 
 def get_custom_metadata(
-    metadata_jsons: Optional[List[pathlib.Path]] = None,
-    metadata_yamls: Optional[List[pathlib.Path]] = None,
-) -> Dict[str, str]:
+    metadata_yamls: Sequence[pathlib.Path],
+) -> Optional[Dict[str, str]]:
     custom_metadata_dict: Dict[str, Any] = {}
-    if metadata_jsons is not None:
-        for json_path in metadata_jsons:
-            new_metadata = convert_structured_metadata_json(json_path)
-            update_metadata(custom_metadata_dict, new_metadata)
-    if metadata_yamls is not None:
-        for yaml_path in metadata_yamls:
-            new_metadata = convert_structured_metadata_yaml(yaml_path)
-            update_metadata(custom_metadata_dict, new_metadata)
-    return custom_metadata_dict
+    for yaml_path in metadata_yamls:
+        new_metadata = convert_structured_metadata_yaml(yaml_path)
+        update_metadata(custom_metadata_dict, new_metadata)
+    if custom_metadata_dict:
+        return custom_metadata_dict
+    return None
 
 
 def create_lockfile_from_spec(
@@ -783,9 +767,8 @@ def create_lockfile_from_spec(
     platforms: List[str] = [],
     lockfile_path: pathlib.Path,
     update_spec: Optional[UpdateSpecification] = None,
-    metadata_choices: Optional[Set[MetadataOption]] = None,
-    metadata_jsons: Optional[List[pathlib.Path]] = None,
-    metadata_yamls: Optional[List[pathlib.Path]] = None,
+    metadata_choices: AbstractSet[MetadataOption] = frozenset(),
+    metadata_yamls: Sequence[pathlib.Path] = (),
 ) -> Lockfile:
     """
     Solve or update specification
@@ -818,48 +801,27 @@ def create_lockfile_from_spec(
             path = str(source.resolve())
         spec_sources[path] = source
 
-    time_metadata = (
-        TimeMeta.create()
-        if metadata_choices is not None and MetadataOption.TimeStamp in metadata_choices
-        else None
+    if MetadataOption.TimeStamp in metadata_choices:
+        time_metadata = TimeMeta.create()
+    else:
+        time_metadata = None
+
+    git_metadata = GitMeta.create(
+        metadata_choices=metadata_choices,
+        src_files=spec.sources,
     )
-    git_metadata = (
-        GitMeta.create(
-            metadata_choices=metadata_choices,
-            src_files=spec.sources,
-        )
-        if metadata_choices is not None
-        and any(
-            x in metadata_choices
-            for x in [
-                MetadataOption.GitSha,
-                MetadataOption.GitUserEmail,
-                MetadataOption.GitUserName,
-            ]
-        )
-        else None
-    )
-    inputs_metadata: Optional[Dict[str, InputMeta]] = (
-        {
+
+    if metadata_choices & {MetadataOption.InputSha, MetadataOption.InputMd5}:
+        inputs_metadata: Optional[Dict[str, InputMeta]] = {
             relative_path: InputMeta.create(
                 metadata_choices=metadata_choices, src_file=src_file
             )
             for relative_path, src_file in spec_sources.items()
         }
-        if metadata_choices is not None
-        and any(
-            x in metadata_choices
-            for x in [MetadataOption.InputSha, MetadataOption.InputMd5]
-        )
-        else None
-    )
-    custom_metadata: Optional[Dict[str, str]] = (
-        get_custom_metadata(
-            metadata_jsons=metadata_jsons, metadata_yamls=metadata_yamls
-        )
-        if metadata_jsons is not None or metadata_yamls is not None
-        else None
-    )
+    else:
+        inputs_metadata = None
+
+    custom_metadata = get_custom_metadata(metadata_yamls=metadata_yamls)
 
     return Lockfile(
         package=[locked[k] for k in locked],
@@ -1036,9 +998,8 @@ def run_lock(
     virtual_package_spec: Optional[pathlib.Path] = None,
     update: Optional[List[str]] = None,
     filter_categories: bool = False,
-    metadata_choices: Optional[Set[MetadataOption]] = None,
-    metadata_jsons: Optional[List[pathlib.Path]] = None,
-    metadata_yamls: Optional[List[pathlib.Path]] = None,
+    metadata_choices: AbstractSet[MetadataOption] = frozenset(),
+    metadata_yamls: Sequence[pathlib.Path] = (),
 ) -> None:
     if environment_files == DEFAULT_FILES:
         if lockfile_path.exists():
@@ -1084,7 +1045,6 @@ def run_lock(
         check_input_hash=check_input_hash,
         filter_categories=filter_categories,
         metadata_choices=metadata_choices,
-        metadata_jsons=metadata_jsons,
         metadata_yamls=metadata_yamls,
     )
 
@@ -1227,23 +1187,19 @@ TLogLevel = Union[
     help="Metadata fields to include in lock-file",
 )
 @click.option(
-    "--metadata-jsons",
-    default=None,
+    "--mdy",
+    "--metadata-yaml",
+    "--metadata-json",
+    "metadata_yamls",
+    default=[],
     multiple=True,
     type=click.Path(),
-    help="JSON file(s) containing structured metadata to add to metadata section of the lockfile.",
-)
-@click.option(
-    "--metadata-yamls",
-    default=None,
-    multiple=True,
-    type=click.Path(),
-    help="YAML file(s) containing structured metadata to add to metadata section of the lockfile.",
+    help="YAML or JSON file(s) containing structured metadata to add to metadata section of the lockfile.",
 )
 @click.pass_context
 def lock(
     ctx: click.Context,
-    conda: Optional[PathLike],
+    conda: Optional[str],
     mamba: bool,
     micromamba: bool,
     platform: List[str],
@@ -1259,12 +1215,11 @@ def lock(
     check_input_hash: bool,
     log_level: TLogLevel,
     pdb: bool,
-    virtual_package_spec: Optional[PathLike],
+    virtual_package_spec: Optional[pathlib.Path],
     pypi_to_conda_lookup_file: Optional[str],
     update: Optional[List[str]] = None,
-    metadata_choices: List[str] = [],
-    metadata_jsons: Optional[List[pathlib.Path]] = None,
-    metadata_yamls: Optional[List[pathlib.Path]] = None,
+    metadata_choices: Sequence[str] = (),
+    metadata_yamls: Sequence[pathlib.Path] = (),
 ) -> None:
     """Generate fully reproducible lock files for conda environments.
 
@@ -1280,20 +1235,13 @@ def lock(
     """
     logging.basicConfig(level=log_level)
 
-    if metadata_jsons is not None:
-        metadata_jsons = [pathlib.Path(path) for path in metadata_jsons]
-    if metadata_yamls is not None:
-        metadata_yamls = [pathlib.Path(path) for path in metadata_yamls]
     # Set Pypi <--> Conda lookup file location
     if pypi_to_conda_lookup_file:
         set_lookup_location(pypi_to_conda_lookup_file)
 
     metadata_enum_choices = set(MetadataOption(md) for md in metadata_choices)
 
-    if metadata_jsons is not None:
-        metadata_jsons = [pathlib.Path(path) for path in metadata_jsons]
-    if metadata_yamls is not None:
-        metadata_yamls = [pathlib.Path(path) for path in metadata_yamls]
+    metadata_yamls = [pathlib.Path(path) for path in metadata_yamls]
 
     # bail out if we do not encounter the default file if no files were passed
     if ctx.get_parameter_source("files") == click.core.ParameterSource.DEFAULT:
@@ -1340,7 +1288,6 @@ def lock(
         update=update,
         filter_categories=filter_categories,
         metadata_choices=metadata_enum_choices,
-        metadata_jsons=metadata_jsons,
         metadata_yamls=metadata_yamls,
     )
     if strip_auth:

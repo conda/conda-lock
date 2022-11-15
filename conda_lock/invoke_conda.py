@@ -10,7 +10,7 @@ import tempfile
 from distutils.version import LooseVersion
 from typing import IO, Dict, Iterator, List, Optional, Sequence, Union
 
-import ensureconda
+from ensureconda.api import ensureconda
 
 from conda_lock.models.channel import Channel
 
@@ -26,15 +26,17 @@ def _ensureconda(
     micromamba: bool = False,
     conda: bool = False,
     conda_exe: bool = False,
-) -> Optional[PathLike]:
-    _conda_exe = ensureconda.ensureconda(
+) -> Optional[pathlib.Path]:
+    _conda_exe = ensureconda(
         mamba=mamba,
         micromamba=micromamba,
         conda=conda,
         conda_exe=conda_exe,
     )
 
-    return _conda_exe
+    if _conda_exe is None:
+        return None
+    return pathlib.Path(_conda_exe)
 
 
 def _determine_conda_executable(
@@ -64,8 +66,8 @@ def determine_conda_executable(
 
 def _invoke_conda(
     conda: PathLike,
-    prefix: str,
-    name: str,
+    prefix: Optional[str],
+    name: Optional[str],
     command_args: Sequence[PathLike],
     post_args: Sequence[PathLike] = [],
     check_call: bool = False,

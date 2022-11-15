@@ -420,7 +420,7 @@ def update_specs_for_arch(
                 )
             )
         }
-        spec_for_name = {MatchSpec(v).name: v for v in specs}
+        spec_for_name = {MatchSpec(v).name: v for v in specs}  # type: ignore
         to_update = [
             spec_for_name[name] for name in set(installed).intersection(update)
         ]
