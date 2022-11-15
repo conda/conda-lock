@@ -67,8 +67,8 @@ conda-lock --lockfile superspecial.conda-lock.yml
 ```
 
 The extension `.conda-lock.yml` will be added if not present. Rendered
-environment files (env or explicit) will be named as as
-`"conda-{platform}.lock"`.
+environment files (env or explicit) must end with `.lock` and will be named as
+`"conda-{platform}.lock"` by default.
 
 If you want to override that call conda-lock as follows.
 ```bash
