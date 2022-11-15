@@ -6,13 +6,7 @@ import jinja2
 import yaml
 
 from conda_lock.common import get_in
-from conda_lock.src_parser import (
-    Dependency,
-    LockSpecification,
-    VersionedDependency,
-    aggregate_lock_specs,
-)
-from conda_lock.src_parser.pyproject_toml import parse_python_requirement
+from conda_lock.src_parser import Dependency, LockSpecification, aggregate_lock_specs
 from conda_lock.src_parser.selectors import filter_platform_selectors
 
 
@@ -140,7 +134,6 @@ def _parse_meta_yaml_file_for_platform(
         if spec is None:
             return
 
-        from .._vendor.conda.models.match_spec import MatchSpec
         from .conda_common import conda_spec_to_versioned_dep
 
         dep = conda_spec_to_versioned_dep(spec, category)

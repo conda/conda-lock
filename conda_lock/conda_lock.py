@@ -8,7 +8,6 @@ import os
 import pathlib
 import posixpath
 import re
-import subprocess
 import sys
 import tempfile
 
