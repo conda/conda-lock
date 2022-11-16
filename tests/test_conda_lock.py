@@ -540,10 +540,15 @@ def test_run_lock_with_update(
     conda_exe: str,
     _conda_exe_type: str,
 ):
-    if platform.system().lower() == "windows" and _conda_exe_type == "conda":
-        pytest.skip(
-            reason="this test just takes too long on windows, due to the slow conda solver"
-        )
+    if platform.system().lower() == "windows":
+        if _conda_exe_type == "conda":
+            pytest.skip(
+                reason="this test just takes too long on windows, due to the slow conda solver"
+            )
+        if _conda_exe_type == "micromamba":
+            pytest.skip(
+                reason="for some unknown reason this segfaults on windows when using xdist in ci"
+            )
 
     monkeypatch.chdir(update_environment.parent)
     if is_micromamba(conda_exe):
