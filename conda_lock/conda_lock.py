@@ -759,7 +759,7 @@ def update_metadata(to_change: Dict[str, Any], change_source: Dict[str, Any]) ->
 def get_custom_metadata(
     metadata_yamls: Sequence[pathlib.Path],
 ) -> Optional[Dict[str, str]]:
-    custom_metadata_dict: Dict[str, Any] = {}
+    custom_metadata_dict: Dict[str, str] = {}
     for yaml_path in metadata_yamls:
         new_metadata = convert_structured_metadata_yaml(yaml_path)
         update_metadata(custom_metadata_dict, new_metadata)
