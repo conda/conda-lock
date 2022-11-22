@@ -823,6 +823,18 @@ timestamp: The approximate timestamp of the output file in ISO8601 basic format.
 <td>None</td>
 </tr>
 <tr>
+<td><code>--md</code>, <code>--metadata</code></td>
+<td>choice (<code>timestamp</code> &#x7C; <code>git_sha</code> &#x7C; <code>git_user_name</code> &#x7C; <code>git_user_email</code> &#x7C; <code>input_md5</code> &#x7C; <code>input_sha</code>)</td>
+<td>Metadata fields to include in lock-file</td>
+<td><code>[]</code></td>
+</tr>
+<tr>
+<td><code>--mdy</code>, <code>--metadata-yaml</code>, <code>--metadata-json</code></td>
+<td>path</td>
+<td>YAML or JSON file(s) containing structured metadata to add to metadata section of the lockfile.</td>
+<td><code>[]</code></td>
+</tr>
+<tr>
 <td><code>--help</code></td>
 <td>boolean</td>
 <td>Show this message and exit.</td>
