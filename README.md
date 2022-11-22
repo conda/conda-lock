@@ -116,8 +116,12 @@ dependencies:
   - python=3.9
   - pandas
 platforms:
-  - osx-arm64
   - linux-64
+  - osx-64
+  - win-64
+  - osx-arm64  # For Apple Silicon, e.g. M1/M2
+  - linux-aarch64  # aka arm64, use for Docker on Apple Silicon
+  - linux-ppc64le
 ```
 
 If you specify target platforms on the command line with `-p`, these will
