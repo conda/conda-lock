@@ -2,15 +2,16 @@ import collections
 import collections.abc
 import logging
 import pathlib
+import sys
 
 from functools import partial
 from typing import AbstractSet, Any, List, Mapping, Optional, Sequence, Union
 from urllib.parse import urldefrag
 
 
-try:
+if sys.version_info >= (3, 11):
     from tomllib import load as toml_load
-except ImportError:
+else:
     from tomli import load as toml_load
 
 from typing_extensions import Literal

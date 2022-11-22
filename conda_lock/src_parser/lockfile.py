@@ -2,8 +2,11 @@ import json
 import pathlib
 
 from textwrap import dedent
+from typing import Collection, Optional
 
 import yaml
+
+from conda_lock.src_parser import MetadataOption
 
 from . import Lockfile
 
@@ -24,7 +27,10 @@ def parse_conda_lock_file(
 
 
 def write_conda_lock_file(
-    content: Lockfile, path: pathlib.Path, include_help_text: bool = True
+    content: Lockfile,
+    path: pathlib.Path,
+    metadata_choices: Optional[Collection[MetadataOption]],
+    include_help_text: bool = True,
 ) -> None:
     content.toposort_inplace()
     with path.open("w") as f:
@@ -37,6 +43,12 @@ def write_conda_lock_file(
                     if (idx == 0 or idx == len(lines) - 1) and len(line) == 0:
                         continue
                     print(("# " + line).rstrip(), file=f)
+
+            metadata_flags: str = (
+                " ".join([f"--md {md.value}" for md in metadata_choices])
+                if metadata_choices is not None and len(metadata_choices) != 0
+                else ""
+            )
 
             write_section(
                 f"""
@@ -68,16 +80,18 @@ def write_conda_lock_file(
             write_section(
                 f"""
                 To update a single package to the latest version compatible with the version constraints in the source:
-                    conda-lock lock --lockfile {path.name} --update PACKAGE
+                    conda-lock lock {metadata_flags} --lockfile {path.name} --update PACKAGE
                 To re-solve the entire environment, e.g. after changing a version constraint in the source file:
-                    conda-lock {' '.join('-f '+path for path in content.metadata.sources)} --lockfile {path.name}
+                    conda-lock {metadata_flags}{' '.join('-f '+path for path in content.metadata.sources)} --lockfile {path.name}
                 """
             )
 
         yaml.dump(
             {
                 "version": Lockfile.version,
-                **json.loads(content.json(by_alias=True, exclude_unset=True)),
+                **json.loads(
+                    content.json(by_alias=True, exclude_unset=True, exclude_none=True)
+                ),
             },
             f,
         )

@@ -8,7 +8,6 @@ import os
 import pathlib
 import posixpath
 import re
-import subprocess
 import sys
 import tempfile
 
@@ -34,7 +33,7 @@ import click
 import pkg_resources
 import yaml
 
-from ensureconda import ensureconda
+from ensureconda.api import ensureconda
 from typing_extensions import Literal
 
 from conda_lock.click_helpers import OrderedGroup
@@ -65,10 +64,14 @@ except ImportError:
 from conda_lock.lookup import set_lookup_location
 from conda_lock.src_parser import (
     Dependency,
+    GitMeta,
+    InputMeta,
     LockedDependency,
     Lockfile,
     LockMeta,
     LockSpecification,
+    MetadataOption,
+    TimeMeta,
     UpdateSpecification,
     aggregate_lock_specs,
 )
@@ -292,6 +295,8 @@ def make_lock_files(
     filter_categories: bool = True,
     extras: Optional[AbstractSet[str]] = None,
     check_input_hash: bool = False,
+    metadata_choices: AbstractSet[MetadataOption] = frozenset(),
+    metadata_yamls: Sequence[pathlib.Path] = (),
 ) -> None:
     """
     Generate a lock file from the src files provided
@@ -325,6 +330,10 @@ def make_lock_files(
         Filter out unused categories prior to solving
     check_input_hash :
         Do not re-solve for each target platform for which specifications are unchanged
+    metadata_choices:
+        Set of selected metadata fields to generate for this lockfile.
+    metadata_yamls:
+        YAML or JSON file(s) containing structured metadata to add to metadata section of the lockfile.
     """
 
     # initialize virtual package fake
@@ -401,10 +410,16 @@ def make_lock_files(
                 platforms=platforms_to_lock,
                 lockfile_path=lockfile_path,
                 update_spec=update_spec,
+                metadata_choices=metadata_choices,
+                metadata_yamls=metadata_yamls,
             )
 
             if "lock" in kinds:
-                write_conda_lock_file(lock_content, lockfile_path)
+                write_conda_lock_file(
+                    lock_content,
+                    lockfile_path,
+                    metadata_choices=metadata_choices,
+                )
                 print(
                     " - Install lock using:",
                     KIND_USE_TEXT["lock"].format(lockfile=str(lockfile_path)),
@@ -725,6 +740,34 @@ def _solve_for_arch(
     return list(conda_deps.values()) + list(pip_deps.values())
 
 
+def convert_structured_metadata_yaml(in_path: pathlib.Path) -> Dict[str, Any]:
+    with in_path.open("r") as infile:
+        metadata = yaml.safe_load(infile)
+    return metadata
+
+
+def update_metadata(to_change: Dict[str, Any], change_source: Dict[str, Any]) -> None:
+    for key in change_source:
+        if key in to_change:
+            logger.warning(
+                f"Custom metadata field {key} provided twice, overwriting value "
+                + f"{to_change[key]} with {change_source[key]}"
+            )
+    to_change.update(change_source)
+
+
+def get_custom_metadata(
+    metadata_yamls: Sequence[pathlib.Path],
+) -> Optional[Dict[str, str]]:
+    custom_metadata_dict: Dict[str, str] = {}
+    for yaml_path in metadata_yamls:
+        new_metadata = convert_structured_metadata_yaml(yaml_path)
+        update_metadata(custom_metadata_dict, new_metadata)
+    if custom_metadata_dict:
+        return custom_metadata_dict
+    return None
+
+
 def create_lockfile_from_spec(
     *,
     conda: PathLike,
@@ -732,6 +775,8 @@ def create_lockfile_from_spec(
     platforms: List[str] = [],
     lockfile_path: pathlib.Path,
     update_spec: Optional[UpdateSpecification] = None,
+    metadata_choices: AbstractSet[MetadataOption] = frozenset(),
+    metadata_yamls: Sequence[pathlib.Path] = (),
 ) -> Lockfile:
     """
     Solve or update specification
@@ -754,6 +799,38 @@ def create_lockfile_from_spec(
         for dep in deps:
             locked[(dep.manager, dep.name, dep.platform)] = dep
 
+    spec_sources: Dict[str, pathlib.Path] = {}
+    for source in spec.sources:
+        try:
+            path = relative_path(lockfile_path.parent, source)
+        except ValueError as e:
+            if "Paths don't have the same drive" not in str(e):
+                raise e
+            path = str(source.resolve())
+        spec_sources[path] = source
+
+    if MetadataOption.TimeStamp in metadata_choices:
+        time_metadata = TimeMeta.create()
+    else:
+        time_metadata = None
+
+    git_metadata = GitMeta.create(
+        metadata_choices=metadata_choices,
+        src_files=spec.sources,
+    )
+
+    if metadata_choices & {MetadataOption.InputSha, MetadataOption.InputMd5}:
+        inputs_metadata: Optional[Dict[str, InputMeta]] = {
+            relative_path: InputMeta.create(
+                metadata_choices=metadata_choices, src_file=src_file
+            )
+            for relative_path, src_file in spec_sources.items()
+        }
+    else:
+        inputs_metadata = None
+
+    custom_metadata = get_custom_metadata(metadata_yamls=metadata_yamls)
+
     return Lockfile(
         package=[locked[k] for k in locked],
         metadata=LockMeta(
@@ -761,6 +838,10 @@ def create_lockfile_from_spec(
             channels=[c for c in spec.channels],
             platforms=spec.platforms,
             sources=[str(source.resolve()) for source in spec.sources],
+            git_metadata=git_metadata,
+            time_metadata=time_metadata,
+            inputs_metadata=inputs_metadata,
+            custom_metadata=custom_metadata,
         ),
     )
 
@@ -939,6 +1020,8 @@ def run_lock(
     virtual_package_spec: Optional[pathlib.Path] = None,
     update: Optional[List[str]] = None,
     filter_categories: bool = False,
+    metadata_choices: AbstractSet[MetadataOption] = frozenset(),
+    metadata_yamls: Sequence[pathlib.Path] = (),
 ) -> None:
     if environment_files == DEFAULT_FILES:
         if lockfile_path.exists():
@@ -983,6 +1066,8 @@ def run_lock(
         extras=extras,
         check_input_hash=check_input_hash,
         filter_categories=filter_categories,
+        metadata_choices=metadata_choices,
+        metadata_yamls=metadata_yamls,
     )
 
 
@@ -1114,10 +1199,29 @@ TLogLevel = Union[
     type=str,
     help="Location of the lookup file containing Pypi package names to conda names.",
 )
+@click.option(
+    "--md",
+    "--metadata",
+    "metadata_choices",
+    default=[],
+    multiple=True,
+    type=click.Choice([md.value for md in MetadataOption]),
+    help="Metadata fields to include in lock-file",
+)
+@click.option(
+    "--mdy",
+    "--metadata-yaml",
+    "--metadata-json",
+    "metadata_yamls",
+    default=[],
+    multiple=True,
+    type=click.Path(),
+    help="YAML or JSON file(s) containing structured metadata to add to metadata section of the lockfile.",
+)
 @click.pass_context
 def lock(
     ctx: click.Context,
-    conda: Optional[PathLike],
+    conda: Optional[str],
     mamba: bool,
     micromamba: bool,
     platform: List[str],
@@ -1133,9 +1237,11 @@ def lock(
     check_input_hash: bool,
     log_level: TLogLevel,
     pdb: bool,
-    virtual_package_spec: Optional[PathLike],
+    virtual_package_spec: Optional[pathlib.Path],
     pypi_to_conda_lookup_file: Optional[str],
     update: Optional[List[str]] = None,
+    metadata_choices: Sequence[str] = (),
+    metadata_yamls: Sequence[pathlib.Path] = (),
 ) -> None:
     """Generate fully reproducible lock files for conda environments.
 
@@ -1154,6 +1260,10 @@ def lock(
     # Set Pypi <--> Conda lookup file location
     if pypi_to_conda_lookup_file:
         set_lookup_location(pypi_to_conda_lookup_file)
+
+    metadata_enum_choices = set(MetadataOption(md) for md in metadata_choices)
+
+    metadata_yamls = [pathlib.Path(path) for path in metadata_yamls]
 
     # bail out if we do not encounter the default file if no files were passed
     if ctx.get_parameter_source("files") == click.core.ParameterSource.DEFAULT:
@@ -1199,6 +1309,8 @@ def lock(
         virtual_package_spec=virtual_package_spec,
         update=update,
         filter_categories=filter_categories,
+        metadata_choices=metadata_enum_choices,
+        metadata_yamls=metadata_yamls,
     )
     if strip_auth:
         with tempfile.TemporaryDirectory() as tempdir:
