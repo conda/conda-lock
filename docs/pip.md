@@ -21,9 +21,10 @@ dependencies:
 If in this case `some_pip_only_library` depends on `requests` that dependency will be met by
 conda and the version will be constrained to what the conda solver determines.
 
-Please note that explicit lock files do not support installing `pip` dependencies.
-The unified lockfile format does (i.e. the `--kind=explicit` flag cannot be used
-with `conda-lock --file=environment.yml`)
+We recommend avoiding the `--kind=explicit` flag when there are `pip`
+dependencies. Most tools (except for `conda-lock install`) do not recognize
+`pip` dependencies from explicit lockfiles, so they may be silently ignored.
+The default lockfile format explicitly supports pip dependencies.
 
 ## Usage with pyproject.toml
 
