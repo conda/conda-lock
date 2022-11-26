@@ -530,6 +530,10 @@ installed with the <code>pip_support</code> extra.</p>
 </code></pre></div>
 <p>If in this case <code>some_pip_only_library</code> depends on <code>requests</code> that dependency will be met by
 conda and the version will be constrained to what the conda solver determines.</p>
+<p>We recommend avoiding the <code>--kind=explicit</code> flag when there are <code>pip</code>
+dependencies. Most tools (except for <code>conda-lock install</code>) do not recognize
+<code>pip</code> dependencies from explicit lockfiles, so they may be silently ignored.
+The default lockfile format explicitly supports pip dependencies.</p>
 <h2 id="usage-with-pyprojecttoml">Usage with pyproject.toml</h2>
 <p>If a dependency refers directly to a URL rather than a package name and version,
 <code>conda-lock</code> will assume it is pip-installable, e.g.:</p>
