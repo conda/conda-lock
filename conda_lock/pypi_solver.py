@@ -49,6 +49,7 @@ class PlatformEnv(Env):
             self._platforms = [
                 f"manylinux{tag}_{arch}" for tag in reversed(MANYLINUX_TAGS)
             ]
+            self._platforms.append(f"linux_{arch}")
         elif platform == "osx-64":
             self._platforms = [
                 "macosx_10_9_x86_64",
@@ -68,10 +69,13 @@ class PlatformEnv(Env):
 
         if platform.startswith("osx-"):
             self._sys_platform = "darwin"
+            self._platform_system = "Darwin"
         elif platform.startswith("linux-"):
             self._sys_platform = "linux"
+            self._platform_system = "Linux"
         elif platform.startswith("win-"):
             self._sys_platform = "win32"
+            self._platform_system = "Windows"
         else:
             raise ValueError(f"Unsupported platform '{platform}'")
 
@@ -93,6 +97,7 @@ class PlatformEnv(Env):
             "python_full_version": ".".join([str(c) for c in self._python_version]),
             "python_version": ".".join([str(c) for c in self._python_version[:2]]),
             "sys_platform": self._sys_platform,
+            "platform_system": self._platform_system,
         }
 
 
