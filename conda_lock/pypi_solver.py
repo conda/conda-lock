@@ -304,18 +304,19 @@ def solve_pypi(
     # use PyPI names of conda packages to walking the dependency tree and propagate
     # categories from explicit to transitive dependencies
     planned = {
-        **{dep.name: dep for dep in requirements},
+        **{dep.name: [dep] for dep in requirements},
         # prefer conda packages so add them afterwards
     }
 
     for conda_name, locked_dep in conda_locked.items():
-        try:
-            pypi_name = conda_name_to_pypi_name(conda_name).lower()
-        except KeyError:
-            # no conda-name found, assuming conda packages do NOT intersect with the pip package
-            continue
-        planned[pypi_name] = locked_dep
+        pypi_name = conda_name_to_pypi_name(conda_name).lower()
+        if pypi_name in planned:
+            planned[pypi_name].append(locked_dep)
+        else:
+            planned[pypi_name] = [locked_dep]
 
-    src_parser._apply_categories(requested=pip_specs, planned=planned)
+    src_parser._apply_categories(
+        requested=pip_specs, planned=planned, convert_to_pip_names=True
+    )
 
     return {dep.name: dep for dep in requirements}

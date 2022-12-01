@@ -14,6 +14,7 @@ from typing import (
     ClassVar,
     Dict,
     List,
+    Mapping,
     Optional,
     Sequence,
     Set,
@@ -30,6 +31,7 @@ from typing_extensions import Literal
 
 from conda_lock.common import ordered_union, relative_path, suffix_union
 from conda_lock.errors import ChannelAggregationError
+from conda_lock.lookup import conda_name_to_pypi_name
 from conda_lock.models.channel import Channel
 from conda_lock.virtual_package import FakeRepoData
 
@@ -464,39 +466,61 @@ class LockSpecification(BaseModel):
         return typing.cast(List[Channel], v)
 
 
+def _seperator_munge_get(
+    d: Mapping[str, Union[List[LockedDependency], LockedDependency]], key: str
+) -> Union[List[LockedDependency], LockedDependency]:
+    # since separators are not consistent across managers (or even within) we need to do some double attempts here
+    try:
+        return d[key]
+    except KeyError:
+        try:
+            return d[key.replace("-", "_")]
+        except KeyError:
+            return d[key.replace("_", "-")]
+
+
 def _apply_categories(
     requested: Dict[str, Dependency],
-    planned: Dict[str, LockedDependency],
+    planned: Mapping[str, Union[List[LockedDependency], LockedDependency]],
     categories: Sequence[str] = ("main", "dev"),
+    convert_to_pip_names: bool = False,
 ) -> None:
     """map each package onto the root request the with the highest-priority category"""
     # walk dependency tree to assemble all transitive dependencies by request
     dependents: Dict[str, Set[str]] = {}
     by_category = defaultdict(list)
 
-    def seperator_munge_get(
-        d: Dict[str, LockedDependency], key: str
-    ) -> LockedDependency:
-        # since separators are not consistent across managers (or even within) we need to do some double attempts here
-        try:
-            return d[key]
-        except KeyError:
-            try:
-                return d[key.replace("-", "_")]
-            except KeyError:
-                return d[key.replace("_", "-")]
+    def extract_planned_items(
+        planned_items: Union[List[LockedDependency], LockedDependency]
+    ) -> List[LockedDependency]:
+        if not isinstance(planned_items, list):
+            return [planned_items]
+
+        return [
+            item
+            for item in planned_items
+            if dep_name(item.manager, item.name) not in deps
+        ]
+
+    def dep_name(manager: str, dep: str) -> str:
+        if convert_to_pip_names and manager == "conda":
+            return conda_name_to_pypi_name(dep).lower()
+        return dep
 
     for name, request in requested.items():
         todo: List[str] = list()
         deps: Set[str] = set()
         item = name
         while True:
-            todo.extend(
-                dep
-                for dep in seperator_munge_get(planned, item).dependencies
-                # exclude virtual packages
-                if not (dep in deps or dep.startswith("__"))
-            )
+            planned_items = extract_planned_items(_seperator_munge_get(planned, item))
+
+            for planned_item in planned_items:
+                todo.extend(
+                    dep_name(planned_item.manager, dep)
+                    for dep in planned_item.dependencies
+                    # exclude virtual packages
+                    if not (dep in deps or dep.startswith("__"))
+                )
             if todo:
                 item = todo.pop(0)
                 deps.add(item)
@@ -522,9 +546,12 @@ def _apply_categories(
     for dep, root in root_requests.items():
         source = requested[root]
         # try a conda target first
-        target = seperator_munge_get(planned, dep)
-        target.category = source.category
-        target.optional = source.optional
+        targets = _seperator_munge_get(planned, dep)
+        if not isinstance(targets, list):
+            targets = [targets]
+        for target in targets:
+            target.category = source.category
+            target.optional = source.optional
 
 
 def aggregate_lock_specs(
