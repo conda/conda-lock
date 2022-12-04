@@ -1,0 +1,11 @@
+channels:
+  - conda-forge
+dependencies:
+  - python <3.11
+  - clang_osx-arm64  # [arm64]
+  - clang_osx-64  # [osx64]
+  - gcc_linux-64>=6  # [linux64]
+platforms:
+  - osx-arm64
+  - osx-64
+  - linux-64
