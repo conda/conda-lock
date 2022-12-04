@@ -30,6 +30,7 @@ from conda_lock._vendor.conda.models.match_spec import MatchSpec
 from conda_lock.conda_lock import (
     DEFAULT_FILES,
     DEFAULT_LOCKFILE_NAME,
+    DEFAULT_PLATFORMS,
     _add_auth_to_line,
     _add_auth_to_lockfile,
     _extract_domain,
@@ -114,6 +115,13 @@ def install_lock():
 @pytest.fixture
 def gdal_environment(tmp_path: Path):
     x = clone_test_dir("gdal", tmp_path).joinpath("environment.yml")
+    assert x.exists()
+    return x
+
+
+@pytest.fixture
+def filter_conda_environment(tmp_path: Path):
+    x = clone_test_dir("test-env-filter-platform", tmp_path).joinpath("environment.yml")
     assert x.exists()
     return x
 
@@ -274,16 +282,18 @@ def custom_json_metadata(custom_metadata_environment: Path) -> Path:
 
 
 def test_parse_environment_file(gdal_environment: Path):
-    res = parse_environment_file(gdal_environment, pip_support=True)
+    res = parse_environment_file(gdal_environment, DEFAULT_PLATFORMS, pip_support=True)
     assert all(
         x in res.dependencies
         for x in [
             VersionedDependency(
                 name="python",
+                manager="conda",
                 version=">=3.7,<3.8",
             ),
             VersionedDependency(
                 name="gdal",
+                manager="conda",
                 version="",
             ),
         ]
@@ -302,7 +312,7 @@ def test_parse_environment_file(gdal_environment: Path):
 
 
 def test_parse_environment_file_with_pip(pip_environment: Path):
-    res = parse_environment_file(pip_environment, pip_support=True)
+    res = parse_environment_file(pip_environment, DEFAULT_PLATFORMS, pip_support=True)
     assert [dep for dep in res.dependencies if dep.manager == "pip"] == [
         VersionedDependency(
             name="requests-toolbelt",
@@ -313,6 +323,72 @@ def test_parse_environment_file_with_pip(pip_environment: Path):
             version="=0.9.1",
         )
     ]
+
+
+def test_parse_env_file_with_filters_no_args(filter_conda_environment: Path):
+    res = parse_environment_file(filter_conda_environment, None, pip_support=False)
+    assert all(x in res.platforms for x in ["osx-arm64", "osx-64", "linux-64"])
+    assert res.channels == [Channel.from_string("conda-forge")]
+
+    assert all(
+        x in res.dependencies
+        for x in [
+            VersionedDependency(
+                name="python",
+                manager="conda",
+                version="<3.11",
+            ),
+            VersionedDependency(
+                name="clang_osx-arm64",
+                manager="conda",
+                version="",
+                selectors=Selectors(platform=["osx-arm64"]),
+            ),
+            VersionedDependency(
+                name="clang_osx-64",
+                manager="conda",
+                version="",
+                selectors=Selectors(platform=["osx-64"]),
+            ),
+            VersionedDependency(
+                name="gcc_linux-64",
+                manager="conda",
+                version=">=6",
+                selectors=Selectors(platform=["linux-64"]),
+            ),
+        ]
+    )
+
+
+def test_parse_env_file_with_filters_defaults(filter_conda_environment: Path):
+    res = parse_environment_file(
+        filter_conda_environment, DEFAULT_PLATFORMS, pip_support=False
+    )
+    assert all(x in res.platforms for x in DEFAULT_PLATFORMS)
+    assert res.channels == [Channel.from_string("conda-forge")]
+
+    assert all(
+        x in res.dependencies
+        for x in [
+            VersionedDependency(
+                name="python",
+                manager="conda",
+                version="<3.11",
+            ),
+            VersionedDependency(
+                name="clang_osx-64",
+                manager="conda",
+                version="",
+                selectors=Selectors(platform=["osx-64"]),
+            ),
+            VersionedDependency(
+                name="gcc_linux-64",
+                manager="conda",
+                version=">=6",
+                selectors=Selectors(platform=["linux-64"]),
+            ),
+        ]
+    )
 
 
 def test_choose_wheel() -> None:
