@@ -57,6 +57,15 @@ is being built from support them).  This can be disabled easily
 conda-lock --no-dev-dependencies --file meta.yaml
 ```
 
+## Preprocessing Selectors
+
+You may use preprocessing selectors, but there are currently some limitations to be aware of:
+- Only OS-specific selectors are currently supported. See Conda's [documentation][selectors] for the list of supported selectors. Selectors related to Python or Numpy versions are not supported
+- conda-lock supports an additional unique selector `osx64`. It is true if the platform is macOS and the Python architecture is 64-bit and uses x86.
+- `not`, `and`, and `or` clauses inside of selectors are not supported
+- Comparison operators (`==`, `>`, `<`, etc) are not supported
+
+
 ## Extensions
 
 ### Channel specification
