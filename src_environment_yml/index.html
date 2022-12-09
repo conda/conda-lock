@@ -300,6 +300,13 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#preprocessing-selectors" class="md-nav__link">
+    Preprocessing Selectors
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -531,6 +538,13 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#preprocessing-selectors" class="md-nav__link">
+    Preprocessing Selectors
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -583,7 +597,7 @@
 override the values in the environment specification. If neither <code>platforms</code> nor
 <code>-p</code> are provided, <code>conda-lock</code> will fall back to a default set of platforms.</p>
 <h3 id="categories">Categories</h3>
-<p>You can may wish to split your dependencies into separate files for better
+<p>You may wish to split your dependencies into separate files for better
 organization, e.g. a <code>environment.yml</code> for production dependencies and a
 <code>dev-environment.yml</code> for development dependencies. You can assign all the
 dependencies parsed from a single file to a category using the (nonstandard)
@@ -599,6 +613,22 @@ dependencies parsed from a single file to a category using the (nonstandard)
 <p>These can be used in a <a href="/compound_specification">compound specification</a> as follows.</p>
 <div class="highlight"><pre><span></span><code>conda-lock --file environment.yml --file dev-environment.yml
 </code></pre></div>
+<h3 id="preprocessing-selectors">Preprocessing Selectors</h3>
+<p>You may use preprocessing selectors supported by conda-build <code>meta.yaml</code> files to specify platform-specific dependencies.</p>
+<div class="highlight"><span class="filename">environment.yml</span><pre><span></span><code><span class="nt">channels</span><span class="p">:</span><span class="w"></span>
+<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">conda-forge</span><span class="w"></span>
+<span class="nt">dependencies</span><span class="p">:</span><span class="w"></span>
+<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">python=3.9</span><span class="w"></span>
+<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">pywin32</span><span class="w"> </span><span class="c1"># [win]</span><span class="w"></span>
+<span class="nt">platforms</span><span class="p">:</span><span class="w"></span>
+<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">linux-64</span><span class="w"></span>
+<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">win-64</span><span class="w"></span>
+</code></pre></div>
+<p>There are currently some limitations to selectors to be aware of:
+- Only OS-specific selectors are currently supported. See Conda's <a href="https://docs.conda.io/projects/conda-build/en/latest/resources/define-metadata.html#preprocessing-selectors">documentation</a> for the list of supported selectors. Selectors related to Python or Numpy versions are not supported
+- conda-lock supports an additional unique selector <code>osx64</code>. It is true if the platform is macOS and the Python architecture is 64-bit and uses x86.
+- <code>not</code>, <code>and</code>, and <code>or</code> clauses inside of selectors are not supported
+- Comparison operators (<code>==</code>, <code>&gt;</code>, <code>&lt;</code>, etc) are not supported</p>
 
 
 

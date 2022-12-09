@@ -293,6 +293,13 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#preprocessing-selectors" class="md-nav__link">
+    Preprocessing Selectors
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#extensions" class="md-nav__link">
     Extensions
   </a>
@@ -503,6 +510,13 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#preprocessing-selectors" class="md-nav__link">
+    Preprocessing Selectors
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#extensions" class="md-nav__link">
     Extensions
   </a>
@@ -590,6 +604,12 @@
 is being built from support them).  This can be disabled easily</p>
 <div class="highlight"><pre><span></span><code>conda-lock --no-dev-dependencies --file meta.yaml
 </code></pre></div>
+<h2 id="preprocessing-selectors">Preprocessing Selectors</h2>
+<p>You may use preprocessing selectors, but there are currently some limitations to be aware of:
+- Only OS-specific selectors are currently supported. See Conda's [documentation][selectors] for the list of supported selectors. Selectors related to Python or Numpy versions are not supported
+- conda-lock supports an additional unique selector <code>osx64</code>. It is true if the platform is macOS and the Python architecture is 64-bit and uses x86.
+- <code>not</code>, <code>and</code>, and <code>or</code> clauses inside of selectors are not supported
+- Comparison operators (<code>==</code>, <code>&gt;</code>, <code>&lt;</code>, etc) are not supported</p>
 <h2 id="extensions">Extensions</h2>
 <h3 id="channel-specification">Channel specification</h3>
 <p>Since a meta.yaml doesn't contain channel information we make use of the following <code>extra</code> key to specify channels</p>
