@@ -28,6 +28,7 @@ dynamic = ["dependencies", "version"]
 license-files = { paths = ["LICENSE"] }
 
 [project.optional-dependencies]
+git_support = ["gitpython"]
 pip_support = ["poetry ==1.1.*"]
 
 [project.scripts]
