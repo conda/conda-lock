@@ -169,7 +169,10 @@ class GitMeta(StrictModel):
         metadata_choices: AbstractSet[MetadataOption],
         src_files: List[pathlib.Path],
     ) -> "GitMeta | None":
-        import git
+        try:
+            import git
+        except ImportError:
+            return None
 
         git_sha: "str | None" = None
         git_user_name: "str | None" = None

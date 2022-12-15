@@ -3,6 +3,7 @@ Somewhat hacky solution to create conda lock files.
 """
 
 import datetime
+import importlib.util
 import logging
 import os
 import pathlib
@@ -823,10 +824,21 @@ def create_lockfile_from_spec(
     else:
         time_metadata = None
 
-    git_metadata = GitMeta.create(
-        metadata_choices=metadata_choices,
-        src_files=spec.sources,
-    )
+    if metadata_choices & {
+        MetadataOption.GitUserEmail,
+        MetadataOption.GitUserName,
+        MetadataOption.GitSha,
+    }:
+        if not importlib.util.find_spec("git"):
+            raise RuntimeError(
+                "The GitPython package is required to read Git metadata."
+            )
+        git_metadata = GitMeta.create(
+            metadata_choices=metadata_choices,
+            src_files=spec.sources,
+        )
+    else:
+        git_metadata = None
 
     if metadata_choices & {MetadataOption.InputSha, MetadataOption.InputMd5}:
         inputs_metadata: Optional[Dict[str, InputMeta]] = {
