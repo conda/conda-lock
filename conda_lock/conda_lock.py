@@ -840,11 +840,6 @@ def create_lockfile_from_spec(
     else:
         git_metadata = None
 
-    git_metadata = GitMeta.create(
-        metadata_choices=metadata_choices,
-        src_files=spec.sources,
-    )
-
     if metadata_choices & {MetadataOption.InputSha, MetadataOption.InputMd5}:
         inputs_metadata: Optional[Dict[str, InputMeta]] = {
             relative_path: InputMeta.create(
