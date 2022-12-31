@@ -11,16 +11,16 @@ from clikit.io import ConsoleIO, NullIO
 from packaging.tags import compatible_tags, cpython_tags
 
 from conda_lock import src_parser
+from conda_lock._vendor.poetry.core.packages import Dependency as PoetryDependency
+from conda_lock._vendor.poetry.core.packages import Package as PoetryPackage
 from conda_lock._vendor.poetry.core.packages import (
-    Dependency,
-    Package,
-    ProjectPackage,
-    URLDependency,
+    ProjectPackage as PoetryProjectPackage,
 )
+from conda_lock._vendor.poetry.core.packages import URLDependency as PoetryURLDependency
 from conda_lock._vendor.poetry.factory import Factory
 from conda_lock._vendor.poetry.installation.chooser import Chooser
 from conda_lock._vendor.poetry.installation.operations.uninstall import Uninstall
-from conda_lock._vendor.poetry.puzzle import Solver
+from conda_lock._vendor.poetry.puzzle import Solver as PoetrySolver
 from conda_lock._vendor.poetry.repositories.pool import Pool
 from conda_lock._vendor.poetry.repositories.pypi_repository import PyPiRepository
 from conda_lock._vendor.poetry.repositories.repository import Repository
@@ -142,15 +142,15 @@ def parse_pip_requirement(requirement: str) -> Optional[Dict[str, str]]:
     return match.groupdict()
 
 
-def get_dependency(dep: src_parser.Dependency) -> Dependency:
+def get_dependency(dep: src_parser.Dependency) -> PoetryDependency:
     # FIXME: how do deal with extras?
     extras: List[str] = []
     if isinstance(dep, src_parser.VersionedDependency):
-        return Dependency(
+        return PoetryDependency(
             name=dep.name, constraint=dep.version or "*", extras=dep.extras
         )
     elif isinstance(dep, src_parser.URLDependency):
-        return URLDependency(
+        return PoetryURLDependency(
             name=dep.name,
             url=f"{dep.url}#{dep.hashes[0].replace(':','=')}",
             extras=extras,
@@ -159,16 +159,16 @@ def get_dependency(dep: src_parser.Dependency) -> Dependency:
         raise ValueError(f"Unknown requirement {dep}")
 
 
-def get_package(locked: src_parser.LockedDependency) -> Package:
+def get_package(locked: src_parser.LockedDependency) -> PoetryPackage:
     if locked.source is not None:
-        return Package(
+        return PoetryPackage(
             locked.name,
             source_type="url",
             source_url=locked.source.url,
             version="0.0.0",
         )
     else:
-        return Package(locked.name, version=locked.version)
+        return PoetryPackage(locked.name, version=locked.version)
 
 
 def solve_pypi(
@@ -203,8 +203,10 @@ def solve_pypi(
         Print chatter from solver
 
     """
-    dummy_package = ProjectPackage("_dummy_package_", "0.0.0")
-    dependencies = [get_dependency(spec) for spec in pip_specs.values()]
+    dummy_package = PoetryProjectPackage("_dummy_package_", "0.0.0")
+    dependencies: List[PoetryDependency] = [
+        get_dependency(spec) for spec in pip_specs.values()
+    ]
     for dep in dependencies:
         dummy_package.add_dependency(dep)
 
@@ -240,7 +242,7 @@ def solve_pypi(
     # treat conda packages as both locked and installed
     for name, version in python_packages.items():
         for repo in (locked, installed):
-            repo.add_package(Package(name=name, version=version))
+            repo.add_package(PoetryPackage(name=name, version=version))
     # treat pip packages as locked only
     for spec in pip_locked.values():
         locked.add_package(get_package(spec))
@@ -250,12 +252,13 @@ def solve_pypi(
         io.set_verbosity(VERY_VERBOSE)
     else:
         io = NullIO()
-    s = Solver(
+    s = PoetrySolver(
         dummy_package,
         pool=pool,
         installed=installed,
         locked=locked,
-        io=io,
+        # ConsoleIO type is expected, but NullIO may be given:
+        io=io,  # type: ignore
     )
     to_update = list(
         {spec.name for spec in pip_locked.values()}.intersection(use_latest)
