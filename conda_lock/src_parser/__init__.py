@@ -61,7 +61,7 @@ class Selectors(StrictModel):
         return self.platform is None or platform in self.platform
 
 
-class Dependency(StrictModel):
+class _BaseDependency(StrictModel):
     name: str
     manager: Literal["conda", "pip"] = "conda"
     optional: bool = False
@@ -70,15 +70,18 @@ class Dependency(StrictModel):
     selectors: Selectors = Selectors()
 
 
-class VersionedDependency(Dependency):
+class VersionedDependency(_BaseDependency):
     version: str
     build: Optional[str] = None
     conda_channel: Optional[str] = None
 
 
-class URLDependency(Dependency):
+class URLDependency(_BaseDependency):
     url: str
     hashes: List[str]
+
+
+Dependency = Union[VersionedDependency, URLDependency]
 
 
 class Package(StrictModel):
