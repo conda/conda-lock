@@ -8,8 +8,14 @@
       
       
       
+      
+        <link rel="prev" href="../src_environment_yml/">
+      
+      
+        <link rel="next" href="../src_pyproject/">
+      
       <link rel="icon" href="../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.4.2, mkdocs-material-8.5.10">
+      <meta name="generator" content="mkdocs-1.4.2, mkdocs-material-9.0.0">
     
     
       
@@ -17,11 +23,10 @@
       
     
     
-      <link rel="stylesheet" href="../assets/stylesheets/main.975780f9.min.css">
+      <link rel="stylesheet" href="../assets/stylesheets/main.f79797b0.min.css">
       
         
         <link rel="stylesheet" href="../assets/stylesheets/palette.2505c338.min.css">
-        
       
       
 
@@ -52,7 +57,7 @@
     
     
     
-    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="None" data-md-color-accent="None">
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="" data-md-color-accent="">
   
     
     
@@ -550,10 +555,9 @@
                 
                   
 
-  <a href="https://github.com/conda-incubator/conda-lock/edit/master/docs/src_meta_yaml.md" title="Edit this page" class="md-content__button md-icon">
-    
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20.71 7.04c.39-.39.39-1.04 0-1.41l-2.34-2.34c-.37-.39-1.02-.39-1.41 0l-1.84 1.83 3.75 3.75M3 17.25V21h3.75L17.81 9.93l-3.75-3.75L3 17.25Z"/></svg>
-  </a>
+  
+  
+
 
 
 <h1 id="metayaml">meta.yaml</h1>
@@ -561,38 +565,38 @@
 <p>Conda-lock will attempt to make an educated guess at the desired environment spec in a meta.yaml.</p>
 <p>This is <strong>not</strong> guaranteed to work for complex recipes with many selectors and outputs or complex use of jinja templates.</p>
 <p>For multi-output recipes, conda-lock will fuse all the dependencies together.  If that doesn't work for your case fall back to specifying the specification as an <a href="/src_environment_yml">environment.yml</a></p>
-<div class="highlight"><span class="filename">meta.yaml</span><pre><span></span><code><span class="p p-Indicator">{</span><span class="err">%</span><span class="w"> </span><span class="nv">set version = &quot;1.0.5&quot; %</span><span class="p p-Indicator">}</span><span class="w"></span>
+<div class="highlight"><span class="filename">meta.yaml</span><pre><span></span><code><span class="p p-Indicator">{</span><span class="err">%</span><span class="w"> </span><span class="nv">set version = &quot;1.0.5&quot; %</span><span class="p p-Indicator">}</span>
 
-<span class="nt">package</span><span class="p">:</span><span class="w"></span>
-<span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">foo</span><span class="w"></span>
-<span class="w">  </span><span class="nt">version</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{{</span><span class="w"> </span><span class="nv">version</span><span class="w"> </span><span class="p p-Indicator">}}</span><span class="w"></span>
+<span class="nt">package</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">foo</span>
+<span class="w">  </span><span class="nt">version</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{{</span><span class="w"> </span><span class="nv">version</span><span class="w"> </span><span class="p p-Indicator">}}</span>
 
-<span class="nt">build</span><span class="p">:</span><span class="w"></span>
-<span class="w">  </span><span class="nt">number</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0</span><span class="w"></span>
-<span class="w">  </span><span class="nt">script</span><span class="p">:</span><span class="w"></span>
-<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">export PYTHONUNBUFFERED=1</span><span class="w">  </span><span class="c1"># [ppc64le]</span><span class="w"></span>
-<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">{{</span><span class="w"> </span><span class="nv">PYTHON</span><span class="w"> </span><span class="p p-Indicator">}}</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">-m pip install --no-deps --ignore-installed .</span><span class="w"></span>
-<span class="w">  </span><span class="nt">skip</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">True</span><span class="w">  </span><span class="c1"># [py2k]</span><span class="w"></span>
+<span class="nt">build</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">number</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0</span>
+<span class="w">  </span><span class="nt">script</span><span class="p">:</span>
+<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">export PYTHONUNBUFFERED=1</span><span class="w">  </span><span class="c1"># [ppc64le]</span>
+<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">{{</span><span class="w"> </span><span class="nv">PYTHON</span><span class="w"> </span><span class="p p-Indicator">}}</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">-m pip install --no-deps --ignore-installed .</span>
+<span class="w">  </span><span class="nt">skip</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">True</span><span class="w">  </span><span class="c1"># [py2k]</span>
 
-<span class="nt">requirements</span><span class="p">:</span><span class="w"></span>
-<span class="w">  </span><span class="nt">build</span><span class="p">:</span><span class="w"></span>
-<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">{{</span><span class="w"> </span><span class="nv">compiler(&#39;c&#39;)</span><span class="w"> </span><span class="p p-Indicator">}}</span><span class="w"></span>
-<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">{{</span><span class="w"> </span><span class="nv">compiler(&#39;cxx&#39;)</span><span class="w"> </span><span class="p p-Indicator">}}</span><span class="w"></span>
-<span class="w">  </span><span class="nt">host</span><span class="p">:</span><span class="w"></span>
-<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">python</span><span class="w"></span>
-<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">pip</span><span class="w"></span>
-<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">cython &gt;=0.28.2</span><span class="w"></span>
-<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">numpy</span><span class="w"></span>
-<span class="w">  </span><span class="nt">run</span><span class="p">:</span><span class="w"></span>
-<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">python</span><span class="w"></span>
-<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">{{</span><span class="w"> </span><span class="nv">pin_compatible(&#39;numpy&#39;)</span><span class="w"> </span><span class="p p-Indicator">}}</span><span class="w"></span>
-<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">python-dateutil &gt;=2.6.1</span><span class="w"></span>
-<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">pytz &gt;=2017.2</span><span class="w"></span>
-<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">zlib</span><span class="w">     </span><span class="c1"># [unix]</span><span class="w"></span>
+<span class="nt">requirements</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">build</span><span class="p">:</span>
+<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">{{</span><span class="w"> </span><span class="nv">compiler(&#39;c&#39;)</span><span class="w"> </span><span class="p p-Indicator">}}</span>
+<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">{{</span><span class="w"> </span><span class="nv">compiler(&#39;cxx&#39;)</span><span class="w"> </span><span class="p p-Indicator">}}</span>
+<span class="w">  </span><span class="nt">host</span><span class="p">:</span>
+<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">python</span>
+<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">pip</span>
+<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">cython &gt;=0.28.2</span>
+<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">numpy</span>
+<span class="w">  </span><span class="nt">run</span><span class="p">:</span>
+<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">python</span>
+<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">{{</span><span class="w"> </span><span class="nv">pin_compatible(&#39;numpy&#39;)</span><span class="w"> </span><span class="p p-Indicator">}}</span>
+<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">python-dateutil &gt;=2.6.1</span>
+<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">pytz &gt;=2017.2</span>
+<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">zlib</span><span class="w">     </span><span class="c1"># [unix]</span>
 
-<span class="nt">test</span><span class="p">:</span><span class="w"></span>
-<span class="w">  </span><span class="nt">requires</span><span class="p">:</span><span class="w"></span>
-<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">pytest</span><span class="w"></span>
+<span class="nt">test</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">requires</span><span class="p">:</span>
+<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">pytest</span>
 </code></pre></div>
 <h2 id="categories">Categories</h2>
 <ul>
@@ -602,7 +606,7 @@
 </ul>
 <p>By default conda-lock will include dev dependencies in the specification of the lock (if the files that the lock
 is being built from support them).  This can be disabled easily</p>
-<div class="highlight"><pre><span></span><code>conda-lock --no-dev-dependencies --file meta.yaml
+<div class="highlight"><pre><span></span><code>conda-lock<span class="w"> </span>--no-dev-dependencies<span class="w"> </span>--file<span class="w"> </span>meta.yaml
 </code></pre></div>
 <h2 id="preprocessing-selectors">Preprocessing Selectors</h2>
 <p>You may use preprocessing selectors, but there are currently some limitations to be aware of:
@@ -613,10 +617,10 @@ is being built from support them).  This can be disabled easily</p>
 <h2 id="extensions">Extensions</h2>
 <h3 id="channel-specification">Channel specification</h3>
 <p>Since a meta.yaml doesn't contain channel information we make use of the following <code>extra</code> key to specify channels</p>
-<div class="highlight"><pre><span></span><code><span class="nt">extra</span><span class="p">:</span><span class="w"></span>
-<span class="w">  </span><span class="nt">channels</span><span class="p">:</span><span class="w"></span>
-<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">conda-forge</span><span class="w"></span>
-<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">defaults</span><span class="w"></span>
+<div class="highlight"><pre><span></span><code><span class="nt">extra</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">channels</span><span class="p">:</span>
+<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">conda-forge</span>
+<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">defaults</span>
 </code></pre></div>
 
 
@@ -635,42 +639,6 @@ is being built from support them).  This can be disabled easily</p>
       </main>
       
         <footer class="md-footer">
-  
-    
-    <nav class="md-footer__inner md-grid" aria-label="Footer" >
-      
-        
-        <a href="../src_environment_yml/" class="md-footer__link md-footer__link--prev" aria-label="Previous: environment.yml" rel="prev">
-          <div class="md-footer__button md-icon">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11h12Z"/></svg>
-          </div>
-          <div class="md-footer__title">
-            <div class="md-ellipsis">
-              <span class="md-footer__direction">
-                Previous
-              </span>
-              environment.yml
-            </div>
-          </div>
-        </a>
-      
-      
-        
-        <a href="../src_pyproject/" class="md-footer__link md-footer__link--next" aria-label="Next: pyproject.toml" rel="next">
-          <div class="md-footer__title">
-            <div class="md-ellipsis">
-              <span class="md-footer__direction">
-                Next
-              </span>
-              pyproject.toml
-            </div>
-          </div>
-          <div class="md-footer__button md-icon">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M4 11v2h12l-5.5 5.5 1.42 1.42L19.84 12l-7.92-7.92L10.5 5.5 16 11H4Z"/></svg>
-          </div>
-        </a>
-      
-    </nav>
   
   <div class="md-footer-meta md-typeset">
     <div class="md-footer-meta__inner md-grid">
@@ -706,12 +674,11 @@ is being built from support them).  This can be disabled easily</p>
       <div class="md-dialog__inner md-typeset"></div>
     </div>
     
-    <script id="__config" type="application/json">{"base": "..", "features": ["content.tabs.link", "header.autohide", "navigation.indexes", "navigation.instant", "navigation.expand"], "search": "../assets/javascripts/workers/search.16e2a7d4.min.js", "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.config.lang": "en", "search.config.pipeline": "trimmer, stopWordFilter", "search.config.separator": "[\\s\\-]+", "search.placeholder": "Search", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version.title": "Select version"}}</script>
+    <script id="__config" type="application/json">{"base": "..", "features": ["content.tabs.link", "header.autohide", "navigation.indexes", "navigation.instant", "navigation.expand"], "search": "../assets/javascripts/workers/search.12658920.min.js", "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}}</script>
     
     
-      <script src="../assets/javascripts/bundle.5a2dcb6a.min.js"></script>
+      <script src="../assets/javascripts/bundle.5cf534bf.min.js"></script>
       
-    
     
   </body>
 </html>
