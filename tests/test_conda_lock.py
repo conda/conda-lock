@@ -281,6 +281,31 @@ def custom_json_metadata(custom_metadata_environment: Path) -> Path:
     return outfile
 
 
+def test_lock_poetry_ibis(tmp_path: Path, mamba_exe: Path):
+    pyproject = clone_test_dir("test-poetry-ibis", tmp_path).joinpath("pyproject.toml")
+
+    extra_categories = {"test", "dev", "docs"}
+
+    run_lock(
+        [pyproject],
+        conda_exe=str(mamba_exe),
+        platforms=["linux-64"],
+        extras={"test", "dev", "docs"},
+        filter_categories=True,
+    )
+    lockfile = parse_conda_lock_file(pyproject / DEFAULT_LOCKFILE_NAME)
+
+    all_categories = set()
+
+    for pkg in lockfile.package:
+        all_categories.add(pkg.category)
+
+    for desired_category in extra_categories:
+        assert (
+            desired_category in all_categories
+        ), "Extra category not found in lockfile"
+
+
 def test_parse_environment_file(gdal_environment: Path):
     res = parse_environment_file(gdal_environment, DEFAULT_PLATFORMS, pip_support=True)
     assert all(
@@ -392,7 +417,6 @@ def test_parse_env_file_with_filters_defaults(filter_conda_environment: Path):
 
 
 def test_choose_wheel() -> None:
-
     solution = solve_pypi(
         {
             "fastavro": VersionedDependency(
