@@ -11,7 +11,7 @@ from logging import DEBUG, getLogger
 try:
     from tlz.itertoolz import concat, groupby
 except ImportError:
-    from conda_lock._vendor.conda._vendor.toolz.itertoolz import concat, groupby
+    from conda._vendor.toolz.itertoolz import concat, groupby
 
 from .auxlib.decorators import memoizemethod
 from ._vendor.frozendict import FrozenOrderedDict as frozendict

@@ -1,14 +1,13 @@
-from typing import Type
+from __future__ import annotations
 
-from .layout import Layout
-from .src import SrcLayout
-from .standard import StandardLayout
-
-
-_LAYOUTS = {"src": SrcLayout, "standard": StandardLayout}
+from poetry.layouts.layout import Layout
+from poetry.layouts.src import SrcLayout
 
 
-def layout(name):  # type: (str) -> Type[Layout]
+_LAYOUTS = {"src": SrcLayout, "standard": Layout}
+
+
+def layout(name: str) -> type[Layout]:
     if name not in _LAYOUTS:
         raise ValueError("Invalid layout")
 

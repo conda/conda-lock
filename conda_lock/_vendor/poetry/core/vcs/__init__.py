@@ -1,24 +1,29 @@
+from __future__ import annotations
+
 import os
 import subprocess
 
-from conda_lock._vendor.poetry.core.utils._compat import Path
-from conda_lock._vendor.poetry.core.utils._compat import decode
+from pathlib import Path
 
-from .git import Git
+from poetry.core.vcs.git import Git
 
 
-def get_vcs(directory):  # type: (Path) -> Git
+def get_vcs(directory: Path) -> Git | None:
     working_dir = Path.cwd()
     os.chdir(str(directory.resolve()))
 
-    try:
-        from .git import executable
+    vcs: Git | None
 
-        git_dir = decode(
+    try:
+        from poetry.core.vcs.git import executable
+
+        git_dir = (
             subprocess.check_output(
                 [executable(), "rev-parse", "--show-toplevel"], stderr=subprocess.STDOUT
             )
-        ).strip()
+            .decode()
+            .strip()
+        )
 
         vcs = Git(Path(git_dir))
 

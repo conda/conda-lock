@@ -17,7 +17,7 @@ import warnings
 try:
     from tlz.itertoolz import concat, concatv, interleave
 except ImportError:
-    from conda_lock._vendor.conda._vendor.toolz.itertoolz import concat, concatv, interleave
+    from conda._vendor.toolz.itertoolz import concat, concatv, interleave
 
 from .package_cache_data import PackageCacheData
 from .path_actions import (CompileMultiPycAction, CreateNonadminAction, CreatePrefixRecordAction,

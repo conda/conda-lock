@@ -1,6 +1,6 @@
 import copy
 import operator
-from conda_lock._vendor.conda._vendor.toolz.compatibility import (map, zip, iteritems, iterkeys, itervalues,
+from conda._vendor.toolz.compatibility import (map, zip, iteritems, iterkeys, itervalues,
                                  reduce)
 
 __all__ = ('merge', 'merge_with', 'valmap', 'keymap', 'itemmap',

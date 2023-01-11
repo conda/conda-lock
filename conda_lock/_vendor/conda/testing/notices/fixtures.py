@@ -7,8 +7,8 @@ from pathlib import Path
 from unittest import mock
 import pytest
 
-from conda_lock._vendor.conda.base.constants import NOTICES_CACHE_SUBDIR
-from conda_lock._vendor.conda.cli import conda_argparse
+from conda.base.constants import NOTICES_CACHE_SUBDIR
+from conda.cli import conda_argparse
 
 
 @pytest.fixture(scope="function")

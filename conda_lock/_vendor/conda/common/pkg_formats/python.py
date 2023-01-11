@@ -21,7 +21,7 @@ import warnings
 try:
     from tlz.itertoolz import concat, concatv, groupby
 except ImportError:
-    from conda_lock._vendor.conda._vendor.toolz.itertoolz import concat, concatv, groupby
+    from conda._vendor.toolz.itertoolz import concat, concatv, groupby
 
 from ... import CondaError
 from ..compat import odict, open

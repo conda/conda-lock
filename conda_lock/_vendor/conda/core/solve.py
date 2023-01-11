@@ -13,7 +13,7 @@ from textwrap import dedent
 try:
     from tlz.itertoolz import concat, concatv, groupby
 except ImportError:
-    from conda_lock._vendor.conda._vendor.toolz.itertoolz import concat, concatv, groupby
+    from conda._vendor.toolz.itertoolz import concat, concatv, groupby
 
 from .index import get_reduced_index, _supplement_index_with_system
 from .link import PrefixSetup, UnlinkLinkTransaction

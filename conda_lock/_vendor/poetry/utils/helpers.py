@@ -1,73 +1,62 @@
+from __future__ import annotations
+
+import hashlib
+import io
 import os
-import re
 import shutil
 import stat
+import sys
 import tempfile
 
 from contextlib import contextmanager
-from typing import List
-from typing import Optional
+from pathlib import Path
+from typing import TYPE_CHECKING
+from typing import Any
+from typing import Iterator
+from typing import Mapping
 
-import requests
-
-from conda_lock._vendor.poetry.config.config import Config
-from conda_lock._vendor.poetry.core.packages.package import Package
-from conda_lock._vendor.poetry.core.version import Version
-from conda_lock._vendor.poetry.utils._compat import Path
+from poetry.utils.constants import REQUESTS_TIMEOUT
 
 
-try:
-    from collections.abc import Mapping
-except ImportError:
-    from collections import Mapping
+if TYPE_CHECKING:
+    from collections.abc import Callable
+    from io import BufferedWriter
 
+    from poetry.core.packages.package import Package
+    from requests import Session
 
-_canonicalize_regex = re.compile("[-_]+")
-
-
-def canonicalize_name(name):  # type: (str) -> str
-    return _canonicalize_regex.sub("-", name).lower()
-
-
-def module_name(name):  # type: (str) -> str
-    return canonicalize_name(name).replace(".", "_").replace("-", "_")
-
-
-def normalize_version(version):  # type: (str) -> str
-    return str(Version(version))
-
-
-def _del_ro(action, name, exc):
-    os.chmod(name, stat.S_IWRITE)
-    os.remove(name)
+    from poetry.utils.authenticator import Authenticator
 
 
 @contextmanager
-def temporary_directory(*args, **kwargs):
-    name = tempfile.mkdtemp(*args, **kwargs)
-
-    yield name
-
-    shutil.rmtree(name, onerror=_del_ro)
-
-
-def get_cert(config, repository_name):  # type: (Config, str) -> Optional[Path]
-    cert = config.get("certificates.{}.cert".format(repository_name))
-    if cert:
-        return Path(cert)
-    else:
-        return None
+def directory(path: Path) -> Iterator[Path]:
+    cwd = Path.cwd()
+    try:
+        os.chdir(path)
+        yield path
+    finally:
+        os.chdir(cwd)
 
 
-def get_client_cert(config, repository_name):  # type: (Config, str) -> Optional[Path]
-    client_cert = config.get("certificates.{}.client-cert".format(repository_name))
-    if client_cert:
-        return Path(client_cert)
-    else:
-        return None
+@contextmanager
+def atomic_open(filename: str | os.PathLike[str]) -> Iterator[BufferedWriter]:
+    """
+    write a file to the disk in an atomic fashion
+
+    Taken from requests.utils
+    (https://github.com/psf/requests/blob/7104ad4b135daab0ed19d8e41bd469874702342b/requests/utils.py#L296)
+    """
+    tmp_descriptor, tmp_name = tempfile.mkstemp(dir=os.path.dirname(filename))
+    try:
+        with os.fdopen(tmp_descriptor, "wb") as tmp_handler:
+            yield tmp_handler
+        os.replace(tmp_name, filename)
+    except BaseException:
+        os.remove(tmp_name)
+        raise
 
 
-def _on_rm_error(func, path, exc_info):
+def _on_rm_error(func: Callable[[str], None], path: str, exc_info: Exception) -> None:
     if not os.path.exists(path):
         return
 
@@ -75,15 +64,25 @@ def _on_rm_error(func, path, exc_info):
     func(path)
 
 
-def safe_rmtree(path):
+def remove_directory(
+    path: Path | str, *args: Any, force: bool = False, **kwargs: Any
+) -> None:
+    """
+    Helper function handle safe removal, and optionally forces stubborn file removal.
+    This is particularly useful when dist files are read-only or git writes read-only
+    files on Windows.
+
+    Internally, all arguments are passed to `shutil.rmtree`.
+    """
     if Path(path).is_symlink():
         return os.unlink(str(path))
 
-    shutil.rmtree(path, onerror=_on_rm_error)
+    kwargs["onerror"] = kwargs.pop("onerror", _on_rm_error if force else None)
+    shutil.rmtree(path, *args, **kwargs)
 
 
-def merge_dicts(d1, d2):
-    for k, v in d2.items():
+def merge_dicts(d1: dict[str, Any], d2: dict[str, Any]) -> None:
+    for k in d2.keys():
         if k in d1 and isinstance(d1[k], dict) and isinstance(d2[k], Mapping):
             merge_dicts(d1[k], d2[k])
         else:
@@ -91,36 +90,67 @@ def merge_dicts(d1, d2):
 
 
 def download_file(
-    url, dest, session=None, chunk_size=1024
-):  # type: (str, str, Optional[requests.Session], int) -> None
+    url: str,
+    dest: Path,
+    session: Authenticator | Session | None = None,
+    chunk_size: int = 1024,
+) -> None:
+    import requests
+
+    from poetry.puzzle.provider import Indicator
+
     get = requests.get if not session else session.get
 
-    with get(url, stream=True) as response:
-        response.raise_for_status()
+    response = get(url, stream=True, timeout=REQUESTS_TIMEOUT)
+    response.raise_for_status()
+
+    set_indicator = False
+    with Indicator.context() as update_context:
+        update_context(f"Downloading {url}")
+
+        if "Content-Length" in response.headers:
+            try:
+                total_size = int(response.headers["Content-Length"])
+            except ValueError:
+                total_size = 0
+
+            fetched_size = 0
+            last_percent = 0
+
+            # if less than 1MB, we simply show that we're downloading
+            # but skip the updating
+            set_indicator = total_size > 1024 * 1024
 
         with open(dest, "wb") as f:
             for chunk in response.iter_content(chunk_size=chunk_size):
                 if chunk:
                     f.write(chunk)
 
+                    if set_indicator:
+                        fetched_size += len(chunk)
+                        percent = (fetched_size * 100) // total_size
+                        if percent > last_percent:
+                            last_percent = percent
+                            update_context(f"Downloading {url} {percent:3}%")
+
 
 def get_package_version_display_string(
-    package, root=None
-):  # type: (Package, Optional[Path]) -> str
+    package: Package, root: Path | None = None
+) -> str:
     if package.source_type in ["file", "directory"] and root:
-        return "{} {}".format(
-            package.version,
-            Path(os.path.relpath(package.source_url, root.as_posix())).as_posix(),
-        )
+        assert package.source_url is not None
+        path = Path(os.path.relpath(package.source_url, root)).as_posix()
+        return f"{package.version} {path}"
 
-    return package.full_pretty_version
-
-
-def paths_csv(paths):  # type: (List[Path]) -> str
-    return ", ".join('"{}"'.format(str(c)) for c in paths)
+    pretty_version: str = package.full_pretty_version
+    return pretty_version
 
 
-def is_dir_writable(path, create=False):  # type: (Path, bool) -> bool
+def paths_csv(paths: list[Path]) -> str:
+    return ", ".join(f'"{c!s}"' for c in paths)
+
+
+def is_dir_writable(path: Path, create: bool = False) -> bool:
     try:
         if not path.exists():
             if not create:
@@ -129,7 +159,107 @@ def is_dir_writable(path, create=False):  # type: (Path, bool) -> bool
 
         with tempfile.TemporaryFile(dir=str(path)):
             pass
-    except (IOError, OSError):
+    except OSError:
         return False
     else:
         return True
+
+
+def pluralize(count: int, word: str = "") -> str:
+    if count == 1:
+        return word
+    return word + "s"
+
+
+def _get_win_folder_from_registry(csidl_name: str) -> str:
+    if sys.platform != "win32":
+        raise RuntimeError("Method can only be called on Windows.")
+
+    import winreg as _winreg
+
+    shell_folder_name = {
+        "CSIDL_APPDATA": "AppData",
+        "CSIDL_COMMON_APPDATA": "Common AppData",
+        "CSIDL_LOCAL_APPDATA": "Local AppData",
+        "CSIDL_PROGRAM_FILES": "Program Files",
+    }[csidl_name]
+
+    key = _winreg.OpenKey(
+        _winreg.HKEY_CURRENT_USER,
+        r"Software\Microsoft\Windows\CurrentVersion\Explorer\Shell Folders",
+    )
+    dir, type = _winreg.QueryValueEx(key, shell_folder_name)
+
+    assert isinstance(dir, str)
+    return dir
+
+
+def _get_win_folder_with_ctypes(csidl_name: str) -> str:
+    if sys.platform != "win32":
+        raise RuntimeError("Method can only be called on Windows.")
+
+    import ctypes
+
+    csidl_const = {
+        "CSIDL_APPDATA": 26,
+        "CSIDL_COMMON_APPDATA": 35,
+        "CSIDL_LOCAL_APPDATA": 28,
+        "CSIDL_PROGRAM_FILES": 38,
+    }[csidl_name]
+
+    buf = ctypes.create_unicode_buffer(1024)
+    ctypes.windll.shell32.SHGetFolderPathW(None, csidl_const, None, 0, buf)
+
+    # Downgrade to short path name if have highbit chars. See
+    # <http://bugs.activestate.com/show_bug.cgi?id=85099>.
+    has_high_char = False
+    for c in buf:
+        if ord(c) > 255:
+            has_high_char = True
+            break
+    if has_high_char:
+        buf2 = ctypes.create_unicode_buffer(1024)
+        if ctypes.windll.kernel32.GetShortPathNameW(buf.value, buf2, 1024):
+            buf = buf2
+
+    return buf.value
+
+
+def get_win_folder(csidl_name: str) -> Path:
+    if sys.platform == "win32":
+        try:
+            from ctypes import windll  # noqa: F401
+
+            _get_win_folder = _get_win_folder_with_ctypes
+        except ImportError:
+            _get_win_folder = _get_win_folder_from_registry
+
+        return Path(_get_win_folder(csidl_name))
+
+    raise RuntimeError("Method can only be called on Windows.")
+
+
+def get_real_windows_path(path: str | Path) -> Path:
+    program_files = get_win_folder("CSIDL_PROGRAM_FILES")
+    local_appdata = get_win_folder("CSIDL_LOCAL_APPDATA")
+
+    path = Path(
+        str(path).replace(
+            str(program_files / "WindowsApps"),
+            str(local_appdata / "Microsoft/WindowsApps"),
+        )
+    )
+
+    if path.as_posix().startswith(local_appdata.as_posix()):
+        path = path.resolve()
+
+    return path
+
+
+def get_file_hash(path: Path, hash_name: str = "sha256") -> str:
+    h = hashlib.new(hash_name)
+    with path.open("rb") as fp:
+        for content in iter(lambda: fp.read(io.DEFAULT_BUFFER_SIZE), b""):
+            h.update(content)
+
+    return h.hexdigest()

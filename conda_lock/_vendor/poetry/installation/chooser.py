@@ -1,26 +1,39 @@
+from __future__ import annotations
+
+import logging
 import re
 
-from typing import List
-from typing import Tuple
+from typing import TYPE_CHECKING
+from typing import Any
 
 from packaging.tags import Tag
 
-from conda_lock._vendor.poetry.core.packages.package import Package
-from conda_lock._vendor.poetry.core.packages.utils.link import Link
-from conda_lock._vendor.poetry.repositories.pool import Pool
-from conda_lock._vendor.poetry.utils.env import Env
-from conda_lock._vendor.poetry.utils.patterns import wheel_file_re
+from poetry.config.config import Config
+from poetry.config.config import PackageFilterPolicy
+from poetry.utils.patterns import wheel_file_re
+
+
+if TYPE_CHECKING:
+    from poetry.core.constraints.version import Version
+    from poetry.core.packages.package import Package
+    from poetry.core.packages.utils.link import Link
+
+    from poetry.repositories.repository_pool import RepositoryPool
+    from poetry.utils.env import Env
+
+
+logger = logging.getLogger(__name__)
 
 
 class InvalidWheelName(Exception):
     pass
 
 
-class Wheel(object):
-    def __init__(self, filename):  # type: (str) -> None
+class Wheel:
+    def __init__(self, filename: str) -> None:
         wheel_info = wheel_file_re.match(filename)
         if not wheel_info:
-            raise InvalidWheelName("{} is not a valid wheel filename.".format(filename))
+            raise InvalidWheelName(f"{filename} is not a valid wheel filename.")
 
         self.filename = filename
         self.name = wheel_info.group("name").replace("_", "-")
@@ -34,12 +47,12 @@ class Wheel(object):
             Tag(x, y, z) for x in self.pyversions for y in self.abis for z in self.plats
         }
 
-    def get_minimum_supported_index(self, tags):
+    def get_minimum_supported_index(self, tags: list[Tag]) -> int | None:
         indexes = [tags.index(t) for t in self.tags if t in tags]
 
         return min(indexes) if indexes else None
 
-    def is_supported_by_environment(self, env):
+    def is_supported_by_environment(self, env: Env) -> bool:
         return bool(set(env.supported_tags).intersection(self.tags))
 
 
@@ -48,49 +61,63 @@ class Chooser:
     A Chooser chooses an appropriate release archive for packages.
     """
 
-    def __init__(self, pool, env):  # type: (Pool, Env) -> None
+    def __init__(
+        self, pool: RepositoryPool, env: Env, config: Config | None = None
+    ) -> None:
         self._pool = pool
         self._env = env
+        self._config = config or Config.create()
+        self._no_binary_policy: PackageFilterPolicy = PackageFilterPolicy(
+            self._config.get("installer.no-binary", [])
+        )
 
-    def choose_for(self, package):  # type: (Package) -> Link
+    def choose_for(self, package: Package) -> Link:
         """
         Return the url of the selected archive for a given package.
         """
         links = []
         for link in self._get_links(package):
-            if link.is_wheel and not Wheel(link.filename).is_supported_by_environment(
-                self._env
-            ):
-                continue
+            if link.is_wheel:
+                if not self._no_binary_policy.allows(package.name):
+                    logger.debug(
+                        "Skipping wheel for %s as requested in no binary policy for"
+                        " package (%s)",
+                        link.filename,
+                        package.name,
+                    )
+                    continue
+
+                if not Wheel(link.filename).is_supported_by_environment(self._env):
+                    logger.debug(
+                        "Skipping wheel %s as this is not supported by the current"
+                        " environment",
+                        link.filename,
+                    )
+                    continue
 
             if link.ext in {".egg", ".exe", ".msi", ".rpm", ".srpm"}:
+                logger.debug("Skipping unsupported distribution %s", link.filename)
                 continue
 
             links.append(link)
 
         if not links:
-            raise RuntimeError(
-                "Unable to find installation candidates for {}".format(package)
-            )
+            raise RuntimeError(f"Unable to find installation candidates for {package}")
 
         # Get the best link
         chosen = max(links, key=lambda link: self._sort_key(package, link))
-        if not chosen:
-            raise RuntimeError(
-                "Unable to find installation candidates for {}".format(package)
-            )
 
         return chosen
 
-    def _get_links(self, package):  # type: (Package) -> List[Link]
-        if not package.source_type:
-            if not self._pool.has_repository("pypi"):
-                repository = self._pool.repositories[0]
-            else:
-                repository = self._pool.repository("pypi")
-        else:
+    def _get_links(self, package: Package) -> list[Link]:
+        if package.source_type:
+            assert package.source_reference is not None
             repository = self._pool.repository(package.source_reference)
 
+        elif not self._pool.has_repository("pypi"):
+            repository = self._pool.repositories[0]
+        else:
+            repository = self._pool.repository("pypi")
         links = repository.find_links_for_package(package)
 
         hashes = [f["hash"] for f in package.files]
@@ -103,22 +130,29 @@ class Chooser:
                 selected_links.append(link)
                 continue
 
+            assert link.hash_name is not None
             h = link.hash_name + ":" + link.hash
             if h not in hashes:
+                logger.debug(
+                    "Skipping %s as %s checksum does not match expected value",
+                    link.filename,
+                    link.hash_name,
+                )
                 continue
 
             selected_links.append(link)
 
         if links and not selected_links:
             raise RuntimeError(
-                "Retrieved digest for link {}({}) not in poetry.lock metadata {}".format(
-                    link.filename, h, hashes
-                )
+                f"Retrieved digest for link {link.filename}({h}) not in poetry.lock"
+                f" metadata {hashes}"
             )
 
         return selected_links
 
-    def _sort_key(self, package, link):  # type: (Package, Link) -> Tuple
+    def _sort_key(
+        self, package: Package, link: Link
+    ) -> tuple[int, int, int, Version, tuple[Any, ...], int]:
         """
         Function to pass as the `key` argument to a call to sorted() to sort
         InstallationCandidates by preference.
@@ -142,30 +176,31 @@ class Chooser:
               comparison operators, but then different sdist links
               with the same version, would have to be considered equal
         """
-        support_num = len(self._env.supported_tags)
-        build_tag = ()
+        build_tag: tuple[Any, ...] = ()
         binary_preference = 0
         if link.is_wheel:
             wheel = Wheel(link.filename)
             if not wheel.is_supported_by_environment(self._env):
                 raise RuntimeError(
-                    "{} is not a supported wheel for this platform. It "
-                    "can't be sorted.".format(wheel.filename)
+                    f"{wheel.filename} is not a supported wheel for this platform. It "
+                    "can't be sorted."
                 )
 
             # TODO: Binary preference
-            pri = -(wheel.get_minimum_supported_index(self._env.supported_tags))
+            pri = -(wheel.get_minimum_supported_index(self._env.supported_tags) or 0)
             if wheel.build_tag is not None:
                 match = re.match(r"^(\d+)(.*)$", wheel.build_tag)
+                if not match:
+                    raise ValueError(f"Unable to parse build tag: {wheel.build_tag}")
                 build_tag_groups = match.groups()
                 build_tag = (int(build_tag_groups[0]), build_tag_groups[1])
         else:  # sdist
+            support_num = len(self._env.supported_tags)
             pri = -support_num
 
         has_allowed_hash = int(self._is_link_hash_allowed_for_package(link, package))
 
-        # TODO: Proper yank value
-        yank_value = 0
+        yank_value = int(not link.yanked)
 
         return (
             has_allowed_hash,
@@ -176,12 +211,11 @@ class Chooser:
             pri,
         )
 
-    def _is_link_hash_allowed_for_package(
-        self, link, package
-    ):  # type: (Link, Package) -> bool
+    def _is_link_hash_allowed_for_package(self, link: Link, package: Package) -> bool:
         if not link.hash:
             return True
 
+        assert link.hash_name is not None
         h = link.hash_name + ":" + link.hash
 
         return h in {f["hash"] for f in package.files}

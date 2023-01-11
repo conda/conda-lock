@@ -1,8 +1,13 @@
+from __future__ import annotations
+
 from collections import namedtuple
-from typing import Optional
 
 
 class License(namedtuple("License", "id name is_osi_approved is_deprecated")):
+    id: str
+    name: str
+    is_osi_approved: bool
+    is_deprecated: bool
 
     CLASSIFIER_SUPPORTED = {
         # Not OSI Approved
@@ -131,7 +136,7 @@ class License(namedtuple("License", "id name is_osi_approved is_deprecated")):
     }
 
     @property
-    def classifier(self):  # type: () -> str
+    def classifier(self) -> str:
         parts = ["License"]
 
         if self.is_osi_approved:
@@ -144,7 +149,7 @@ class License(namedtuple("License", "id name is_osi_approved is_deprecated")):
         return " :: ".join(parts)
 
     @property
-    def classifier_name(self):  # type: () -> Optional[str]
+    def classifier_name(self) -> str | None:
         if self.id not in self.CLASSIFIER_SUPPORTED:
             if self.is_osi_approved:
                 return None

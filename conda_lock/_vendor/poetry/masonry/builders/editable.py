@@ -1,27 +1,40 @@
-from __future__ import unicode_literals
+from __future__ import annotations
 
+import csv
 import hashlib
+import json
 import os
 import shutil
 
 from base64 import urlsafe_b64encode
+from pathlib import Path
+from typing import TYPE_CHECKING
 
-from conda_lock._vendor.poetry.core.masonry.builders.builder import Builder
-from conda_lock._vendor.poetry.core.masonry.builders.sdist import SdistBuilder
-from conda_lock._vendor.poetry.core.masonry.utils.package_include import PackageInclude
-from conda_lock._vendor.poetry.core.semver.version import Version
-from conda_lock._vendor.poetry.utils._compat import WINDOWS
-from conda_lock._vendor.poetry.utils._compat import Path
-from conda_lock._vendor.poetry.utils._compat import decode
-from conda_lock._vendor.poetry.utils.helpers import is_dir_writable
+from poetry.core.constraints.version import Version
+from poetry.core.masonry.builders.builder import Builder
+from poetry.core.masonry.builders.sdist import SdistBuilder
+from poetry.core.masonry.utils.package_include import PackageInclude
 
+from poetry.utils._compat import WINDOWS
+from poetry.utils._compat import decode
+from poetry.utils.env import build_environment
+from poetry.utils.helpers import is_dir_writable
+from poetry.utils.pip import pip_install
+
+
+if TYPE_CHECKING:
+    from cleo.io.io import IO
+
+    from poetry.poetry import Poetry
+    from poetry.utils.env import Env
 
 SCRIPT_TEMPLATE = """\
 #!{python}
+import sys
 from {module} import {callable_holder}
 
 if __name__ == '__main__':
-    {callable_}()
+    sys.exit({callable_}())
 """
 
 WINDOWS_CMD_TEMPLATE = """\
@@ -30,17 +43,16 @@ WINDOWS_CMD_TEMPLATE = """\
 
 
 class EditableBuilder(Builder):
-    def __init__(self, poetry, env, io):
-        super(EditableBuilder, self).__init__(poetry)
+    def __init__(self, poetry: Poetry, env: Env, io: IO) -> None:
+        super().__init__(poetry)
 
         self._env = env
         self._io = io
 
-    def build(self):
+    def build(self, target_dir: Path | None = None) -> Path:
         self._debug(
-            "  - Building package <c1>{}</c1> in <info>editable</info> mode".format(
-                self._package.name
-            )
+            f"  - Building package <c1>{self._package.name}</c1> in"
+            " <info>editable</info> mode"
         )
 
         if self._package.build_script:
@@ -48,27 +60,40 @@ class EditableBuilder(Builder):
                 self._debug(
                     "  - <warning>Falling back on using a <b>setup.py</b></warning>"
                 )
-
-                return self._setup_build()
+                self._setup_build()
+                path: Path = self._path
+                return path
 
             self._run_build_script(self._package.build_script)
+
+        for removed in self._env.site_packages.remove_distribution_files(
+            distribution_name=self._package.name
+        ):
+            self._debug(
+                f"  - Removed <c2>{removed.name}</c2> directory from"
+                f" <b>{removed.parent}</b>"
+            )
 
         added_files = []
         added_files += self._add_pth()
         added_files += self._add_scripts()
         self._add_dist_info(added_files)
 
-    def _run_build_script(self, build_script):
-        self._debug("  - Executing build script: <b>{}</b>".format(build_script))
-        self._env.run("python", str(self._path.joinpath(build_script)), call=True)
+        path = self._path
+        return path
 
-    def _setup_build(self):
+    def _run_build_script(self, build_script: str) -> None:
+        with build_environment(poetry=self._poetry, env=self._env, io=self._io) as env:
+            self._debug(f"  - Executing build script: <b>{build_script}</b>")
+            env.run("python", str(self._path.joinpath(build_script)), call=True)
+
+    def _setup_build(self) -> None:
         builder = SdistBuilder(self._poetry)
         setup = self._path / "setup.py"
         has_setup = setup.exists()
 
         if has_setup:
-            self._io.write_line(
+            self._io.write_error_line(
                 "<warning>A setup.py file already exists. Using it.</warning>"
             )
         else:
@@ -76,15 +101,15 @@ class EditableBuilder(Builder):
                 f.write(decode(builder.build_setup()))
 
         try:
-            if self._env.pip_version < Version(19, 0):
-                self._env.run_pip("install", "-e", str(self._path), "--no-deps")
+            if self._env.pip_version < Version.from_parts(19, 0):
+                pip_install(self._path, self._env, upgrade=True, editable=True)
             else:
                 # Temporarily rename pyproject.toml
                 shutil.move(
                     str(self._poetry.file), str(self._poetry.file.with_suffix(".tmp"))
                 )
                 try:
-                    self._env.run_pip("install", "-e", str(self._path), "--no-deps")
+                    pip_install(self._path, self._env, upgrade=True, editable=True)
                 finally:
                     shutil.move(
                         str(self._poetry.file.with_suffix(".tmp")),
@@ -94,39 +119,45 @@ class EditableBuilder(Builder):
             if not has_setup:
                 os.remove(str(setup))
 
-    def _add_pth(self):
-        paths = set()
-        for include in self._module.includes:
-            if isinstance(include, PackageInclude) and (
-                include.is_module() or include.is_package()
-            ):
-                paths.add(include.base.resolve().as_posix())
+    def _add_pth(self) -> list[Path]:
+        paths = {
+            include.base.resolve().as_posix()
+            for include in self._module.includes
+            if isinstance(include, PackageInclude)
+            and (include.is_module() or include.is_package())
+        }
 
-        content = ""
-        for path in paths:
-            content += decode(path + os.linesep)
-
+        content = "".join(decode(path + os.linesep) for path in paths)
         pth_file = Path(self._module.name).with_suffix(".pth")
+
+        # remove any pre-existing pth files for this package
+        for file in self._env.site_packages.find(path=pth_file, writable_only=True):
+            self._debug(
+                f"  - Removing existing <c2>{file.name}</c2> from <b>{file.parent}</b>"
+                f" for {self._poetry.file.parent}"
+            )
+            # We can't use unlink(missing_ok=True) because it's not always available
+            if file.exists():
+                file.unlink()
+
         try:
             pth_file = self._env.site_packages.write_text(
                 pth_file, content, encoding="utf-8"
             )
             self._debug(
-                "  - Adding <c2>{}</c2> to <b>{}</b> for {}".format(
-                    pth_file.name, pth_file.parent, self._poetry.file.parent
-                )
+                f"  - Adding <c2>{pth_file.name}</c2> to <b>{pth_file.parent}</b> for"
+                f" {self._poetry.file.parent}"
             )
             return [pth_file]
         except OSError:
             # TODO: Replace with PermissionError
-            self._io.error_line(
-                "  - Failed to create <c2>{}</c2> for {}".format(
-                    pth_file.name, self._poetry.file.parent
-                )
+            self._io.write_error_line(
+                f"  - Failed to create <c2>{pth_file.name}</c2> for"
+                f" {self._poetry.file.parent}"
             )
             return []
 
-    def _add_scripts(self):
+    def _add_scripts(self) -> list[Path]:
         added = []
         entry_points = self.convert_entry_points()
 
@@ -134,10 +165,9 @@ class EditableBuilder(Builder):
             if is_dir_writable(path=scripts_path, create=True):
                 break
         else:
-            self._io.error_line(
-                "  - Failed to find a suitable script installation directory for {}".format(
-                    self._poetry.file.parent
-                )
+            self._io.write_error_line(
+                "  - Failed to find a suitable script installation directory for"
+                f" {self._poetry.file.parent}"
             )
             return []
 
@@ -149,9 +179,7 @@ class EditableBuilder(Builder):
 
             script_file = scripts_path.joinpath(name)
             self._debug(
-                "  - Adding the <c2>{}</c2> script to <b>{}</b>".format(
-                    name, scripts_path
-                )
+                f"  - Adding the <c2>{name}</c2> script to <b>{scripts_path}</b>"
             )
             with script_file.open("w", encoding="utf-8") as f:
                 f.write(
@@ -173,9 +201,8 @@ class EditableBuilder(Builder):
                 cmd_script = script_file.with_suffix(".cmd")
                 cmd = WINDOWS_CMD_TEMPLATE.format(python=self._env.python, script=name)
                 self._debug(
-                    "  - Adding the <c2>{}</c2> script wrapper to <b>{}</b>".format(
-                        cmd_script.name, scripts_path
-                    )
+                    f"  - Adding the <c2>{cmd_script.name}</c2> script wrapper to"
+                    f" <b>{scripts_path}</b>"
                 )
 
                 with cmd_script.open("w", encoding="utf-8") as f:
@@ -185,31 +212,17 @@ class EditableBuilder(Builder):
 
         return added
 
-    def _add_dist_info(self, added_files):
-        from conda_lock._vendor.poetry.core.masonry.builders.wheel import WheelBuilder
+    def _add_dist_info(self, added_files: list[Path]) -> None:
+        from poetry.core.masonry.builders.wheel import WheelBuilder
 
         added_files = added_files[:]
 
         builder = WheelBuilder(self._poetry)
-
-        dist_info_path = Path(builder.dist_info)
-        for dist_info in self._env.site_packages.find(
-            dist_info_path, writable_only=True
-        ):
-            if dist_info.exists():
-                self._debug(
-                    "  - Removing existing <c2>{}</c2> directory from <b>{}</b>".format(
-                        dist_info.name, dist_info.parent
-                    )
-                )
-                shutil.rmtree(str(dist_info))
-
-        dist_info = self._env.site_packages.mkdir(dist_info_path)
+        dist_info = self._env.site_packages.mkdir(Path(builder.dist_info))
 
         self._debug(
-            "  - Adding the <c2>{}</c2> directory to <b>{}</b>".format(
-                dist_info.name, dist_info.parent
-            )
+            f"  - Adding the <c2>{dist_info.name}</c2> directory to"
+            f" <b>{dist_info.parent}</b>"
         )
 
         with dist_info.joinpath("METADATA").open("w", encoding="utf-8") as f:
@@ -230,16 +243,30 @@ class EditableBuilder(Builder):
 
             added_files.append(dist_info.joinpath("entry_points.txt"))
 
-        with dist_info.joinpath("RECORD").open("w", encoding="utf-8") as f:
+        # write PEP 610 metadata
+        direct_url_json = dist_info.joinpath("direct_url.json")
+        direct_url_json.write_text(
+            json.dumps(
+                {
+                    "dir_info": {"editable": True},
+                    "url": self._poetry.file.path.parent.absolute().as_uri(),
+                }
+            )
+        )
+        added_files.append(direct_url_json)
+
+        record = dist_info.joinpath("RECORD")
+        with record.open("w", encoding="utf-8", newline="") as f:
+            csv_writer = csv.writer(f)
             for path in added_files:
                 hash = self._get_file_hash(path)
                 size = path.stat().st_size
-                f.write("{},sha256={},{}\n".format(str(path), hash, size))
+                csv_writer.writerow((path, f"sha256={hash}", size))
 
             # RECORD itself is recorded with no hash or size
-            f.write("{},,\n".format(dist_info.joinpath("RECORD")))
+            csv_writer.writerow((record, "", ""))
 
-    def _get_file_hash(self, filepath):
+    def _get_file_hash(self, filepath: Path) -> str:
         hashsum = hashlib.sha256()
         with filepath.open("rb") as src:
             while True:
@@ -252,6 +279,6 @@ class EditableBuilder(Builder):
 
         return urlsafe_b64encode(hashsum.digest()).decode("ascii").rstrip("=")
 
-    def _debug(self, msg):
+    def _debug(self, msg: str) -> None:
         if self._io.is_debug():
             self._io.write_line(msg)

@@ -1,3 +1,4 @@
+from typing import Collection
 from typing import Optional
 
 
@@ -13,18 +14,14 @@ class ParseError(ValueError, TOMLKitError):
     location within the line where the error was encountered.
     """
 
-    def __init__(
-        self, line, col, message=None
-    ):  # type: (int, int, Optional[str]) -> None
+    def __init__(self, line: int, col: int, message: Optional[str] = None) -> None:
         self._line = line
         self._col = col
 
         if message is None:
             message = "TOML parse error"
 
-        super(ParseError, self).__init__(
-            "{} at line {} col {}".format(message, self._line, self._col)
-        )
+        super().__init__(f"{message} at line {self._line} col {self._col}")
 
     @property
     def line(self):
@@ -40,10 +37,10 @@ class MixedArrayTypesError(ParseError):
     An array was found that had two or more element types.
     """
 
-    def __init__(self, line, col):  # type: (int, int) -> None
+    def __init__(self, line: int, col: int) -> None:
         message = "Mixed types found in array"
 
-        super(MixedArrayTypesError, self).__init__(line, col, message=message)
+        super().__init__(line, col, message=message)
 
 
 class InvalidNumberError(ParseError):
@@ -51,10 +48,10 @@ class InvalidNumberError(ParseError):
     A numeric field was improperly specified.
     """
 
-    def __init__(self, line, col):  # type: (int, int) -> None
+    def __init__(self, line: int, col: int) -> None:
         message = "Invalid number"
 
-        super(InvalidNumberError, self).__init__(line, col, message=message)
+        super().__init__(line, col, message=message)
 
 
 class InvalidDateTimeError(ParseError):
@@ -62,10 +59,10 @@ class InvalidDateTimeError(ParseError):
     A datetime field was improperly specified.
     """
 
-    def __init__(self, line, col):  # type: (int, int) -> None
+    def __init__(self, line: int, col: int) -> None:
         message = "Invalid datetime"
 
-        super(InvalidDateTimeError, self).__init__(line, col, message=message)
+        super().__init__(line, col, message=message)
 
 
 class InvalidDateError(ParseError):
@@ -73,10 +70,10 @@ class InvalidDateError(ParseError):
     A date field was improperly specified.
     """
 
-    def __init__(self, line, col):  # type: (int, int) -> None
+    def __init__(self, line: int, col: int) -> None:
         message = "Invalid date"
 
-        super(InvalidDateError, self).__init__(line, col, message=message)
+        super().__init__(line, col, message=message)
 
 
 class InvalidTimeError(ParseError):
@@ -84,10 +81,10 @@ class InvalidTimeError(ParseError):
     A date field was improperly specified.
     """
 
-    def __init__(self, line, col):  # type: (int, int) -> None
+    def __init__(self, line: int, col: int) -> None:
         message = "Invalid time"
 
-        super(InvalidTimeError, self).__init__(line, col, message=message)
+        super().__init__(line, col, message=message)
 
 
 class InvalidNumberOrDateError(ParseError):
@@ -95,10 +92,10 @@ class InvalidNumberOrDateError(ParseError):
     A numeric or date field was improperly specified.
     """
 
-    def __init__(self, line, col):  # type: (int, int) -> None
+    def __init__(self, line: int, col: int) -> None:
         message = "Invalid number or date format"
 
-        super(InvalidNumberOrDateError, self).__init__(line, col, message=message)
+        super().__init__(line, col, message=message)
 
 
 class InvalidUnicodeValueError(ParseError):
@@ -106,10 +103,10 @@ class InvalidUnicodeValueError(ParseError):
     A unicode code was improperly specified.
     """
 
-    def __init__(self, line, col):  # type: (int, int) -> None
+    def __init__(self, line: int, col: int) -> None:
         message = "Invalid unicode value"
 
-        super(InvalidUnicodeValueError, self).__init__(line, col, message=message)
+        super().__init__(line, col, message=message)
 
 
 class UnexpectedCharError(ParseError):
@@ -117,10 +114,10 @@ class UnexpectedCharError(ParseError):
     An unexpected character was found during parsing.
     """
 
-    def __init__(self, line, col, char):  # type: (int, int, str) -> None
-        message = "Unexpected character: {}".format(repr(char))
+    def __init__(self, line: int, col: int, char: str) -> None:
+        message = f"Unexpected character: {repr(char)}"
 
-        super(UnexpectedCharError, self).__init__(line, col, message=message)
+        super().__init__(line, col, message=message)
 
 
 class EmptyKeyError(ParseError):
@@ -128,10 +125,10 @@ class EmptyKeyError(ParseError):
     An empty key was found during parsing.
     """
 
-    def __init__(self, line, col):  # type: (int, int) -> None
+    def __init__(self, line: int, col: int) -> None:
         message = "Empty key"
 
-        super(EmptyKeyError, self).__init__(line, col, message=message)
+        super().__init__(line, col, message=message)
 
 
 class EmptyTableNameError(ParseError):
@@ -139,10 +136,10 @@ class EmptyTableNameError(ParseError):
     An empty table name was found during parsing.
     """
 
-    def __init__(self, line, col):  # type: (int, int) -> None
+    def __init__(self, line: int, col: int) -> None:
         message = "Empty table name"
 
-        super(EmptyTableNameError, self).__init__(line, col, message=message)
+        super().__init__(line, col, message=message)
 
 
 class InvalidCharInStringError(ParseError):
@@ -150,10 +147,10 @@ class InvalidCharInStringError(ParseError):
     The string being parsed contains an invalid character.
     """
 
-    def __init__(self, line, col, char):  # type: (int, int, str) -> None
-        message = "Invalid character {} in string".format(repr(char))
+    def __init__(self, line: int, col: int, char: str) -> None:
+        message = f"Invalid character {repr(char)} in string"
 
-        super(InvalidCharInStringError, self).__init__(line, col, message=message)
+        super().__init__(line, col, message=message)
 
 
 class UnexpectedEofError(ParseError):
@@ -161,10 +158,10 @@ class UnexpectedEofError(ParseError):
     The TOML being parsed ended before the end of a statement.
     """
 
-    def __init__(self, line, col):  # type: (int, int) -> None
+    def __init__(self, line: int, col: int) -> None:
         message = "Unexpected end of file"
 
-        super(UnexpectedEofError, self).__init__(line, col, message=message)
+        super().__init__(line, col, message=message)
 
 
 class InternalParserError(ParseError):
@@ -172,14 +169,12 @@ class InternalParserError(ParseError):
     An error that indicates a bug in the parser.
     """
 
-    def __init__(
-        self, line, col, message=None
-    ):  # type: (int, int, Optional[str]) -> None
+    def __init__(self, line: int, col: int, message: Optional[str] = None) -> None:
         msg = "Internal parser error"
         if message:
-            msg += " ({})".format(message)
+            msg += f" ({message})"
 
-        super(InternalParserError, self).__init__(line, col, message=msg)
+        super().__init__(line, col, message=msg)
 
 
 class NonExistentKey(KeyError, TOMLKitError):
@@ -188,9 +183,9 @@ class NonExistentKey(KeyError, TOMLKitError):
     """
 
     def __init__(self, key):
-        message = 'Key "{}" does not exist.'.format(key)
+        message = f'Key "{key}" does not exist.'
 
-        super(NonExistentKey, self).__init__(message)
+        super().__init__(message)
 
 
 class KeyAlreadyPresent(TOMLKitError):
@@ -199,23 +194,34 @@ class KeyAlreadyPresent(TOMLKitError):
     """
 
     def __init__(self, key):
-        message = 'Key "{}" already exists.'.format(key)
+        key = getattr(key, "key", key)
+        message = f'Key "{key}" already exists.'
 
-        super(KeyAlreadyPresent, self).__init__(message)
+        super().__init__(message)
 
 
 class InvalidControlChar(ParseError):
-    def __init__(self, line, col, char, type):  # type: (int, int, int, str) -> None
+    def __init__(self, line: int, col: int, char: int, type: str) -> None:
         display_code = "\\u00"
 
         if char < 16:
             display_code += "0"
 
-        display_code += str(char)
+        display_code += hex(char)[2:]
 
         message = (
-            "Control characters (codes less than 0x1f and 0x7f) are not allowed in {}, "
-            "use {} instead".format(type, display_code)
+            "Control characters (codes less than 0x1f and 0x7f)"
+            f" are not allowed in {type}, "
+            f"use {display_code} instead"
         )
 
-        super(InvalidControlChar, self).__init__(line, col, message=message)
+        super().__init__(line, col, message=message)
+
+
+class InvalidStringError(ValueError, TOMLKitError):
+    def __init__(self, value: str, invalid_sequences: Collection[str], delimiter: str):
+        repr_ = repr(value)[1:-1]
+        super().__init__(
+            f"Invalid string: {delimiter}{repr_}{delimiter}. "
+            f"The character sequences {invalid_sequences} are invalid."
+        )

@@ -13,7 +13,7 @@ import json
 import os
 from os.path import dirname, join, abspath
 import re
-from conda_lock._vendor.conda.auxlib.compat import shlex_split_unicode
+from conda.auxlib.compat import shlex_split_unicode
 import sys
 from tempfile import gettempdir, mkdtemp
 from uuid import uuid4

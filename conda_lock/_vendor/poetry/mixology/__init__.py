@@ -1,7 +1,18 @@
-from .version_solver import VersionSolver
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
+from poetry.mixology.version_solver import VersionSolver
 
 
-def resolve_version(root, provider, locked=None, use_latest=None):
-    solver = VersionSolver(root, provider, locked=locked, use_latest=use_latest)
+if TYPE_CHECKING:
+    from poetry.core.packages.project_package import ProjectPackage
+
+    from poetry.mixology.result import SolverResult
+    from poetry.puzzle.provider import Provider
+
+
+def resolve_version(root: ProjectPackage, provider: Provider) -> SolverResult:
+    solver = VersionSolver(root, provider)
 
     return solver.solve()

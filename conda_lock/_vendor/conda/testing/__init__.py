@@ -47,7 +47,7 @@ def conda_ensure_sys_python_is_base_env_python():
 
 def conda_move_to_front_of_PATH():
     if 'CONDA_PREFIX' in os.environ:
-        from conda_lock._vendor.conda.activate import (PosixActivator, CmdExeActivator)
+        from conda.activate import (PosixActivator, CmdExeActivator)
         if os.name == 'nt':
             activator_cls = CmdExeActivator
         else:
@@ -104,7 +104,7 @@ def conda_check_versions_aligned():
     # is slow. Instead write .version if it does not exist, and also fix
     # it if it disagrees.
 
-    from conda_lock._vendor import conda
+    import conda
     version_file = normpath(join(dirname(conda.__file__), '.version'))
     if isfile(version_file):
         version_from_file = open(version_file, 'rt').read().split('\n')[0]
@@ -118,7 +118,7 @@ def conda_check_versions_aligned():
             try:
                 cmd = join(pe, git_exe) + ' describe --tags --long'
                 version_from_git = check_output(cmd).decode('utf-8').split('\n')[0]
-                from conda_lock._vendor.conda.auxlib.packaging import _get_version_from_git_tag
+                from conda.auxlib.packaging import _get_version_from_git_tag
                 version_from_git = _get_version_from_git_tag(version_from_git)
                 break
             except:

@@ -1,22 +1,39 @@
-from __future__ import absolute_import
-from __future__ import unicode_literals
+from __future__ import annotations
 
-from typing import Dict
-from typing import Optional
+import contextlib
+import logging
+import re
 
-from clikit.api.io.io import IO
+from typing import TYPE_CHECKING
+from typing import Any
+from typing import cast
 
-from conda_lock._vendor.poetry.core.factory import Factory as BaseFactory
-from conda_lock._vendor.poetry.core.toml.file import TOMLFile
+from cleo.io.null_io import NullIO
+from poetry.core.factory import Factory as BaseFactory
+from poetry.core.packages.dependency_group import MAIN_GROUP
+from poetry.core.packages.project_package import ProjectPackage
+from poetry.core.toml.file import TOMLFile
 
-from .config.config import Config
-from .config.file_config_source import FileConfigSource
-from .io.null_io import NullIO
-from .locations import CONFIG_DIR
-from .packages.locker import Locker
-from .poetry import Poetry
-from .repositories.pypi_repository import PyPiRepository
-from .utils._compat import Path
+from poetry.config.config import Config
+from poetry.json import validate_object
+from poetry.packages.locker import Locker
+from poetry.plugins.plugin import Plugin
+from poetry.plugins.plugin_manager import PluginManager
+from poetry.poetry import Poetry
+
+
+if TYPE_CHECKING:
+    from pathlib import Path
+
+    from cleo.io.io import IO
+    from poetry.core.packages.package import Package
+    from tomlkit.toml_document import TOMLDocument
+
+    from poetry.repositories.legacy_repository import LegacyRepository
+    from poetry.utils.dependency_specification import DependencySpec
+
+
+logger = logging.getLogger(__name__)
 
 
 class Factory(BaseFactory):
@@ -25,27 +42,30 @@ class Factory(BaseFactory):
     """
 
     def create_poetry(
-        self, cwd=None, io=None
-    ):  # type: (Optional[Path], Optional[IO]) -> Poetry
+        self,
+        cwd: Path | None = None,
+        with_groups: bool = True,
+        io: IO | None = None,
+        disable_plugins: bool = False,
+        disable_cache: bool = False,
+    ) -> Poetry:
         if io is None:
             io = NullIO()
 
-        base_poetry = super(Factory, self).create_poetry(cwd)
+        base_poetry = super().create_poetry(cwd=cwd, with_groups=with_groups)
 
         locker = Locker(
             base_poetry.file.parent / "poetry.lock", base_poetry.local_config
         )
 
         # Loading global configuration
-        config = self.create_config(io)
+        config = Config.create()
 
         # Loading local configuration
         local_config_file = TOMLFile(base_poetry.file.parent / "poetry.toml")
         if local_config_file.exists():
             if io.is_debug():
-                io.write_line(
-                    "Loading configuration file {}".format(local_config_file.path)
-                )
+                io.write_line(f"Loading configuration file {local_config_file.path}")
 
             config.merge(local_config_file.read())
 
@@ -55,9 +75,8 @@ class Factory(BaseFactory):
         for source in base_poetry.pyproject.poetry_config.get("source", []):
             name = source.get("name")
             url = source.get("url")
-            if name and url:
-                if name not in existing_repositories:
-                    repositories[name] = {"url": url}
+            if name and url and name not in existing_repositories:
+                repositories[name] = {"url": url}
 
         config.merge({"repositories": repositories})
 
@@ -67,18 +86,49 @@ class Factory(BaseFactory):
             base_poetry.package,
             locker,
             config,
+            disable_cache,
         )
 
         # Configuring sources
-        sources = poetry.local_config.get("source", [])
+        self.configure_sources(
+            poetry,
+            poetry.local_config.get("source", []),
+            config,
+            io,
+            disable_cache=disable_cache,
+        )
+
+        plugin_manager = PluginManager(Plugin.group, disable_plugins=disable_plugins)
+        plugin_manager.load_plugins()
+        poetry.set_plugin_manager(plugin_manager)
+        plugin_manager.activate(poetry, io)
+
+        return poetry
+
+    @classmethod
+    def get_package(cls, name: str, version: str) -> ProjectPackage:
+        return ProjectPackage(name, version, version)
+
+    @classmethod
+    def configure_sources(
+        cls,
+        poetry: Poetry,
+        sources: list[dict[str, str]],
+        config: Config,
+        io: IO,
+        disable_cache: bool = False,
+    ) -> None:
+        if disable_cache:
+            logger.debug("Disabling source caches")
+
         for source in sources:
-            repository = self.create_legacy_repository(source, config)
-            is_default = source.get("default", False)
-            is_secondary = source.get("secondary", False)
+            repository = cls.create_package_source(
+                source, config, disable_cache=disable_cache
+            )
+            is_default = bool(source.get("default", False))
+            is_secondary = bool(source.get("secondary", False))
             if io.is_debug():
-                message = "Adding repository {} ({})".format(
-                    repository.name, repository.url
-                )
+                message = f"Adding repository {repository.name} ({repository.url})"
                 if is_default:
                     message += " and setting it as the default one"
                 elif is_secondary:
@@ -95,68 +145,157 @@ class Factory(BaseFactory):
             if io.is_debug():
                 io.write_line("Deactivating the PyPI repository")
         else:
-            default = not poetry.pool.has_primary_repositories()
-            poetry.pool.add_repository(PyPiRepository(), default, not default)
+            from poetry.repositories.pypi_repository import PyPiRepository
 
-        return poetry
+            default = not poetry.pool.has_primary_repositories()
+            poetry.pool.add_repository(
+                PyPiRepository(disable_cache=disable_cache), default, not default
+            )
 
     @classmethod
-    def create_config(cls, io=None):  # type: (Optional[IO]) -> Config
-        if io is None:
-            io = NullIO()
+    def create_package_source(
+        cls, source: dict[str, str], auth_config: Config, disable_cache: bool = False
+    ) -> LegacyRepository:
+        from poetry.repositories.legacy_repository import LegacyRepository
+        from poetry.repositories.single_page_repository import SinglePageRepository
 
-        config = Config()
-        # Load global config
-        config_file = TOMLFile(Path(CONFIG_DIR) / "config.toml")
-        if config_file.exists():
-            if io.is_debug():
-                io.write_line(
-                    "<debug>Loading configuration file {}</debug>".format(
-                        config_file.path
-                    )
-                )
-
-            config.merge(config_file.read())
-
-        config.set_config_source(FileConfigSource(config_file))
-
-        # Load global auth config
-        auth_config_file = TOMLFile(Path(CONFIG_DIR) / "auth.toml")
-        if auth_config_file.exists():
-            if io.is_debug():
-                io.write_line(
-                    "<debug>Loading configuration file {}</debug>".format(
-                        auth_config_file.path
-                    )
-                )
-
-            config.merge(auth_config_file.read())
-
-        config.set_auth_config_source(FileConfigSource(auth_config_file))
-
-        return config
-
-    def create_legacy_repository(
-        self, source, auth_config
-    ):  # type: (Dict[str, str], Config) -> LegacyRepository
-        from .repositories.legacy_repository import LegacyRepository
-        from .utils.helpers import get_cert
-        from .utils.helpers import get_client_cert
-
-        if "url" in source:
-            # PyPI-like repository
-            if "name" not in source:
-                raise RuntimeError("Missing [name] in source.")
-        else:
+        if "url" not in source:
             raise RuntimeError("Unsupported source specified")
 
+        # PyPI-like repository
+        if "name" not in source:
+            raise RuntimeError("Missing [name] in source.")
         name = source["name"]
         url = source["url"]
 
-        return LegacyRepository(
+        repository_class = LegacyRepository
+
+        if re.match(r".*\.(htm|html)$", url):
+            repository_class = SinglePageRepository
+
+        return repository_class(
             name,
             url,
             config=auth_config,
-            cert=get_cert(auth_config, name),
-            client_cert=get_client_cert(auth_config, name),
+            disable_cache=disable_cache,
         )
+
+    @classmethod
+    def create_pyproject_from_package(
+        cls, package: Package, path: Path | None = None
+    ) -> TOMLDocument:
+        import tomlkit
+
+        from poetry.utils.dependency_specification import dependency_to_specification
+
+        pyproject: dict[str, Any] = tomlkit.document()
+
+        pyproject["tool"] = tomlkit.table(is_super_table=True)
+
+        content: dict[str, Any] = tomlkit.table()
+        pyproject["tool"]["poetry"] = content
+
+        content["name"] = package.name
+        content["version"] = package.version.text
+        content["description"] = package.description
+        content["authors"] = package.authors
+        content["license"] = package.license.id if package.license else ""
+
+        if package.classifiers:
+            content["classifiers"] = package.classifiers
+
+        for key, attr in {
+            ("documentation", "documentation_url"),
+            ("repository", "repository_url"),
+            ("homepage", "homepage"),
+            ("maintainers", "maintainers"),
+            ("keywords", "keywords"),
+        }:
+            value = getattr(package, attr, None)
+            if value:
+                content[key] = value
+
+        readmes = []
+
+        for readme in package.readmes:
+            readme_posix_path = readme.as_posix()
+
+            with contextlib.suppress(ValueError):
+                if package.root_dir:
+                    readme_posix_path = readme.relative_to(package.root_dir).as_posix()
+
+            readmes.append(readme_posix_path)
+
+        if readmes:
+            content["readme"] = readmes
+
+        optional_dependencies = set()
+        extras_section = None
+
+        if package.extras:
+            extras_section = tomlkit.table()
+
+            for extra in package.extras:
+                _dependencies = []
+                for dependency in package.extras[extra]:
+                    _dependencies.append(dependency.name)
+                    optional_dependencies.add(dependency.name)
+
+                extras_section[extra] = _dependencies
+
+        optional_dependencies = set(optional_dependencies)
+        dependency_section = content["dependencies"] = tomlkit.table()
+        dependency_section["python"] = package.python_versions
+
+        for dep in package.all_requires:
+            constraint: DependencySpec | str = dependency_to_specification(
+                dep, tomlkit.inline_table()
+            )
+
+            if not isinstance(constraint, str):
+                if dep.name in optional_dependencies:
+                    constraint["optional"] = True
+
+                if len(constraint) == 1 and "version" in constraint:
+                    assert isinstance(constraint["version"], str)
+                    constraint = constraint["version"]
+                elif not constraint:
+                    constraint = "*"
+
+            for group in dep.groups:
+                if group == MAIN_GROUP:
+                    dependency_section[dep.name] = constraint
+                else:
+                    if "group" not in content:
+                        content["group"] = tomlkit.table(is_super_table=True)
+
+                    if group not in content["group"]:
+                        content["group"][group] = tomlkit.table(is_super_table=True)
+
+                    if "dependencies" not in content["group"][group]:
+                        content["group"][group]["dependencies"] = tomlkit.table()
+
+                    content["group"][group]["dependencies"][dep.name] = constraint
+
+        if extras_section:
+            content["extras"] = extras_section
+
+        pyproject = cast("TOMLDocument", pyproject)
+        pyproject.add(tomlkit.nl())
+
+        if path:
+            path.joinpath("pyproject.toml").write_text(
+                pyproject.as_string(), encoding="utf-8"
+            )
+
+        return pyproject
+
+    @classmethod
+    def validate(
+        cls, config: dict[str, Any], strict: bool = False
+    ) -> dict[str, list[str]]:
+        results = super().validate(config, strict)
+
+        results["errors"].extend(validate_object(config))
+
+        return results

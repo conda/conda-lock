@@ -14,10 +14,10 @@ from textwrap import dedent
 try:
     from tlz.itertoolz import concatv
 except ImportError:
-    from conda_lock._vendor.conda._vendor.toolz.itertoolz import concatv
+    from conda._vendor.toolz.itertoolz import concatv
 
 # Since we have to have configuration context here, anything imported by
-#   conda_lock.vendor.conda.base.context is fair game, but nothing more.
+#   conda.base.context is fair game, but nothing more.
 from . import CONDA_PACKAGE_ROOT, CONDA_SOURCE_ROOT
 from .auxlib.compat import Utf8NamedTemporaryFile
 from .base.constants import PREFIX_STATE_FILE, PACKAGE_ENV_VARS_DIR, CONDA_ENV_VARS_UNSET_VAR
@@ -735,7 +735,7 @@ def native_path_to_unix(paths):  # pragma: unix no cover
     if paths is None:
         return None
     from subprocess import CalledProcessError, PIPE, Popen
-    from conda_lock._vendor.conda.auxlib.compat import shlex_split_unicode
+    from conda.auxlib.compat import shlex_split_unicode
     # It is very easy to end up with a bash in one place and a cygpath in another due to e.g.
     # using upstream MSYS2 bash, but with a conda env that does not have bash but does have
     # cygpath.  When this happens, we have two different virtual POSIX machines, rooted at

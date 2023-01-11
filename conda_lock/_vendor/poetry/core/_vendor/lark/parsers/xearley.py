@@ -16,17 +16,18 @@ Earley's power in parsing any CFG.
 
 from collections import defaultdict
 
+from ..tree import Tree
 from ..exceptions import UnexpectedCharacters
 from ..lexer import Token
 from ..grammar import Terminal
 from .earley import Parser as BaseParser
-from .earley_forest import SymbolNode
+from .earley_forest import SymbolNode, TokenNode
 
 
 class Parser(BaseParser):
-    def __init__(self,  parser_conf, term_matcher, resolve_ambiguity=True, ignore = (), complete_lex = False, debug=False):
-        BaseParser.__init__(self, parser_conf, term_matcher, resolve_ambiguity, debug)
-        self.ignore = [Terminal(t) for t in ignore]
+    def __init__(self, lexer_conf, parser_conf, term_matcher, resolve_ambiguity=True, complete_lex = False, debug=False, tree_class=Tree):
+        BaseParser.__init__(self, lexer_conf, parser_conf, term_matcher, resolve_ambiguity, debug, tree_class)
+        self.ignore = [Terminal(t) for t in lexer_conf.ignore]
         self.complete_lex = complete_lex
 
     def _parse(self, stream, columns, to_scan, start_symbol=None):
@@ -62,9 +63,10 @@ class Parser(BaseParser):
                                 t = Token(item.expect.name, m.group(0), i, text_line, text_column)
                                 delayed_matches[i+m.end()].append( (item, i, t) )
 
-                    # Remove any items that successfully matched in this pass from the to_scan buffer.
-                    # This ensures we don't carry over tokens that already matched, if we're ignoring below.
-                    to_scan.remove(item)
+                    # XXX The following 3 lines were commented out for causing a bug. See issue #768
+                    # # Remove any items that successfully matched in this pass from the to_scan buffer.
+                    # # This ensures we don't carry over tokens that already matched, if we're ignoring below.
+                    # to_scan.remove(item)
 
             # 3) Process any ignores. This is typically used for e.g. whitespace.
             # We carry over any unmatched items from the to_scan buffer to be matched again after
@@ -97,8 +99,9 @@ class Parser(BaseParser):
 
                     new_item = item.advance()
                     label = (new_item.s, new_item.start, i)
+                    token_node = TokenNode(token, terminals[token.type])
                     new_item.node = node_cache[label] if label in node_cache else node_cache.setdefault(label, SymbolNode(*label))
-                    new_item.node.add_family(new_item.s, item.rule, new_item.start, item.node, token)
+                    new_item.node.add_family(new_item.s, item.rule, new_item.start, item.node, token_node)
                 else:
                     new_item = item
 
@@ -112,13 +115,18 @@ class Parser(BaseParser):
             del delayed_matches[i+1]    # No longer needed, so unburden memory
 
             if not next_set and not delayed_matches and not next_to_scan:
-                raise UnexpectedCharacters(stream, i, text_line, text_column, {item.expect.name for item in to_scan}, set(to_scan))
+                considered_rules = list(sorted(to_scan, key=lambda key: key.rule.origin.name))
+                raise UnexpectedCharacters(stream, i, text_line, text_column, {item.expect.name for item in to_scan},
+                                           set(to_scan), state=frozenset(i.s for i in to_scan),
+                                           considered_rules=considered_rules
+                                           )
 
             return next_to_scan
 
 
         delayed_matches = defaultdict(list)
         match = self.term_matcher
+        terminals = self.lexer_conf.terminals_by_name
 
         # Cache for nodes & tokens created in a particular parse step.
         transitives = [{}]

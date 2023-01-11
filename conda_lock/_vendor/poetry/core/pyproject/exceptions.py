@@ -1,4 +1,6 @@
-from conda_lock._vendor.poetry.core.exceptions import PoetryCoreException
+from __future__ import annotations
+
+from poetry.core.exceptions import PoetryCoreException
 
 
 class PyProjectException(PoetryCoreException):

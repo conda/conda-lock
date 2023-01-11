@@ -1,64 +1,42 @@
+from __future__ import annotations
+
 import hashlib
 import json
 
+from pathlib import Path
 from typing import TYPE_CHECKING
 
-from conda_lock._vendor.poetry.core.packages.utils.link import Link
-from conda_lock._vendor.poetry.utils._compat import Path
-
-from .chooser import InvalidWheelName
-from .chooser import Wheel
+from poetry.installation.chooser import InvalidWheelName
+from poetry.installation.chooser import Wheel
 
 
 if TYPE_CHECKING:
-    from typing import List
-    from typing import Optional
+    from poetry.core.packages.utils.link import Link
 
-    from conda_lock._vendor.poetry.config.config import Config
-    from conda_lock._vendor.poetry.utils.env import Env
+    from poetry.config.config import Config
+    from poetry.utils.env import Env
 
 
 class Chef:
-    def __init__(self, config, env):  # type: (Config, Env) -> None
-        self._config = config
+    def __init__(self, config: Config, env: Env) -> None:
         self._env = env
         self._cache_dir = (
             Path(config.get("cache-dir")).expanduser().joinpath("artifacts")
         )
 
-    def prepare(self, archive):  # type: (Path) -> Path
-        return archive
-
-    def prepare_sdist(self, archive):  # type: (Path) -> Path
-        return archive
-
-    def prepare_wheel(self, archive):  # type: (Path) -> Path
-        return archive
-
-    def should_prepare(self, archive):  # type: (Path) -> bool
-        return not self.is_wheel(archive)
-
-    def is_wheel(self, archive):  # type: (Path) -> bool
-        return archive.suffix == ".whl"
-
-    def get_cached_archive_for_link(self, link):  # type: (Link) -> Optional[Link]
-        # If the archive is already a wheel, there is no need to cache it.
-        if link.is_wheel:
-            pass
-
+    def get_cached_archive_for_link(self, link: Link) -> Path | None:
         archives = self.get_cached_archives_for_link(link)
-
         if not archives:
-            return link
+            return None
 
-        candidates = []
+        candidates: list[tuple[float | None, Path]] = []
         for archive in archives:
-            if not archive.is_wheel:
+            if archive.suffix != ".whl":
                 candidates.append((float("inf"), archive))
                 continue
 
             try:
-                wheel = Wheel(archive.filename)
+                wheel = Wheel(archive.name)
             except InvalidWheelName:
                 continue
 
@@ -70,22 +48,22 @@ class Chef:
             )
 
         if not candidates:
-            return link
+            return None
 
         return min(candidates)[1]
 
-    def get_cached_archives_for_link(self, link):  # type: (Link) -> List[Link]
+    def get_cached_archives_for_link(self, link: Link) -> list[Path]:
         cache_dir = self.get_cache_directory_for_link(link)
 
         archive_types = ["whl", "tar.gz", "tar.bz2", "bz2", "zip"]
-        links = []
+        paths = []
         for archive_type in archive_types:
-            for archive in cache_dir.glob("*.{}".format(archive_type)):
-                links.append(Link(archive.as_uri()))
+            for archive in cache_dir.glob(f"*.{archive_type}"):
+                paths.append(Path(archive))
 
-        return links
+        return paths
 
-    def get_cache_directory_for_link(self, link):  # type: (Link) -> Path
+    def get_cache_directory_for_link(self, link: Link) -> Path:
         key_parts = {"url": link.url_without_fragment}
 
         if link.hash_name is not None and link.hash is not None:

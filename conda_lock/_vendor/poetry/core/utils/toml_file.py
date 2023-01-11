@@ -1,19 +1,20 @@
-# -*- coding: utf-8 -*-
+from __future__ import annotations
+
 from typing import Any
 
-from conda_lock._vendor.poetry.core.toml import TOMLFile
+from poetry.core.toml import TOMLFile
 
 
 class TomlFile(TOMLFile):
     @classmethod
-    def __new__(cls, *args, **kwargs):  # type: (*Any, **Any) -> TOMLFile
+    def __new__(cls: type[TOMLFile], *args: Any, **kwargs: Any) -> TomlFile:
         import warnings
 
+        this_import = f"{cls.__module__}.{cls.__name__}"
+        new_import = f"{TOMLFile.__module__}.{TOMLFile.__name__}"
         warnings.warn(
-            "Use of {}.{} has been deprecated, use {}.{} instead.".format(
-                cls.__module__, cls.__name__, TOMLFile.__module__, TOMLFile.__name__,
-            ),
+            f"Use of {this_import} has been deprecated, use {new_import} instead.",
             category=DeprecationWarning,
             stacklevel=2,
         )
-        return super(TomlFile, cls).__new__(cls)
+        return super().__new__(cls)  # type: ignore[no-any-return,misc]

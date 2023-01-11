@@ -31,14 +31,14 @@ from uuid import uuid4
 
 import pytest
 
-from conda_lock._vendor.conda.auxlib.compat import Utf8NamedTemporaryFile
-from conda_lock._vendor.conda.auxlib.entity import EntityEncoder
-from conda_lock._vendor.conda.base.constants import PACKAGE_CACHE_MAGIC_FILE
-from conda_lock.vendor.conda.base.context import context, reset_context, conda_tests_ctxt_mgmt_def_pol
-from conda_lock._vendor.conda.cli.conda_argparse import do_call
-from conda_lock._vendor.conda.cli.main import generate_parser, init_loggers
-from conda_lock._vendor.conda.common.compat import encode_arguments, on_win
-from conda_lock._vendor.conda.common.io import (
+from conda.auxlib.compat import Utf8NamedTemporaryFile
+from conda.auxlib.entity import EntityEncoder
+from conda.base.constants import PACKAGE_CACHE_MAGIC_FILE
+from conda.base.context import context, reset_context, conda_tests_ctxt_mgmt_def_pol
+from conda.cli.conda_argparse import do_call
+from conda.cli.main import generate_parser, init_loggers
+from conda.common.compat import encode_arguments, on_win
+from conda.common.io import (
     argv,
     captured,
     dashlist,
@@ -46,18 +46,18 @@ from conda_lock._vendor.conda.common.io import (
     env_var,
     stderr_log_level,
 )
-from conda_lock._vendor.conda.common.url import path_to_url, escape_channel_url
-from conda_lock._vendor.conda.core.prefix_data import PrefixData
-from conda_lock._vendor.conda.core.package_cache_data import PackageCacheData
-from conda_lock._vendor.conda.exceptions import conda_exception_handler
-from conda_lock._vendor.conda.gateways.disk.create import mkdir_p
-from conda_lock._vendor.conda.gateways.disk.delete import rm_rf
-from conda_lock._vendor.conda.gateways.disk.link import link
-from conda_lock._vendor.conda.gateways.disk.update import touch
-from conda_lock._vendor.conda.gateways.logging import DEBUG
-from conda_lock._vendor.conda.models.match_spec import MatchSpec
-from conda_lock._vendor.conda.models.records import PackageRecord
-from conda_lock._vendor.conda.utils import massage_arguments
+from conda.common.url import path_to_url, escape_channel_url
+from conda.core.prefix_data import PrefixData
+from conda.core.package_cache_data import PackageCacheData
+from conda.exceptions import conda_exception_handler
+from conda.gateways.disk.create import mkdir_p
+from conda.gateways.disk.delete import rm_rf
+from conda.gateways.disk.link import link
+from conda.gateways.disk.update import touch
+from conda.gateways.logging import DEBUG
+from conda.models.match_spec import MatchSpec
+from conda.models.records import PackageRecord
+from conda.utils import massage_arguments
 
 
 TEST_LOG_LEVEL = DEBUG

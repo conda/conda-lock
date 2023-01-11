@@ -1,32 +1,20 @@
+from __future__ import annotations
+
 import ast
 
+from configparser import ConfigParser
+from pathlib import Path
 from typing import Any
-from typing import Dict
-from typing import Iterable
-from typing import List
-from typing import Optional
-from typing import Tuple
-from typing import Union
 
-from conda_lock._vendor.poetry.core.semver import Version
-
-from ._compat import PY35
-from ._compat import Path
-from ._compat import basestring
+from poetry.core.constraints.version import Version
 
 
-try:
-    from configparser import ConfigParser
-except ImportError:
-    from ConfigParser import ConfigParser
-
-
-class SetupReader(object):
+class SetupReader:
     """
     Class that reads a setup.py file without executing it.
     """
 
-    DEFAULT = {
+    DEFAULT: dict[str, Any] = {
         "name": None,
         "version": None,
         "install_requires": [],
@@ -37,10 +25,8 @@ class SetupReader(object):
     FILES = ["setup.py", "setup.cfg"]
 
     @classmethod
-    def read_from_directory(
-        cls, directory
-    ):  # type: (Union[basestring, Path]) -> Dict[str, Union[List, Dict]]
-        if isinstance(directory, basestring):
+    def read_from_directory(cls, directory: str | Path) -> dict[str, Any]:
+        if isinstance(directory, str):
             directory = Path(directory)
 
         result = cls.DEFAULT.copy()
@@ -49,9 +35,8 @@ class SetupReader(object):
             if not filepath.exists():
                 continue
 
-            new_result = getattr(cls(), "read_{}".format(filename.replace(".", "_")))(
-                filepath
-            )
+            read_file_func = getattr(cls(), "read_" + filename.replace(".", "_"))
+            new_result = read_file_func(filepath)
 
             for key in result.keys():
                 if new_result[key]:
@@ -59,48 +44,34 @@ class SetupReader(object):
 
         return result
 
-    @classmethod
-    def _is_empty_result(cls, result):  # type: (Dict[str, Any]) -> bool
-        return (
-            not result["install_requires"]
-            and not result["extras_require"]
-            and not result["python_requires"]
-        )
-
-    def read_setup_py(
-        self, filepath
-    ):  # type: (Union[basestring, Path]) -> Dict[str, Union[List, Dict]]
-        if not PY35:
-            return self.DEFAULT
-
-        if isinstance(filepath, basestring):
+    def read_setup_py(self, filepath: str | Path) -> dict[str, Any]:
+        if isinstance(filepath, str):
             filepath = Path(filepath)
 
         with filepath.open(encoding="utf-8") as f:
             content = f.read()
 
-        result = {}
+        result: dict[str, Any] = {}
 
         body = ast.parse(content).body
 
-        setup_call, body = self._find_setup_call(body)
-        if not setup_call:
+        setup_call = self._find_setup_call(body)
+        if setup_call is None:
             return self.DEFAULT
 
         # Inspecting keyword arguments
-        result["name"] = self._find_single_string(setup_call, body, "name")
-        result["version"] = self._find_single_string(setup_call, body, "version")
-        result["install_requires"] = self._find_install_requires(setup_call, body)
-        result["extras_require"] = self._find_extras_require(setup_call, body)
+        call, body = setup_call
+        result["name"] = self._find_single_string(call, body, "name")
+        result["version"] = self._find_single_string(call, body, "version")
+        result["install_requires"] = self._find_install_requires(call, body)
+        result["extras_require"] = self._find_extras_require(call, body)
         result["python_requires"] = self._find_single_string(
-            setup_call, body, "python_requires"
+            call, body, "python_requires"
         )
 
         return result
 
-    def read_setup_cfg(
-        self, filepath
-    ):  # type: (Union[basestring, Path]) -> Dict[str, Union[List, Dict]]
+    def read_setup_cfg(self, filepath: str | Path) -> dict[str, Any]:
         parser = ConfigParser()
 
         parser.read(str(filepath))
@@ -114,7 +85,7 @@ class SetupReader(object):
             version = Version.parse(parser.get("metadata", "version")).text
 
         install_requires = []
-        extras_require = {}
+        extras_require: dict[str, list[str]] = {}
         python_requires = None
         if parser.has_section("options"):
             if parser.has_option("options", "install_requires"):
@@ -148,9 +119,9 @@ class SetupReader(object):
         }
 
     def _find_setup_call(
-        self, elements
-    ):  # type: (List[Any]) -> Tuple[Optional[ast.Call], Optional[List[Any]]]
-        funcdefs = []
+        self, elements: list[ast.stmt]
+    ) -> tuple[ast.Call, list[ast.stmt]] | None:
+        funcdefs: list[ast.stmt] = []
         for i, element in enumerate(elements):
             if isinstance(element, ast.If) and i == len(elements) - 1:
                 # Checking if the last element is an if statement
@@ -167,11 +138,13 @@ class SetupReader(object):
                 if left.id != "__name__":
                     continue
 
-                setup_call, body = self._find_sub_setup_call([element])
-                if not setup_call:
+                setup_call = self._find_sub_setup_call([element])
+                if setup_call is None:
                     continue
 
-                return setup_call, body + elements
+                call, body = setup_call
+                return call, body + elements
+
             if not isinstance(element, ast.Expr):
                 if isinstance(element, ast.FunctionDef):
                     funcdefs.append(element)
@@ -185,8 +158,7 @@ class SetupReader(object):
             func = value.func
             if not (isinstance(func, ast.Name) and func.id == "setup") and not (
                 isinstance(func, ast.Attribute)
-                and hasattr(func.value, "id")
-                and func.value.id == "setuptools"
+                and getattr(func.value, "id", None) == "setuptools"
                 and func.attr == "setup"
             ):
                 continue
@@ -197,26 +169,24 @@ class SetupReader(object):
         return self._find_sub_setup_call(funcdefs)
 
     def _find_sub_setup_call(
-        self, elements
-    ):  # type: (List[Any]) -> Tuple[Optional[ast.Call], Optional[List[Any]]]
+        self, elements: list[ast.stmt]
+    ) -> tuple[ast.Call, list[ast.stmt]] | None:
         for element in elements:
             if not isinstance(element, (ast.FunctionDef, ast.If)):
                 continue
 
             setup_call = self._find_setup_call(element.body)
-            if setup_call != (None, None):
-                setup_call, body = setup_call
+            if setup_call is not None:
+                sub_call, body = setup_call
 
                 body = elements + body
 
-                return setup_call, body
+                return sub_call, body
 
-        return None, None
+        return None
 
-    def _find_install_requires(
-        self, call, body
-    ):  # type: (ast.Call, Iterable[Any]) -> List[str]
-        install_requires = []
+    def _find_install_requires(self, call: ast.Call, body: list[ast.stmt]) -> list[str]:
+        install_requires: list[str] = []
         value = self._find_in_call(call, "install_requires")
         if value is None:
             # Trying to find in kwargs
@@ -245,20 +215,22 @@ class SetupReader(object):
 
         if isinstance(value, ast.List):
             for el in value.elts:
-                install_requires.append(el.s)
+                if isinstance(el, ast.Str):
+                    install_requires.append(el.s)
         elif isinstance(value, ast.Name):
             variable = self._find_variable_in_body(body, value.id)
 
             if variable is not None and isinstance(variable, ast.List):
                 for el in variable.elts:
-                    install_requires.append(el.s)
+                    if isinstance(el, ast.Str):
+                        install_requires.append(el.s)
 
         return install_requires
 
     def _find_extras_require(
-        self, call, body
-    ):  # type: (ast.Call, Iterable[Any]) -> Dict[str, List]
-        extras_require = {}
+        self, call: ast.Call, body: list[ast.stmt]
+    ) -> dict[str, list[str]]:
+        extras_require: dict[str, list[str]] = {}
         value = self._find_in_call(call, "extras_require")
         if value is None:
             # Trying to find in kwargs
@@ -286,12 +258,18 @@ class SetupReader(object):
             return extras_require
 
         if isinstance(value, ast.Dict):
+            val: ast.expr | None
             for key, val in zip(value.keys, value.values):
+                if not isinstance(key, ast.Str):
+                    continue
+
                 if isinstance(val, ast.Name):
                     val = self._find_variable_in_body(body, val.id)
 
                 if isinstance(val, ast.List):
-                    extras_require[key.s] = [e.s for e in val.elts]
+                    extras_require[key.s] = [
+                        e.s for e in val.elts if isinstance(e, ast.Str)
+                    ]
         elif isinstance(value, ast.Name):
             variable = self._find_variable_in_body(body, value.id)
 
@@ -299,42 +277,47 @@ class SetupReader(object):
                 return extras_require
 
             for key, val in zip(variable.keys, variable.values):
+                if not isinstance(key, ast.Str):
+                    continue
+
                 if isinstance(val, ast.Name):
                     val = self._find_variable_in_body(body, val.id)
 
                 if isinstance(val, ast.List):
-                    extras_require[key.s] = [e.s for e in val.elts]
+                    extras_require[key.s] = [
+                        e.s for e in val.elts if isinstance(e, ast.Str)
+                    ]
 
         return extras_require
 
     def _find_single_string(
-        self, call, body, name
-    ):  # type: (ast.Call, List[Any], str) -> Optional[str]
+        self, call: ast.Call, body: list[ast.stmt], name: str
+    ) -> str | None:
         value = self._find_in_call(call, name)
         if value is None:
             # Trying to find in kwargs
             kwargs = self._find_call_kwargs(call)
 
             if kwargs is None or not isinstance(kwargs, ast.Name):
-                return
+                return None
 
             variable = self._find_variable_in_body(body, kwargs.id)
             if not isinstance(variable, (ast.Dict, ast.Call)):
-                return
+                return None
 
             if isinstance(variable, ast.Call):
                 if not isinstance(variable.func, ast.Name):
-                    return
+                    return None
 
                 if variable.func.id != "dict":
-                    return
+                    return None
 
                 value = self._find_in_call(variable, name)
             else:
                 value = self._find_in_dict(variable, name)
 
         if value is None:
-            return
+            return None
 
         if isinstance(value, ast.Str):
             return value.s
@@ -344,12 +327,15 @@ class SetupReader(object):
             if variable is not None and isinstance(variable, ast.Str):
                 return variable.s
 
-    def _find_in_call(self, call, name):  # type: (ast.Call, str) -> Optional[Any]
+        return None
+
+    def _find_in_call(self, call: ast.Call, name: str) -> Any | None:
         for keyword in call.keywords:
             if keyword.arg == name:
                 return keyword.value
+        return None
 
-    def _find_call_kwargs(self, call):  # type: (ast.Call) -> Optional[Any]
+    def _find_call_kwargs(self, call: ast.Call) -> Any | None:
         kwargs = None
         for keyword in call.keywords:
             if keyword.arg is None:
@@ -358,13 +344,9 @@ class SetupReader(object):
         return kwargs
 
     def _find_variable_in_body(
-        self, body, name
-    ):  # type: (Iterable[Any], str) -> Optional[Any]
-        found = None
+        self, body: list[ast.stmt], name: str
+    ) -> ast.expr | None:
         for elem in body:
-            if found:
-                break
-
             if not isinstance(elem, ast.Assign):
                 continue
 
@@ -375,7 +357,11 @@ class SetupReader(object):
                 if target.id == name:
                     return elem.value
 
-    def _find_in_dict(self, dict_, name):  # type: (ast.Call, str) -> Optional[Any]
+        return None
+
+    def _find_in_dict(self, dict_: ast.Dict, name: str) -> ast.expr | None:
         for key, val in zip(dict_.keys, dict_.values):
             if isinstance(key, ast.Str) and key.s == name:
                 return val
+
+        return None

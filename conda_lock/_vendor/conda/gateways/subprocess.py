@@ -7,7 +7,7 @@ from collections import namedtuple
 from logging import getLogger
 import os
 from os.path import abspath
-from conda_lock._vendor.conda.auxlib.compat import shlex_split_unicode
+from conda.auxlib.compat import shlex_split_unicode
 import sys
 from subprocess import CalledProcessError, PIPE, Popen
 from ..utils import wrap_subprocess_call

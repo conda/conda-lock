@@ -14,7 +14,7 @@ import warnings
 try:
     from tlz.itertoolz import concat, concatv
 except ImportError:
-    from conda_lock._vendor.conda._vendor.toolz.itertoolz import concat, concatv
+    from conda._vendor.toolz.itertoolz import concat, concatv
 
 from .package_cache_data import PackageCacheData
 from .prefix_data import PrefixData
@@ -220,7 +220,7 @@ def _supplement_index_with_system(index):
 
 
 def get_archspec_name():
-    from conda_lock.vendor.conda.base.context import non_x86_machines, _arch_names, _platform_map
+    from conda.base.context import non_x86_machines, _arch_names, _platform_map
 
     target_plat, target_arch = context.subdir.split("-")
     # This has to reverse what Context.subdir is doing

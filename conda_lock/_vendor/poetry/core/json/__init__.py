@@ -1,40 +1,39 @@
+from __future__ import annotations
+
 import json
 import os
 
-from io import open
-from typing import List
-
-from jsonschema import Draft7Validator
+from typing import Any
 
 
 SCHEMA_DIR = os.path.join(os.path.dirname(__file__), "schemas")
 
 
 class ValidationError(ValueError):
-
     pass
 
 
-def validate_object(obj, schema_name):  # type: (dict, str) -> List[str]
-    schema = os.path.join(SCHEMA_DIR, "{}.json".format(schema_name))
+def validate_object(obj: dict[str, Any], schema_name: str) -> list[str]:
+    schema_file = os.path.join(SCHEMA_DIR, f"{schema_name}.json")
 
-    if not os.path.exists(schema):
-        raise ValueError("Schema {} does not exist.".format(schema_name))
+    if not os.path.exists(schema_file):
+        raise ValueError(f"Schema {schema_name} does not exist.")
 
-    with open(schema, encoding="utf-8") as f:
+    with open(schema_file, encoding="utf-8") as f:
         schema = json.loads(f.read())
 
+    from jsonschema import Draft7Validator
+
     validator = Draft7Validator(schema)
-    validation_errors = sorted(validator.iter_errors(obj), key=lambda e: e.path)
+    validation_errors = sorted(validator.iter_errors(obj), key=lambda e: e.path)  # type: ignore[no-any-return]
 
     errors = []
 
     for error in validation_errors:
         message = error.message
         if error.path:
-            message = "[{}] {}".format(
-                ".".join(str(x) for x in error.absolute_path), message
-            )
+            path = ".".join(str(x) for x in error.absolute_path)
+            message = f"[{path}] {message}"
 
         errors.append(message)
 

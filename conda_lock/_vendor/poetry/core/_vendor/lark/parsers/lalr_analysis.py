@@ -6,10 +6,9 @@ For now, shift/reduce conflicts are automatically resolved as shifts.
 # Author: Erez Shinan (2017)
 # Email : erezshin@gmail.com
 
-import logging
-from collections import defaultdict, deque
+from collections import defaultdict
 
-from ..utils import classify, classify_bool, bfs, fzset, Serialize, Enumerator
+from ..utils import classify, classify_bool, bfs, fzset, Enumerator, logger
 from ..exceptions import GrammarError
 
 from .grammar_analysis import GrammarAnalyzer, Terminal, LR0ItemSet
@@ -37,7 +36,6 @@ class ParseTable:
 
     def serialize(self, memo):
         tokens = Enumerator()
-        rules = Enumerator()
 
         states = {
             state: {tokens.get(token): ((1, arg.serialize(memo)) if action is Reduce else (0, arg))
@@ -247,20 +245,37 @@ class LALR_Analyzer(GrammarAnalyzer):
 
     def compute_lalr1_states(self):
         m = {}
+        reduce_reduce = []
         for state in self.lr0_states:
             actions = {}
             for la, next_state in state.transitions.items():
                 actions[la] = (Shift, next_state.closure)
             for la, rules in state.lookaheads.items():
                 if len(rules) > 1:
-                    raise GrammarError('Reduce/Reduce collision in %s between the following rules: %s' % (la, ''.join([ '\n\t\t- ' + str(r) for r in rules ])))
+                    # Try to resolve conflict based on priority
+                    p = [(r.options.priority or 0, r) for r in rules]
+                    p.sort(key=lambda r: r[0], reverse=True)
+                    best, second_best = p[:2]
+                    if best[0] > second_best[0]:
+                        rules = [best[1]]
+                    else:
+                        reduce_reduce.append((state, la, rules))
                 if la in actions:
                     if self.debug:
-                        logging.warning('Shift/Reduce conflict for terminal %s: (resolving as shift)', la.name)
-                        logging.warning(' * %s', list(rules)[0])
+                        logger.warning('Shift/Reduce conflict for terminal %s: (resolving as shift)', la.name)
+                        logger.warning(' * %s', list(rules)[0])
                 else:
                     actions[la] = (Reduce, list(rules)[0])
             m[state] = { k.name: v for k, v in actions.items() }
+
+        if reduce_reduce:
+            msgs = []
+            for state, la, rules in reduce_reduce:
+                msg = 'Reduce/Reduce collision in %s between the following rules: %s' % (la, ''.join([ '\n\t- ' + str(r) for r in rules ]))
+                if self.debug:
+                    msg += '\n    collision occurred in state: {%s\n    }' % ''.join(['\n\t' + str(x) for x in state.closure])
+                msgs.append(msg)
+            raise GrammarError('\n\n'.join(msgs))
 
         states = { k.closure: v for k, v in m.items() }
 
@@ -270,7 +285,7 @@ class LALR_Analyzer(GrammarAnalyzer):
             for rp in state:
                 for start in self.lr0_start_states:
                     if rp.rule.origin.name == ('$root_' + start) and rp.is_satisfied:
-                        assert(not start in end_states)
+                        assert(start not in end_states)
                         end_states[start] = state
 
         _parse_table = ParseTable(states, { start: state.closure for start, state in self.lr0_start_states.items() }, end_states)

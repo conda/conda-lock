@@ -19,7 +19,7 @@ import getpass
 try:
     from tlz.itertoolz import groupby
 except ImportError:
-    from conda_lock._vendor.conda._vendor.toolz.itertoolz import groupby
+    from conda._vendor.toolz.itertoolz import groupby
 
 from .models.channel import Channel
 from .common.url import join_url, maybe_unquote

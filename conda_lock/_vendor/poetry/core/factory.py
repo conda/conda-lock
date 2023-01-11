@@ -1,35 +1,49 @@
-from __future__ import absolute_import
-from __future__ import unicode_literals
+from __future__ import annotations
 
 import logging
 
+from pathlib import Path
+from typing import TYPE_CHECKING
 from typing import Any
 from typing import Dict
 from typing import List
-from typing import Optional
+from typing import Mapping
 from typing import Union
 from warnings import warn
 
-from .json import validate_object
-from .packages.dependency import Dependency
-from .packages.project_package import ProjectPackage
-from .poetry import Poetry
-from .pyproject import PyProjectTOML
-from .spdx import license_by_id
-from .utils._compat import Path
+from packaging.utils import canonicalize_name
+
+from poetry.core.utils.helpers import combine_unicode
+from poetry.core.utils.helpers import readme_content_type
+
+
+if TYPE_CHECKING:
+    from poetry.core.packages.dependency import Dependency
+    from poetry.core.packages.dependency_group import DependencyGroup
+    from poetry.core.packages.project_package import ProjectPackage
+    from poetry.core.poetry import Poetry
+    from poetry.core.spdx.license import License
+
+    DependencyConstraint = Union[str, Dict[str, Any]]
+    DependencyConfig = Mapping[
+        str, Union[List[DependencyConstraint], DependencyConstraint]
+    ]
 
 
 logger = logging.getLogger(__name__)
 
 
-class Factory(object):
+class Factory:
     """
     Factory class to create various elements needed by Poetry.
     """
 
     def create_poetry(
-        self, cwd=None, with_dev=True
-    ):  # type: (Optional[Path], bool) -> Poetry
+        self, cwd: Path | None = None, with_groups: bool = True
+    ) -> Poetry:
+        from poetry.core.poetry import Poetry
+        from poetry.core.pyproject.toml import PyProjectTOML
+
         poetry_file = self.locate(cwd)
         local_config = PyProjectTOML(path=poetry_file).poetry_config
 
@@ -38,84 +52,133 @@ class Factory(object):
         if check_result["errors"]:
             message = ""
             for error in check_result["errors"]:
-                message += "  - {}\n".format(error)
+                message += f"  - {error}\n"
 
             raise RuntimeError("The Poetry configuration is invalid:\n" + message)
 
         # Load package
         name = local_config["name"]
+        assert isinstance(name, str)
         version = local_config["version"]
-        package = ProjectPackage(name, version, version)
-        package.root_dir = poetry_file.parent
+        assert isinstance(version, str)
+        package = self.get_package(name, version)
+        package = self.configure_package(
+            package, local_config, poetry_file.parent, with_groups=with_groups
+        )
 
-        for author in local_config["authors"]:
-            package.authors.append(author)
+        return Poetry(poetry_file, local_config, package)
 
-        for maintainer in local_config.get("maintainers", []):
-            package.maintainers.append(maintainer)
+    @classmethod
+    def get_package(cls, name: str, version: str) -> ProjectPackage:
+        from poetry.core.packages.project_package import ProjectPackage
 
-        package.description = local_config.get("description", "")
-        package.homepage = local_config.get("homepage")
-        package.repository_url = local_config.get("repository")
-        package.documentation_url = local_config.get("documentation")
+        return ProjectPackage(name, version, version)
+
+    @classmethod
+    def _add_package_group_dependencies(
+        cls,
+        package: ProjectPackage,
+        group: str | DependencyGroup,
+        dependencies: DependencyConfig,
+    ) -> None:
+        from poetry.core.packages.dependency_group import MAIN_GROUP
+
+        if isinstance(group, str):
+            if package.has_dependency_group(group):
+                group = package.dependency_group(group)
+            else:
+                from poetry.core.packages.dependency_group import DependencyGroup
+
+                group = DependencyGroup(group)
+
+        for name, constraints in dependencies.items():
+            _constraints = (
+                constraints if isinstance(constraints, list) else [constraints]
+            )
+            for _constraint in _constraints:
+                if name.lower() == "python":
+                    if group.name == MAIN_GROUP and isinstance(_constraint, str):
+                        package.python_versions = _constraint
+                    continue
+
+                group.add_dependency(
+                    cls.create_dependency(
+                        name,
+                        _constraint,
+                        groups=[group.name],
+                        root_dir=package.root_dir,
+                    )
+                )
+
+        package.add_dependency_group(group)
+
+    @classmethod
+    def configure_package(
+        cls,
+        package: ProjectPackage,
+        config: dict[str, Any],
+        root: Path,
+        with_groups: bool = True,
+    ) -> ProjectPackage:
+        from poetry.core.packages.dependency import Dependency
+        from poetry.core.packages.dependency_group import MAIN_GROUP
+        from poetry.core.packages.dependency_group import DependencyGroup
+        from poetry.core.spdx.helpers import license_by_id
+
+        package.root_dir = root
+
+        for author in config["authors"]:
+            package.authors.append(combine_unicode(author))
+
+        for maintainer in config.get("maintainers", []):
+            package.maintainers.append(combine_unicode(maintainer))
+
+        package.description = config.get("description", "")
+        package.homepage = config.get("homepage")
+        package.repository_url = config.get("repository")
+        package.documentation_url = config.get("documentation")
         try:
-            license_ = license_by_id(local_config.get("license", ""))
+            license_: License | None = license_by_id(config.get("license", ""))
         except ValueError:
             license_ = None
 
         package.license = license_
-        package.keywords = local_config.get("keywords", [])
-        package.classifiers = local_config.get("classifiers", [])
+        package.keywords = config.get("keywords", [])
+        package.classifiers = config.get("classifiers", [])
 
-        if "readme" in local_config:
-            package.readme = Path(poetry_file.parent) / local_config["readme"]
+        if "readme" in config:
+            if isinstance(config["readme"], str):
+                package.readmes = (root / config["readme"],)
+            else:
+                package.readmes = tuple(root / readme for readme in config["readme"])
 
-        if "platform" in local_config:
-            package.platform = local_config["platform"]
+        if "platform" in config:
+            package.platform = config["platform"]
 
-        if "dependencies" in local_config:
-            for name, constraint in local_config["dependencies"].items():
-                if name.lower() == "python":
-                    package.python_versions = constraint
-                    continue
+        if "dependencies" in config:
+            cls._add_package_group_dependencies(
+                package=package, group=MAIN_GROUP, dependencies=config["dependencies"]
+            )
 
-                if isinstance(constraint, list):
-                    for _constraint in constraint:
-                        package.add_dependency(
-                            self.create_dependency(
-                                name, _constraint, root_dir=package.root_dir
-                            )
-                        )
-
-                    continue
-
-                package.add_dependency(
-                    self.create_dependency(name, constraint, root_dir=package.root_dir)
+        if with_groups and "group" in config:
+            for group_name, group_config in config["group"].items():
+                group = DependencyGroup(
+                    group_name, optional=group_config.get("optional", False)
+                )
+                cls._add_package_group_dependencies(
+                    package=package,
+                    group=group,
+                    dependencies=group_config["dependencies"],
                 )
 
-        if with_dev and "dev-dependencies" in local_config:
-            for name, constraint in local_config["dev-dependencies"].items():
-                if isinstance(constraint, list):
-                    for _constraint in constraint:
-                        package.add_dependency(
-                            self.create_dependency(
-                                name,
-                                _constraint,
-                                category="dev",
-                                root_dir=package.root_dir,
-                            )
-                        )
+        if with_groups and "dev-dependencies" in config:
+            cls._add_package_group_dependencies(
+                package=package, group="dev", dependencies=config["dev-dependencies"]
+            )
 
-                    continue
-
-                package.add_dependency(
-                    self.create_dependency(
-                        name, constraint, category="dev", root_dir=package.root_dir
-                    )
-                )
-
-        extras = local_config.get("extras", {})
+        extras = config.get("extras", {})
         for extra_name, requirements in extras.items():
+            extra_name = canonicalize_name(extra_name)
             package.extras[extra_name] = []
 
             # Checking for dependency
@@ -127,18 +190,16 @@ class Factory(object):
                         dep.in_extras.append(extra_name)
                         package.extras[extra_name].append(dep)
 
-                        break
-
-        if "build" in local_config:
-            build = local_config["build"]
+        if "build" in config:
+            build = config["build"]
             if not isinstance(build, dict):
                 build = {"script": build}
             package.build_config = build or {}
 
-        if "include" in local_config:
+        if "include" in config:
             package.include = []
 
-            for include in local_config["include"]:
+            for include in config["include"]:
                 if not isinstance(include, dict):
                     include = {"path": include}
 
@@ -149,34 +210,44 @@ class Factory(object):
 
                 package.include.append(include)
 
-        if "exclude" in local_config:
-            package.exclude = local_config["exclude"]
+        if "exclude" in config:
+            package.exclude = config["exclude"]
 
-        if "packages" in local_config:
-            package.packages = local_config["packages"]
+        if "packages" in config:
+            package.packages = config["packages"]
 
         # Custom urls
-        if "urls" in local_config:
-            package.custom_urls = local_config["urls"]
+        if "urls" in config:
+            package.custom_urls = config["urls"]
 
-        return Poetry(poetry_file, local_config, package)
+        return package
 
     @classmethod
     def create_dependency(
         cls,
-        name,  # type: str
-        constraint,  # type: Union[str, Dict[str, Any]]
-        category="main",  # type: str
-        root_dir=None,  # type: Optional[Path]
-    ):  # type: (...) -> Dependency
-        from .packages.constraints import parse_constraint as parse_generic_constraint
-        from .packages.directory_dependency import DirectoryDependency
-        from .packages.file_dependency import FileDependency
-        from .packages.url_dependency import URLDependency
-        from .packages.utils.utils import create_nested_marker
-        from .packages.vcs_dependency import VCSDependency
-        from .version.markers import AnyMarker
-        from .version.markers import parse_marker
+        name: str,
+        constraint: DependencyConstraint,
+        groups: list[str] | None = None,
+        root_dir: Path | None = None,
+    ) -> Dependency:
+        from poetry.core.constraints.generic import (
+            parse_constraint as parse_generic_constraint,
+        )
+        from poetry.core.constraints.version import (
+            parse_constraint as parse_version_constraint,
+        )
+        from poetry.core.packages.dependency import Dependency
+        from poetry.core.packages.dependency_group import MAIN_GROUP
+        from poetry.core.packages.directory_dependency import DirectoryDependency
+        from poetry.core.packages.file_dependency import FileDependency
+        from poetry.core.packages.url_dependency import URLDependency
+        from poetry.core.packages.utils.utils import create_nested_marker
+        from poetry.core.packages.vcs_dependency import VCSDependency
+        from poetry.core.version.markers import AnyMarker
+        from poetry.core.version.markers import parse_marker
+
+        if groups is None:
+            groups = [MAIN_GROUP]
 
         if constraint is None:
             constraint = "*"
@@ -188,9 +259,9 @@ class Factory(object):
             markers = constraint.get("markers")
             if "allows-prereleases" in constraint:
                 message = (
-                    'The "{}" dependency specifies '
+                    f'The "{name}" dependency specifies '
                     'the "allows-prereleases" property, which is deprecated. '
-                    'Use "allow-prereleases" instead.'.format(name)
+                    'Use "allow-prereleases" instead.'
                 )
                 warn(message, DeprecationWarning)
                 logger.warning(message)
@@ -199,6 +270,7 @@ class Factory(object):
                 "allow-prereleases", constraint.get("allows-prereleases", False)
             )
 
+            dependency: Dependency
             if "git" in constraint:
                 # VCS dependency
                 dependency = VCSDependency(
@@ -208,7 +280,8 @@ class Factory(object):
                     branch=constraint.get("branch", None),
                     tag=constraint.get("tag", None),
                     rev=constraint.get("rev", None),
-                    category=category,
+                    directory=constraint.get("subdirectory", None),
+                    groups=groups,
                     optional=optional,
                     develop=constraint.get("develop", False),
                     extras=constraint.get("extras", []),
@@ -219,7 +292,7 @@ class Factory(object):
                 dependency = FileDependency(
                     name,
                     file_path,
-                    category=category,
+                    groups=groups,
                     base=root_dir,
                     extras=constraint.get("extras", []),
                 )
@@ -235,7 +308,7 @@ class Factory(object):
                     dependency = FileDependency(
                         name,
                         path,
-                        category=category,
+                        groups=groups,
                         optional=optional,
                         base=root_dir,
                         extras=constraint.get("extras", []),
@@ -244,7 +317,7 @@ class Factory(object):
                     dependency = DirectoryDependency(
                         name,
                         path,
-                        category=category,
+                        groups=groups,
                         optional=optional,
                         base=root_dir,
                         develop=constraint.get("develop", False),
@@ -254,7 +327,8 @@ class Factory(object):
                 dependency = URLDependency(
                     name,
                     constraint["url"],
-                    category=category,
+                    directory=constraint.get("subdirectory", None),
+                    groups=groups,
                     optional=optional,
                     extras=constraint.get("extras", []),
                 )
@@ -265,51 +339,50 @@ class Factory(object):
                     name,
                     version,
                     optional=optional,
-                    category=category,
+                    groups=groups,
                     allows_prereleases=allows_prereleases,
                     extras=constraint.get("extras", []),
                 )
 
-            if not markers:
-                marker = AnyMarker()
-                if python_versions:
-                    dependency.python_versions = python_versions
-                    marker = marker.intersect(
-                        parse_marker(
-                            create_nested_marker(
-                                "python_version", dependency.python_constraint
-                            )
-                        )
-                    )
+            marker = parse_marker(markers) if markers else AnyMarker()
 
-                if platform:
-                    marker = marker.intersect(
-                        parse_marker(
-                            create_nested_marker(
-                                "sys_platform", parse_generic_constraint(platform)
-                            )
+            if python_versions:
+                marker = marker.intersect(
+                    parse_marker(
+                        create_nested_marker(
+                            "python_version", parse_version_constraint(python_versions)
                         )
                     )
-            else:
-                marker = parse_marker(markers)
+                )
+
+            if platform:
+                marker = marker.intersect(
+                    parse_marker(
+                        create_nested_marker(
+                            "sys_platform", parse_generic_constraint(platform)
+                        )
+                    )
+                )
 
             if not marker.is_any():
                 dependency.marker = marker
 
             dependency.source_name = constraint.get("source")
         else:
-            dependency = Dependency(name, constraint, category=category)
+            dependency = Dependency(name, constraint, groups=groups)
 
         return dependency
 
     @classmethod
     def validate(
-        cls, config, strict=False
-    ):  # type: (dict, bool) -> Dict[str, List[str]]
+        cls, config: dict[str, Any], strict: bool = False
+    ) -> dict[str, list[str]]:
         """
         Checks the validity of a configuration
         """
-        result = {"errors": [], "warnings": []}
+        from poetry.core.json import validate_object
+
+        result: dict[str, list[str]] = {"errors": [], "warnings": []}
         # Schema validation errors
         validation_errors = validate_object(config, "poetry-schema")
 
@@ -331,33 +404,44 @@ class Factory(object):
 
                     if "allows-prereleases" in constraint:
                         result["warnings"].append(
-                            'The "{}" dependency specifies '
+                            f'The "{name}" dependency specifies '
                             'the "allows-prereleases" property, which is deprecated. '
-                            'Use "allow-prereleases" instead.'.format(name)
+                            'Use "allow-prereleases" instead.'
                         )
 
             # Checking for scripts with extras
             if "scripts" in config:
                 scripts = config["scripts"]
+                config_extras = config.get("extras", {})
+
                 for name, script in scripts.items():
                     if not isinstance(script, dict):
                         continue
 
-                    extras = script["extras"]
+                    extras = script.get("extras", [])
                     for extra in extras:
-                        if extra not in config["extras"]:
+                        if extra not in config_extras:
                             result["errors"].append(
-                                'Script "{}" requires extra "{}" which is not defined.'.format(
-                                    name, extra
-                                )
+                                f'Script "{name}" requires extra "{extra}" which is not'
+                                " defined."
                             )
+
+            # Checking types of all readme files (must match)
+            if "readme" in config and not isinstance(config["readme"], str):
+                readme_types = {readme_content_type(r) for r in config["readme"]}
+                if len(readme_types) > 1:
+                    result["errors"].append(
+                        "Declared README files must be of same type: found"
+                        f" {', '.join(sorted(readme_types))}"
+                    )
 
         return result
 
     @classmethod
-    def locate(cls, cwd):  # type: (Path) -> Path
-        candidates = [Path(cwd)]
-        candidates.extend(Path(cwd).parents)
+    def locate(cls, cwd: Path | None = None) -> Path:
+        cwd = Path(cwd or Path.cwd())
+        candidates = [cwd]
+        candidates.extend(cwd.parents)
 
         for path in candidates:
             poetry_file = path / "pyproject.toml"
@@ -367,7 +451,5 @@ class Factory(object):
 
         else:
             raise RuntimeError(
-                "Poetry could not find a pyproject.toml file in {} or its parents".format(
-                    cwd
-                )
+                f"Poetry could not find a pyproject.toml file in {cwd} or its parents"
             )

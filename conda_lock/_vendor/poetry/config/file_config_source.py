@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from contextlib import contextmanager
 from typing import TYPE_CHECKING
 from typing import Any
@@ -5,28 +7,32 @@ from typing import Any
 from tomlkit import document
 from tomlkit import table
 
-from .config_source import ConfigSource
+from poetry.config.config_source import ConfigSource
 
 
 if TYPE_CHECKING:
-    from conda_lock._vendor.poetry.core.toml.file import TOMLFile  # noqa
+    from collections.abc import Iterator
+
+    from poetry.core.toml.file import TOMLFile
+    from tomlkit.toml_document import TOMLDocument
 
 
 class FileConfigSource(ConfigSource):
-    def __init__(self, file, auth_config=False):  # type: ("TOMLFile", bool) -> None
+    def __init__(self, file: TOMLFile, auth_config: bool = False) -> None:
         self._file = file
         self._auth_config = auth_config
 
     @property
-    def name(self):  # type: () -> str
+    def name(self) -> str:
         return str(self._file.path)
 
     @property
-    def file(self):  # type: () -> "TOMLFile"
+    def file(self) -> TOMLFile:
         return self._file
 
-    def add_property(self, key, value):  # type: (str, Any) -> None
-        with self.secure() as config:
+    def add_property(self, key: str, value: Any) -> None:
+        with self.secure() as toml:
+            config: dict[str, Any] = toml
             keys = key.split(".")
 
             for i, key in enumerate(keys):
@@ -39,8 +45,9 @@ class FileConfigSource(ConfigSource):
 
                 config = config[key]
 
-    def remove_property(self, key):  # type: (str) -> None
-        with self.secure() as config:
+    def remove_property(self, key: str) -> None:
+        with self.secure() as toml:
+            config: dict[str, Any] = toml
             keys = key.split(".")
 
             current_config = config
@@ -56,7 +63,7 @@ class FileConfigSource(ConfigSource):
                 current_config = current_config[key]
 
     @contextmanager
-    def secure(self):
+    def secure(self) -> Iterator[TOMLDocument]:
         if self.file.exists():
             initial_config = self.file.read()
             config = self.file.read()
