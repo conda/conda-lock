@@ -15,26 +15,26 @@ from typing import TYPE_CHECKING
 from typing import Collection
 from typing import cast
 
-from cleo.ui.progress_indicator import ProgressIndicator
-from poetry.core.constraints.version import EmptyConstraint
-from poetry.core.constraints.version import Version
-from poetry.core.packages.utils.utils import get_python_constraint_from_marker
-from poetry.core.version.markers import AnyMarker
-from poetry.core.version.markers import MarkerUnion
+from conda_lock._vendor.cleo.ui.progress_indicator import ProgressIndicator
+from conda_lock._vendor.poetry.core.constraints.version import EmptyConstraint
+from conda_lock._vendor.poetry.core.constraints.version import Version
+from conda_lock._vendor.poetry.core.packages.utils.utils import get_python_constraint_from_marker
+from conda_lock._vendor.poetry.core.version.markers import AnyMarker
+from conda_lock._vendor.poetry.core.version.markers import MarkerUnion
 
-from poetry.inspection.info import PackageInfo
-from poetry.inspection.info import PackageInfoError
-from poetry.mixology.incompatibility import Incompatibility
-from poetry.mixology.incompatibility_cause import DependencyCause
-from poetry.mixology.incompatibility_cause import PythonCause
-from poetry.mixology.term import Term
-from poetry.packages import DependencyPackage
-from poetry.packages.package_collection import PackageCollection
-from poetry.puzzle.exceptions import OverrideNeeded
-from poetry.repositories.exceptions import PackageNotFound
-from poetry.utils.helpers import download_file
-from poetry.utils.helpers import get_file_hash
-from poetry.vcs.git import Git
+from conda_lock._vendor.poetry.inspection.info import PackageInfo
+from conda_lock._vendor.poetry.inspection.info import PackageInfoError
+from conda_lock._vendor.poetry.mixology.incompatibility import Incompatibility
+from conda_lock._vendor.poetry.mixology.incompatibility_cause import DependencyCause
+from conda_lock._vendor.poetry.mixology.incompatibility_cause import PythonCause
+from conda_lock._vendor.poetry.mixology.term import Term
+from conda_lock._vendor.poetry.packages import DependencyPackage
+from conda_lock._vendor.poetry.packages.package_collection import PackageCollection
+from conda_lock._vendor.poetry.puzzle.exceptions import OverrideNeeded
+from conda_lock._vendor.poetry.repositories.exceptions import PackageNotFound
+from conda_lock._vendor.poetry.utils.helpers import download_file
+from conda_lock._vendor.poetry.utils.helpers import get_file_hash
+from conda_lock._vendor.poetry.vcs.git import Git
 
 
 if TYPE_CHECKING:
@@ -42,19 +42,19 @@ if TYPE_CHECKING:
     from collections.abc import Iterable
     from collections.abc import Iterator
 
-    from cleo.io.io import IO
+    from conda_lock._vendor.cleo.io.io import IO
     from packaging.utils import NormalizedName
-    from poetry.core.constraints.version import VersionConstraint
-    from poetry.core.packages.dependency import Dependency
-    from poetry.core.packages.directory_dependency import DirectoryDependency
-    from poetry.core.packages.file_dependency import FileDependency
-    from poetry.core.packages.package import Package
-    from poetry.core.packages.url_dependency import URLDependency
-    from poetry.core.packages.vcs_dependency import VCSDependency
-    from poetry.core.version.markers import BaseMarker
+    from conda_lock._vendor.poetry.core.constraints.version import VersionConstraint
+    from conda_lock._vendor.poetry.core.packages.dependency import Dependency
+    from conda_lock._vendor.poetry.core.packages.directory_dependency import DirectoryDependency
+    from conda_lock._vendor.poetry.core.packages.file_dependency import FileDependency
+    from conda_lock._vendor.poetry.core.packages.package import Package
+    from conda_lock._vendor.poetry.core.packages.url_dependency import URLDependency
+    from conda_lock._vendor.poetry.core.packages.vcs_dependency import VCSDependency
+    from conda_lock._vendor.poetry.core.version.markers import BaseMarker
 
-    from poetry.repositories import RepositoryPool
-    from poetry.utils.env import Env
+    from conda_lock._vendor.poetry.repositories import RepositoryPool
+    from conda_lock._vendor.poetry.utils.env import Env
 
 
 logger = logging.getLogger(__name__)

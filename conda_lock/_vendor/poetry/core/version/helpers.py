@@ -2,13 +2,13 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from poetry.core.constraints.version import Version
-from poetry.core.constraints.version import VersionUnion
-from poetry.core.constraints.version import parse_constraint
+from conda_lock._vendor.poetry.core.constraints.version import Version
+from conda_lock._vendor.poetry.core.constraints.version import VersionUnion
+from conda_lock._vendor.poetry.core.constraints.version import parse_constraint
 
 
 if TYPE_CHECKING:
-    from poetry.core.constraints.version import VersionConstraint
+    from conda_lock._vendor.poetry.core.constraints.version import VersionConstraint
 
 PYTHON_VERSION = [
     "2.7.*",

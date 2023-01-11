@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from poetry.layouts.layout import Layout
-from poetry.layouts.src import SrcLayout
+from conda_lock._vendor.poetry.layouts.layout import Layout
+from conda_lock._vendor.poetry.layouts.src import SrcLayout
 
 
 _LAYOUTS = {"src": SrcLayout, "standard": Layout}

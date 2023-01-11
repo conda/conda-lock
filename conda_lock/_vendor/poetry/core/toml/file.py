@@ -28,7 +28,7 @@ class TOMLFile(BaseTOMLFile):  # type: ignore[misc]
     def read(self) -> TOMLDocument:
         from tomlkit.exceptions import TOMLKitError
 
-        from poetry.core.toml import TOMLError
+        from conda_lock._vendor.poetry.core.toml import TOMLError
 
         try:
             return super().read()

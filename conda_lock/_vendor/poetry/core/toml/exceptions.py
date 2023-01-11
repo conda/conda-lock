@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from tomlkit.exceptions import TOMLKitError
 
-from poetry.core.exceptions import PoetryCoreException
+from conda_lock._vendor.poetry.core.exceptions import PoetryCoreException
 
 
 class TOMLError(TOMLKitError, PoetryCoreException):  # type: ignore[misc]

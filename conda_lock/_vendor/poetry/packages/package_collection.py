@@ -3,14 +3,14 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 from typing import List
 
-from poetry.packages.dependency_package import DependencyPackage
+from conda_lock._vendor.poetry.packages.dependency_package import DependencyPackage
 
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
 
-    from poetry.core.packages.dependency import Dependency
-    from poetry.core.packages.package import Package
+    from conda_lock._vendor.poetry.core.packages.dependency import Dependency
+    from conda_lock._vendor.poetry.core.packages.package import Package
 
 
 class PackageCollection(List[DependencyPackage]):

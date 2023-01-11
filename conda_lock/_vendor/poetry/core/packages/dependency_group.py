@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING
 
 
 if TYPE_CHECKING:
-    from poetry.core.packages.dependency import Dependency
+    from conda_lock._vendor.poetry.core.packages.dependency import Dependency
 
 
 MAIN_GROUP = "main"

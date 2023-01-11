@@ -11,13 +11,13 @@ if TYPE_CHECKING:
 
     from tomlkit.toml_document import TOMLDocument
 
-    from poetry.core.pyproject.tables import BuildSystem
-    from poetry.core.toml import TOMLFile
+    from conda_lock._vendor.poetry.core.pyproject.tables import BuildSystem
+    from conda_lock._vendor.poetry.core.toml import TOMLFile
 
 
 class PyProjectTOML:
     def __init__(self, path: str | Path) -> None:
-        from poetry.core.toml import TOMLFile
+        from conda_lock._vendor.poetry.core.toml import TOMLFile
 
         self._file = TOMLFile(path=path)
         self._data: TOMLDocument | None = None
@@ -44,7 +44,7 @@ class PyProjectTOML:
 
     @property
     def build_system(self) -> BuildSystem:
-        from poetry.core.pyproject.tables import BuildSystem
+        from conda_lock._vendor.poetry.core.pyproject.tables import BuildSystem
 
         if self._build_system is None:
             build_backend = None
@@ -73,14 +73,14 @@ class PyProjectTOML:
             assert isinstance(config, dict)
             return config
         except NonExistentKey as e:
-            from poetry.core.pyproject.exceptions import PyProjectException
+            from conda_lock._vendor.poetry.core.pyproject.exceptions import PyProjectException
 
             raise PyProjectException(
                 f"[tool.poetry] section not found in {self._file}"
             ) from e
 
     def is_poetry_project(self) -> bool:
-        from poetry.core.pyproject.exceptions import PyProjectException
+        from conda_lock._vendor.poetry.core.pyproject.exceptions import PyProjectException
 
         if self.file.exists():
             try:

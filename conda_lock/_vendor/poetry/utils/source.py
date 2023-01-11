@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from tomlkit.items import Table
 
-    from poetry.config.source import Source
+    from conda_lock._vendor.poetry.config.source import Source
 
 
 def source_to_table(source: Source) -> Table:

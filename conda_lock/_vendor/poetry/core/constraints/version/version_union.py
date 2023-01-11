@@ -2,15 +2,15 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from poetry.core.constraints.version.empty_constraint import EmptyConstraint
-from poetry.core.constraints.version.version_constraint import VersionConstraint
-from poetry.core.constraints.version.version_range_constraint import (
+from conda_lock._vendor.poetry.core.constraints.version.empty_constraint import EmptyConstraint
+from conda_lock._vendor.poetry.core.constraints.version.version_constraint import VersionConstraint
+from conda_lock._vendor.poetry.core.constraints.version.version_range_constraint import (
     VersionRangeConstraint,
 )
 
 
 if TYPE_CHECKING:
-    from poetry.core.constraints.version.version import Version
+    from conda_lock._vendor.poetry.core.constraints.version.version import Version
 
 
 class VersionUnion(VersionConstraint):
@@ -31,7 +31,7 @@ class VersionUnion(VersionConstraint):
 
     @classmethod
     def of(cls, *ranges: VersionConstraint) -> VersionConstraint:
-        from poetry.core.constraints.version.version_range import VersionRange
+        from conda_lock._vendor.poetry.core.constraints.version.version_range import VersionRange
 
         flattened: list[VersionRangeConstraint] = []
         for constraint in ranges:
@@ -369,7 +369,7 @@ class VersionUnion(VersionConstraint):
             return _padded_version_two in _check_versions
 
     def excludes_single_wildcard_range(self) -> bool:
-        from poetry.core.constraints.version.version_range import VersionRange
+        from conda_lock._vendor.poetry.core.constraints.version.version_range import VersionRange
 
         if len(self._ranges) != 2:
             return False
@@ -391,8 +391,8 @@ class VersionUnion(VersionConstraint):
         return isinstance(VersionRange().difference(self), VersionRange)
 
     def excludes_single_version(self) -> bool:
-        from poetry.core.constraints.version.version import Version
-        from poetry.core.constraints.version.version_range import VersionRange
+        from conda_lock._vendor.poetry.core.constraints.version.version import Version
+        from conda_lock._vendor.poetry.core.constraints.version.version_range import VersionRange
 
         return isinstance(VersionRange().difference(self), Version)
 
@@ -411,7 +411,7 @@ class VersionUnion(VersionConstraint):
         return h
 
     def __str__(self) -> str:
-        from poetry.core.constraints.version.version_range import VersionRange
+        from conda_lock._vendor.poetry.core.constraints.version.version_range import VersionRange
 
         if self.excludes_single_version():
             return f"!={VersionRange().difference(self)}"

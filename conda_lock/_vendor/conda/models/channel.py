@@ -10,7 +10,7 @@ from logging import getLogger
 try:
     from tlz.itertoolz import concat, concatv
 except ImportError:
-    from conda._vendor.toolz.itertoolz import concat, concatv
+    from conda_lock._vendor.conda._vendor.toolz.itertoolz import concat, concatv
 
 from .._vendor.boltons.setutils import IndexedSet
 from ..base.constants import DEFAULTS_CHANNEL_NAME, MAX_CHANNEL_PRIORITY, UNKNOWN_CHANNEL

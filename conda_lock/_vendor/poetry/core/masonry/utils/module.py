@@ -6,7 +6,7 @@ from typing import Any
 
 
 if TYPE_CHECKING:
-    from poetry.core.masonry.utils.include import Include
+    from conda_lock._vendor.poetry.core.masonry.utils.include import Include
 
 
 class ModuleOrPackageNotFound(ValueError):
@@ -21,9 +21,9 @@ class Module:
         packages: list[dict[str, Any]] | None = None,
         includes: list[dict[str, Any]] | None = None,
     ) -> None:
-        from poetry.core.masonry.utils.include import Include
-        from poetry.core.masonry.utils.package_include import PackageInclude
-        from poetry.core.utils.helpers import module_name
+        from conda_lock._vendor.poetry.core.masonry.utils.include import Include
+        from conda_lock._vendor.poetry.core.masonry.utils.package_include import PackageInclude
+        from conda_lock._vendor.poetry.core.utils.helpers import module_name
 
         self._name = module_name(name)
         self._in_src = False

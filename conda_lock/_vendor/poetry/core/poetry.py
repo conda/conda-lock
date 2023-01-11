@@ -7,9 +7,9 @@ from typing import Any
 if TYPE_CHECKING:
     from pathlib import Path
 
-    from poetry.core.packages.project_package import ProjectPackage
-    from poetry.core.pyproject.toml import PyProjectTOML
-    from poetry.core.toml import TOMLFile
+    from conda_lock._vendor.poetry.core.packages.project_package import ProjectPackage
+    from conda_lock._vendor.poetry.core.pyproject.toml import PyProjectTOML
+    from conda_lock._vendor.poetry.core.toml import TOMLFile
 
 
 class Poetry:
@@ -19,7 +19,7 @@ class Poetry:
         local_config: dict[str, Any],
         package: ProjectPackage,
     ) -> None:
-        from poetry.core.pyproject.toml import PyProjectTOML
+        from conda_lock._vendor.poetry.core.pyproject.toml import PyProjectTOML
 
         self._pyproject = PyProjectTOML(file)
         self._package = package

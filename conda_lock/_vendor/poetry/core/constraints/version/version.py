@@ -4,19 +4,19 @@ import dataclasses
 
 from typing import TYPE_CHECKING
 
-from poetry.core.constraints.version.empty_constraint import EmptyConstraint
-from poetry.core.constraints.version.version_range_constraint import (
+from conda_lock._vendor.poetry.core.constraints.version.empty_constraint import EmptyConstraint
+from conda_lock._vendor.poetry.core.constraints.version.version_range_constraint import (
     VersionRangeConstraint,
 )
-from poetry.core.constraints.version.version_union import VersionUnion
-from poetry.core.version.pep440 import Release
-from poetry.core.version.pep440.version import PEP440Version
+from conda_lock._vendor.poetry.core.constraints.version.version_union import VersionUnion
+from conda_lock._vendor.poetry.core.version.pep440 import Release
+from conda_lock._vendor.poetry.core.version.pep440.version import PEP440Version
 
 
 if TYPE_CHECKING:
-    from poetry.core.constraints.version.version_constraint import VersionConstraint
-    from poetry.core.version.pep440 import LocalSegmentType
-    from poetry.core.version.pep440 import ReleaseTag
+    from conda_lock._vendor.poetry.core.constraints.version.version_constraint import VersionConstraint
+    from conda_lock._vendor.poetry.core.version.pep440 import LocalSegmentType
+    from conda_lock._vendor.poetry.core.version.pep440 import ReleaseTag
 
 
 @dataclasses.dataclass(frozen=True)
@@ -108,7 +108,7 @@ class Version(PEP440Version, VersionRangeConstraint):
         return EmptyConstraint()
 
     def union(self, other: VersionConstraint) -> VersionConstraint:
-        from poetry.core.constraints.version.version_range import VersionRange
+        from conda_lock._vendor.poetry.core.constraints.version.version_range import VersionRange
 
         if other.allows(self):
             return other
@@ -145,7 +145,7 @@ class Version(PEP440Version, VersionRangeConstraint):
         return self.text
 
     def __eq__(self, other: object) -> bool:
-        from poetry.core.constraints.version.version_range import VersionRange
+        from conda_lock._vendor.poetry.core.constraints.version.version_range import VersionRange
 
         if isinstance(other, VersionRange):
             return (

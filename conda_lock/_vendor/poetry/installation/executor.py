@@ -14,35 +14,35 @@ from subprocess import CalledProcessError
 from typing import TYPE_CHECKING
 from typing import Any
 
-from cleo.io.null_io import NullIO
-from poetry.core.packages.utils.link import Link
-from poetry.core.pyproject.toml import PyProjectTOML
+from conda_lock._vendor.cleo.io.null_io import NullIO
+from conda_lock._vendor.poetry.core.packages.utils.link import Link
+from conda_lock._vendor.poetry.core.pyproject.toml import PyProjectTOML
 
-from poetry.installation.chef import Chef
-from poetry.installation.chooser import Chooser
-from poetry.installation.operations import Install
-from poetry.installation.operations import Uninstall
-from poetry.installation.operations import Update
-from poetry.utils._compat import decode
-from poetry.utils.authenticator import Authenticator
-from poetry.utils.env import EnvCommandError
-from poetry.utils.helpers import atomic_open
-from poetry.utils.helpers import get_file_hash
-from poetry.utils.helpers import pluralize
-from poetry.utils.helpers import remove_directory
-from poetry.utils.pip import pip_install
+from conda_lock._vendor.poetry.installation.chef import Chef
+from conda_lock._vendor.poetry.installation.chooser import Chooser
+from conda_lock._vendor.poetry.installation.operations import Install
+from conda_lock._vendor.poetry.installation.operations import Uninstall
+from conda_lock._vendor.poetry.installation.operations import Update
+from conda_lock._vendor.poetry.utils._compat import decode
+from conda_lock._vendor.poetry.utils.authenticator import Authenticator
+from conda_lock._vendor.poetry.utils.env import EnvCommandError
+from conda_lock._vendor.poetry.utils.helpers import atomic_open
+from conda_lock._vendor.poetry.utils.helpers import get_file_hash
+from conda_lock._vendor.poetry.utils.helpers import pluralize
+from conda_lock._vendor.poetry.utils.helpers import remove_directory
+from conda_lock._vendor.poetry.utils.pip import pip_install
 
 
 if TYPE_CHECKING:
-    from cleo.io.io import IO
-    from cleo.io.outputs.section_output import SectionOutput
-    from poetry.core.masonry.builders.builder import Builder
-    from poetry.core.packages.package import Package
+    from conda_lock._vendor.cleo.io.io import IO
+    from conda_lock._vendor.cleo.io.outputs.section_output import SectionOutput
+    from conda_lock._vendor.poetry.core.masonry.builders.builder import Builder
+    from conda_lock._vendor.poetry.core.packages.package import Package
 
-    from poetry.config.config import Config
-    from poetry.installation.operations.operation import Operation
-    from poetry.repositories import RepositoryPool
-    from poetry.utils.env import Env
+    from conda_lock._vendor.poetry.config.config import Config
+    from conda_lock._vendor.poetry.installation.operations.operation import Operation
+    from conda_lock._vendor.poetry.repositories import RepositoryPool
+    from conda_lock._vendor.poetry.utils.env import Env
 
 
 class Executor:
@@ -274,7 +274,7 @@ class Executor:
                 raise KeyboardInterrupt
         except Exception as e:  # noqa: PIE786
             try:
-                from cleo.ui.exception_trace import ExceptionTrace
+                from conda_lock._vendor.cleo.ui.exception_trace import ExceptionTrace
 
                 io: IO | SectionOutput
                 if not self.supports_fancy_output():
@@ -533,7 +533,7 @@ class Executor:
         return archive
 
     def _install_directory(self, operation: Install | Update) -> int:
-        from poetry.factory import Factory
+        from conda_lock._vendor.poetry.factory import Factory
 
         package = operation.package
         operation_message = self.get_operation_message(operation)
@@ -572,7 +572,7 @@ class Executor:
 
             builder: Builder
             if package.develop and not package_poetry.package.build_script:
-                from poetry.masonry.builders.editable import EditableBuilder
+                from conda_lock._vendor.poetry.masonry.builders.editable import EditableBuilder
 
                 # This is a Poetry package in editable mode
                 # we can use the EditableBuilder without going through pip
@@ -582,7 +582,7 @@ class Executor:
 
                 return 0
             elif legacy_pip or package_poetry.package.build_script:
-                from poetry.core.masonry.builders.sdist import SdistBuilder
+                from conda_lock._vendor.poetry.core.masonry.builders.sdist import SdistBuilder
 
                 # We need to rely on creating a temporary setup.py
                 # file since the version of pip does not support
@@ -595,7 +595,7 @@ class Executor:
         return self.pip_install(req, upgrade=True, editable=package.develop)
 
     def _install_git(self, operation: Install | Update) -> int:
-        from poetry.vcs.git import Git
+        from conda_lock._vendor.poetry.vcs.git import Git
 
         package = operation.package
         operation_message = self.get_operation_message(operation)
@@ -691,7 +691,7 @@ class Executor:
             if wheel_size is None:
                 self._write(operation, message)
             else:
-                from cleo.ui.progress_bar import ProgressBar
+                from conda_lock._vendor.cleo.ui.progress_bar import ProgressBar
 
                 progress = ProgressBar(
                     self._sections[id(operation)], max=int(wheel_size)

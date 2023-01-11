@@ -11,18 +11,18 @@ from typing import TYPE_CHECKING
 from typing import Any
 
 from packaging.utils import canonicalize_name
-from poetry.core.toml import TOMLFile
+from conda_lock._vendor.poetry.core.toml import TOMLFile
 
-from poetry.config.dict_config_source import DictConfigSource
-from poetry.config.file_config_source import FileConfigSource
-from poetry.locations import CONFIG_DIR
-from poetry.locations import DEFAULT_CACHE_DIR
+from conda_lock._vendor.poetry.config.dict_config_source import DictConfigSource
+from conda_lock._vendor.poetry.config.file_config_source import FileConfigSource
+from conda_lock._vendor.poetry.locations import CONFIG_DIR
+from conda_lock._vendor.poetry.locations import DEFAULT_CACHE_DIR
 
 
 if TYPE_CHECKING:
     from collections.abc import Callable
 
-    from poetry.config.config_source import ConfigSource
+    from conda_lock._vendor.poetry.config.config_source import ConfigSource
 
 
 def boolean_validator(val: str) -> bool:
@@ -160,7 +160,7 @@ class Config:
         return self
 
     def merge(self, config: dict[str, Any]) -> None:
-        from poetry.utils.helpers import merge_dicts
+        from conda_lock._vendor.poetry.utils.helpers import merge_dicts
 
         merge_dicts(self._config, config)
 

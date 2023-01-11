@@ -7,7 +7,7 @@ from collections import namedtuple
 from pathlib import Path
 from typing import Any
 
-from poetry.core.utils._compat import WINDOWS
+from conda_lock._vendor.poetry.core.utils._compat import WINDOWS
 
 
 PROTOCOL = r"\w+"

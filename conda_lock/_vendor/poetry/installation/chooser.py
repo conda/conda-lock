@@ -8,18 +8,18 @@ from typing import Any
 
 from packaging.tags import Tag
 
-from poetry.config.config import Config
-from poetry.config.config import PackageFilterPolicy
-from poetry.utils.patterns import wheel_file_re
+from conda_lock._vendor.poetry.config.config import Config
+from conda_lock._vendor.poetry.config.config import PackageFilterPolicy
+from conda_lock._vendor.poetry.utils.patterns import wheel_file_re
 
 
 if TYPE_CHECKING:
-    from poetry.core.constraints.version import Version
-    from poetry.core.packages.package import Package
-    from poetry.core.packages.utils.link import Link
+    from conda_lock._vendor.poetry.core.constraints.version import Version
+    from conda_lock._vendor.poetry.core.packages.package import Package
+    from conda_lock._vendor.poetry.core.packages.utils.link import Link
 
-    from poetry.repositories.repository_pool import RepositoryPool
-    from poetry.utils.env import Env
+    from conda_lock._vendor.poetry.repositories.repository_pool import RepositoryPool
+    from conda_lock._vendor.poetry.utils.env import Env
 
 
 logger = logging.getLogger(__name__)

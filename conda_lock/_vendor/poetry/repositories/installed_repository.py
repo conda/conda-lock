@@ -8,16 +8,16 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from packaging.utils import canonicalize_name
-from poetry.core.packages.package import Package
-from poetry.core.packages.utils.utils import url_to_path
-from poetry.core.utils.helpers import module_name
+from conda_lock._vendor.poetry.core.packages.package import Package
+from conda_lock._vendor.poetry.core.packages.utils.utils import url_to_path
+from conda_lock._vendor.poetry.core.utils.helpers import module_name
 
-from poetry.repositories.repository import Repository
-from poetry.utils._compat import metadata
+from conda_lock._vendor.poetry.repositories.repository import Repository
+from conda_lock._vendor.poetry.utils._compat import metadata
 
 
 if TYPE_CHECKING:
-    from poetry.utils.env import Env
+    from conda_lock._vendor.poetry.utils.env import Env
 
 
 _VENDORS = Path(__file__).parent.parent.joinpath("_vendor")
@@ -84,7 +84,7 @@ class InstalledRepository(Repository):
 
     @classmethod
     def get_package_vcs_properties_from_path(cls, src: Path) -> tuple[str, str, str]:
-        from poetry.vcs.git import Git
+        from conda_lock._vendor.poetry.vcs.git import Git
 
         info = Git.info(repo=src)
         return "git", info.origin, info.revision
@@ -241,7 +241,7 @@ class InstalledRepository(Repository):
         """
         Load installed packages.
         """
-        from poetry.core.packages.dependency import Dependency
+        from conda_lock._vendor.poetry.core.packages.dependency import Dependency
 
         repo = cls()
         seen = set()

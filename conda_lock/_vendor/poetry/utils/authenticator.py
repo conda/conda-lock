@@ -21,15 +21,15 @@ from cachecontrol import CacheControlAdapter
 from cachecontrol.caches import FileCache
 from filelock import FileLock
 
-from poetry.config.config import Config
-from poetry.exceptions import PoetryException
-from poetry.utils.constants import REQUESTS_TIMEOUT
-from poetry.utils.password_manager import HTTPAuthCredential
-from poetry.utils.password_manager import PasswordManager
+from conda_lock._vendor.poetry.config.config import Config
+from conda_lock._vendor.poetry.exceptions import PoetryException
+from conda_lock._vendor.poetry.utils.constants import REQUESTS_TIMEOUT
+from conda_lock._vendor.poetry.utils.password_manager import HTTPAuthCredential
+from conda_lock._vendor.poetry.utils.password_manager import PasswordManager
 
 
 if TYPE_CHECKING:
-    from cleo.io.io import IO
+    from conda_lock._vendor.cleo.io.io import IO
 
 
 logger = logging.getLogger(__name__)

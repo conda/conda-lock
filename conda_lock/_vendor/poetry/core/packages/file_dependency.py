@@ -6,8 +6,8 @@ import io
 from pathlib import Path
 from typing import Iterable
 
-from poetry.core.packages.dependency import Dependency
-from poetry.core.packages.utils.utils import path_to_url
+from conda_lock._vendor.poetry.core.packages.dependency import Dependency
+from conda_lock._vendor.poetry.core.packages.utils.utils import path_to_url
 
 
 class FileDependency(Dependency):

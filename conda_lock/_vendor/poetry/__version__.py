@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from poetry.utils._compat import metadata
+from conda_lock._vendor.poetry.utils._compat import metadata
 
 
 if TYPE_CHECKING:

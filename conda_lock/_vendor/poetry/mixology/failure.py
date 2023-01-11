@@ -2,14 +2,14 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from poetry.core.constraints.version import parse_constraint
+from conda_lock._vendor.poetry.core.constraints.version import parse_constraint
 
-from poetry.mixology.incompatibility_cause import ConflictCause
-from poetry.mixology.incompatibility_cause import PythonCause
+from conda_lock._vendor.poetry.mixology.incompatibility_cause import ConflictCause
+from conda_lock._vendor.poetry.mixology.incompatibility_cause import PythonCause
 
 
 if TYPE_CHECKING:
-    from poetry.mixology.incompatibility import Incompatibility
+    from conda_lock._vendor.poetry.mixology.incompatibility import Incompatibility
 
 
 class SolveFailure(Exception):

@@ -2,11 +2,11 @@ from __future__ import annotations
 
 import urllib.parse as urlparse
 
-from poetry.core.constraints.version import parse_constraint
-from poetry.core.constraints.version.exceptions import ParseConstraintError
-from poetry.core.version.grammars import GRAMMAR_PEP_508_CONSTRAINTS
-from poetry.core.version.markers import _compact_markers
-from poetry.core.version.parser import Parser
+from conda_lock._vendor.poetry.core.constraints.version import parse_constraint
+from conda_lock._vendor.poetry.core.constraints.version.exceptions import ParseConstraintError
+from conda_lock._vendor.poetry.core.version.grammars import GRAMMAR_PEP_508_CONSTRAINTS
+from conda_lock._vendor.poetry.core.version.markers import _compact_markers
+from conda_lock._vendor.poetry.core.version.parser import Parser
 
 
 class InvalidRequirement(ValueError):

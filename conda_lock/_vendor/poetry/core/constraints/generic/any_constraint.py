@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from poetry.core.constraints.generic.base_constraint import BaseConstraint
-from poetry.core.constraints.generic.empty_constraint import EmptyConstraint
+from conda_lock._vendor.poetry.core.constraints.generic.base_constraint import BaseConstraint
+from conda_lock._vendor.poetry.core.constraints.generic.empty_constraint import EmptyConstraint
 
 
 class AnyConstraint(BaseConstraint):

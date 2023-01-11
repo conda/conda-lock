@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Iterable
 from urllib.parse import urlparse
 
-from poetry.core.packages.dependency import Dependency
+from conda_lock._vendor.poetry.core.packages.dependency import Dependency
 
 
 class URLDependency(Dependency):

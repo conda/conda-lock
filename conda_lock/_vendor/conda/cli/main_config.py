@@ -14,7 +14,7 @@ from textwrap import wrap
 try:
     from tlz.itertoolz import concat, groupby
 except ImportError:
-    from conda._vendor.toolz.itertoolz import concat, groupby
+    from conda_lock._vendor.conda._vendor.toolz.itertoolz import concat, groupby
 
 from .. import CondaError
 from ..auxlib.entity import EntityEncoder

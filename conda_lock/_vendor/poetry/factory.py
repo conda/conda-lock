@@ -8,29 +8,29 @@ from typing import TYPE_CHECKING
 from typing import Any
 from typing import cast
 
-from cleo.io.null_io import NullIO
-from poetry.core.factory import Factory as BaseFactory
-from poetry.core.packages.dependency_group import MAIN_GROUP
-from poetry.core.packages.project_package import ProjectPackage
-from poetry.core.toml.file import TOMLFile
+from conda_lock._vendor.cleo.io.null_io import NullIO
+from conda_lock._vendor.poetry.core.factory import Factory as BaseFactory
+from conda_lock._vendor.poetry.core.packages.dependency_group import MAIN_GROUP
+from conda_lock._vendor.poetry.core.packages.project_package import ProjectPackage
+from conda_lock._vendor.poetry.core.toml.file import TOMLFile
 
-from poetry.config.config import Config
-from poetry.json import validate_object
-from poetry.packages.locker import Locker
-from poetry.plugins.plugin import Plugin
-from poetry.plugins.plugin_manager import PluginManager
-from poetry.poetry import Poetry
+from conda_lock._vendor.poetry.config.config import Config
+from conda_lock._vendor.poetry.json import validate_object
+from conda_lock._vendor.poetry.packages.locker import Locker
+from conda_lock._vendor.poetry.plugins.plugin import Plugin
+from conda_lock._vendor.poetry.plugins.plugin_manager import PluginManager
+from conda_lock._vendor.poetry.poetry import Poetry
 
 
 if TYPE_CHECKING:
     from pathlib import Path
 
-    from cleo.io.io import IO
-    from poetry.core.packages.package import Package
+    from conda_lock._vendor.cleo.io.io import IO
+    from conda_lock._vendor.poetry.core.packages.package import Package
     from tomlkit.toml_document import TOMLDocument
 
-    from poetry.repositories.legacy_repository import LegacyRepository
-    from poetry.utils.dependency_specification import DependencySpec
+    from conda_lock._vendor.poetry.repositories.legacy_repository import LegacyRepository
+    from conda_lock._vendor.poetry.utils.dependency_specification import DependencySpec
 
 
 logger = logging.getLogger(__name__)
@@ -145,7 +145,7 @@ class Factory(BaseFactory):
             if io.is_debug():
                 io.write_line("Deactivating the PyPI repository")
         else:
-            from poetry.repositories.pypi_repository import PyPiRepository
+            from conda_lock._vendor.poetry.repositories.pypi_repository import PyPiRepository
 
             default = not poetry.pool.has_primary_repositories()
             poetry.pool.add_repository(
@@ -156,8 +156,8 @@ class Factory(BaseFactory):
     def create_package_source(
         cls, source: dict[str, str], auth_config: Config, disable_cache: bool = False
     ) -> LegacyRepository:
-        from poetry.repositories.legacy_repository import LegacyRepository
-        from poetry.repositories.single_page_repository import SinglePageRepository
+        from conda_lock._vendor.poetry.repositories.legacy_repository import LegacyRepository
+        from conda_lock._vendor.poetry.repositories.single_page_repository import SinglePageRepository
 
         if "url" not in source:
             raise RuntimeError("Unsupported source specified")
@@ -186,7 +186,7 @@ class Factory(BaseFactory):
     ) -> TOMLDocument:
         import tomlkit
 
-        from poetry.utils.dependency_specification import dependency_to_specification
+        from conda_lock._vendor.poetry.utils.dependency_specification import dependency_to_specification
 
         pyproject: dict[str, Any] = tomlkit.document()
 

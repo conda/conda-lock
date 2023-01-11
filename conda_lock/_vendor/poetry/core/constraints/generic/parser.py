@@ -4,14 +4,14 @@ import re
 
 from typing import TYPE_CHECKING
 
-from poetry.core.constraints.generic.any_constraint import AnyConstraint
-from poetry.core.constraints.generic.constraint import Constraint
-from poetry.core.constraints.generic.union_constraint import UnionConstraint
-from poetry.core.constraints.version.exceptions import ParseConstraintError
+from conda_lock._vendor.poetry.core.constraints.generic.any_constraint import AnyConstraint
+from conda_lock._vendor.poetry.core.constraints.generic.constraint import Constraint
+from conda_lock._vendor.poetry.core.constraints.generic.union_constraint import UnionConstraint
+from conda_lock._vendor.poetry.core.constraints.version.exceptions import ParseConstraintError
 
 
 if TYPE_CHECKING:
-    from poetry.core.constraints.generic.base_constraint import BaseConstraint
+    from conda_lock._vendor.poetry.core.constraints.generic.base_constraint import BaseConstraint
 
 
 BASIC_CONSTRAINT = re.compile(r"^(!?==?)?\s*([^\s]+?)\s*$")

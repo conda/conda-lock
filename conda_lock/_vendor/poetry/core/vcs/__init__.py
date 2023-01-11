@@ -5,7 +5,7 @@ import subprocess
 
 from pathlib import Path
 
-from poetry.core.vcs.git import Git
+from conda_lock._vendor.poetry.core.vcs.git import Git
 
 
 def get_vcs(directory: Path) -> Git | None:
@@ -15,7 +15,7 @@ def get_vcs(directory: Path) -> Git | None:
     vcs: Git | None
 
     try:
-        from poetry.core.vcs.git import executable
+        from conda_lock._vendor.poetry.core.vcs.git import executable
 
         git_dir = (
             subprocess.check_output(

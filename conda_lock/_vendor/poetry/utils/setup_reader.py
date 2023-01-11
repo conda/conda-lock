@@ -6,7 +6,7 @@ from configparser import ConfigParser
 from pathlib import Path
 from typing import Any
 
-from poetry.core.constraints.version import Version
+from conda_lock._vendor.poetry.core.constraints.version import Version
 
 
 class SetupReader:

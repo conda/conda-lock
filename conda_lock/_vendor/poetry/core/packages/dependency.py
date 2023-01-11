@@ -12,24 +12,24 @@ from typing import TypeVar
 
 from packaging.utils import canonicalize_name
 
-from poetry.core.constraints.generic import parse_constraint as parse_generic_constraint
-from poetry.core.constraints.version import VersionRangeConstraint
-from poetry.core.constraints.version import parse_constraint
-from poetry.core.packages.dependency_group import MAIN_GROUP
-from poetry.core.packages.specification import PackageSpecification
-from poetry.core.packages.utils.utils import contains_group_without_marker
-from poetry.core.packages.utils.utils import create_nested_marker
-from poetry.core.packages.utils.utils import normalize_python_version_markers
-from poetry.core.version.markers import parse_marker
+from conda_lock._vendor.poetry.core.constraints.generic import parse_constraint as parse_generic_constraint
+from conda_lock._vendor.poetry.core.constraints.version import VersionRangeConstraint
+from conda_lock._vendor.poetry.core.constraints.version import parse_constraint
+from conda_lock._vendor.poetry.core.packages.dependency_group import MAIN_GROUP
+from conda_lock._vendor.poetry.core.packages.specification import PackageSpecification
+from conda_lock._vendor.poetry.core.packages.utils.utils import contains_group_without_marker
+from conda_lock._vendor.poetry.core.packages.utils.utils import create_nested_marker
+from conda_lock._vendor.poetry.core.packages.utils.utils import normalize_python_version_markers
+from conda_lock._vendor.poetry.core.version.markers import parse_marker
 
 
 if TYPE_CHECKING:
     from packaging.utils import NormalizedName
 
-    from poetry.core.constraints.version import VersionConstraint
-    from poetry.core.packages.directory_dependency import DirectoryDependency
-    from poetry.core.packages.file_dependency import FileDependency
-    from poetry.core.version.markers import BaseMarker
+    from conda_lock._vendor.poetry.core.constraints.version import VersionConstraint
+    from conda_lock._vendor.poetry.core.packages.directory_dependency import DirectoryDependency
+    from conda_lock._vendor.poetry.core.packages.file_dependency import FileDependency
+    from conda_lock._vendor.poetry.core.version.markers import BaseMarker
 
     T = TypeVar("T", bound="Dependency")
 
@@ -49,7 +49,7 @@ class Dependency(PackageSpecification):
         source_resolved_reference: str | None = None,
         source_subdirectory: str | None = None,
     ) -> None:
-        from poetry.core.version.markers import AnyMarker
+        from conda_lock._vendor.poetry.core.version.markers import AnyMarker
 
         super().__init__(
             name,
@@ -167,10 +167,10 @@ class Dependency(PackageSpecification):
 
     @marker.setter
     def marker(self, marker: str | BaseMarker) -> None:
-        from poetry.core.constraints.version import parse_constraint
-        from poetry.core.packages.utils.utils import convert_markers
-        from poetry.core.version.markers import BaseMarker
-        from poetry.core.version.markers import parse_marker
+        from conda_lock._vendor.poetry.core.constraints.version import parse_constraint
+        from conda_lock._vendor.poetry.core.packages.utils.utils import convert_markers
+        from conda_lock._vendor.poetry.core.version.markers import BaseMarker
+        from conda_lock._vendor.poetry.core.version.markers import parse_marker
 
         if not isinstance(marker, BaseMarker):
             marker = parse_marker(marker)
@@ -230,8 +230,8 @@ class Dependency(PackageSpecification):
 
     @property
     def base_pep_508_name(self) -> str:
-        from poetry.core.constraints.version import Version
-        from poetry.core.constraints.version import VersionUnion
+        from conda_lock._vendor.poetry.core.constraints.version import Version
+        from conda_lock._vendor.poetry.core.constraints.version import VersionUnion
 
         requirement = self.pretty_name
 
@@ -283,7 +283,7 @@ class Dependency(PackageSpecification):
         return False
 
     def to_pep_508(self, with_extras: bool = True) -> str:
-        from poetry.core.packages.utils.utils import convert_markers
+        from conda_lock._vendor.poetry.core.packages.utils.utils import convert_markers
 
         requirement = self.base_pep_508_name
 
@@ -353,18 +353,18 @@ class Dependency(PackageSpecification):
         path is specified, this is used as the base directory if the identified dependency is
         of file or directory type.
         """
-        from poetry.core.packages.url_dependency import URLDependency
-        from poetry.core.packages.utils.link import Link
-        from poetry.core.packages.utils.utils import is_archive_file
-        from poetry.core.packages.utils.utils import is_python_project
-        from poetry.core.packages.utils.utils import is_url
-        from poetry.core.packages.utils.utils import path_to_url
-        from poetry.core.packages.utils.utils import strip_extras
-        from poetry.core.packages.utils.utils import url_to_path
-        from poetry.core.packages.vcs_dependency import VCSDependency
-        from poetry.core.utils.patterns import wheel_file_re
-        from poetry.core.vcs.git import ParsedUrl
-        from poetry.core.version.requirements import Requirement
+        from conda_lock._vendor.poetry.core.packages.url_dependency import URLDependency
+        from conda_lock._vendor.poetry.core.packages.utils.link import Link
+        from conda_lock._vendor.poetry.core.packages.utils.utils import is_archive_file
+        from conda_lock._vendor.poetry.core.packages.utils.utils import is_python_project
+        from conda_lock._vendor.poetry.core.packages.utils.utils import is_url
+        from conda_lock._vendor.poetry.core.packages.utils.utils import path_to_url
+        from conda_lock._vendor.poetry.core.packages.utils.utils import strip_extras
+        from conda_lock._vendor.poetry.core.packages.utils.utils import url_to_path
+        from conda_lock._vendor.poetry.core.packages.vcs_dependency import VCSDependency
+        from conda_lock._vendor.poetry.core.utils.patterns import wheel_file_re
+        from conda_lock._vendor.poetry.core.vcs.git import ParsedUrl
+        from conda_lock._vendor.poetry.core.version.requirements import Requirement
 
         # Removing comments
         parts = name.split(" #", 1)
@@ -514,8 +514,8 @@ def _make_file_or_dir_dep(
     Helper function to create a file or directoru dependency with the given arguments. If
     path is not a file or directory that exists, `None` is returned.
     """
-    from poetry.core.packages.directory_dependency import DirectoryDependency
-    from poetry.core.packages.file_dependency import FileDependency
+    from conda_lock._vendor.poetry.core.packages.directory_dependency import DirectoryDependency
+    from conda_lock._vendor.poetry.core.packages.file_dependency import FileDependency
 
     _path = path
     if not path.is_absolute() and base:

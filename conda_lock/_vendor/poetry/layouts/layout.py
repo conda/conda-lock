@@ -5,8 +5,8 @@ from typing import TYPE_CHECKING
 from typing import Any
 
 from packaging.utils import canonicalize_name
-from poetry.core.pyproject.toml import PyProjectTOML
-from poetry.core.utils.helpers import module_name
+from conda_lock._vendor.poetry.core.pyproject.toml import PyProjectTOML
+from conda_lock._vendor.poetry.core.utils.helpers import module_name
 from tomlkit import inline_table
 from tomlkit import loads
 from tomlkit import table

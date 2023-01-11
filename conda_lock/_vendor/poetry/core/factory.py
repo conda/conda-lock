@@ -13,16 +13,16 @@ from warnings import warn
 
 from packaging.utils import canonicalize_name
 
-from poetry.core.utils.helpers import combine_unicode
-from poetry.core.utils.helpers import readme_content_type
+from conda_lock._vendor.poetry.core.utils.helpers import combine_unicode
+from conda_lock._vendor.poetry.core.utils.helpers import readme_content_type
 
 
 if TYPE_CHECKING:
-    from poetry.core.packages.dependency import Dependency
-    from poetry.core.packages.dependency_group import DependencyGroup
-    from poetry.core.packages.project_package import ProjectPackage
-    from poetry.core.poetry import Poetry
-    from poetry.core.spdx.license import License
+    from conda_lock._vendor.poetry.core.packages.dependency import Dependency
+    from conda_lock._vendor.poetry.core.packages.dependency_group import DependencyGroup
+    from conda_lock._vendor.poetry.core.packages.project_package import ProjectPackage
+    from conda_lock._vendor.poetry.core.poetry import Poetry
+    from conda_lock._vendor.poetry.core.spdx.license import License
 
     DependencyConstraint = Union[str, Dict[str, Any]]
     DependencyConfig = Mapping[
@@ -41,8 +41,8 @@ class Factory:
     def create_poetry(
         self, cwd: Path | None = None, with_groups: bool = True
     ) -> Poetry:
-        from poetry.core.poetry import Poetry
-        from poetry.core.pyproject.toml import PyProjectTOML
+        from conda_lock._vendor.poetry.core.poetry import Poetry
+        from conda_lock._vendor.poetry.core.pyproject.toml import PyProjectTOML
 
         poetry_file = self.locate(cwd)
         local_config = PyProjectTOML(path=poetry_file).poetry_config
@@ -70,7 +70,7 @@ class Factory:
 
     @classmethod
     def get_package(cls, name: str, version: str) -> ProjectPackage:
-        from poetry.core.packages.project_package import ProjectPackage
+        from conda_lock._vendor.poetry.core.packages.project_package import ProjectPackage
 
         return ProjectPackage(name, version, version)
 
@@ -81,13 +81,13 @@ class Factory:
         group: str | DependencyGroup,
         dependencies: DependencyConfig,
     ) -> None:
-        from poetry.core.packages.dependency_group import MAIN_GROUP
+        from conda_lock._vendor.poetry.core.packages.dependency_group import MAIN_GROUP
 
         if isinstance(group, str):
             if package.has_dependency_group(group):
                 group = package.dependency_group(group)
             else:
-                from poetry.core.packages.dependency_group import DependencyGroup
+                from conda_lock._vendor.poetry.core.packages.dependency_group import DependencyGroup
 
                 group = DependencyGroup(group)
 
@@ -120,10 +120,10 @@ class Factory:
         root: Path,
         with_groups: bool = True,
     ) -> ProjectPackage:
-        from poetry.core.packages.dependency import Dependency
-        from poetry.core.packages.dependency_group import MAIN_GROUP
-        from poetry.core.packages.dependency_group import DependencyGroup
-        from poetry.core.spdx.helpers import license_by_id
+        from conda_lock._vendor.poetry.core.packages.dependency import Dependency
+        from conda_lock._vendor.poetry.core.packages.dependency_group import MAIN_GROUP
+        from conda_lock._vendor.poetry.core.packages.dependency_group import DependencyGroup
+        from conda_lock._vendor.poetry.core.spdx.helpers import license_by_id
 
         package.root_dir = root
 
@@ -230,21 +230,21 @@ class Factory:
         groups: list[str] | None = None,
         root_dir: Path | None = None,
     ) -> Dependency:
-        from poetry.core.constraints.generic import (
+        from conda_lock._vendor.poetry.core.constraints.generic import (
             parse_constraint as parse_generic_constraint,
         )
-        from poetry.core.constraints.version import (
+        from conda_lock._vendor.poetry.core.constraints.version import (
             parse_constraint as parse_version_constraint,
         )
-        from poetry.core.packages.dependency import Dependency
-        from poetry.core.packages.dependency_group import MAIN_GROUP
-        from poetry.core.packages.directory_dependency import DirectoryDependency
-        from poetry.core.packages.file_dependency import FileDependency
-        from poetry.core.packages.url_dependency import URLDependency
-        from poetry.core.packages.utils.utils import create_nested_marker
-        from poetry.core.packages.vcs_dependency import VCSDependency
-        from poetry.core.version.markers import AnyMarker
-        from poetry.core.version.markers import parse_marker
+        from conda_lock._vendor.poetry.core.packages.dependency import Dependency
+        from conda_lock._vendor.poetry.core.packages.dependency_group import MAIN_GROUP
+        from conda_lock._vendor.poetry.core.packages.directory_dependency import DirectoryDependency
+        from conda_lock._vendor.poetry.core.packages.file_dependency import FileDependency
+        from conda_lock._vendor.poetry.core.packages.url_dependency import URLDependency
+        from conda_lock._vendor.poetry.core.packages.utils.utils import create_nested_marker
+        from conda_lock._vendor.poetry.core.packages.vcs_dependency import VCSDependency
+        from conda_lock._vendor.poetry.core.version.markers import AnyMarker
+        from conda_lock._vendor.poetry.core.version.markers import parse_marker
 
         if groups is None:
             groups = [MAIN_GROUP]
@@ -380,7 +380,7 @@ class Factory:
         """
         Checks the validity of a configuration
         """
-        from poetry.core.json import validate_object
+        from conda_lock._vendor.poetry.core.json import validate_object
 
         result: dict[str, list[str]] = {"errors": [], "warnings": []}
         # Schema validation errors

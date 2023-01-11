@@ -2,11 +2,11 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from poetry.installation.base_installer import BaseInstaller
+from conda_lock._vendor.poetry.installation.base_installer import BaseInstaller
 
 
 if TYPE_CHECKING:
-    from poetry.core.packages.package import Package
+    from conda_lock._vendor.poetry.core.packages.package import Package
 
 
 class NoopInstaller(BaseInstaller):

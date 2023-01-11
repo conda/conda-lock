@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING
 
 
 if TYPE_CHECKING:
-    from poetry.config.config import Config
+    from conda_lock._vendor.poetry.config.config import Config
 
 logger = logging.getLogger(__name__)
 

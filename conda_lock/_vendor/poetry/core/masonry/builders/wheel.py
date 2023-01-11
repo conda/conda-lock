@@ -20,20 +20,20 @@ from typing import TextIO
 
 from packaging.tags import sys_tags
 
-from poetry.core import __version__
-from poetry.core.constraints.version import parse_constraint
-from poetry.core.masonry.builders.builder import Builder
-from poetry.core.masonry.builders.sdist import SdistBuilder
-from poetry.core.masonry.utils.helpers import distribution_name
-from poetry.core.masonry.utils.helpers import normalize_file_permissions
-from poetry.core.masonry.utils.package_include import PackageInclude
-from poetry.core.utils.helpers import temporary_directory
+from conda_lock._vendor.poetry.core import __version__
+from conda_lock._vendor.poetry.core.constraints.version import parse_constraint
+from conda_lock._vendor.poetry.core.masonry.builders.builder import Builder
+from conda_lock._vendor.poetry.core.masonry.builders.sdist import SdistBuilder
+from conda_lock._vendor.poetry.core.masonry.utils.helpers import distribution_name
+from conda_lock._vendor.poetry.core.masonry.utils.helpers import normalize_file_permissions
+from conda_lock._vendor.poetry.core.masonry.utils.package_include import PackageInclude
+from conda_lock._vendor.poetry.core.utils.helpers import temporary_directory
 
 
 if TYPE_CHECKING:
     from packaging.utils import NormalizedName
 
-    from poetry.core.poetry import Poetry
+    from conda_lock._vendor.poetry.core.poetry import Poetry
 
 wheel_file_template = """\
 Wheel-Version: 1.0

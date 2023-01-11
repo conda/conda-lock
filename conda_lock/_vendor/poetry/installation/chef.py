@@ -6,15 +6,15 @@ import json
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from poetry.installation.chooser import InvalidWheelName
-from poetry.installation.chooser import Wheel
+from conda_lock._vendor.poetry.installation.chooser import InvalidWheelName
+from conda_lock._vendor.poetry.installation.chooser import Wheel
 
 
 if TYPE_CHECKING:
-    from poetry.core.packages.utils.link import Link
+    from conda_lock._vendor.poetry.core.packages.utils.link import Link
 
-    from poetry.config.config import Config
-    from poetry.utils.env import Env
+    from conda_lock._vendor.poetry.config.config import Config
+    from conda_lock._vendor.poetry.utils.env import Env
 
 
 class Chef:

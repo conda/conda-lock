@@ -12,30 +12,30 @@ from typing import Any
 from typing import cast
 
 from packaging.utils import canonicalize_name
-from poetry.core.constraints.version import Version
-from poetry.core.constraints.version import parse_constraint
-from poetry.core.packages.dependency import Dependency
-from poetry.core.packages.package import Package
-from poetry.core.toml.file import TOMLFile
-from poetry.core.version.markers import parse_marker
-from poetry.core.version.requirements import InvalidRequirement
+from conda_lock._vendor.poetry.core.constraints.version import Version
+from conda_lock._vendor.poetry.core.constraints.version import parse_constraint
+from conda_lock._vendor.poetry.core.packages.dependency import Dependency
+from conda_lock._vendor.poetry.core.packages.package import Package
+from conda_lock._vendor.poetry.core.toml.file import TOMLFile
+from conda_lock._vendor.poetry.core.version.markers import parse_marker
+from conda_lock._vendor.poetry.core.version.requirements import InvalidRequirement
 from tomlkit import array
 from tomlkit import comment
 from tomlkit import document
 from tomlkit import inline_table
 from tomlkit import table
 
-from poetry.utils._compat import tomllib
+from conda_lock._vendor.poetry.utils._compat import tomllib
 
 
 if TYPE_CHECKING:
-    from poetry.core.packages.directory_dependency import DirectoryDependency
-    from poetry.core.packages.file_dependency import FileDependency
-    from poetry.core.packages.url_dependency import URLDependency
-    from poetry.core.packages.vcs_dependency import VCSDependency
+    from conda_lock._vendor.poetry.core.packages.directory_dependency import DirectoryDependency
+    from conda_lock._vendor.poetry.core.packages.file_dependency import FileDependency
+    from conda_lock._vendor.poetry.core.packages.url_dependency import URLDependency
+    from conda_lock._vendor.poetry.core.packages.vcs_dependency import VCSDependency
     from tomlkit.toml_document import TOMLDocument
 
-    from poetry.repositories.lockfile_repository import LockfileRepository
+    from conda_lock._vendor.poetry.repositories.lockfile_repository import LockfileRepository
 
 logger = logging.getLogger(__name__)
 _GENERATED_IDENTIFIER = "@" + "generated"
@@ -93,8 +93,8 @@ class Locker:
         """
         Searches and returns a repository of locked packages.
         """
-        from poetry.factory import Factory
-        from poetry.repositories.lockfile_repository import LockfileRepository
+        from conda_lock._vendor.poetry.factory import Factory
+        from conda_lock._vendor.poetry.repositories.lockfile_repository import LockfileRepository
 
         repository = LockfileRepository()
 

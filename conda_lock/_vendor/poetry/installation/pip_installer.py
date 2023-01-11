@@ -10,23 +10,23 @@ from subprocess import CalledProcessError
 from typing import TYPE_CHECKING
 from typing import Any
 
-from poetry.core.constraints.version import Version
-from poetry.core.pyproject.toml import PyProjectTOML
+from conda_lock._vendor.poetry.core.constraints.version import Version
+from conda_lock._vendor.poetry.core.pyproject.toml import PyProjectTOML
 
-from poetry.installation.base_installer import BaseInstaller
-from poetry.repositories.http_repository import HTTPRepository
-from poetry.utils._compat import encode
-from poetry.utils.helpers import remove_directory
-from poetry.utils.pip import pip_install
+from conda_lock._vendor.poetry.installation.base_installer import BaseInstaller
+from conda_lock._vendor.poetry.repositories.http_repository import HTTPRepository
+from conda_lock._vendor.poetry.utils._compat import encode
+from conda_lock._vendor.poetry.utils.helpers import remove_directory
+from conda_lock._vendor.poetry.utils.pip import pip_install
 
 
 if TYPE_CHECKING:
-    from cleo.io.io import IO
-    from poetry.core.masonry.builders.builder import Builder
-    from poetry.core.packages.package import Package
+    from conda_lock._vendor.cleo.io.io import IO
+    from conda_lock._vendor.poetry.core.masonry.builders.builder import Builder
+    from conda_lock._vendor.poetry.core.packages.package import Package
 
-    from poetry.repositories.repository_pool import RepositoryPool
-    from poetry.utils.env import Env
+    from conda_lock._vendor.poetry.repositories.repository_pool import RepositoryPool
+    from conda_lock._vendor.poetry.utils.env import Env
 
 
 class PipInstaller(BaseInstaller):
@@ -208,9 +208,9 @@ class PipInstaller(BaseInstaller):
         return name
 
     def install_directory(self, package: Package) -> str | int:
-        from cleo.io.null_io import NullIO
+        from conda_lock._vendor.cleo.io.null_io import NullIO
 
-        from poetry.factory import Factory
+        from conda_lock._vendor.poetry.factory import Factory
 
         assert package.source_url is not None
         if package.root_dir:
@@ -237,7 +237,7 @@ class PipInstaller(BaseInstaller):
 
             builder: Builder
             if package.develop and not package_poetry.package.build_script:
-                from poetry.masonry.builders.editable import EditableBuilder
+                from conda_lock._vendor.poetry.masonry.builders.editable import EditableBuilder
 
                 # This is a Poetry package in editable mode
                 # we can use the EditableBuilder without going through pip
@@ -247,7 +247,7 @@ class PipInstaller(BaseInstaller):
 
                 return 0
             elif legacy_pip or package_poetry.package.build_script:
-                from poetry.core.masonry.builders.sdist import SdistBuilder
+                from conda_lock._vendor.poetry.core.masonry.builders.sdist import SdistBuilder
 
                 # We need to rely on creating a temporary setup.py
                 # file since the version of pip does not support
@@ -268,9 +268,9 @@ class PipInstaller(BaseInstaller):
         )
 
     def install_git(self, package: Package) -> None:
-        from poetry.core.packages.package import Package
+        from conda_lock._vendor.poetry.core.packages.package import Package
 
-        from poetry.vcs.git import Git
+        from conda_lock._vendor.poetry.vcs.git import Git
 
         assert package.source_url is not None
         source = Git.clone(

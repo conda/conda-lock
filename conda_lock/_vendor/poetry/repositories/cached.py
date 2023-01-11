@@ -3,7 +3,7 @@ from __future__ import annotations
 import warnings
 
 
-from poetry.repositories.cached_repository import (  # isort: skip # nopycln: import # noqa: E501, F401
+from conda_lock._vendor.poetry.repositories.cached_repository import (  # isort: skip # nopycln: import # noqa: E501, F401
     CachedRepository,
 )
 

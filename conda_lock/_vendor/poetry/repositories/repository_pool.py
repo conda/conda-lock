@@ -7,16 +7,16 @@ from dataclasses import dataclass
 from enum import IntEnum
 from typing import TYPE_CHECKING
 
-from poetry.repositories.abstract_repository import AbstractRepository
-from poetry.repositories.exceptions import PackageNotFound
+from conda_lock._vendor.poetry.repositories.abstract_repository import AbstractRepository
+from conda_lock._vendor.poetry.repositories.exceptions import PackageNotFound
 
 
 if TYPE_CHECKING:
-    from poetry.core.constraints.version import Version
-    from poetry.core.packages.dependency import Dependency
-    from poetry.core.packages.package import Package
+    from conda_lock._vendor.poetry.core.constraints.version import Version
+    from conda_lock._vendor.poetry.core.packages.dependency import Dependency
+    from conda_lock._vendor.poetry.core.packages.package import Package
 
-    from poetry.repositories.repository import Repository
+    from conda_lock._vendor.poetry.repositories.repository import Repository
 
 
 class Priority(IntEnum):

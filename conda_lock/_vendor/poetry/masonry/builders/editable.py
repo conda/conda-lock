@@ -10,23 +10,23 @@ from base64 import urlsafe_b64encode
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from poetry.core.constraints.version import Version
-from poetry.core.masonry.builders.builder import Builder
-from poetry.core.masonry.builders.sdist import SdistBuilder
-from poetry.core.masonry.utils.package_include import PackageInclude
+from conda_lock._vendor.poetry.core.constraints.version import Version
+from conda_lock._vendor.poetry.core.masonry.builders.builder import Builder
+from conda_lock._vendor.poetry.core.masonry.builders.sdist import SdistBuilder
+from conda_lock._vendor.poetry.core.masonry.utils.package_include import PackageInclude
 
-from poetry.utils._compat import WINDOWS
-from poetry.utils._compat import decode
-from poetry.utils.env import build_environment
-from poetry.utils.helpers import is_dir_writable
-from poetry.utils.pip import pip_install
+from conda_lock._vendor.poetry.utils._compat import WINDOWS
+from conda_lock._vendor.poetry.utils._compat import decode
+from conda_lock._vendor.poetry.utils.env import build_environment
+from conda_lock._vendor.poetry.utils.helpers import is_dir_writable
+from conda_lock._vendor.poetry.utils.pip import pip_install
 
 
 if TYPE_CHECKING:
-    from cleo.io.io import IO
+    from conda_lock._vendor.cleo.io.io import IO
 
-    from poetry.poetry import Poetry
-    from poetry.utils.env import Env
+    from conda_lock._vendor.poetry.poetry import Poetry
+    from conda_lock._vendor.poetry.utils.env import Env
 
 SCRIPT_TEMPLATE = """\
 #!{python}
@@ -213,7 +213,7 @@ class EditableBuilder(Builder):
         return added
 
     def _add_dist_info(self, added_files: list[Path]) -> None:
-        from poetry.core.masonry.builders.wheel import WheelBuilder
+        from conda_lock._vendor.poetry.core.masonry.builders.wheel import WheelBuilder
 
         added_files = added_files[:]
 

@@ -17,9 +17,9 @@ from dulwich.errors import NotGitRepository
 from dulwich.refs import ANNOTATED_TAG_SUFFIX
 from dulwich.repo import Repo
 
-from poetry.console.exceptions import PoetryConsoleError
-from poetry.utils.authenticator import get_default_authenticator
-from poetry.utils.helpers import remove_directory
+from conda_lock._vendor.poetry.console.exceptions import PoetryConsoleError
+from conda_lock._vendor.poetry.utils.authenticator import get_default_authenticator
+from conda_lock._vendor.poetry.utils.helpers import remove_directory
 
 
 if TYPE_CHECKING:
@@ -211,7 +211,7 @@ class Git:
         Helper method to facilitate fallback to using system provided git client via
         subprocess calls.
         """
-        from poetry.vcs.git.system import SystemGit
+        from conda_lock._vendor.poetry.vcs.git.system import SystemGit
 
         logger.debug("Cloning '%s' using system git client", url)
 
@@ -362,7 +362,7 @@ class Git:
 
     @staticmethod
     def is_using_legacy_client() -> bool:
-        from poetry.config.config import Config
+        from conda_lock._vendor.poetry.config.config import Config
 
         legacy_client: bool = Config.create().get(
             "experimental.system-git-client", False
@@ -371,7 +371,7 @@ class Git:
 
     @staticmethod
     def get_default_source_root() -> Path:
-        from poetry.config.config import Config
+        from conda_lock._vendor.poetry.config.config import Config
 
         return Path(Config.create().get("cache-dir")) / "src"
 

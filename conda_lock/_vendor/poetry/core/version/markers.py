@@ -8,15 +8,15 @@ from typing import Any
 from typing import Callable
 from typing import Iterable
 
-from poetry.core.constraints.version import VersionConstraint
-from poetry.core.version.grammars import GRAMMAR_PEP_508_MARKERS
-from poetry.core.version.parser import Parser
+from conda_lock._vendor.poetry.core.constraints.version import VersionConstraint
+from conda_lock._vendor.poetry.core.version.grammars import GRAMMAR_PEP_508_MARKERS
+from conda_lock._vendor.poetry.core.version.parser import Parser
 
 
 if TYPE_CHECKING:
     from lark import Tree
 
-    from poetry.core.constraints.generic import BaseConstraint
+    from conda_lock._vendor.poetry.core.constraints.generic import BaseConstraint
 
 
 class InvalidMarker(ValueError):
@@ -184,10 +184,10 @@ class SingleMarker(BaseMarker):
     def __init__(
         self, name: str, constraint: str | BaseConstraint | VersionConstraint
     ) -> None:
-        from poetry.core.constraints.generic import (
+        from conda_lock._vendor.poetry.core.constraints.generic import (
             parse_constraint as parse_generic_constraint,
         )
-        from poetry.core.constraints.version import (
+        from conda_lock._vendor.poetry.core.constraints.version import (
             parse_constraint as parse_version_constraint,
         )
 
@@ -323,7 +323,7 @@ class SingleMarker(BaseMarker):
             # This one is more tricky to handle
             # since it's technically a multi marker
             # so the inverse will be a union of inverse
-            from poetry.core.constraints.version import VersionRangeConstraint
+            from conda_lock._vendor.poetry.core.constraints.version import VersionRangeConstraint
 
             if not isinstance(self._constraint, VersionRangeConstraint):
                 # The constraint must be a version range, otherwise
@@ -893,7 +893,7 @@ def _merge_python_version_single_markers(
     marker2: SingleMarker,
     merge_class: type[MultiMarker | MarkerUnion],
 ) -> BaseMarker | None:
-    from poetry.core.packages.utils.utils import get_python_constraint_from_marker
+    from conda_lock._vendor.poetry.core.packages.utils.utils import get_python_constraint_from_marker
 
     if marker1.name == "python_version":
         version_marker = marker1

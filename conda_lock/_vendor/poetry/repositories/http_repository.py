@@ -13,29 +13,29 @@ from typing import Any
 
 import requests
 
-from poetry.core.constraints.version import parse_constraint
-from poetry.core.packages.dependency import Dependency
-from poetry.core.packages.utils.link import Link
-from poetry.core.utils.helpers import temporary_directory
-from poetry.core.version.markers import parse_marker
+from conda_lock._vendor.poetry.core.constraints.version import parse_constraint
+from conda_lock._vendor.poetry.core.packages.dependency import Dependency
+from conda_lock._vendor.poetry.core.packages.utils.link import Link
+from conda_lock._vendor.poetry.core.utils.helpers import temporary_directory
+from conda_lock._vendor.poetry.core.version.markers import parse_marker
 
-from poetry.repositories.cached_repository import CachedRepository
-from poetry.repositories.exceptions import PackageNotFound
-from poetry.repositories.exceptions import RepositoryError
-from poetry.repositories.link_sources.html import HTMLPage
-from poetry.utils.authenticator import Authenticator
-from poetry.utils.constants import REQUESTS_TIMEOUT
-from poetry.utils.helpers import download_file
-from poetry.utils.patterns import wheel_file_re
+from conda_lock._vendor.poetry.repositories.cached_repository import CachedRepository
+from conda_lock._vendor.poetry.repositories.exceptions import PackageNotFound
+from conda_lock._vendor.poetry.repositories.exceptions import RepositoryError
+from conda_lock._vendor.poetry.repositories.link_sources.html import HTMLPage
+from conda_lock._vendor.poetry.utils.authenticator import Authenticator
+from conda_lock._vendor.poetry.utils.constants import REQUESTS_TIMEOUT
+from conda_lock._vendor.poetry.utils.helpers import download_file
+from conda_lock._vendor.poetry.utils.patterns import wheel_file_re
 
 
 if TYPE_CHECKING:
     from packaging.utils import NormalizedName
 
-    from poetry.config.config import Config
-    from poetry.inspection.info import PackageInfo
-    from poetry.repositories.link_sources.base import LinkSource
-    from poetry.utils.authenticator import RepositoryCertificateConfig
+    from conda_lock._vendor.poetry.config.config import Config
+    from conda_lock._vendor.poetry.inspection.info import PackageInfo
+    from conda_lock._vendor.poetry.repositories.link_sources.base import LinkSource
+    from conda_lock._vendor.poetry.utils.authenticator import RepositoryCertificateConfig
 
 
 class HTTPRepository(CachedRepository):
@@ -76,7 +76,7 @@ class HTTPRepository(CachedRepository):
         return download_file(url, dest, session=self.session)
 
     def _get_info_from_wheel(self, url: str) -> PackageInfo:
-        from poetry.inspection.info import PackageInfo
+        from conda_lock._vendor.poetry.inspection.info import PackageInfo
 
         wheel_name = urllib.parse.urlparse(url).path.rsplit("/")[-1]
         self._log(f"Downloading wheel: {wheel_name}", level="debug")
@@ -90,7 +90,7 @@ class HTTPRepository(CachedRepository):
             return PackageInfo.from_wheel(filepath)
 
     def _get_info_from_sdist(self, url: str) -> PackageInfo:
-        from poetry.inspection.info import PackageInfo
+        from conda_lock._vendor.poetry.inspection.info import PackageInfo
 
         sdist_name = urllib.parse.urlparse(url).path
         sdist_name_log = sdist_name.rsplit("/")[-1]

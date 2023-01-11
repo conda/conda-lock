@@ -2,11 +2,11 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from poetry.core.constraints.version.version_range import VersionRange
+from conda_lock._vendor.poetry.core.constraints.version.version_range import VersionRange
 
 
 if TYPE_CHECKING:
-    from poetry.core.constraints.version.version_constraint import VersionConstraint
+    from conda_lock._vendor.poetry.core.constraints.version.version_constraint import VersionConstraint
 
 
 def constraint_regions(constraints: list[VersionConstraint]) -> list[VersionRange]:

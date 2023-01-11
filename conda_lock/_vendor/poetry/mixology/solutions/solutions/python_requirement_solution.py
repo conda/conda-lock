@@ -6,15 +6,15 @@ from crashtest.contracts.solution import Solution
 
 
 if TYPE_CHECKING:
-    from poetry.mixology.failure import SolveFailure
-    from poetry.puzzle.exceptions import SolverProblemError
+    from conda_lock._vendor.poetry.mixology.failure import SolveFailure
+    from conda_lock._vendor.poetry.puzzle.exceptions import SolverProblemError
 
 
 class PythonRequirementSolution(Solution):
     def __init__(self, exception: SolverProblemError) -> None:
-        from poetry.core.constraints.version import parse_constraint
+        from conda_lock._vendor.poetry.core.constraints.version import parse_constraint
 
-        from poetry.mixology.incompatibility_cause import PythonCause
+        from conda_lock._vendor.poetry.mixology.incompatibility_cause import PythonCause
 
         self._title = "Check your dependencies Python requirement."
 

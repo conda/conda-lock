@@ -4,9 +4,9 @@ from typing import TYPE_CHECKING
 
 
 if TYPE_CHECKING:
-    from poetry.core.packages.package import Package
+    from conda_lock._vendor.poetry.core.packages.package import Package
 
-    from poetry.installation.operations.operation import Operation
+    from conda_lock._vendor.poetry.installation.operations.operation import Operation
 
 
 class Transaction:
@@ -29,9 +29,9 @@ class Transaction:
     def calculate_operations(
         self, with_uninstalls: bool = True, synchronize: bool = False
     ) -> list[Operation]:
-        from poetry.installation.operations import Install
-        from poetry.installation.operations import Uninstall
-        from poetry.installation.operations import Update
+        from conda_lock._vendor.poetry.installation.operations import Install
+        from conda_lock._vendor.poetry.installation.operations import Uninstall
+        from conda_lock._vendor.poetry.installation.operations import Update
 
         operations: list[Operation] = []
 

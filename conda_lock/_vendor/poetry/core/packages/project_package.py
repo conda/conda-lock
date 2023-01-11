@@ -3,16 +3,16 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 from typing import Any
 
-from poetry.core.constraints.version import parse_constraint
-from poetry.core.version.markers import parse_marker
+from conda_lock._vendor.poetry.core.constraints.version import parse_constraint
+from conda_lock._vendor.poetry.core.version.markers import parse_marker
 
 
 if TYPE_CHECKING:
-    from poetry.core.packages.dependency import Dependency
-    from poetry.core.constraints.version import Version
+    from conda_lock._vendor.poetry.core.packages.dependency import Dependency
+    from conda_lock._vendor.poetry.core.constraints.version import Version
 
-from poetry.core.packages.package import Package
-from poetry.core.packages.utils.utils import create_nested_marker
+from conda_lock._vendor.poetry.core.packages.package import Package
+from conda_lock._vendor.poetry.core.packages.utils.utils import create_nested_marker
 
 
 class ProjectPackage(Package):

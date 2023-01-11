@@ -2,13 +2,13 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from poetry.core.utils.helpers import readme_content_type
+from conda_lock._vendor.poetry.core.utils.helpers import readme_content_type
 
 
 if TYPE_CHECKING:
     from packaging.utils import NormalizedName
 
-    from poetry.core.packages.package import Package
+    from conda_lock._vendor.poetry.core.packages.package import Package
 
 
 class Metadata:
@@ -47,7 +47,7 @@ class Metadata:
 
     @classmethod
     def from_package(cls, package: Package) -> Metadata:
-        from poetry.core.version.helpers import format_python_constraint
+        from conda_lock._vendor.poetry.core.version.helpers import format_python_constraint
 
         meta = cls()
 

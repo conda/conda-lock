@@ -20,7 +20,7 @@ import warnings
 try:
     from tlz.itertoolz import concat, concatv, unique
 except ImportError:
-    from conda._vendor.toolz.itertoolz import concat, concatv, unique
+    from conda_lock._vendor.conda._vendor.toolz.itertoolz import concat, concatv, unique
 
 from .constants import (
     APP_NAME,
@@ -900,7 +900,7 @@ class Context(Configuration):
         #   'Windows', '10.0.17134'
         platform_name = self.platform_system_release[0]
         if platform_name == 'Linux':
-            from conda._vendor.distro import id, version
+            from conda_lock._vendor.conda._vendor.distro import id, version
             try:
                 distinfo = id(), version(best=True)
             except Exception as e:
@@ -931,7 +931,7 @@ class Context(Configuration):
     @memoizedproperty
     @env_override('CONDA_OVERRIDE_CUDA', convert_empty_to_none=True)
     def cuda_version(self):
-        from conda.common.cuda import cuda_detect
+        from conda_lock._vendor.conda.common.cuda import cuda_detect
         return cuda_detect()
 
     @property
@@ -1836,8 +1836,8 @@ def _first_writable_envs_dir():
 # backward compatibility for conda-build
 def get_prefix(ctx, args, search=True):  # pragma: no cover
     warnings.warn(
-        "`conda.base.context.get_prefix` is pending deprecation and will be removed in a future "
-        "release. Please use `conda.base.context.determine_target_prefix` instead.",
+        "`conda_lock.vendor.conda.base.context.get_prefix` is pending deprecation and will be removed in a future "
+        "release. Please use `conda_lock.vendor.conda.base.context.determine_target_prefix` instead.",
         PendingDeprecationWarning,
     )
     return determine_target_prefix(ctx or context, args)

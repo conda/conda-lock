@@ -2,9 +2,9 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from poetry.repositories.exceptions import PackageNotFound
-from poetry.repositories.legacy_repository import LegacyRepository
-from poetry.repositories.link_sources.html import SimpleRepositoryPage
+from conda_lock._vendor.poetry.repositories.exceptions import PackageNotFound
+from conda_lock._vendor.poetry.repositories.legacy_repository import LegacyRepository
+from conda_lock._vendor.poetry.repositories.link_sources.html import SimpleRepositoryPage
 
 
 if TYPE_CHECKING:

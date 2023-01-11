@@ -4,8 +4,8 @@ import posixpath
 import re
 import urllib.parse as urlparse
 
-from poetry.core.packages.utils.utils import path_to_url
-from poetry.core.packages.utils.utils import splitext
+from conda_lock._vendor.poetry.core.packages.utils.utils import path_to_url
+from conda_lock._vendor.poetry.core.packages.utils.utils import splitext
 
 
 class Link:

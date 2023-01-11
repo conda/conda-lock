@@ -11,24 +11,24 @@ from typing import Iterable
 from typing import Iterator
 from typing import TypeVar
 
-from poetry.core.constraints.version import parse_constraint
-from poetry.core.constraints.version.exceptions import ParseConstraintError
-from poetry.core.packages.dependency_group import MAIN_GROUP
-from poetry.core.packages.specification import PackageSpecification
-from poetry.core.packages.utils.utils import create_nested_marker
-from poetry.core.version.exceptions import InvalidVersion
-from poetry.core.version.markers import parse_marker
+from conda_lock._vendor.poetry.core.constraints.version import parse_constraint
+from conda_lock._vendor.poetry.core.constraints.version.exceptions import ParseConstraintError
+from conda_lock._vendor.poetry.core.packages.dependency_group import MAIN_GROUP
+from conda_lock._vendor.poetry.core.packages.specification import PackageSpecification
+from conda_lock._vendor.poetry.core.packages.utils.utils import create_nested_marker
+from conda_lock._vendor.poetry.core.version.exceptions import InvalidVersion
+from conda_lock._vendor.poetry.core.version.markers import parse_marker
 
 
 if TYPE_CHECKING:
     from packaging.utils import NormalizedName
 
-    from poetry.core.constraints.version import Version
-    from poetry.core.constraints.version import VersionConstraint
-    from poetry.core.packages.dependency import Dependency
-    from poetry.core.packages.dependency_group import DependencyGroup
-    from poetry.core.spdx.license import License
-    from poetry.core.version.markers import BaseMarker
+    from conda_lock._vendor.poetry.core.constraints.version import Version
+    from conda_lock._vendor.poetry.core.constraints.version import VersionConstraint
+    from conda_lock._vendor.poetry.core.packages.dependency import Dependency
+    from conda_lock._vendor.poetry.core.packages.dependency_group import DependencyGroup
+    from conda_lock._vendor.poetry.core.spdx.license import License
+    from conda_lock._vendor.poetry.core.version.markers import BaseMarker
 
     T = TypeVar("T", bound="Package")
 
@@ -67,7 +67,7 @@ class Package(PackageSpecification):
         """
         Creates a new in memory package.
         """
-        from poetry.core.version.markers import AnyMarker
+        from conda_lock._vendor.poetry.core.version.markers import AnyMarker
 
         super().__init__(
             name,
@@ -214,7 +214,7 @@ class Package(PackageSpecification):
     def _set_version(
         self, version: str | Version, pretty_version: str | None = None
     ) -> None:
-        from poetry.core.constraints.version import Version
+        from conda_lock._vendor.poetry.core.constraints.version import Version
 
         if not isinstance(version, Version):
             try:
@@ -292,8 +292,8 @@ class Package(PackageSpecification):
 
     @license.setter
     def license(self, value: str | License | None) -> None:
-        from poetry.core.spdx.helpers import license_by_id
-        from poetry.core.spdx.license import License
+        from conda_lock._vendor.poetry.core.spdx.helpers import license_by_id
+        from conda_lock._vendor.poetry.core.spdx.license import License
 
         if value is None or isinstance(value, License):
             self._license = value
@@ -302,7 +302,7 @@ class Package(PackageSpecification):
 
     @property
     def all_classifiers(self) -> list[str]:
-        from poetry.core.constraints.version import Version
+        from conda_lock._vendor.poetry.core.constraints.version import Version
 
         classifiers = copy.copy(self.classifiers)
 
@@ -428,7 +428,7 @@ class Package(PackageSpecification):
         self,
         dependency: Dependency,
     ) -> Dependency:
-        from poetry.core.packages.dependency_group import DependencyGroup
+        from conda_lock._vendor.poetry.core.packages.dependency_group import DependencyGroup
 
         for group_name in dependency.groups:
             if group_name not in self._dependency_groups:
@@ -485,11 +485,11 @@ class Package(PackageSpecification):
     def to_dependency(self) -> Dependency:
         from pathlib import Path
 
-        from poetry.core.packages.dependency import Dependency
-        from poetry.core.packages.directory_dependency import DirectoryDependency
-        from poetry.core.packages.file_dependency import FileDependency
-        from poetry.core.packages.url_dependency import URLDependency
-        from poetry.core.packages.vcs_dependency import VCSDependency
+        from conda_lock._vendor.poetry.core.packages.dependency import Dependency
+        from conda_lock._vendor.poetry.core.packages.directory_dependency import DirectoryDependency
+        from conda_lock._vendor.poetry.core.packages.file_dependency import FileDependency
+        from conda_lock._vendor.poetry.core.packages.url_dependency import URLDependency
+        from conda_lock._vendor.poetry.core.packages.vcs_dependency import VCSDependency
 
         dep: Dependency
         if self.source_type == "directory":

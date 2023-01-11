@@ -5,7 +5,7 @@ from typing import TypeVar
 
 
 if TYPE_CHECKING:
-    from poetry.core.packages.package import Package
+    from conda_lock._vendor.poetry.core.packages.package import Package
 
 T = TypeVar("T", bound="Operation")
 

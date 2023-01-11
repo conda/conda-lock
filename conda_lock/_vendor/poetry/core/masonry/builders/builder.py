@@ -11,7 +11,7 @@ from typing import TYPE_CHECKING
 
 
 if TYPE_CHECKING:
-    from poetry.core.poetry import Poetry
+    from conda_lock._vendor.poetry.core.poetry import Poetry
 
 
 AUTHOR_REGEX = re.compile(r"(?u)^(?P<name>[- .,\w\d'’\"()]+) <(?P<email>.+?)>$")
@@ -35,8 +35,8 @@ class Builder:
         ignore_packages_formats: bool = False,
         executable: Path | None = None,
     ) -> None:
-        from poetry.core.masonry.metadata import Metadata
-        from poetry.core.masonry.utils.module import Module
+        from conda_lock._vendor.poetry.core.masonry.metadata import Metadata
+        from conda_lock._vendor.poetry.core.masonry.utils.module import Module
 
         self._poetry = poetry
         self._package = poetry.package
@@ -102,7 +102,7 @@ class Builder:
 
     def find_excluded_files(self, fmt: str | None = None) -> set[str]:
         if self._excluded_files is None:
-            from poetry.core.vcs import get_vcs
+            from conda_lock._vendor.poetry.core.vcs import get_vcs
 
             # Checking VCS
             vcs = get_vcs(self._path)
@@ -155,7 +155,7 @@ class Builder:
         """
         Finds all files to add to the tarball
         """
-        from poetry.core.masonry.utils.package_include import PackageInclude
+        from conda_lock._vendor.poetry.core.masonry.utils.package_include import PackageInclude
 
         to_add = set()
 

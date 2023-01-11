@@ -4,15 +4,15 @@ import logging
 
 from typing import TYPE_CHECKING
 
-from poetry.plugins.application_plugin import ApplicationPlugin
-from poetry.plugins.plugin import Plugin
-from poetry.utils._compat import metadata
+from conda_lock._vendor.poetry.plugins.application_plugin import ApplicationPlugin
+from conda_lock._vendor.poetry.plugins.plugin import Plugin
+from conda_lock._vendor.poetry.utils._compat import metadata
 
 
 if TYPE_CHECKING:
     from typing import Any
 
-    from poetry.utils.env import Env
+    from conda_lock._vendor.poetry.utils.env import Env
 
 
 logger = logging.getLogger(__name__)

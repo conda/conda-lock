@@ -8,9 +8,9 @@ import logging
 from pathlib import Path
 from typing import Any
 
-from poetry.core.factory import Factory
-from poetry.core.masonry.builders.sdist import SdistBuilder
-from poetry.core.masonry.builders.wheel import WheelBuilder
+from conda_lock._vendor.poetry.core.factory import Factory
+from conda_lock._vendor.poetry.core.masonry.builders.sdist import SdistBuilder
+from conda_lock._vendor.poetry.core.masonry.builders.wheel import WheelBuilder
 
 
 log = logging.getLogger(__name__)

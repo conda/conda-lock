@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from poetry.config.config_source import ConfigSource
+from conda_lock._vendor.poetry.config.config_source import ConfigSource
 
 
 class DictConfigSource(ConfigSource):

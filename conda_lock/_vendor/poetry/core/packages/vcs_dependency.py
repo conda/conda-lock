@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Iterable
 
-from poetry.core.packages.dependency import Dependency
+from conda_lock._vendor.poetry.core.packages.dependency import Dependency
 
 
 class VCSDependency(Dependency):
@@ -99,7 +99,7 @@ class VCSDependency(Dependency):
 
     @property
     def base_pep_508_name(self) -> str:
-        from poetry.core.vcs import git
+        from conda_lock._vendor.poetry.core.vcs import git
 
         requirement = self.pretty_name
         parsed_url = git.ParsedUrl.parse(self._source)

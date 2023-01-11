@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING
 
 
 if TYPE_CHECKING:
-    from poetry.mixology.incompatibility import Incompatibility
+    from conda_lock._vendor.poetry.mixology.incompatibility import Incompatibility
 
 
 class IncompatibilityCause(Exception):

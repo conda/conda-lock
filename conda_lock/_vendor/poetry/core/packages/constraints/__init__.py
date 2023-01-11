@@ -2,14 +2,14 @@ from __future__ import annotations
 
 import warnings
 
-from poetry.core.constraints.generic import AnyConstraint
-from poetry.core.constraints.generic import BaseConstraint
-from poetry.core.constraints.generic import Constraint
-from poetry.core.constraints.generic import EmptyConstraint
-from poetry.core.constraints.generic import MultiConstraint
-from poetry.core.constraints.generic import UnionConstraint
-from poetry.core.constraints.generic import parse_constraint
-from poetry.core.constraints.generic.parser import parse_single_constraint
+from conda_lock._vendor.poetry.core.constraints.generic import AnyConstraint
+from conda_lock._vendor.poetry.core.constraints.generic import BaseConstraint
+from conda_lock._vendor.poetry.core.constraints.generic import Constraint
+from conda_lock._vendor.poetry.core.constraints.generic import EmptyConstraint
+from conda_lock._vendor.poetry.core.constraints.generic import MultiConstraint
+from conda_lock._vendor.poetry.core.constraints.generic import UnionConstraint
+from conda_lock._vendor.poetry.core.constraints.generic import parse_constraint
+from conda_lock._vendor.poetry.core.constraints.generic.parser import parse_single_constraint
 
 
 warnings.warn(

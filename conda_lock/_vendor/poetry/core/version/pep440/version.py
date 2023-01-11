@@ -8,15 +8,15 @@ from typing import TYPE_CHECKING
 from typing import Any
 from typing import TypeVar
 
-from poetry.core.version.pep440.segments import RELEASE_PHASE_ID_ALPHA
-from poetry.core.version.pep440.segments import RELEASE_PHASE_ID_DEV
-from poetry.core.version.pep440.segments import RELEASE_PHASE_ID_POST
-from poetry.core.version.pep440.segments import Release
-from poetry.core.version.pep440.segments import ReleaseTag
+from conda_lock._vendor.poetry.core.version.pep440.segments import RELEASE_PHASE_ID_ALPHA
+from conda_lock._vendor.poetry.core.version.pep440.segments import RELEASE_PHASE_ID_DEV
+from conda_lock._vendor.poetry.core.version.pep440.segments import RELEASE_PHASE_ID_POST
+from conda_lock._vendor.poetry.core.version.pep440.segments import Release
+from conda_lock._vendor.poetry.core.version.pep440.segments import ReleaseTag
 
 
 if TYPE_CHECKING:
-    from poetry.core.version.pep440.segments import LocalSegmentType
+    from conda_lock._vendor.poetry.core.version.pep440.segments import LocalSegmentType
 
 
 @functools.total_ordering
@@ -177,7 +177,7 @@ class PEP440Version:
 
     @classmethod
     def parse(cls: type[T], value: str) -> T:
-        from poetry.core.version.pep440.parser import parse_pep440
+        from conda_lock._vendor.poetry.core.version.pep440.parser import parse_pep440
 
         return parse_pep440(value, cls)
 

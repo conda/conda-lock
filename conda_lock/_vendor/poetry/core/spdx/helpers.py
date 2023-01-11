@@ -4,7 +4,7 @@ import functools
 import json
 import os
 
-from poetry.core.spdx.license import License
+from conda_lock._vendor.poetry.core.spdx.license import License
 
 
 def license_by_id(identifier: str) -> License:
@@ -44,7 +44,7 @@ def _load_licenses() -> dict[str, License]:
 
 
 if __name__ == "__main__":
-    from poetry.core.spdx.updater import Updater
+    from conda_lock._vendor.poetry.core.spdx.updater import Updater
 
     updater = Updater()
     updater.dump()

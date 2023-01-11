@@ -14,17 +14,17 @@ from typing import Any
 
 import pkginfo
 
-from poetry.core.factory import Factory
-from poetry.core.packages.dependency import Dependency
-from poetry.core.packages.package import Package
-from poetry.core.pyproject.toml import PyProjectTOML
-from poetry.core.utils.helpers import parse_requires
-from poetry.core.utils.helpers import temporary_directory
-from poetry.core.version.markers import InvalidMarker
+from conda_lock._vendor.poetry.core.factory import Factory
+from conda_lock._vendor.poetry.core.packages.dependency import Dependency
+from conda_lock._vendor.poetry.core.packages.package import Package
+from conda_lock._vendor.poetry.core.pyproject.toml import PyProjectTOML
+from conda_lock._vendor.poetry.core.utils.helpers import parse_requires
+from conda_lock._vendor.poetry.core.utils.helpers import temporary_directory
+from conda_lock._vendor.poetry.core.version.markers import InvalidMarker
 
-from poetry.utils.env import EnvCommandError
-from poetry.utils.env import ephemeral_environment
-from poetry.utils.setup_reader import SetupReader
+from conda_lock._vendor.poetry.utils.env import EnvCommandError
+from conda_lock._vendor.poetry.utils.env import ephemeral_environment
+from conda_lock._vendor.poetry.utils.setup_reader import SetupReader
 
 
 if TYPE_CHECKING:
@@ -32,7 +32,7 @@ if TYPE_CHECKING:
     from collections.abc import Iterator
     from contextlib import AbstractContextManager
 
-    from poetry.core.packages.project_package import ProjectPackage
+    from conda_lock._vendor.poetry.core.packages.project_package import ProjectPackage
 
 
 logger = logging.getLogger(__name__)

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from poetry.core.masonry.utils.include import Include
+from conda_lock._vendor.poetry.core.masonry.utils.include import Include
 
 
 if TYPE_CHECKING:

@@ -2,34 +2,34 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from cleo.io.null_io import NullIO
+from conda_lock._vendor.cleo.io.null_io import NullIO
 from packaging.utils import canonicalize_name
 
-from poetry.installation.executor import Executor
-from poetry.installation.operations import Install
-from poetry.installation.operations import Uninstall
-from poetry.installation.operations import Update
-from poetry.installation.pip_installer import PipInstaller
-from poetry.repositories import Repository
-from poetry.repositories import RepositoryPool
-from poetry.repositories.installed_repository import InstalledRepository
-from poetry.repositories.lockfile_repository import LockfileRepository
-from poetry.utils.extras import get_extra_package_names
-from poetry.utils.helpers import pluralize
+from conda_lock._vendor.poetry.installation.executor import Executor
+from conda_lock._vendor.poetry.installation.operations import Install
+from conda_lock._vendor.poetry.installation.operations import Uninstall
+from conda_lock._vendor.poetry.installation.operations import Update
+from conda_lock._vendor.poetry.installation.pip_installer import PipInstaller
+from conda_lock._vendor.poetry.repositories import Repository
+from conda_lock._vendor.poetry.repositories import RepositoryPool
+from conda_lock._vendor.poetry.repositories.installed_repository import InstalledRepository
+from conda_lock._vendor.poetry.repositories.lockfile_repository import LockfileRepository
+from conda_lock._vendor.poetry.utils.extras import get_extra_package_names
+from conda_lock._vendor.poetry.utils.helpers import pluralize
 
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
 
-    from cleo.io.io import IO
+    from conda_lock._vendor.cleo.io.io import IO
     from packaging.utils import NormalizedName
-    from poetry.core.packages.project_package import ProjectPackage
+    from conda_lock._vendor.poetry.core.packages.project_package import ProjectPackage
 
-    from poetry.config.config import Config
-    from poetry.installation.base_installer import BaseInstaller
-    from poetry.installation.operations.operation import Operation
-    from poetry.packages import Locker
-    from poetry.utils.env import Env
+    from conda_lock._vendor.poetry.config.config import Config
+    from conda_lock._vendor.poetry.installation.base_installer import BaseInstaller
+    from conda_lock._vendor.poetry.installation.operations.operation import Operation
+    from conda_lock._vendor.poetry.packages import Locker
+    from conda_lock._vendor.poetry.utils.env import Env
 
 
 class Installer:
@@ -185,7 +185,7 @@ class Installer:
         return self
 
     def _do_refresh(self) -> int:
-        from poetry.puzzle.solver import Solver
+        from conda_lock._vendor.poetry.puzzle.solver import Solver
 
         # Checking extras
         for extra in self._extras:
@@ -220,7 +220,7 @@ class Installer:
         return 0
 
     def _do_install(self) -> int:
-        from poetry.puzzle.solver import Solver
+        from conda_lock._vendor.poetry.puzzle.solver import Solver
 
         locked_repository = Repository("poetry-locked")
         if self._update:
@@ -331,7 +331,7 @@ class Installer:
         if not self._requires_synchronization:
             # If no packages synchronisation has been requested we need
             # to calculate the uninstall operations
-            from poetry.puzzle.transaction import Transaction
+            from conda_lock._vendor.poetry.puzzle.transaction import Transaction
 
             transaction = Transaction(
                 locked_repository.packages,

@@ -26,39 +26,39 @@ import packaging.tags
 import tomlkit
 import virtualenv
 
-from cleo.io.null_io import NullIO
-from cleo.io.outputs.output import Verbosity
+from conda_lock._vendor.cleo.io.null_io import NullIO
+from conda_lock._vendor.cleo.io.outputs.output import Verbosity
 from packaging.tags import Tag
 from packaging.tags import interpreter_name
 from packaging.tags import interpreter_version
 from packaging.tags import sys_tags
-from poetry.core.constraints.version import Version
-from poetry.core.constraints.version import parse_constraint
-from poetry.core.toml.file import TOMLFile
-from poetry.core.utils.helpers import temporary_directory
+from conda_lock._vendor.poetry.core.constraints.version import Version
+from conda_lock._vendor.poetry.core.constraints.version import parse_constraint
+from conda_lock._vendor.poetry.core.toml.file import TOMLFile
+from conda_lock._vendor.poetry.core.utils.helpers import temporary_directory
 from virtualenv.seed.wheels.embed import get_embed_wheel
 
-from poetry.utils._compat import WINDOWS
-from poetry.utils._compat import decode
-from poetry.utils._compat import encode
-from poetry.utils._compat import list_to_shell_command
-from poetry.utils._compat import metadata
-from poetry.utils.helpers import get_real_windows_path
-from poetry.utils.helpers import is_dir_writable
-from poetry.utils.helpers import paths_csv
-from poetry.utils.helpers import remove_directory
+from conda_lock._vendor.poetry.utils._compat import WINDOWS
+from conda_lock._vendor.poetry.utils._compat import decode
+from conda_lock._vendor.poetry.utils._compat import encode
+from conda_lock._vendor.poetry.utils._compat import list_to_shell_command
+from conda_lock._vendor.poetry.utils._compat import metadata
+from conda_lock._vendor.poetry.utils.helpers import get_real_windows_path
+from conda_lock._vendor.poetry.utils.helpers import is_dir_writable
+from conda_lock._vendor.poetry.utils.helpers import paths_csv
+from conda_lock._vendor.poetry.utils.helpers import remove_directory
 
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
     from collections.abc import Iterator
 
-    from cleo.io.io import IO
-    from poetry.core.poetry import Poetry as CorePoetry
-    from poetry.core.version.markers import BaseMarker
+    from conda_lock._vendor.cleo.io.io import IO
+    from conda_lock._vendor.poetry.core.poetry import Poetry as CorePoetry
+    from conda_lock._vendor.poetry.core.version.markers import BaseMarker
     from virtualenv.seed.wheels.util import Wheel
 
-    from poetry.poetry import Poetry
+    from conda_lock._vendor.poetry.poetry import Poetry
 
 
 GET_SYS_TAGS = f"""
@@ -1182,7 +1182,7 @@ class EnvManager:
             if prefix.joinpath("poetry_env").exists():
                 env = GenericEnv(base_prefix, child_env=env)
             else:
-                from poetry.locations import data_dir
+                from conda_lock._vendor.poetry.locations import data_dir
 
                 try:
                     prefix.relative_to(data_dir())

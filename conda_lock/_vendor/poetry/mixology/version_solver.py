@@ -5,24 +5,24 @@ import time
 
 from typing import TYPE_CHECKING
 
-from poetry.core.packages.dependency import Dependency
+from conda_lock._vendor.poetry.core.packages.dependency import Dependency
 
-from poetry.mixology.failure import SolveFailure
-from poetry.mixology.incompatibility import Incompatibility
-from poetry.mixology.incompatibility_cause import ConflictCause
-from poetry.mixology.incompatibility_cause import NoVersionsCause
-from poetry.mixology.incompatibility_cause import RootCause
-from poetry.mixology.partial_solution import PartialSolution
-from poetry.mixology.result import SolverResult
-from poetry.mixology.set_relation import SetRelation
-from poetry.mixology.term import Term
+from conda_lock._vendor.poetry.mixology.failure import SolveFailure
+from conda_lock._vendor.poetry.mixology.incompatibility import Incompatibility
+from conda_lock._vendor.poetry.mixology.incompatibility_cause import ConflictCause
+from conda_lock._vendor.poetry.mixology.incompatibility_cause import NoVersionsCause
+from conda_lock._vendor.poetry.mixology.incompatibility_cause import RootCause
+from conda_lock._vendor.poetry.mixology.partial_solution import PartialSolution
+from conda_lock._vendor.poetry.mixology.result import SolverResult
+from conda_lock._vendor.poetry.mixology.set_relation import SetRelation
+from conda_lock._vendor.poetry.mixology.term import Term
 
 
 if TYPE_CHECKING:
-    from poetry.core.packages.project_package import ProjectPackage
+    from conda_lock._vendor.poetry.core.packages.project_package import ProjectPackage
 
-    from poetry.packages import DependencyPackage
-    from poetry.puzzle.provider import Provider
+    from conda_lock._vendor.poetry.packages import DependencyPackage
+    from conda_lock._vendor.poetry.puzzle.provider import Provider
 
 
 _conflict = object()

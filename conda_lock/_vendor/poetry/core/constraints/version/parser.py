@@ -4,17 +4,17 @@ import re
 
 from typing import TYPE_CHECKING
 
-from poetry.core.constraints.version.exceptions import ParseConstraintError
-from poetry.core.version.exceptions import InvalidVersion
+from conda_lock._vendor.poetry.core.constraints.version.exceptions import ParseConstraintError
+from conda_lock._vendor.poetry.core.version.exceptions import InvalidVersion
 
 
 if TYPE_CHECKING:
-    from poetry.core.constraints.version.version_constraint import VersionConstraint
+    from conda_lock._vendor.poetry.core.constraints.version.version_constraint import VersionConstraint
 
 
 def parse_constraint(constraints: str) -> VersionConstraint:
     if constraints == "*":
-        from poetry.core.constraints.version.version_range import VersionRange
+        from conda_lock._vendor.poetry.core.constraints.version.version_range import VersionRange
 
         return VersionRange()
 
@@ -47,20 +47,20 @@ def parse_constraint(constraints: str) -> VersionConstraint:
     if len(or_groups) == 1:
         return or_groups[0]
     else:
-        from poetry.core.constraints.version.version_union import VersionUnion
+        from conda_lock._vendor.poetry.core.constraints.version.version_union import VersionUnion
 
         return VersionUnion.of(*or_groups)
 
 
 def parse_single_constraint(constraint: str) -> VersionConstraint:
-    from poetry.core.constraints.version.patterns import BASIC_CONSTRAINT
-    from poetry.core.constraints.version.patterns import CARET_CONSTRAINT
-    from poetry.core.constraints.version.patterns import TILDE_CONSTRAINT
-    from poetry.core.constraints.version.patterns import TILDE_PEP440_CONSTRAINT
-    from poetry.core.constraints.version.patterns import X_CONSTRAINT
-    from poetry.core.constraints.version.version import Version
-    from poetry.core.constraints.version.version_range import VersionRange
-    from poetry.core.constraints.version.version_union import VersionUnion
+    from conda_lock._vendor.poetry.core.constraints.version.patterns import BASIC_CONSTRAINT
+    from conda_lock._vendor.poetry.core.constraints.version.patterns import CARET_CONSTRAINT
+    from conda_lock._vendor.poetry.core.constraints.version.patterns import TILDE_CONSTRAINT
+    from conda_lock._vendor.poetry.core.constraints.version.patterns import TILDE_PEP440_CONSTRAINT
+    from conda_lock._vendor.poetry.core.constraints.version.patterns import X_CONSTRAINT
+    from conda_lock._vendor.poetry.core.constraints.version.version import Version
+    from conda_lock._vendor.poetry.core.constraints.version.version_range import VersionRange
+    from conda_lock._vendor.poetry.core.constraints.version.version_union import VersionUnion
 
     m = re.match(r"(?i)^v?[xX*](\.[xX*])*$", constraint)
     if m:

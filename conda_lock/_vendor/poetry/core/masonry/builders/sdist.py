@@ -16,17 +16,17 @@ from pprint import pformat
 from typing import TYPE_CHECKING
 from typing import Iterator
 
-from poetry.core.masonry.builders.builder import Builder
-from poetry.core.masonry.builders.builder import BuildIncludeFile
-from poetry.core.masonry.utils.helpers import distribution_name
+from conda_lock._vendor.poetry.core.masonry.builders.builder import Builder
+from conda_lock._vendor.poetry.core.masonry.builders.builder import BuildIncludeFile
+from conda_lock._vendor.poetry.core.masonry.utils.helpers import distribution_name
 
 
 if TYPE_CHECKING:
     from tarfile import TarInfo
 
-    from poetry.core.masonry.utils.package_include import PackageInclude
-    from poetry.core.packages.dependency import Dependency
-    from poetry.core.packages.project_package import ProjectPackage
+    from conda_lock._vendor.poetry.core.masonry.utils.package_include import PackageInclude
+    from conda_lock._vendor.poetry.core.packages.dependency import Dependency
+    from conda_lock._vendor.poetry.core.packages.project_package import ProjectPackage
 
 SETUP = """\
 # -*- coding: utf-8 -*-
@@ -114,7 +114,7 @@ class SdistBuilder(Builder):
         return target
 
     def build_setup(self) -> bytes:
-        from poetry.core.masonry.utils.package_include import PackageInclude
+        from conda_lock._vendor.poetry.core.masonry.utils.package_include import PackageInclude
 
         before, extra, after = [], [], []
         package_dir: dict[str, str] = {}
@@ -411,7 +411,7 @@ class SdistBuilder(Builder):
             - Normalise permissions to 644 or 755
             - Set mtime if not None
         """
-        from poetry.core.masonry.utils.helpers import normalize_file_permissions
+        from conda_lock._vendor.poetry.core.masonry.utils.helpers import normalize_file_permissions
 
         ti = copy(tar_info)
         ti.uid = 0

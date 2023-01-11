@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING
 
 from crashtest.contracts.has_solutions_for_exception import HasSolutionsForException
 
-from poetry.puzzle.exceptions import SolverProblemError
+from conda_lock._vendor.poetry.puzzle.exceptions import SolverProblemError
 
 
 if TYPE_CHECKING:
@@ -27,7 +27,7 @@ class PythonRequirementSolutionProvider(HasSolutionsForException):
         return bool(m)
 
     def get_solutions(self, exception: Exception) -> list[Solution]:
-        from poetry.mixology.solutions.solutions.python_requirement_solution import (
+        from conda_lock._vendor.poetry.mixology.solutions.solutions.python_requirement_solution import (
             PythonRequirementSolution,
         )
 

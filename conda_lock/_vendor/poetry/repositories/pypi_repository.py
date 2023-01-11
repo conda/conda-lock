@@ -10,15 +10,15 @@ import requests
 
 from cachecontrol.controller import logger as cache_control_logger
 from html5lib.html5parser import parse
-from poetry.core.packages.package import Package
-from poetry.core.packages.utils.link import Link
-from poetry.core.version.exceptions import InvalidVersion
+from conda_lock._vendor.poetry.core.packages.package import Package
+from conda_lock._vendor.poetry.core.packages.utils.link import Link
+from conda_lock._vendor.poetry.core.version.exceptions import InvalidVersion
 
-from poetry.repositories.exceptions import PackageNotFound
-from poetry.repositories.http_repository import HTTPRepository
-from poetry.repositories.link_sources.json import SimpleJsonPage
-from poetry.utils._compat import to_str
-from poetry.utils.constants import REQUESTS_TIMEOUT
+from conda_lock._vendor.poetry.repositories.exceptions import PackageNotFound
+from conda_lock._vendor.poetry.repositories.http_repository import HTTPRepository
+from conda_lock._vendor.poetry.repositories.link_sources.json import SimpleJsonPage
+from conda_lock._vendor.poetry.utils._compat import to_str
+from conda_lock._vendor.poetry.utils.constants import REQUESTS_TIMEOUT
 
 
 cache_control_logger.setLevel(logging.ERROR)
@@ -27,8 +27,8 @@ logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     from packaging.utils import NormalizedName
-    from poetry.core.constraints.version import Version
-    from poetry.core.constraints.version import VersionConstraint
+    from conda_lock._vendor.poetry.core.constraints.version import Version
+    from conda_lock._vendor.poetry.core.constraints.version import VersionConstraint
 
 SUPPORTED_PACKAGE_TYPES = {"sdist", "bdist_wheel"}
 
@@ -146,7 +146,7 @@ class PyPiRepository(HTTPRepository):
     def _get_release_info(
         self, name: NormalizedName, version: Version
     ) -> dict[str, str | list[str] | None]:
-        from poetry.inspection.info import PackageInfo
+        from conda_lock._vendor.poetry.inspection.info import PackageInfo
 
         self._log(f"Getting info for {name} ({version}) from PyPI", "debug")
 

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from poetry.vcs.git.backend import Git
+from conda_lock._vendor.poetry.vcs.git.backend import Git
 
 
 __all__ = ["Git"]

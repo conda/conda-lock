@@ -6,19 +6,19 @@ from typing import TYPE_CHECKING
 from typing import Any
 
 from packaging.utils import canonicalize_name
-from poetry.core.constraints.version import parse_constraint
+from conda_lock._vendor.poetry.core.constraints.version import parse_constraint
 
-from poetry.config.config import Config
-from poetry.repositories.repository import Repository
-from poetry.utils.cache import FileCache
+from conda_lock._vendor.poetry.config.config import Config
+from conda_lock._vendor.poetry.repositories.repository import Repository
+from conda_lock._vendor.poetry.utils.cache import FileCache
 
 
 if TYPE_CHECKING:
     from packaging.utils import NormalizedName
-    from poetry.core.constraints.version import Version
-    from poetry.core.packages.package import Package
+    from conda_lock._vendor.poetry.core.constraints.version import Version
+    from conda_lock._vendor.poetry.core.packages.package import Package
 
-    from poetry.inspection.info import PackageInfo
+    from conda_lock._vendor.poetry.inspection.info import PackageInfo
 
 
 class CachedRepository(Repository, ABC):
@@ -45,7 +45,7 @@ class CachedRepository(Repository, ABC):
         The information is returned from the cache if it exists
         or retrieved from the remote server.
         """
-        from poetry.inspection.info import PackageInfo
+        from conda_lock._vendor.poetry.inspection.info import PackageInfo
 
         if self._disable_cache:
             return PackageInfo.load(self._get_release_info(name, version))

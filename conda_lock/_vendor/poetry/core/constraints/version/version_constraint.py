@@ -5,8 +5,8 @@ from typing import TYPE_CHECKING
 
 
 if TYPE_CHECKING:
-    from poetry.core.constraints.version.version import Version
-    from poetry.core.constraints.version.version_range_constraint import (
+    from conda_lock._vendor.poetry.core.constraints.version.version import Version
+    from conda_lock._vendor.poetry.core.constraints.version.version_range_constraint import (
         VersionRangeConstraint,
     )
 

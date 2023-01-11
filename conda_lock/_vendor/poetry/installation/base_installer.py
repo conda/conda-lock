@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING
 
 
 if TYPE_CHECKING:
-    from poetry.core.packages.package import Package
+    from conda_lock._vendor.poetry.core.packages.package import Package
 
 
 class BaseInstaller:

@@ -13,16 +13,16 @@ from typing import TypeVar
 from typing import Union
 from typing import cast
 
-from poetry.core.packages.dependency import Dependency
+from conda_lock._vendor.poetry.core.packages.dependency import Dependency
 from tomlkit.items import InlineTable
 
-from poetry.puzzle.provider import Provider
+from conda_lock._vendor.poetry.puzzle.provider import Provider
 
 
 if TYPE_CHECKING:
-    from poetry.core.packages.vcs_dependency import VCSDependency
+    from conda_lock._vendor.poetry.core.packages.vcs_dependency import VCSDependency
 
-    from poetry.utils.env import Env
+    from conda_lock._vendor.poetry.utils.env import Env
 
 
 DependencySpec = Dict[str, Union[str, bool, Dict[str, Union[str, bool]], List[str]]]
@@ -31,8 +31,8 @@ DependencySpec = Dict[str, Union[str, bool, Dict[str, Union[str, bool]], List[st
 def _parse_dependency_specification_git_url(
     requirement: str, env: Env | None = None
 ) -> DependencySpec | None:
-    from poetry.core.vcs.git import Git
-    from poetry.core.vcs.git import ParsedUrl
+    from conda_lock._vendor.poetry.core.vcs.git import Git
+    from conda_lock._vendor.poetry.core.vcs.git import ParsedUrl
 
     parsed = ParsedUrl.parse(requirement)
     url = Git.normalize_url(requirement)

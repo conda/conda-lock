@@ -14,17 +14,17 @@ from urllib.parse import unquote
 from urllib.parse import urlsplit
 from urllib.request import url2pathname
 
-from poetry.core.constraints.version import Version
-from poetry.core.constraints.version import VersionRange
-from poetry.core.constraints.version import parse_constraint
-from poetry.core.pyproject.toml import PyProjectTOML
-from poetry.core.version.markers import dnf
+from conda_lock._vendor.poetry.core.constraints.version import Version
+from conda_lock._vendor.poetry.core.constraints.version import VersionRange
+from conda_lock._vendor.poetry.core.constraints.version import parse_constraint
+from conda_lock._vendor.poetry.core.pyproject.toml import PyProjectTOML
+from conda_lock._vendor.poetry.core.version.markers import dnf
 
 
 if TYPE_CHECKING:
-    from poetry.core.constraints.generic import BaseConstraint
-    from poetry.core.constraints.version import VersionConstraint
-    from poetry.core.version.markers import BaseMarker
+    from conda_lock._vendor.poetry.core.constraints.generic import BaseConstraint
+    from conda_lock._vendor.poetry.core.constraints.version import VersionConstraint
+    from conda_lock._vendor.poetry.core.version.markers import BaseMarker
 
     # Even though we've `from __future__ import annotations`, mypy doesn't seem to like
     # this as `dict[str, ...]`
@@ -156,9 +156,9 @@ def splitext(path: str) -> tuple[str, str]:
 
 
 def convert_markers(marker: BaseMarker) -> ConvertedMarkers:
-    from poetry.core.version.markers import MarkerUnion
-    from poetry.core.version.markers import MultiMarker
-    from poetry.core.version.markers import SingleMarker
+    from conda_lock._vendor.poetry.core.version.markers import MarkerUnion
+    from conda_lock._vendor.poetry.core.version.markers import MultiMarker
+    from conda_lock._vendor.poetry.core.version.markers import SingleMarker
 
     requirements: ConvertedMarkers = {}
     marker = dnf(marker)
@@ -203,10 +203,10 @@ def create_nested_marker(
     name: str,
     constraint: BaseConstraint | VersionConstraint,
 ) -> str:
-    from poetry.core.constraints.generic import Constraint
-    from poetry.core.constraints.generic import MultiConstraint
-    from poetry.core.constraints.generic import UnionConstraint
-    from poetry.core.constraints.version import VersionUnion
+    from conda_lock._vendor.poetry.core.constraints.generic import Constraint
+    from conda_lock._vendor.poetry.core.constraints.generic import MultiConstraint
+    from conda_lock._vendor.poetry.core.constraints.generic import UnionConstraint
+    from conda_lock._vendor.poetry.core.constraints.version import VersionUnion
 
     if constraint.is_any():
         return ""
@@ -297,8 +297,8 @@ def create_nested_marker(
 def get_python_constraint_from_marker(
     marker: BaseMarker,
 ) -> VersionConstraint:
-    from poetry.core.constraints.version import EmptyConstraint
-    from poetry.core.constraints.version import VersionRange
+    from conda_lock._vendor.poetry.core.constraints.version import EmptyConstraint
+    from conda_lock._vendor.poetry.core.constraints.version import VersionRange
 
     python_marker = marker.only("python_version", "python_full_version")
     if python_marker.is_any():

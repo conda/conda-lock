@@ -4,10 +4,10 @@ from typing import TYPE_CHECKING
 
 
 if TYPE_CHECKING:
-    from poetry.core.packages.dependency import Dependency
+    from conda_lock._vendor.poetry.core.packages.dependency import Dependency
 
-    from poetry.mixology.failure import SolveFailure
-    from poetry.packages import DependencyPackage
+    from conda_lock._vendor.poetry.mixology.failure import SolveFailure
+    from conda_lock._vendor.poetry.packages import DependencyPackage
 
 
 class SolverProblemError(Exception):

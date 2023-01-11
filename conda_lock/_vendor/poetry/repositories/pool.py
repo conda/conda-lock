@@ -4,11 +4,11 @@ import warnings
 
 from typing import TYPE_CHECKING
 
-from poetry.repositories.repository_pool import RepositoryPool
+from conda_lock._vendor.poetry.repositories.repository_pool import RepositoryPool
 
 
 if TYPE_CHECKING:
-    from poetry.repositories.repository import Repository
+    from conda_lock._vendor.poetry.repositories.repository import Repository
 
 
 class Pool(RepositoryPool):

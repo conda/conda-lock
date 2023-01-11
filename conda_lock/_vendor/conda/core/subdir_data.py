@@ -22,7 +22,7 @@ import warnings
 try:
     from tlz.itertoolz import concat, groupby, take
 except ImportError:
-    from conda._vendor.toolz.itertoolz import concat, groupby, take
+    from conda_lock._vendor.conda._vendor.toolz.itertoolz import concat, groupby, take
 
 from .. import CondaError
 from ..auxlib.ish import dals

@@ -8,14 +8,14 @@ from typing import TypeVar
 
 from packaging.version import VERSION_PATTERN
 
-from poetry.core.version.exceptions import InvalidVersion
-from poetry.core.version.pep440 import Release
-from poetry.core.version.pep440 import ReleaseTag
+from conda_lock._vendor.poetry.core.version.exceptions import InvalidVersion
+from conda_lock._vendor.poetry.core.version.pep440 import Release
+from conda_lock._vendor.poetry.core.version.pep440 import ReleaseTag
 
 
 if TYPE_CHECKING:
-    from poetry.core.version.pep440 import LocalSegmentType
-    from poetry.core.version.pep440.version import PEP440Version
+    from conda_lock._vendor.poetry.core.version.pep440 import LocalSegmentType
+    from conda_lock._vendor.poetry.core.version.pep440.version import PEP440Version
 
 T = TypeVar("T", bound="PEP440Version")
 

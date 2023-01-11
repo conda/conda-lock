@@ -3,13 +3,13 @@ from __future__ import annotations
 from abc import abstractmethod
 from typing import TYPE_CHECKING
 
-from poetry.plugins.base_plugin import BasePlugin
+from conda_lock._vendor.poetry.plugins.base_plugin import BasePlugin
 
 
 if TYPE_CHECKING:
-    from cleo.io.io import IO
+    from conda_lock._vendor.cleo.io.io import IO
 
-    from poetry.poetry import Poetry
+    from conda_lock._vendor.poetry.poetry import Poetry
 
 
 class Plugin(BasePlugin):

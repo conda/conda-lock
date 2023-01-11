@@ -8,7 +8,7 @@ from typing import Any
 
 import jsonschema
 
-from poetry.core.json import SCHEMA_DIR as CORE_SCHEMA_DIR
+from conda_lock._vendor.poetry.core.json import SCHEMA_DIR as CORE_SCHEMA_DIR
 
 
 SCHEMA_DIR = os.path.join(os.path.dirname(__file__), "schemas")

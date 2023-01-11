@@ -15,17 +15,17 @@ from typing import Any
 from typing import Iterator
 from typing import Mapping
 
-from poetry.utils.constants import REQUESTS_TIMEOUT
+from conda_lock._vendor.poetry.utils.constants import REQUESTS_TIMEOUT
 
 
 if TYPE_CHECKING:
     from collections.abc import Callable
     from io import BufferedWriter
 
-    from poetry.core.packages.package import Package
+    from conda_lock._vendor.poetry.core.packages.package import Package
     from requests import Session
 
-    from poetry.utils.authenticator import Authenticator
+    from conda_lock._vendor.poetry.utils.authenticator import Authenticator
 
 
 @contextmanager
@@ -97,7 +97,7 @@ def download_file(
 ) -> None:
     import requests
 
-    from poetry.puzzle.provider import Indicator
+    from conda_lock._vendor.poetry.puzzle.provider import Indicator
 
     get = requests.get if not session else session.get
 

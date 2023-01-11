@@ -3,21 +3,21 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 from typing import Any
 
-from poetry.core.poetry import Poetry as BasePoetry
+from conda_lock._vendor.poetry.core.poetry import Poetry as BasePoetry
 
-from poetry.__version__ import __version__
-from poetry.config.source import Source
+from conda_lock._vendor.poetry.__version__ import __version__
+from conda_lock._vendor.poetry.config.source import Source
 
 
 if TYPE_CHECKING:
     from pathlib import Path
 
-    from poetry.core.packages.project_package import ProjectPackage
+    from conda_lock._vendor.poetry.core.packages.project_package import ProjectPackage
 
-    from poetry.config.config import Config
-    from poetry.packages.locker import Locker
-    from poetry.plugins.plugin_manager import PluginManager
-    from poetry.repositories.repository_pool import RepositoryPool
+    from conda_lock._vendor.poetry.config.config import Config
+    from conda_lock._vendor.poetry.packages.locker import Locker
+    from conda_lock._vendor.poetry.plugins.plugin_manager import PluginManager
+    from conda_lock._vendor.poetry.repositories.repository_pool import RepositoryPool
 
 
 class Poetry(BasePoetry):
@@ -32,7 +32,7 @@ class Poetry(BasePoetry):
         config: Config,
         disable_cache: bool = False,
     ) -> None:
-        from poetry.repositories.repository_pool import RepositoryPool
+        from conda_lock._vendor.poetry.repositories.repository_pool import RepositoryPool
 
         super().__init__(file, local_config, package)
 

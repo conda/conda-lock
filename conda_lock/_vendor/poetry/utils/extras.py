@@ -9,7 +9,7 @@ if TYPE_CHECKING:
     from typing import Mapping
 
     from packaging.utils import NormalizedName
-    from poetry.core.packages.package import Package
+    from conda_lock._vendor.poetry.core.packages.package import Package
 
 
 def get_extra_package_names(

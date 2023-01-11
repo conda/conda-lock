@@ -3,21 +3,21 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 from typing import Any
 
-from poetry.core.packages.package import Package
+from conda_lock._vendor.poetry.core.packages.package import Package
 
-from poetry.inspection.info import PackageInfo
-from poetry.repositories.exceptions import PackageNotFound
-from poetry.repositories.http_repository import HTTPRepository
-from poetry.repositories.link_sources.html import SimpleRepositoryPage
+from conda_lock._vendor.poetry.inspection.info import PackageInfo
+from conda_lock._vendor.poetry.repositories.exceptions import PackageNotFound
+from conda_lock._vendor.poetry.repositories.http_repository import HTTPRepository
+from conda_lock._vendor.poetry.repositories.link_sources.html import SimpleRepositoryPage
 
 
 if TYPE_CHECKING:
     from packaging.utils import NormalizedName
-    from poetry.core.constraints.version import Version
-    from poetry.core.constraints.version import VersionConstraint
-    from poetry.core.packages.utils.link import Link
+    from conda_lock._vendor.poetry.core.constraints.version import Version
+    from conda_lock._vendor.poetry.core.constraints.version import VersionConstraint
+    from conda_lock._vendor.poetry.core.packages.utils.link import Link
 
-    from poetry.config.config import Config
+    from conda_lock._vendor.poetry.config.config import Config
 
 
 class LegacyRepository(HTTPRepository):

@@ -2,12 +2,12 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from poetry.plugins.base_plugin import BasePlugin
+from conda_lock._vendor.poetry.plugins.base_plugin import BasePlugin
 
 
 if TYPE_CHECKING:
-    from poetry.console.application import Application
-    from poetry.console.commands.command import Command
+    from conda_lock._vendor.poetry.console.application import Application
+    from conda_lock._vendor.poetry.console.commands.command import Command
 
 
 class ApplicationPlugin(BasePlugin):

@@ -2,20 +2,20 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from poetry.mixology.incompatibility_cause import ConflictCause
-from poetry.mixology.incompatibility_cause import DependencyCause
-from poetry.mixology.incompatibility_cause import NoVersionsCause
-from poetry.mixology.incompatibility_cause import PlatformCause
-from poetry.mixology.incompatibility_cause import PythonCause
-from poetry.mixology.incompatibility_cause import RootCause
+from conda_lock._vendor.poetry.mixology.incompatibility_cause import ConflictCause
+from conda_lock._vendor.poetry.mixology.incompatibility_cause import DependencyCause
+from conda_lock._vendor.poetry.mixology.incompatibility_cause import NoVersionsCause
+from conda_lock._vendor.poetry.mixology.incompatibility_cause import PlatformCause
+from conda_lock._vendor.poetry.mixology.incompatibility_cause import PythonCause
+from conda_lock._vendor.poetry.mixology.incompatibility_cause import RootCause
 
 
 if TYPE_CHECKING:
     from collections.abc import Callable
     from collections.abc import Iterator
 
-    from poetry.mixology.incompatibility_cause import IncompatibilityCause
-    from poetry.mixology.term import Term
+    from conda_lock._vendor.poetry.mixology.incompatibility_cause import IncompatibilityCause
+    from conda_lock._vendor.poetry.mixology.term import Term
 
 
 class Incompatibility:

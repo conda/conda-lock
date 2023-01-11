@@ -7,19 +7,19 @@ from typing import TYPE_CHECKING
 from typing import DefaultDict
 from typing import List
 
-from poetry.core.constraints.version import Version
-from poetry.core.packages.package import Package
+from conda_lock._vendor.poetry.core.constraints.version import Version
+from conda_lock._vendor.poetry.core.packages.package import Package
 
-from poetry.utils._compat import cached_property
-from poetry.utils.patterns import sdist_file_re
-from poetry.utils.patterns import wheel_file_re
+from conda_lock._vendor.poetry.utils._compat import cached_property
+from conda_lock._vendor.poetry.utils.patterns import sdist_file_re
+from conda_lock._vendor.poetry.utils.patterns import wheel_file_re
 
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
 
     from packaging.utils import NormalizedName
-    from poetry.core.packages.utils.link import Link
+    from conda_lock._vendor.poetry.core.packages.utils.link import Link
 
     LinkCache = DefaultDict[NormalizedName, DefaultDict[Version, List[Link]]]
 

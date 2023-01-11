@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from poetry.core.exceptions.base import PoetryCoreException
+from conda_lock._vendor.poetry.core.exceptions.base import PoetryCoreException
 
 
 __all__ = ["PoetryCoreException"]

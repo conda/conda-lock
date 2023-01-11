@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from poetry.core.constraints.version import Version
+from conda_lock._vendor.poetry.core.constraints.version import Version
 
 
 __all__ = ["Version"]

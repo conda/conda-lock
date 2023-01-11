@@ -46,8 +46,8 @@ def rmtree(path, *args, **kwargs):
             try:
                 # Try to delete in Unicode
                 name = None
-                from conda.auxlib.compat import Utf8NamedTemporaryFile
-                from conda.utils import quote_for_shell
+                from conda_lock._vendor.conda.auxlib.compat import Utf8NamedTemporaryFile
+                from conda_lock._vendor.conda.utils import quote_for_shell
 
                 with Utf8NamedTemporaryFile(mode="w", suffix=".bat", delete=False) as batch_file:
                     batch_file.write("RD /S {}\n".format(quote_for_shell(path)))

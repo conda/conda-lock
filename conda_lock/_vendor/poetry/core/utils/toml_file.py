@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from poetry.core.toml import TOMLFile
+from conda_lock._vendor.poetry.core.toml import TOMLFile
 
 
 class TomlFile(TOMLFile):

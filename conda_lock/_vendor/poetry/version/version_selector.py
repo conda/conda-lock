@@ -2,13 +2,13 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from poetry.core.constraints.version import Version
+from conda_lock._vendor.poetry.core.constraints.version import Version
 
 
 if TYPE_CHECKING:
-    from poetry.core.packages.package import Package
+    from conda_lock._vendor.poetry.core.packages.package import Package
 
-    from poetry.repositories import RepositoryPool
+    from conda_lock._vendor.poetry.repositories import RepositoryPool
 
 
 class VersionSelector:
@@ -26,7 +26,7 @@ class VersionSelector:
         Given a package name and optional version,
         returns the latest Package that matches
         """
-        from poetry.factory import Factory
+        from conda_lock._vendor.poetry.factory import Factory
 
         dependency = Factory.create_dependency(
             package_name,

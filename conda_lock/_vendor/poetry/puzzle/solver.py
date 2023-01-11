@@ -10,29 +10,29 @@ from typing import FrozenSet
 from typing import Tuple
 from typing import TypeVar
 
-from poetry.core.packages.dependency_group import MAIN_GROUP
+from conda_lock._vendor.poetry.core.packages.dependency_group import MAIN_GROUP
 
-from poetry.mixology import resolve_version
-from poetry.mixology.failure import SolveFailure
-from poetry.puzzle.exceptions import OverrideNeeded
-from poetry.puzzle.exceptions import SolverProblemError
-from poetry.puzzle.provider import Indicator
-from poetry.puzzle.provider import Provider
+from conda_lock._vendor.poetry.mixology import resolve_version
+from conda_lock._vendor.poetry.mixology.failure import SolveFailure
+from conda_lock._vendor.poetry.puzzle.exceptions import OverrideNeeded
+from conda_lock._vendor.poetry.puzzle.exceptions import SolverProblemError
+from conda_lock._vendor.poetry.puzzle.provider import Indicator
+from conda_lock._vendor.poetry.puzzle.provider import Provider
 
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
 
-    from cleo.io.io import IO
+    from conda_lock._vendor.cleo.io.io import IO
     from packaging.utils import NormalizedName
-    from poetry.core.packages.dependency import Dependency
-    from poetry.core.packages.package import Package
-    from poetry.core.packages.project_package import ProjectPackage
+    from conda_lock._vendor.poetry.core.packages.dependency import Dependency
+    from conda_lock._vendor.poetry.core.packages.package import Package
+    from conda_lock._vendor.poetry.core.packages.project_package import ProjectPackage
 
-    from poetry.packages import DependencyPackage
-    from poetry.puzzle.transaction import Transaction
-    from poetry.repositories import RepositoryPool
-    from poetry.utils.env import Env
+    from conda_lock._vendor.poetry.packages import DependencyPackage
+    from conda_lock._vendor.poetry.puzzle.transaction import Transaction
+    from conda_lock._vendor.poetry.repositories import RepositoryPool
+    from conda_lock._vendor.poetry.utils.env import Env
 
 
 class Solver:
@@ -67,7 +67,7 @@ class Solver:
     def solve(
         self, use_latest: Collection[NormalizedName] | None = None
     ) -> Transaction:
-        from poetry.puzzle.transaction import Transaction
+        from conda_lock._vendor.poetry.puzzle.transaction import Transaction
 
         with self._progress(), self._provider.use_latest_for(use_latest or []):
             start = time.time()

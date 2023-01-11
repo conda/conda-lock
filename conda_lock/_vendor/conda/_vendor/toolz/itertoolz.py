@@ -4,9 +4,9 @@ import collections
 import operator
 from functools import partial
 from random import Random
-from conda._vendor.toolz.compatibility import (map, filterfalse, zip, zip_longest, iteritems,
+from conda_lock._vendor.conda._vendor.toolz.compatibility import (map, filterfalse, zip, zip_longest, iteritems,
                                  filter)
-from conda._vendor.toolz.utils import no_default
+from conda_lock._vendor.conda._vendor.toolz.utils import no_default
 
 
 __all__ = ('remove', 'accumulate', 'groupby', 'merge_sorted', 'interleave',

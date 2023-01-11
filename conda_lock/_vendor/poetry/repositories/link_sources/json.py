@@ -4,14 +4,14 @@ from collections import defaultdict
 from typing import TYPE_CHECKING
 from typing import Any
 
-from poetry.core.packages.utils.link import Link
+from conda_lock._vendor.poetry.core.packages.utils.link import Link
 
-from poetry.repositories.link_sources.base import LinkSource
-from poetry.utils._compat import cached_property
+from conda_lock._vendor.poetry.repositories.link_sources.base import LinkSource
+from conda_lock._vendor.poetry.utils._compat import cached_property
 
 
 if TYPE_CHECKING:
-    from poetry.repositories.link_sources.base import LinkCache
+    from conda_lock._vendor.poetry.repositories.link_sources.base import LinkCache
 
 
 class SimpleJsonPage(LinkSource):

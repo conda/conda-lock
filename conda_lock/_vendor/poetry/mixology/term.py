@@ -4,12 +4,12 @@ import functools
 
 from typing import TYPE_CHECKING
 
-from poetry.mixology.set_relation import SetRelation
+from conda_lock._vendor.poetry.mixology.set_relation import SetRelation
 
 
 if TYPE_CHECKING:
-    from poetry.core.constraints.version import VersionConstraint
-    from poetry.core.packages.dependency import Dependency
+    from conda_lock._vendor.poetry.core.constraints.version import VersionConstraint
+    from conda_lock._vendor.poetry.core.packages.dependency import Dependency
 
 
 class Term:

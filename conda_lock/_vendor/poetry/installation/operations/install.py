@@ -2,11 +2,11 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from poetry.installation.operations.operation import Operation
+from conda_lock._vendor.poetry.installation.operations.operation import Operation
 
 
 if TYPE_CHECKING:
-    from poetry.core.packages.package import Package
+    from conda_lock._vendor.poetry.core.packages.package import Package
 
 
 class Install(Operation):

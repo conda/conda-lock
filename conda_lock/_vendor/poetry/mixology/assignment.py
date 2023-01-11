@@ -2,14 +2,14 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from poetry.mixology.term import Term
+from conda_lock._vendor.poetry.mixology.term import Term
 
 
 if TYPE_CHECKING:
-    from poetry.core.packages.dependency import Dependency
-    from poetry.core.packages.package import Package
+    from conda_lock._vendor.poetry.core.packages.dependency import Dependency
+    from conda_lock._vendor.poetry.core.packages.package import Package
 
-    from poetry.mixology.incompatibility import Incompatibility
+    from conda_lock._vendor.poetry.mixology.incompatibility import Incompatibility
 
 
 class Assignment(Term):

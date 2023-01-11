@@ -6,9 +6,9 @@ from typing import TYPE_CHECKING
 
 
 if TYPE_CHECKING:
-    from poetry.core.constraints.version import Version
-    from poetry.core.packages.dependency import Dependency
-    from poetry.core.packages.package import Package
+    from conda_lock._vendor.poetry.core.constraints.version import Version
+    from conda_lock._vendor.poetry.core.packages.dependency import Dependency
+    from conda_lock._vendor.poetry.core.packages.package import Package
 
 
 class AbstractRepository(ABC):

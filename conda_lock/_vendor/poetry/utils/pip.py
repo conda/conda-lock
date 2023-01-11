@@ -2,14 +2,14 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from poetry.exceptions import PoetryException
-from poetry.utils.env import EnvCommandError
+from conda_lock._vendor.poetry.exceptions import PoetryException
+from conda_lock._vendor.poetry.utils.env import EnvCommandError
 
 
 if TYPE_CHECKING:
     from pathlib import Path
 
-    from poetry.utils.env import Env
+    from conda_lock._vendor.poetry.utils.env import Env
 
 
 def pip_install(

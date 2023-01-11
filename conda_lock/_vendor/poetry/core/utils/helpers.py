@@ -14,7 +14,7 @@ from typing import Iterator
 
 from packaging.utils import canonicalize_name
 
-from poetry.core.version.pep440 import PEP440Version
+from conda_lock._vendor.poetry.core.version.pep440 import PEP440Version
 
 
 def combine_unicode(string: str) -> str:
