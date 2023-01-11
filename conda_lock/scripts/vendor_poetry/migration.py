@@ -19,8 +19,10 @@ m = Migration("Vendor poetry")
 
 directly_vendored_dependencies = get_directly_vendored_dependencies()
 
+EPOCH = 8
 
-@m.add_stage(1, "Add vendored dependency requirements to conda-lock")
+
+@m.add_stage(1 + EPOCH, "Add vendored dependency requirements to conda-lock")
 def add_vendored_requirements() -> None:
     # The list of requirements which we should add
     relevant_requirements: list[Requirement] = []
@@ -70,7 +72,7 @@ def add_vendored_requirements() -> None:
     requirements_txt_file.write_text(requirements_txt)
 
 
-@m.add_stage(2, "Update pypi_solver.py to use vendored Poetry imports")
+@m.add_stage(2 + EPOCH, "Update pypi_solver.py to use vendored Poetry imports")
 def modify_vendored_imports() -> None:
     for src_file in [get_repo_root() / "conda_lock" / "pypi_solver.py"]:
         src = src_file.read_text()
@@ -93,7 +95,9 @@ def modify_vendored_imports() -> None:
     print("Pre-commit complete. Code should be fixed now.")
 
 
-@m.add_stage(3, "Remove pexpect, requests_toolbelt, and shellingham as dependencies")
+@m.add_stage(
+    3 + EPOCH, "Remove pexpect, requests_toolbelt, and shellingham as dependencies"
+)
 def remove_unnecessary_dependencies() -> None:
     to_remove = ["pexpect", "requests-toolbelt", "shellingham"]
     subprocess.check_output(["pipreqs", str(get_vendor_root() / "poetry")])
@@ -115,7 +119,7 @@ def remove_unnecessary_dependencies() -> None:
     (get_vendor_root() / "poetry" / "requirements.txt").unlink()
 
 
-@m.add_stage(4, "Remove upper bounds on poetry dependencies")
+@m.add_stage(4 + EPOCH, "Remove upper bounds on poetry dependencies")
 def remove_upper_bounds() -> None:
     conda_lock_requirements_txt = (get_repo_root() / "requirements.txt").read_text()
     new_requirements = ""
@@ -131,14 +135,14 @@ def remove_upper_bounds() -> None:
     (get_repo_root() / "requirements.txt").write_text(new_requirements)
 
 
-@m.add_stage(5, "Use 'vendoring sync' to vendor dependencies")
+@m.add_stage(5 + EPOCH, "Use 'vendoring sync' to vendor dependencies")
 def vendor_dependencies() -> None:
     # Use the vendoring package to vendor the dependencies
     # https://pypi.org/project/vendoring/
     subprocess.check_output(["vendoring", "sync"], cwd=get_repo_root())
 
 
-@m.add_stage(6, "Delete botched license file copies")
+@m.add_stage(6 + EPOCH, "Delete botched license file copies")
 def delete_botched_license_files() -> None:
     vr = get_vendor_root()
     for license_file in chain(
@@ -147,7 +151,7 @@ def delete_botched_license_files() -> None:
         license_file.unlink()
 
 
-@m.add_stage(7, "Recreate license files")
+@m.add_stage(7 + EPOCH, "Recreate license files")
 def add_poetry_root_licenses() -> None:
     """Add the root licenses for Poetry, Poetry Core, and Cleo.
 
@@ -163,7 +167,7 @@ def add_poetry_root_licenses() -> None:
         (destination_dir / f"{dep_data.name}.LICENSE").write_text(license.text)
 
 
-@m.add_stage(8, "Describe vendored dependencies in conda-lock LICENSE")
+@m.add_stage(8 + EPOCH, "Describe vendored dependencies in conda-lock LICENSE")
 def collect_poetry_core_vendored_dependencies() -> None:
     """Collect info about poetry-core's vendored dependencies.
 
