@@ -85,7 +85,7 @@ TEST_DIR = Path(__file__).parent
 
 @pytest.fixture(autouse=True)
 def logging_setup(caplog):
-    caplog.set_level(logging.DEBUG)
+    caplog.set_level(logging.INFO)
 
 
 @pytest.fixture
@@ -281,8 +281,11 @@ def custom_json_metadata(custom_metadata_environment: Path) -> Path:
     return outfile
 
 
-def test_lock_poetry_ibis(tmp_path: Path, mamba_exe: Path):
+def test_lock_poetry_ibis(
+    tmp_path: Path, mamba_exe: Path, monkeypatch: "pytest.MonkeyPatch"
+):
     pyproject = clone_test_dir("test-poetry-ibis", tmp_path).joinpath("pyproject.toml")
+    monkeypatch.chdir(pyproject.parent)
 
     extra_categories = {"test", "dev", "docs"}
 
@@ -293,7 +296,7 @@ def test_lock_poetry_ibis(tmp_path: Path, mamba_exe: Path):
         extras={"test", "dev", "docs"},
         filter_categories=True,
     )
-    lockfile = parse_conda_lock_file(pyproject / DEFAULT_LOCKFILE_NAME)
+    lockfile = parse_conda_lock_file(pyproject.parent / DEFAULT_LOCKFILE_NAME)
 
     all_categories = set()
 
