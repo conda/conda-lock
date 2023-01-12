@@ -6,7 +6,7 @@ build-backend = "hatchling.build"
 name = "conda_lock"
 description = "Lockfiles for conda"
 authors = [
-    { "name" = "Marius van Niekerk", email = "marius.v.niekerk@gmail.com" },
+    { name = "Marius van Niekerk", email = "marius.v.niekerk@gmail.com" },
 ]
 readme = "README.md"
 license = "MIT"
@@ -26,9 +26,6 @@ classifiers = [
 ]
 dynamic = ["dependencies", "version"]
 license-files = { paths = ["LICENSE"] }
-
-[project.optional-dependencies]
-pip_support = ["poetry ==1.1.*"]
 
 [project.scripts]
 conda-lock = "conda_lock:main"
