@@ -11,12 +11,17 @@ from clikit.io import ConsoleIO, NullIO
 from packaging.tags import compatible_tags, cpython_tags
 
 from conda_lock import src_parser
-from conda_lock._vendor.poetry.core.packages import Dependency as PoetryDependency
-from conda_lock._vendor.poetry.core.packages import Package as PoetryPackage
-from conda_lock._vendor.poetry.core.packages import (
+from conda_lock._vendor.poetry.config.config import Config as PoetryConfig
+from conda_lock._vendor.poetry.core.packages.dependency import (
+    Dependency as PoetryDependency,
+)
+from conda_lock._vendor.poetry.core.packages.package import Package as PoetryPackage
+from conda_lock._vendor.poetry.core.packages.project_package import (
     ProjectPackage as PoetryProjectPackage,
 )
-from conda_lock._vendor.poetry.core.packages import URLDependency as PoetryURLDependency
+from conda_lock._vendor.poetry.core.packages.url_dependency import (
+    URLDependency as PoetryURLDependency,
+)
 from conda_lock._vendor.poetry.factory import Factory
 from conda_lock._vendor.poetry.installation.chooser import Chooser
 from conda_lock._vendor.poetry.installation.operations.uninstall import Uninstall
@@ -210,10 +215,10 @@ def solve_pypi(
     for dep in dependencies:
         dummy_package.add_dependency(dep)
 
-    factory = Factory()
-    config = factory.create_config()
+    factory = Factory
+    config = PoetryConfig.create()
     repos = [
-        factory.create_legacy_repository(
+        factory.create_package_source(
             {"name": source[0], "url": source[1]["url"]}, config
         )
         for source in config.get("repositories", {}).items()
@@ -222,8 +227,8 @@ def solve_pypi(
     pypi = PyPiRepository()
     pool = Pool(repositories=[*repos, pypi])
 
-    installed = Repository()
-    locked = Repository()
+    installed: "List[PoetryPackage]" = list()
+    locked: "List[PoetryPackage]" = list()
 
     python_packages = dict()
     locked_dep: src_parser.LockedDependency
@@ -242,10 +247,10 @@ def solve_pypi(
     # treat conda packages as both locked and installed
     for name, version in python_packages.items():
         for repo in (locked, installed):
-            repo.add_package(PoetryPackage(name=name, version=version))
+            repo.append(PoetryPackage(name=name, version=version))
     # treat pip packages as locked only
     for spec in pip_locked.values():
-        locked.add_package(get_package(spec))
+        locked.append(get_package(spec))
 
     if verbose:
         io = ConsoleIO()
@@ -266,7 +271,8 @@ def solve_pypi(
     env = PlatformEnv(python_version, platform)
     # find platform-specific solution (e.g. dependencies conditioned on markers)
     with s.use_environment(env):
-        result = s.solve(use_latest=to_update)
+        trx = s.solve(use_latest=to_update)
+        result = trx.calculate_operations(with_uninstalls=False)
 
     chooser = Chooser(pool, env=env)
 

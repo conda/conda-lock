@@ -5,7 +5,7 @@ from ..exceptions import GrammarError
 from ..grammar import Rule, Terminal, NonTerminal
 
 
-class RulePtr(object):
+class RulePtr:
     __slots__ = ('rule', 'index')
 
     def __init__(self, rule, index):
@@ -38,7 +38,7 @@ class RulePtr(object):
 
 
 # state generation ensures no duplicate LR0ItemSets
-class LR0ItemSet(object):
+class LR0ItemSet:
     __slots__ = ('kernel', 'closure', 'transitions', 'lookaheads')
 
     def __init__(self, kernel, closure):
@@ -121,7 +121,7 @@ def calculate_sets(rules):
     return FIRST, FOLLOW, NULLABLE
 
 
-class GrammarAnalyzer(object):
+class GrammarAnalyzer:
     def __init__(self, parser_conf, debug=False):
         self.debug = debug
 
@@ -138,7 +138,7 @@ class GrammarAnalyzer(object):
         for r in rules:
             for sym in r.expansion:
                 if not (sym.is_term or sym in self.rules_by_origin):
-                    raise GrammarError("Using an undefined rule: %s" % sym) # TODO test validation
+                    raise GrammarError("Using an undefined rule: %s" % sym)
 
         self.start_states = {start: self.expand_rule(root_rule.origin)
                              for start, root_rule in root_rules.items()}

@@ -1,4 +1,4 @@
-from ._compat import Sequence, Hashable
+from collections.abc import Sequence, Hashable
 from itertools import islice, chain
 from numbers import Integral
 from pyrsistent._plist import plist
@@ -276,8 +276,8 @@ class PDeque(object):
                 # This is severely inefficient with a double reverse, should perhaps implement a remove_last()?
                 return PDeque(self._left_list,
                                self._right_list.reverse().remove(elem).reverse(), self._length - 1)
-            except ValueError:
-                raise ValueError('{0} not found in PDeque'.format(elem))
+            except ValueError as e:
+                raise ValueError('{0} not found in PDeque'.format(elem)) from e
 
     def reverse(self):
         """

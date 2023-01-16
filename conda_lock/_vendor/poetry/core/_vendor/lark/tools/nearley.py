@@ -1,11 +1,12 @@
-"Converts between Lark and Nearley grammars. Work in progress!"
+"Converts Nearley grammars to Lark"
 
 import os.path
 import sys
 import codecs
+import argparse
 
 
-from lark import Lark, InlineTransformer
+from lark import Lark, Transformer, v_args
 
 nearley_grammar = r"""
     start: (ruledef|directive)+
@@ -34,20 +35,23 @@ nearley_grammar = r"""
     COMMENT: /#[^\n]*/
     REGEXP: /\[.*?\]/
 
-    %import common.ESCAPED_STRING -> STRING
+    STRING: _STRING "i"?
+
+    %import common.ESCAPED_STRING -> _STRING
     %import common.WS
     %ignore WS
     %ignore COMMENT
 
     """
 
-nearley_grammar_parser = Lark(nearley_grammar, parser='earley', lexer='standard')
+nearley_grammar_parser = Lark(nearley_grammar, parser='earley', lexer='basic')
 
 def _get_rulename(name):
-    name = {'_': '_ws_maybe', '__':'_ws'}.get(name, name)
+    name = {'_': '_ws_maybe', '__': '_ws'}.get(name, name)
     return 'n_' + name.replace('$', '__DOLLAR__').lower()
 
-class NearleyToLark(InlineTransformer):
+@v_args(inline=True)
+class NearleyToLark(Transformer):
     def __init__(self):
         self._count = 0
         self.extra_rules = {}
@@ -130,14 +134,14 @@ def _nearley_to_lark(g, builtin_path, n2l, js_code, folder_path, includes):
         elif statement.data == 'macro':
             pass    # TODO Add support for macros!
         elif statement.data == 'ruledef':
-            rule_defs.append( n2l.transform(statement) )
+            rule_defs.append(n2l.transform(statement))
         else:
             raise Exception("Unknown statement: %s" % statement)
 
     return rule_defs
 
 
-def create_code_for_nearley_grammar(g, start, builtin_path, folder_path):
+def create_code_for_nearley_grammar(g, start, builtin_path, folder_path, es6=False):
     import js2py
 
     emit_code = []
@@ -160,7 +164,10 @@ def create_code_for_nearley_grammar(g, start, builtin_path, folder_path):
     for alias, code in n2l.alias_js_code.items():
         js_code.append('%s = (%s);' % (alias, code))
 
-    emit(js2py.translate_js('\n'.join(js_code)))
+    if es6:
+        emit(js2py.translate_js6('\n'.join(js_code)))
+    else:
+        emit(js2py.translate_js('\n'.join(js_code)))
     emit('class TransformNearley(Transformer):')
     for alias in n2l.alias_js_code:
         emit("    %s = var.get('%s').to_python()" % (alias, alias))
@@ -173,18 +180,23 @@ def create_code_for_nearley_grammar(g, start, builtin_path, folder_path):
 
     return ''.join(emit_code)
 
-def main(fn, start, nearley_lib):
+def main(fn, start, nearley_lib, es6=False):
     with codecs.open(fn, encoding='utf8') as f:
         grammar = f.read()
-    return create_code_for_nearley_grammar(grammar, start, os.path.join(nearley_lib, 'builtin'), os.path.abspath(os.path.dirname(fn)))
+    return create_code_for_nearley_grammar(grammar, start, os.path.join(nearley_lib, 'builtin'), os.path.abspath(os.path.dirname(fn)), es6=es6)
 
+def get_arg_parser():
+    parser = argparse.ArgumentParser(description='Reads a Nearley grammar (with js functions), and outputs an equivalent lark parser.')
+    parser.add_argument('nearley_grammar', help='Path to the file containing the nearley grammar')
+    parser.add_argument('start_rule', help='Rule within the nearley grammar to make the base rule')
+    parser.add_argument('nearley_lib', help='Path to root directory of nearley codebase (used for including builtins)')
+    parser.add_argument('--es6', help='Enable experimental ES6 support', action='store_true')
+    return parser
 
 if __name__ == '__main__':
-    if len(sys.argv) < 4:
-        print("Reads Nearley grammar (with js functions) outputs an equivalent lark parser.")
-        print("Usage: %s <nearley_grammar_path> <start_rule> <nearley_lib_path>" % sys.argv[0])
+    parser = get_arg_parser()
+    if len(sys.argv) == 1:
+        parser.print_help(sys.stderr)
         sys.exit(1)
-
-    fn, start, nearley_lib = sys.argv[1:]
-
-    print(main(fn, start, nearley_lib))
+    args = parser.parse_args()
+    print(main(fn=args.nearley_grammar, start=args.start_rule, nearley_lib=args.nearley_lib, es6=args.es6))

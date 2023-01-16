@@ -1,6 +1,6 @@
-class ParseVersionError(ValueError):
-    pass
+from __future__ import annotations
+
+from conda_lock._vendor.poetry.core.constraints.version.exceptions import ParseConstraintError
 
 
-class ParseConstraintError(ValueError):
-    pass
+__all__ = ["ParseConstraintError"]
