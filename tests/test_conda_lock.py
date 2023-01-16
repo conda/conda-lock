@@ -13,8 +13,9 @@ import typing
 import uuid
 
 from glob import glob
+from itertools import chain
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any, Dict, List, Optional
 from unittest.mock import MagicMock
 from urllib.parse import urldefrag, urlsplit
 
@@ -30,20 +31,17 @@ from conda_lock._vendor.conda.models.match_spec import MatchSpec
 from conda_lock.conda_lock import (
     DEFAULT_FILES,
     DEFAULT_LOCKFILE_NAME,
-    DEFAULT_PLATFORMS,
     _add_auth_to_line,
     _add_auth_to_lockfile,
     _extract_domain,
     _strip_auth_from_line,
     _strip_auth_from_lockfile,
-    aggregate_lock_specs,
     create_lockfile_from_spec,
     default_virtual_package_repodata,
     determine_conda_executable,
     extract_input_hash,
     main,
     make_lock_spec,
-    parse_meta_yaml_file,
     run_lock,
 )
 from conda_lock.conda_solver import extract_json_object, fake_conda_environment
@@ -66,8 +64,17 @@ from conda_lock.lockfile import (
 )
 from conda_lock.models.channel import Channel
 from conda_lock.pypi_solver import parse_pip_requirement, solve_pypi
-from conda_lock.src_parser import LockSpecification, Selectors, VersionedDependency
+from conda_lock.src_parser import (
+    Dependency,
+    LockSpecification,
+    Selectors,
+    SourceDependency,
+    VersionedDependency,
+    aggregate_channels,
+    aggregate_deps,
+)
 from conda_lock.src_parser.environment_yaml import parse_environment_file
+from conda_lock.src_parser.meta_yaml import parse_meta_yaml_file
 from conda_lock.src_parser.pyproject_toml import (
     parse_pyproject_toml,
     poetry_version_to_conda_version,
@@ -115,6 +122,18 @@ def gdal_environment(tmp_path: Path):
     x = clone_test_dir("gdal", tmp_path).joinpath("environment.yml")
     assert x.exists()
     return x
+
+
+@pytest.fixture
+def lock_spec_env(tmp_path: Path):
+    main = clone_test_dir("test-lock-spec", tmp_path)
+    return [main.joinpath("base-env.yml"), main.joinpath("ml-stuff.yml")]
+
+
+@pytest.fixture
+def lock_spec_env_platforms(tmp_path: Path):
+    main = clone_test_dir("test-lock-spec-platforms", tmp_path)
+    return [main.joinpath("base-env.yml"), main.joinpath("osx-stuff.yml")]
 
 
 @pytest.fixture
@@ -307,17 +326,26 @@ def test_lock_poetry_ibis(
         ), "Extra category not found in lockfile"
 
 
+def _make_source_dep(
+    name: str, platform: Optional[str] = None, **kwargs
+) -> SourceDependency:
+    return SourceDependency(
+        dep=VersionedDependency(name=name, **kwargs),
+        selectors=Selectors(platform=([platform] if platform else None)),
+    )
+
+
 def test_parse_environment_file(gdal_environment: Path):
-    res = parse_environment_file(gdal_environment, DEFAULT_PLATFORMS, pip_support=True)
+    res = parse_environment_file(gdal_environment, pip_support=True)
     assert all(
         x in res.dependencies
         for x in [
-            VersionedDependency(
+            _make_source_dep(
                 name="python",
                 manager="conda",
                 version=">=3.7,<3.8",
             ),
-            VersionedDependency(
+            _make_source_dep(
                 name="gdal",
                 manager="conda",
                 version="",
@@ -325,7 +353,7 @@ def test_parse_environment_file(gdal_environment: Path):
         ]
     )
     assert (
-        VersionedDependency(
+        _make_source_dep(
             name="toolz",
             manager="pip",
             version="*",
@@ -338,9 +366,9 @@ def test_parse_environment_file(gdal_environment: Path):
 
 
 def test_parse_environment_file_with_pip(pip_environment: Path):
-    res = parse_environment_file(pip_environment, DEFAULT_PLATFORMS, pip_support=True)
-    assert [dep for dep in res.dependencies if dep.manager == "pip"] == [
-        VersionedDependency(
+    res = parse_environment_file(pip_environment, pip_support=True)
+    assert [dep for dep in res.dependencies if dep.dep.manager == "pip"] == [
+        _make_source_dep(
             name="requests-toolbelt",
             manager="pip",
             optional=False,
@@ -352,66 +380,64 @@ def test_parse_environment_file_with_pip(pip_environment: Path):
 
 
 def test_parse_env_file_with_filters_no_args(filter_conda_environment: Path):
-    res = parse_environment_file(filter_conda_environment, None, pip_support=False)
+    res = parse_environment_file(filter_conda_environment, pip_support=False)
     assert all(x in res.platforms for x in ["osx-arm64", "osx-64", "linux-64"])
     assert res.channels == [Channel.from_string("conda-forge")]
 
     assert all(
         x in res.dependencies
         for x in [
-            VersionedDependency(
+            _make_source_dep(
                 name="python",
                 manager="conda",
                 version="<3.11",
             ),
-            VersionedDependency(
+            _make_source_dep(
                 name="clang_osx-arm64",
                 manager="conda",
                 version="",
-                selectors=Selectors(platform=["osx-arm64"]),
+                platform="arm64",
             ),
-            VersionedDependency(
+            _make_source_dep(
                 name="clang_osx-64",
                 manager="conda",
                 version="",
-                selectors=Selectors(platform=["osx-64"]),
+                platform="osx64",
             ),
-            VersionedDependency(
+            _make_source_dep(
                 name="gcc_linux-64",
                 manager="conda",
                 version=">=6",
-                selectors=Selectors(platform=["linux-64"]),
+                platform="linux64",
             ),
         ]
     )
 
 
 def test_parse_env_file_with_filters_defaults(filter_conda_environment: Path):
-    res = parse_environment_file(
-        filter_conda_environment, DEFAULT_PLATFORMS, pip_support=False
-    )
-    assert all(x in res.platforms for x in DEFAULT_PLATFORMS)
+    res = parse_environment_file(filter_conda_environment, pip_support=False)
+    assert all(x in res.platforms for x in ["osx-arm64", "osx-64", "linux-64"])
     assert res.channels == [Channel.from_string("conda-forge")]
 
     assert all(
         x in res.dependencies
         for x in [
-            VersionedDependency(
+            _make_source_dep(
                 name="python",
                 manager="conda",
                 version="<3.11",
             ),
-            VersionedDependency(
+            _make_source_dep(
                 name="clang_osx-64",
                 manager="conda",
                 version="",
-                selectors=Selectors(platform=["osx-64"]),
+                platform="osx64",
             ),
-            VersionedDependency(
+            _make_source_dep(
                 name="gcc_linux-64",
                 manager="conda",
                 version=">=6",
-                selectors=Selectors(platform=["linux-64"]),
+                platform="linux64",
             ),
         ]
     )
@@ -530,31 +556,28 @@ def test_parse_pip_requirement(
 
 
 def test_parse_meta_yaml_file(meta_yaml_environment: Path):
-    res = parse_meta_yaml_file(meta_yaml_environment, ["linux-64", "osx-64"])
-    specs = {dep.name: dep for dep in res.dependencies}
+    res = parse_meta_yaml_file(meta_yaml_environment)
+    specs = {dep.dep.name: dep for dep in res.dependencies}
     assert all(x in specs for x in ["python", "numpy"])
-    assert all(
-        dep.selectors
-        == Selectors(
-            platform=None
-        )  # Platform will be set to None if all dependencies are the same
-        for dep in specs.values()
-    )
+
     # Ensure that this dep specified by a python selector is ignored
-    assert "enum34" not in specs
+    assert "enum34" in specs
+    assert specs["enum34"].selectors == Selectors(platform=["py27"])
+
     # Ensure that this platform specific dep is included
     assert "zlib" in specs
-    assert specs["pytest"].category == "dev"
-    assert specs["pytest"].optional is True
+    assert specs["zlib"].selectors == Selectors(platform=["unix"])
+
+    assert specs["pytest"].dep.category == "dev"
+    assert specs["pytest"].dep.optional is True
 
 
 def test_parse_poetry(poetry_pyproject_toml: Path):
-    res = parse_pyproject_toml(
-        poetry_pyproject_toml,
-    )
+    res = parse_pyproject_toml(poetry_pyproject_toml)
 
     specs = {
-        dep.name: typing.cast(VersionedDependency, dep) for dep in res.dependencies
+        dep.dep.name: typing.cast(VersionedDependency, dep.dep)
+        for dep in res.dependencies
     }
 
     assert specs["requests"].version == ">=2.13.0,<3.0.0"
@@ -576,41 +599,43 @@ def test_spec_poetry(poetry_pyproject_toml: Path):
     virtual_package_repo = default_virtual_package_repodata()
     with virtual_package_repo:
         spec = make_lock_spec(
-            src_files=[poetry_pyproject_toml], virtual_package_repo=virtual_package_repo
+            src_file_paths=[poetry_pyproject_toml],
+            virtual_package_repo=virtual_package_repo,
         )
-        deps = {d.name for d in spec.dependencies}
-        assert "tomlkit" in deps
-        assert "pytest" in deps
-        assert "requests" in deps
+        for plat_deps in spec.dependencies.values():
+            deps = {d.name for d in plat_deps}
+            assert "tomlkit" in deps
+            assert "pytest" in deps
+            assert "requests" in deps
 
         spec = make_lock_spec(
-            src_files=[poetry_pyproject_toml],
+            src_file_paths=[poetry_pyproject_toml],
             virtual_package_repo=virtual_package_repo,
             required_categories={"main", "dev"},
         )
-        deps = {d.name for d in spec.dependencies}
-        assert "tomlkit" not in deps
-        assert "pytest" in deps
-        assert "requests" in deps
+        for plat_deps in spec.dependencies.values():
+            deps = {d.name for d in plat_deps}
+            assert "tomlkit" not in deps
+            assert "pytest" in deps
+            assert "requests" in deps
 
         spec = make_lock_spec(
-            src_files=[poetry_pyproject_toml],
+            src_file_paths=[poetry_pyproject_toml],
             virtual_package_repo=virtual_package_repo,
             required_categories={"main"},
         )
-        deps = {d.name for d in spec.dependencies}
-        assert "tomlkit" not in deps
-        assert "pytest" not in deps
-        assert "requests" in deps
+        for plat_deps in spec.dependencies.values():
+            deps = {d.name for d in plat_deps}
+            assert "tomlkit" not in deps
+            assert "pytest" not in deps
+            assert "requests" in deps
 
 
 def test_parse_flit(flit_pyproject_toml: Path):
-    res = parse_pyproject_toml(
-        flit_pyproject_toml,
-    )
-
+    res = parse_pyproject_toml(flit_pyproject_toml)
     specs = {
-        dep.name: typing.cast(VersionedDependency, dep) for dep in res.dependencies
+        dep.dep.name: typing.cast(VersionedDependency, dep.dep)
+        for dep in res.dependencies
     }
 
     assert specs["requests"].version == ">=2.13.0"
@@ -627,12 +652,10 @@ def test_parse_flit(flit_pyproject_toml: Path):
 
 
 def test_parse_pdm(pdm_pyproject_toml: Path):
-    res = parse_pyproject_toml(
-        pdm_pyproject_toml,
-    )
-
+    res = parse_pyproject_toml(pdm_pyproject_toml)
     specs = {
-        dep.name: typing.cast(VersionedDependency, dep) for dep in res.dependencies
+        dep.dep.name: typing.cast(VersionedDependency, dep.dep)
+        for dep in res.dependencies
     }
 
     # Base dependencies
@@ -951,11 +974,11 @@ def test_run_lock_with_local_package(
 
     with virtual_package_repo:
         lock_spec = make_lock_spec(
-            src_files=[pip_local_package_environment],
+            src_file_paths=[pip_local_package_environment],
             virtual_package_repo=virtual_package_repo,
         )
     assert not any(
-        p.manager == "pip" for p in lock_spec.dependencies
+        p.manager == "pip" for p in chain(*lock_spec.dependencies.values())
     ), "conda-lock ignores editable pip deps"
 
 
@@ -1016,18 +1039,19 @@ def test_poetry_version_parsing_constraints(
     with vpr, capsys.disabled():
         with tempfile.NamedTemporaryFile(dir=".") as tf:
             spec = LockSpecification(
-                dependencies=[
-                    VersionedDependency(
-                        name=package,
-                        version=poetry_version_to_conda_version(version) or "",
-                        manager="conda",
-                        optional=False,
-                        category="main",
-                        extras=[],
-                    )
-                ],
+                dependencies={
+                    "linux-64": [
+                        VersionedDependency(
+                            name=package,
+                            version=poetry_version_to_conda_version(version) or "",
+                            manager="conda",
+                            optional=False,
+                            category="main",
+                            extras=[],
+                        )
+                    ]
+                },
                 channels=[Channel.from_string("conda-forge")],
-                platforms=["linux-64"],
                 # NB: this file must exist for relative path resolution to work
                 # in create_lockfile_from_spec
                 sources=[Path(tf.name)],
@@ -1072,145 +1096,79 @@ def _make_spec(name: str, constraint: str = "*"):
     )
 
 
-def _make_dependency_with_platforms(
-    name: str, platforms: typing.List[str], constraint: str = "*"
-):
-    return VersionedDependency(
-        name=name,
-        version=constraint,
-        selectors=Selectors(platform=platforms),
-    )
-
-
-def test_aggregate_lock_specs():
-    """Ensure that the way two specs combine when both specify channels is correct"""
-    base_spec = LockSpecification(
-        dependencies=[_make_spec("python", "=3.7")],
-        channels=[Channel.from_string("conda-forge")],
-        platforms=["linux-64"],
-        sources=[Path("base-env.yml")],
-    )
-
-    gpu_spec = LockSpecification(
-        dependencies=[_make_spec("pytorch")],
-        channels=[Channel.from_string("pytorch"), Channel.from_string("conda-forge")],
-        platforms=["linux-64"],
-        sources=[Path("ml-stuff.yml")],
-    )
-
-    # NB: content hash explicitly does not depend on the source file names
-    actual = aggregate_lock_specs([base_spec, gpu_spec])
+def test_lock_spec(lock_spec_env: List[Path]):
+    """Ensure that the way two files combine when both specify channels is correct"""
+    actual = make_lock_spec(src_file_paths=lock_spec_env, virtual_package_repo=None)  # type: ignore
     expected = LockSpecification(
-        dependencies=[
-            _make_spec("python", "=3.7"),
-            _make_spec("pytorch"),
-        ],
+        dependencies={
+            "linux-64": [
+                _make_spec("python", "3.7.*"),
+                _make_spec("pytorch", constraint=""),
+            ]
+        },
         channels=[
             Channel.from_string("pytorch"),
             Channel.from_string("conda-forge"),
         ],
-        platforms=["linux-64"],
-        sources=[],
+        sources=lock_spec_env,
     )
     assert actual.dict(exclude={"sources"}) == expected.dict(exclude={"sources"})
+    # NB: content hash explicitly does not depend on the source file names
     assert actual.content_hash() == expected.content_hash()
 
 
-def test_aggregate_lock_specs_multiple_platforms():
+def test_aggregate_lock_specs_multiple_platforms(lock_spec_env_platforms: List[Path]):
     """Ensure that plaforms are merged correctly"""
-    linux_spec = LockSpecification(
-        dependencies=[_make_dependency_with_platforms("python", ["linux-64"], "=3.7")],
-        channels=[Channel.from_string("conda-forge")],
-        platforms=["linux-64"],
-        sources=[Path("base-env.yml")],
-    )
-
-    osx_spec = LockSpecification(
-        dependencies=[_make_dependency_with_platforms("python", ["osx-64"], "=3.7")],
-        channels=[Channel.from_string("conda-forge")],
-        platforms=["osx-64"],
-        sources=[Path("base-env.yml")],
-    )
-
-    # NB: content hash explicitly does not depend on the source file names
-    actual = aggregate_lock_specs([linux_spec, osx_spec])
+    actual = make_lock_spec(src_file_paths=lock_spec_env_platforms, virtual_package_repo=None)  # type: ignore
     expected = LockSpecification(
-        dependencies=[
-            _make_dependency_with_platforms("python", ["linux-64", "osx-64"], "=3.7")
-        ],
+        dependencies={
+            "linux-64": [_make_spec("python", "3.7.*")],
+            "osx-64": [_make_spec("python", "3.7.*")],
+        },
         channels=[
             Channel.from_string("conda-forge"),
         ],
-        platforms=["linux-64", "osx-64"],
-        sources=[],
+        sources=lock_spec_env_platforms,
     )
     assert actual.dict(exclude={"sources"}) == expected.dict(exclude={"sources"})
+    # NB: content hash explicitly does not depend on the source file names
     assert actual.content_hash() == expected.content_hash()
 
 
 def test_aggregate_lock_specs_override_version():
-    base_spec = LockSpecification(
-        dependencies=[_make_spec("package", "=1.0")],
-        channels=[Channel.from_string("conda-forge")],
-        platforms=["linux-64"],
-        sources=[Path("base.yml")],
-    )
-
-    override_spec = LockSpecification(
-        dependencies=[_make_spec("package", "=2.0")],
-        channels=[Channel.from_string("internal"), Channel.from_string("conda-forge")],
-        platforms=["linux-64"],
-        sources=[Path("override.yml")],
-    )
-
-    agg_spec = aggregate_lock_specs([base_spec, override_spec])
-
-    assert agg_spec.dependencies == override_spec.dependencies
+    base_deps: List[Dependency] = [_make_spec("package", "=1.0")]
+    override_deps: List[Dependency] = [_make_spec("package", "=2.0")]
+    agg_deps = aggregate_deps([base_deps, override_deps])
+    assert agg_deps == override_deps
 
 
-def test_aggregate_lock_specs_invalid_channels():
+def test_aggregate_channels():
     """Ensure that aggregating specs from mismatched channel orderings raises an error."""
-    base_spec = LockSpecification(
-        dependencies=[],
-        channels=[Channel.from_string("defaults")],
-        platforms=[],
-        sources=[],
-    )
+    base = [Channel.from_string("defaults")]
 
-    add_conda_forge = base_spec.copy(
-        update={
-            "channels": [
-                Channel.from_string("conda-forge"),
-                Channel.from_string("defaults"),
-            ]
-        }
-    )
-    agg_spec = aggregate_lock_specs([base_spec, add_conda_forge])
-    assert agg_spec.channels == add_conda_forge.channels
+    add_conda_forge = [
+        Channel.from_string("conda-forge"),
+        Channel.from_string("defaults"),
+    ]
+    agg_spec = aggregate_channels([base, add_conda_forge])
+    assert agg_spec == add_conda_forge
 
     # swap the order of the two channels, which is an error
-    flipped = base_spec.copy(
-        update={
-            "channels": [
-                Channel.from_string("defaults"),
-                Channel.from_string("conda-forge"),
-            ]
-        }
-    )
+    flipped = [
+        Channel.from_string("defaults"),
+        Channel.from_string("conda-forge"),
+    ]
 
     with pytest.raises(ChannelAggregationError):
-        agg_spec = aggregate_lock_specs([base_spec, add_conda_forge, flipped])
+        agg_spec = aggregate_channels([base, add_conda_forge, flipped])
 
-    add_pytorch = base_spec.copy(
-        update={
-            "channels": [
-                Channel.from_string("pytorch"),
-                Channel.from_string("defaults"),
-            ]
-        }
-    )
+    add_pytorch = [
+        Channel.from_string("pytorch"),
+        Channel.from_string("defaults"),
+    ]
+
     with pytest.raises(ChannelAggregationError):
-        agg_spec = aggregate_lock_specs([base_spec, add_conda_forge, add_pytorch])
+        agg_spec = aggregate_channels([base, add_conda_forge, add_pytorch])
 
 
 @pytest.fixture(scope="session")
@@ -1548,9 +1506,8 @@ def test_virtual_package_input_hash_stability():
 
     vpr = virtual_package_repo_from_specification(vspec)
     spec = LockSpecification(
-        dependencies=[],
+        dependencies={"linux-64": []},
         channels=[],
-        platforms=["linux-64"],
         sources=[],
         virtual_package_repo=vpr,
     )
@@ -1573,9 +1530,8 @@ def test_default_virtual_package_input_hash_stability():
     }
 
     spec = LockSpecification(
-        dependencies=[],
+        dependencies={key: [] for key in expected.keys()},
         channels=[],
-        platforms=list(expected.keys()),
         sources=[],
         virtual_package_repo=vpr,
     )
