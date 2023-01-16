@@ -5,19 +5,29 @@ import pathlib
 import typing
 
 from itertools import chain
-from typing import AbstractSet, Dict, List, Optional, Sequence, Tuple, Union
+from typing import (
+    AbstractSet,
+    Dict,
+    Iterable,
+    List,
+    Optional,
+    Sequence,
+    Set,
+    Tuple,
+    Union,
+)
 
 from pydantic import BaseModel, validator
 from typing_extensions import Literal
 
-from conda_lock.common import ordered_union, suffix_union
+from conda_lock.common import suffix_union
 from conda_lock.errors import ChannelAggregationError
 from conda_lock.models import StrictModel
 from conda_lock.models.channel import Channel
 from conda_lock.virtual_package import FakeRepoData
 
 
-DEFAULT_PLATFORMS = ["osx-64", "linux-64", "win-64"]
+DEFAULT_PLATFORMS = {"osx-64", "linux-64", "win-64"}
 
 logger = logging.getLogger(__name__)
 
@@ -44,7 +54,9 @@ class _BaseDependency(StrictModel):
     optional: bool = False
     category: str = "main"
     extras: List[str] = []
-    selectors: Selectors = Selectors()
+
+    def to_source(self) -> "SourceDependency":
+        return SourceDependency(dep=self)  # type: ignore
 
 
 class VersionedDependency(_BaseDependency):
@@ -61,23 +73,56 @@ class URLDependency(_BaseDependency):
 Dependency = Union[VersionedDependency, URLDependency]
 
 
+class SourceDependency(StrictModel):
+    dep: Dependency
+    selectors: Selectors = Selectors()
+
+
 class Package(StrictModel):
     url: str
     hash: str
 
 
-class LockSpecification(BaseModel):
-    dependencies: List[Dependency]
+class SourceFile(StrictModel):
+    file: pathlib.Path
+    dependencies: List[SourceDependency]
     # TODO: Should we store the auth info in here?
     channels: List[Channel]
-    platforms: List[str]
+    platforms: Set[str]
+
+    @validator("channels", pre=True)
+    def validate_channels(cls, v: List[Union[Channel, str]]) -> List[Channel]:
+        for i, e in enumerate(v):
+            if isinstance(e, str):
+                v[i] = Channel.from_string(e)
+        return typing.cast(List[Channel], v)
+
+    def spec(self, platform: str) -> List[Dependency]:
+        from conda_lock.src_parser.selectors import dep_in_platform_selectors
+
+        return [
+            dep.dep
+            for dep in self.dependencies
+            if dep.selectors.platform is None
+            or dep_in_platform_selectors(dep, platform)
+        ]
+
+
+class LockSpecification(BaseModel):
+    dependencies: Dict[str, List[Dependency]]
+    # TODO: Should we store the auth info in here?
+    channels: List[Channel]
     sources: List[pathlib.Path]
     virtual_package_repo: Optional[FakeRepoData] = None
+
+    @property
+    def platforms(self) -> List[str]:
+        return list(self.dependencies.keys())
 
     def content_hash(self) -> Dict[str, str]:
         return {
             platform: self.content_hash_for_platform(platform)
-            for platform in self.platforms
+            for platform in self.dependencies.keys()
         }
 
     def content_hash_for_platform(self, platform: str) -> str:
@@ -85,8 +130,9 @@ class LockSpecification(BaseModel):
             "channels": [c.json() for c in self.channels],
             "specs": [
                 p.dict()
-                for p in sorted(self.dependencies, key=lambda p: (p.manager, p.name))
-                if p.selectors.for_platform(platform)
+                for p in sorted(
+                    self.dependencies[platform], key=lambda p: (p.manager, p.name)
+                )
             ],
         }
         if self.virtual_package_repo is not None:
@@ -107,44 +153,33 @@ class LockSpecification(BaseModel):
         return typing.cast(List[Channel], v)
 
 
-def aggregate_lock_specs(
-    lock_specs: List[LockSpecification],
-) -> LockSpecification:
-
-    # unique dependencies
+def aggregate_deps(grouped_deps: List[List[Dependency]]) -> List[Dependency]:
+    # List unique dependencies
     unique_deps: Dict[Tuple[str, str], Dependency] = {}
-    for dep in chain.from_iterable(
-        [lock_spec.dependencies for lock_spec in lock_specs]
-    ):
+    for dep in chain.from_iterable(grouped_deps):
         key = (dep.manager, dep.name)
-        if key in unique_deps:
-            # Override existing, but merge selectors
-            previous_selectors = unique_deps[key].selectors
-            previous_selectors |= dep.selectors
-            dep.selectors = previous_selectors
         unique_deps[key] = dep
 
-    dependencies = list(unique_deps.values())
-    try:
-        channels = suffix_union(lock_spec.channels or [] for lock_spec in lock_specs)
-    except ValueError as e:
-        raise ChannelAggregationError(*e.args)
+    return list(unique_deps.values())
 
-    return LockSpecification(
-        dependencies=dependencies,
-        # Ensure channel are correctly ordered
-        channels=channels,
-        # uniquify metadata, preserving order
-        platforms=ordered_union(lock_spec.platforms or [] for lock_spec in lock_specs),
-        sources=ordered_union(lock_spec.sources or [] for lock_spec in lock_specs),
-    )
+
+def aggregate_channels(
+    channels: Iterable[List[Channel]],
+    channel_overrides: Optional[Sequence[str]] = None,
+) -> List[Channel]:
+    if channel_overrides:
+        return [Channel.from_string(co) for co in channel_overrides]
+    else:
+        # Ensure channels are correctly ordered
+        try:
+            return suffix_union(channels)
+        except ValueError as e:
+            raise ChannelAggregationError(*e.args)
 
 
 def parse_source_files(
-    src_files: List[pathlib.Path],
-    platform_overrides: Optional[Sequence[str]],
-    pip_support: bool = True,
-) -> List[LockSpecification]:
+    src_file_paths: List[pathlib.Path], pip_support: bool = True
+) -> List[SourceFile]:
     """
     Parse a sequence of dependency specifications from source files
 
@@ -152,71 +187,63 @@ def parse_source_files(
     ----------
     src_files :
         Files to parse for dependencies
-    platform_overrides :
-        Target platforms to render environment.yaml and meta.yaml files for
+    pip_support :
+        Support pip dependencies
     """
     from conda_lock.src_parser.environment_yaml import parse_environment_file
     from conda_lock.src_parser.meta_yaml import parse_meta_yaml_file
     from conda_lock.src_parser.pyproject_toml import parse_pyproject_toml
 
-    desired_envs: List[LockSpecification] = []
-    for src_file in src_files:
-        if src_file.name == "meta.yaml":
-            desired_envs.append(
-                parse_meta_yaml_file(
-                    src_file, list(platform_overrides or DEFAULT_PLATFORMS)
-                )
-            )
-        elif src_file.name == "pyproject.toml":
-            desired_envs.append(parse_pyproject_toml(src_file))
+    src_files: List[SourceFile] = []
+    for src_file_path in src_file_paths:
+        if src_file_path.name in ("meta.yaml", "meta.yml"):
+            src_files.append(parse_meta_yaml_file(src_file_path))
+        elif src_file_path.name == "pyproject.toml":
+            src_files.append(parse_pyproject_toml(src_file_path))
         else:
-            desired_envs.append(
+            src_files.append(
                 parse_environment_file(
-                    src_file,
-                    platform_overrides,
-                    default_platforms=DEFAULT_PLATFORMS,
+                    src_file_path,
                     pip_support=pip_support,
                 )
             )
-    return desired_envs
+    return src_files
 
 
 def make_lock_spec(
     *,
-    src_files: List[pathlib.Path],
+    src_file_paths: List[pathlib.Path],
     virtual_package_repo: FakeRepoData,
     channel_overrides: Optional[Sequence[str]] = None,
-    platform_overrides: Optional[Sequence[str]] = None,
+    platform_overrides: Optional[Set[str]] = None,
     required_categories: Optional[AbstractSet[str]] = None,
     pip_support: bool = True,
 ) -> LockSpecification:
-    """Generate the lockfile specs from a set of input src_files.  If required_categories is set filter out specs that do not match those"""
-    lock_specs = parse_source_files(
-        src_files=src_files,
-        platform_overrides=platform_overrides,
-        pip_support=pip_support,
+    """Generate the lockfile specs from a set of input src_files. If required_categories is set filter out specs that do not match those"""
+    src_files = parse_source_files(src_file_paths, pip_support)
+
+    # Determine Platforms to Render for
+    platforms = (
+        platform_overrides
+        or {plat for sf in src_files for plat in sf.platforms}
+        or DEFAULT_PLATFORMS
     )
 
-    lock_spec = aggregate_lock_specs(lock_specs)
-    lock_spec.virtual_package_repo = virtual_package_repo
-    lock_spec.channels = (
-        [Channel.from_string(co) for co in channel_overrides]
-        if channel_overrides
-        else lock_spec.channels
-    )
-    lock_spec.platforms = (
-        list(platform_overrides) if platform_overrides else lock_spec.platforms
-    ) or list(DEFAULT_PLATFORMS)
+    spec = {
+        plat: aggregate_deps([sf.spec(plat) for sf in src_files]) for plat in platforms
+    }
 
     if required_categories is not None:
+        spec = {
+            plat: [d for d in deps if d.category in required_categories]
+            for plat, deps in spec.items()
+        }
 
-        def dep_has_category(d: Dependency, categories: AbstractSet[str]) -> bool:
-            return d.category in categories
-
-        lock_spec.dependencies = [
-            d
-            for d in lock_spec.dependencies
-            if dep_has_category(d, categories=required_categories)
-        ]
-
-    return lock_spec
+    return LockSpecification(
+        dependencies=spec,
+        channels=aggregate_channels(
+            (sf.channels for sf in src_files), channel_overrides
+        ),
+        sources=src_file_paths,
+        virtual_package_repo=virtual_package_repo,
+    )

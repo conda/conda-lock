@@ -308,9 +308,9 @@ def make_lock_files(
 
     with virtual_package_repo:
         lock_spec = make_lock_spec(
-            src_files=src_files,
+            src_file_paths=src_files,
             channel_overrides=channel_overrides,
-            platform_overrides=platform_overrides,
+            platform_overrides=set(platform_overrides) if platform_overrides else set(),
             virtual_package_repo=virtual_package_repo,
             required_categories=required_categories if filter_categories else None,
             pip_support=PIP_SUPPORT,
@@ -660,12 +660,8 @@ def _solve_for_arch(
     """
     if update_spec is None:
         update_spec = UpdateSpecification()
-    # filter requested and locked dependencies to the current platform
-    dependencies = [
-        dep
-        for dep in spec.dependencies
-        if (not dep.selectors.platform) or platform in dep.selectors.platform
-    ]
+    dependencies = spec.dependencies[platform]
+
     locked = [dep for dep in update_spec.locked if dep.platform == platform]
     requested_deps_by_name = {
         manager: {dep.name: dep for dep in dependencies if dep.manager == manager}

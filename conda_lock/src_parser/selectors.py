@@ -1,16 +1,37 @@
 import logging
 import re
 
-from typing import Iterator, Optional
+from typing import TYPE_CHECKING, List, Optional
+
+
+if TYPE_CHECKING:
+    from ruamel.yaml.comments import Comment
+
+    from conda_lock.src_parser import SourceDependency
 
 
 logger = logging.getLogger(__name__)
+sel_pat = re.compile(r"(#.*)\[([^\[\]]+)\](?(2)[^\(\)]*)$")
 
 
-def filter_platform_selectors(
-    content: str, platform: Optional[str] = None
-) -> Iterator[str]:
-    """ """
+def parse_selector_comment_for_dep(
+    yaml_comments: "Comment", dep_idx: int
+) -> Optional[List[str]]:
+    if dep_idx not in yaml_comments.items:
+        return None
+
+    comment: str = yaml_comments.items[dep_idx][0].value
+    parsed_comment = comment.partition("\n")[0].rstrip()
+
+    # This code is adapted from conda-build
+    m = sel_pat.match(parsed_comment)
+    return [m.group(2)] if m else None
+
+
+def dep_in_platform_selectors(
+    source_dep: "SourceDependency",
+    platform: str,
+) -> bool:
     # we support a very limited set of selectors that adhere to platform only
     # https://docs.conda.io/projects/conda-build/en/latest/resources/define-metadata.html#preprocessing-selectors
 
@@ -25,19 +46,10 @@ def filter_platform_selectors(
         "win-64": {"win", "win64"},
     }
 
-    # This code is adapted from conda-build
-    sel_pat = re.compile(r"(.+?)\s*(#.*)\[([^\[\]]+)\](?(2)[^\(\)]*)$")
-    for line in content.splitlines(keepends=False):
-        if line.lstrip().startswith("#"):
-            continue
-        m = sel_pat.match(line)
-        if platform and m:
-            cond = m.group(3)
-            if cond in platform_sel[platform]:
-                yield line
-            else:
-                logger.warning(
-                    "filtered out line `%s` due to unmatchable selector", line
-                )
-        else:
-            yield line
+    return platform in platform_sel and (
+        source_dep.selectors.platform is None
+        or any(
+            sel_elem in platform_sel[platform]
+            for sel_elem in source_dep.selectors.platform
+        )
+    )

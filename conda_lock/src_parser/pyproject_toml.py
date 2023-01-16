@@ -29,8 +29,8 @@ from typing_extensions import Literal
 from conda_lock.common import get_in
 from conda_lock.lookup import get_forward_lookup as get_lookup
 from conda_lock.src_parser import (
-    Dependency,
-    LockSpecification,
+    SourceDependency,
+    SourceFile,
     URLDependency,
     VersionedDependency,
 )
@@ -86,7 +86,7 @@ def poetry_version_to_conda_version(version_string: Optional[str]) -> Optional[s
 def parse_poetry_pyproject_toml(
     path: pathlib.Path,
     contents: Mapping[str, Any],
-) -> LockSpecification:
+) -> SourceFile:
     """
     Parse dependencies from a poetry pyproject.toml file
 
@@ -102,7 +102,7 @@ def parse_poetry_pyproject_toml(
     * markers are not supported
 
     """
-    dependencies: List[Dependency] = []
+    dependencies: List[SourceDependency] = []
 
     categories: Dict[Tuple[str, ...], str] = {
         ("dependencies",): "main",
@@ -169,7 +169,7 @@ def parse_poetry_pyproject_toml(
                         optional=optional,
                         category=category,
                         extras=extras,
-                    )
+                    ).to_source()
                 )
             else:
                 dependencies.append(
@@ -180,15 +180,17 @@ def parse_poetry_pyproject_toml(
                         optional=optional,
                         category=category,
                         extras=extras,
-                    )
+                    ).to_source()
                 )
 
     return specification_with_dependencies(path, contents, dependencies)
 
 
 def specification_with_dependencies(
-    path: pathlib.Path, toml_contents: Mapping[str, Any], dependencies: List[Dependency]
-) -> LockSpecification:
+    path: pathlib.Path,
+    toml_contents: Mapping[str, Any],
+    dependencies: List[SourceDependency],
+) -> SourceFile:
     force_pypi = set()
     for depname, depattrs in get_in(
         ["tool", "conda-lock", "dependencies"], toml_contents, {}
@@ -203,7 +205,7 @@ def specification_with_dependencies(
                     optional=False,
                     category="main",
                     extras=[],
-                )
+                ).to_source()
             )
         elif isinstance(depattrs, collections.abc.Mapping):
             if depattrs.get("source", None) == "pypi":
@@ -213,14 +215,14 @@ def specification_with_dependencies(
 
     if force_pypi:
         for dep in dependencies:
-            if dep.name in force_pypi:
-                dep.manager = "pip"
+            if dep.dep.name in force_pypi:
+                dep.dep.manager = "pip"
 
-    return LockSpecification(
+    return SourceFile(
         dependencies=dependencies,
         channels=get_in(["tool", "conda-lock", "channels"], toml_contents, []),
-        platforms=get_in(["tool", "conda-lock", "platforms"], toml_contents, []),
-        sources=[path],
+        platforms=set(get_in(["tool", "conda-lock", "platforms"], toml_contents, [])),
+        file=path,
     )
 
 
@@ -238,7 +240,7 @@ def parse_python_requirement(
     optional: bool = False,
     category: str = "main",
     normalize_name: bool = True,
-) -> Dependency:
+) -> SourceDependency:
     """Parse a requirements.txt like requirement to a conda spec"""
     requirement_specifier = requirement.split(";")[0].strip()
     from pkg_resources import Requirement
@@ -267,7 +269,7 @@ def parse_python_requirement(
             extras=extras,
             url=url,
             hashes=[frag.replace("=", ":")],
-        )
+        ).to_source()
     else:
         return VersionedDependency(
             name=conda_dep_name,
@@ -276,7 +278,7 @@ def parse_python_requirement(
             optional=optional,
             category=category,
             extras=extras,
-        )
+        ).to_source()
 
 
 def parse_requirements_pyproject_toml(
@@ -286,11 +288,11 @@ def parse_requirements_pyproject_toml(
     main_tag: str,
     optional_tag: str,
     dev_tags: AbstractSet[str] = {"dev", "test"},
-) -> LockSpecification:
+) -> SourceFile:
     """
     PEP621 and flit
     """
-    dependencies: List[Dependency] = []
+    dependencies: List[SourceDependency] = []
 
     sections = {(*prefix, main_tag): "main"}
     for extra in dev_tags:
@@ -314,7 +316,7 @@ def parse_requirements_pyproject_toml(
 def parse_pdm_pyproject_toml(
     path: pathlib.Path,
     contents: Mapping[str, Any],
-) -> LockSpecification:
+) -> SourceFile:
     """
     PDM support. First, a regular PEP621 pass; then, add all dependencies listed
     in the 'tool.pdm.dev-dependencies' table with the 'dev' category.
@@ -329,7 +331,7 @@ def parse_pdm_pyproject_toml(
 
     dev_reqs = []
 
-    for section, deps in get_in(["tool", "pdm", "dev-dependencies"], contents).items():
+    for _, deps in get_in(["tool", "pdm", "dev-dependencies"], contents).items():
         dev_reqs.extend(
             [
                 parse_python_requirement(
@@ -344,14 +346,14 @@ def parse_pdm_pyproject_toml(
     return res
 
 
-def parse_pyproject_toml(
-    pyproject_toml: pathlib.Path,
-) -> LockSpecification:
+def parse_pyproject_toml(pyproject_toml: pathlib.Path) -> SourceFile:
     with pyproject_toml.open("rb") as fp:
         contents = toml_load(fp)
-    build_system = get_in(["build-system", "build-backend"], contents)
-    pep_621_probe = get_in(["project", "dependencies"], contents)
-    pdm_probe = get_in(["tool", "pdm"], contents)
+
+    build_system: Optional[str] = get_in(["build-system", "build-backend"], contents)
+    pep_621_probe: Optional[str] = get_in(["project", "dependencies"], contents)
+    pdm_probe: Optional[str] = get_in(["tool", "pdm"], contents)
+
     parse = parse_poetry_pyproject_toml
     if pep_621_probe is not None:
         if pdm_probe is None:
@@ -363,9 +365,9 @@ def parse_pyproject_toml(
             )
         else:
             parse = parse_pdm_pyproject_toml
-    elif build_system.startswith("poetry"):
+    elif build_system and build_system.startswith("poetry"):
         parse = parse_poetry_pyproject_toml
-    elif build_system.startswith("flit"):
+    elif build_system and build_system.startswith("flit"):
         parse = partial(
             parse_requirements_pyproject_toml,
             prefix=("tool", "flit", "metadata"),
