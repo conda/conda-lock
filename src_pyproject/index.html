@@ -15,7 +15,7 @@
         <link rel="next" href="../output/">
       
       <link rel="icon" href="../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.4.2, mkdocs-material-9.0.4">
+      <meta name="generator" content="mkdocs-1.4.2, mkdocs-material-9.0.5">
     
     
       
@@ -23,7 +23,7 @@
       
     
     
-      <link rel="stylesheet" href="../assets/stylesheets/main.9c788c91.min.css">
+      <link rel="stylesheet" href="../assets/stylesheets/main.558e4712.min.css">
       
         
         <link rel="stylesheet" href="../assets/stylesheets/palette.2505c338.min.css">
@@ -340,6 +340,26 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#poetry-specific-supported-features" class="md-nav__link">
+    Poetry specific supported features
+  </a>
+  
+    <nav class="md-nav" aria-label="Poetry specific supported features">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#dependency-groups" class="md-nav__link">
+    Dependency groups
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#extensions" class="md-nav__link">
     Extensions
   </a>
@@ -587,6 +607,26 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#poetry-specific-supported-features" class="md-nav__link">
+    Poetry specific supported features
+  </a>
+  
+    <nav class="md-nav" aria-label="Poetry specific supported features">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#dependency-groups" class="md-nav__link">
+    Dependency groups
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#extensions" class="md-nav__link">
     Extensions
   </a>
@@ -755,6 +795,19 @@ to happen at the solve stage use the flag <code>--filter-extras</code></p>
 <div class="highlight"><pre><span></span><code>conda-lock<span class="w"> </span>--extra<span class="w"> </span>incompatiblea<span class="w"> </span>--filter-extras<span class="w"> </span>-f<span class="w"> </span>pyproject.toml
 </code></pre></div>
 </div>
+<h2 id="poetry-specific-supported-features">Poetry specific supported features</h2>
+<h3 id="dependency-groups">Dependency groups</h3>
+<p>conda-lock can map (dependency groups)[<a href="https://python-poetry.org/docs/master/managing-dependencies/#dependency-groups">https://python-poetry.org/docs/master/managing-dependencies/#dependency-groups</a>] to
+categories similar to how extras are handled.</p>
+<div class="highlight"><span class="filename">pyproject.toml</span><pre><span></span><code><span class="k">[tool.poetry.group.docs.dependencies]</span>
+<span class="n">mkdocs</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">&quot;*&quot;</span>
+</code></pre></div>
+<div class="admonition note">
+<p>By default <em>ALL</em> dependency groups are included.  Depdency groups that have the same name as an extra are fused.
+These can be filtered out / included using the same flags as for extras.</p>
+<div class="highlight"><pre><span></span><code>conda-lock --extra docs --filter-extras -f pyproject.toml
+</code></pre></div>
+</div>
 <h2 id="extensions">Extensions</h2>
 <p>As the <code>pyproject.toml</code> format is not really designed for conda there are a few extensions we support in the
 toml file.  All extensions live in the <code>tool.conda-lock</code> section.</p>
@@ -840,7 +893,7 @@ the following sections to the <code>pyproject.toml</code></p>
     <script id="__config" type="application/json">{"base": "..", "features": ["content.tabs.link", "header.autohide", "navigation.indexes", "navigation.instant", "navigation.expand"], "search": "../assets/javascripts/workers/search.e5c33ebb.min.js", "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}}</script>
     
     
-      <script src="../assets/javascripts/bundle.ba449ae6.min.js"></script>
+      <script src="../assets/javascripts/bundle.51d95adb.min.js"></script>
       
     
   </body>
