@@ -335,6 +335,14 @@ def _make_source_dep(
     )
 
 
+def _make_spec(name: str, constraint: str = "*", **kwargs):
+    return VersionedDependency(
+        name=name,
+        version=constraint,
+        **kwargs,
+    )
+
+
 def test_parse_environment_file(gdal_environment: Path):
     res = parse_environment_file(gdal_environment, pip_support=True)
     assert all(
@@ -1089,13 +1097,6 @@ def test_run_with_channel_inversion(
         raise ValueError("cuda-python not found!")
 
 
-def _make_spec(name: str, constraint: str = "*"):
-    return VersionedDependency(
-        name=name,
-        version=constraint,
-    )
-
-
 def test_lock_spec(lock_spec_env: List[Path]):
     """Ensure that the way two files combine when both specify channels is correct"""
     actual = make_lock_spec(src_file_paths=lock_spec_env, virtual_package_repo=None)  # type: ignore
@@ -1135,11 +1136,22 @@ def test_aggregate_lock_specs_multiple_platforms(lock_spec_env_platforms: List[P
     assert actual.content_hash() == expected.content_hash()
 
 
-def test_aggregate_lock_specs_override_version():
-    base_deps: List[Dependency] = [_make_spec("package", "=1.0")]
-    override_deps: List[Dependency] = [_make_spec("package", "=2.0")]
+def test_aggregate_lock_specs_combine_version():
+    for manager in ("conda", "pip"):
+        base_deps: List[Dependency] = [_make_spec("package", "=1.0", manager=manager)]
+        override_deps: List[Dependency] = [
+            _make_spec("package", "=2.0", manager=manager)
+        ]
+        agg_deps = aggregate_deps([base_deps, override_deps])
+        assert agg_deps == [_make_spec("package", "=1.0,=2.0", manager=manager)]
+
+
+def test_aggregate_lock_specs_with_union_version():
+    base_deps: List[Dependency] = [_make_spec("package", "=1.0|>2")]
+    override_deps: List[Dependency] = [_make_spec("package", "=2.0,<3.0.0")]
+
     agg_deps = aggregate_deps([base_deps, override_deps])
-    assert agg_deps == override_deps
+    assert agg_deps == [_make_spec("package", "(=1.0|>2),(=2.0,<3.0.0)")]
 
 
 def test_aggregate_channels():

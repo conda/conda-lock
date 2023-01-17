@@ -21,7 +21,7 @@ from pydantic import BaseModel, validator
 from typing_extensions import Literal
 
 from conda_lock.common import suffix_union
-from conda_lock.errors import ChannelAggregationError
+from conda_lock.errors import ChannelAggregationError, DependencyAggregationError
 from conda_lock.models import StrictModel
 from conda_lock.models.channel import Channel
 from conda_lock.virtual_package import FakeRepoData
@@ -153,13 +153,66 @@ class LockSpecification(BaseModel):
         return typing.cast(List[Channel], v)
 
 
-def aggregate_deps(grouped_deps: List[List[Dependency]]) -> List[Dependency]:
+def merge_dependencies(
+    dep_a: Dependency,
+    dep_b: Dependency,
+) -> Dependency:
+    """
+    Merge 2 Dependency Specifications Together if Valid
+    Either by comparing URL locations or by combining the Versioning Code
+    """
+    assert dep_a.manager == dep_b.manager and dep_a.name == dep_b.name
 
+    if isinstance(dep_a, URLDependency) and isinstance(dep_b, URLDependency):
+        if dep_a != dep_b:
+            raise DependencyAggregationError(
+                f"Found conflicting URL dependency specifications for {dep_a.name} on {dep_a.manager}:\n"
+                f"  URL 1: {dep_a.url}\n  URL 2: {dep_b.url}"
+            )
+        return dep_a
+
+    # If bold old and new are VersionedDependency, combine version strings together
+    # If there are conflicting versions, they will be handled by the solver
+    if isinstance(dep_a, VersionedDependency) and isinstance(
+        dep_b, VersionedDependency
+    ):
+        if dep_a.manager == "pip":
+            return VersionedDependency(
+                name=dep_a.name,
+                version=f"{dep_a.version},{dep_b.version}",
+                manager="pip",
+                optional=dep_a.optional,
+                category=dep_a.category,
+                extras=dep_a.extras,
+            )
+
+        from conda_lock.src_parser.conda_common import merge_version_specs
+
+        return VersionedDependency(
+            name=dep_a.name,
+            version=merge_version_specs(dep_a.version, dep_b.version),
+            manager="conda",
+            optional=dep_a.optional,
+            category=dep_a.category,
+            extras=dep_a.extras,
+        )
+
+    # Case when one dependency specifies a version and another a URL
+    raise DependencyAggregationError(
+        f"Found both a URL and Version Dependency Specification for {dep_a.name} on {dep_a.manager}."
+        "They can not be combined or solved together."
+    )
+
+
+def aggregate_deps(grouped_deps: List[List[Dependency]]) -> List[Dependency]:
     # List unique dependencies
     unique_deps: Dict[Tuple[str, str], Dependency] = {}
     for dep in chain.from_iterable(grouped_deps):
         key = (dep.manager, dep.name)
-        unique_deps[key] = dep
+        if key in unique_deps:
+            unique_deps[key] = merge_dependencies(unique_deps[key], dep)
+        else:
+            unique_deps[key] = dep
 
     return list(unique_deps.values())
 
