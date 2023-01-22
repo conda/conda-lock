@@ -1,13 +1,18 @@
 import pathlib
 
-from typing import Any, Dict, List, Optional
+from typing import TYPE_CHECKING, List, Optional
 
 import jinja2
-import yaml
 
-from conda_lock.common import get_in
-from conda_lock.src_parser import Dependency, LockSpecification, aggregate_lock_specs
-from conda_lock.src_parser.selectors import filter_platform_selectors
+from ruamel.yaml import YAML
+
+from conda_lock.src_parser import SourceDependency, SourceFile
+from conda_lock.src_parser.conda_common import conda_spec_to_versioned_dep
+from conda_lock.src_parser.selectors import parse_selector_comment_for_dep
+
+
+if TYPE_CHECKING:
+    from ruamel.yaml.comments import CommentedMap, CommentedSeq
 
 
 class UndefinedNeverFail(jinja2.Undefined):
@@ -81,80 +86,45 @@ class UndefinedNeverFail(jinja2.Undefined):
         return value
 
 
-def parse_meta_yaml_file(
-    meta_yaml_file: pathlib.Path,
-    platforms: List[str],
-) -> LockSpecification:
-    """Parse a simple meta-yaml file for dependencies assuming the target platforms.
+def parse_meta_yaml_file(meta_yaml_file: pathlib.Path) -> SourceFile:
+    """Parse a simple meta-yaml file for dependencies.
 
-    * This will emit one dependency set per target platform. These may differ
-      if the dependencies depend on platform selectors.
     * This does not support multi-output files and will ignore all lines with
       selectors other than platform.
-    """
-    # parse with selectors for each target platform
-    spec = aggregate_lock_specs(
-        [
-            _parse_meta_yaml_file_for_platform(meta_yaml_file, platform)
-            for platform in platforms
-        ]
-    )
-    # remove platform selectors if they apply to all targets
-    for dep in spec.dependencies:
-        if dep.selectors.platform == platforms:
-            dep.selectors.platform = None
-
-    return spec
-
-
-def _parse_meta_yaml_file_for_platform(
-    meta_yaml_file: pathlib.Path,
-    platform: str,
-) -> LockSpecification:
-    """Parse a simple meta-yaml file for dependencies, assuming the target platform.
-
-    * This does not support multi-output files and will ignore all lines with selectors other than platform
     """
     if not meta_yaml_file.exists():
         raise FileNotFoundError(f"{meta_yaml_file} not found")
 
     with meta_yaml_file.open("r") as fo:
-        filtered_recipe = "\n".join(
-            filter_platform_selectors(fo.read(), platform=platform)
-        )
-        t = jinja2.Template(filtered_recipe, undefined=UndefinedNeverFail)
-        rendered = t.render()
+        recipe = fo.read()
 
-        meta_yaml_data = yaml.safe_load(rendered)
+    t = jinja2.Template(recipe, undefined=UndefinedNeverFail)
+    rendered = t.render()
+    meta_yaml_data = YAML().load(rendered)
 
-    channels = get_in(["extra", "channels"], meta_yaml_data, [])
-    dependencies: List[Dependency] = []
+    channels = meta_yaml_data.mlget(["extra", "channels"], []).copy()
+    dependencies: List[SourceDependency] = []
 
-    def add_spec(spec: str, category: str) -> None:
-        if spec is None:
-            return
+    def add_specs(group: "CommentedSeq", category: str) -> None:
+        for idx, spec in enumerate(group):
+            if spec is None:
+                continue
+            dep = conda_spec_to_versioned_dep(spec, category)
+            dep.selectors.platform = parse_selector_comment_for_dep(group.ca, idx)
+            dependencies.append(dep)
 
-        from .conda_common import conda_spec_to_versioned_dep
-
-        dep = conda_spec_to_versioned_dep(spec, category)
-        dep.selectors.platform = [platform]
-        dependencies.append(dep)
-
-    def add_requirements_from_recipe_or_output(yaml_data: Dict[str, Any]) -> None:
-        for s in get_in(["requirements", "host"], yaml_data, []):
-            add_spec(s, "main")
-        for s in get_in(["requirements", "run"], yaml_data, []):
-            add_spec(s, "main")
-        for s in get_in(["test", "requires"], yaml_data, []):
-            add_spec(s, "dev")
+    def add_requirements_from_recipe_or_output(yaml_data: "CommentedMap") -> None:
+        add_specs(yaml_data.mlget(["requirements", "host"], []), "main")
+        add_specs(yaml_data.mlget(["requirements", "run"], []), "main")
+        add_specs(yaml_data.mlget(["test", "requires"], []), "dev")
 
     add_requirements_from_recipe_or_output(meta_yaml_data)
-    for output in get_in(["outputs"], meta_yaml_data, []):
+    for output in meta_yaml_data.get("outputs", []):
         add_requirements_from_recipe_or_output(output)
 
-    return LockSpecification(
+    return SourceFile(
+        file=meta_yaml_file,
         dependencies=dependencies,
-        channels=channels,
-        platforms=[platform],
-        sources=[meta_yaml_file],
+        channels=channels,  # type: ignore
+        platforms=set(),
     )

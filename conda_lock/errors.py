@@ -21,3 +21,10 @@ class ChannelAggregationError(CondaLockError):
     """
     Error thrown when lists of channels cannot be combined
     """
+
+
+class DependencyAggregationError(CondaLockError):
+    """
+    Error thrown when merging dependency specifications together that
+    are incompatible
+    """

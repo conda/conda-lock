@@ -31,3 +31,4 @@ repos:
   - id: mypy
     additional_dependencies: [types-filelock, types-requests, types-toml, types-PyYAML, types-freezegun, types-setuptools, pydantic]
     exclude: ^tests/test-local-pip/setup.py$
+    # args: [--enable-incomplete-feature=Unpack, --ignore-missing-imports]
