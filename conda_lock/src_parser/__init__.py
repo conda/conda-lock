@@ -177,9 +177,16 @@ def merge_dependencies(
         dep_b, VersionedDependency
     ):
         if dep_a.manager == "pip":
+            if not dep_a.version:
+                vstr = dep_b.version
+            elif not dep_b.version:
+                vstr = dep_a.version
+            else:
+                vstr = f"{dep_a.version},{dep_b.version}"
+
             return VersionedDependency(
                 name=dep_a.name,
-                version=f"{dep_a.version},{dep_b.version}",
+                version=vstr,
                 manager="pip",
                 optional=dep_a.optional,
                 category=dep_a.category,

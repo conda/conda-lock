@@ -36,6 +36,10 @@ def conda_spec_to_versioned_dep(spec: str, category: str) -> SourceDependency:
 
 def merge_version_specs(ver_a: str, ver_b: str) -> str:
     """Merge / And 2 Conda VersionSpec Strings Together"""
+    if not ver_a:
+        return ver_b
+    if not ver_b:
+        return ver_a
     if ver_a == ver_b:
         return ver_a
 
