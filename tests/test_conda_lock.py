@@ -58,18 +58,16 @@ from conda_lock.invoke_conda import (
     is_micromamba,
     reset_conda_pkgs_dir,
 )
-from conda_lock.models.channel import Channel
-from conda_lock.pypi_solver import parse_pip_requirement, solve_pypi
-from conda_lock.src_parser import (
+from conda_lock.lockfile import (
     HashModel,
     LockedDependency,
-    LockSpecification,
     MetadataOption,
-    Selectors,
-    VersionedDependency,
+    parse_conda_lock_file,
 )
+from conda_lock.models.channel import Channel
+from conda_lock.pypi_solver import parse_pip_requirement, solve_pypi
+from conda_lock.src_parser import LockSpecification, Selectors, VersionedDependency
 from conda_lock.src_parser.environment_yaml import parse_environment_file
-from conda_lock.src_parser.lockfile import parse_conda_lock_file
 from conda_lock.src_parser.pyproject_toml import (
     parse_pyproject_toml,
     poetry_version_to_conda_version,

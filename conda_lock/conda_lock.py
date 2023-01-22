@@ -62,22 +62,22 @@ try:
     PIP_SUPPORT = True
 except ImportError:
     PIP_SUPPORT = False
-from conda_lock.lookup import set_lookup_location
-from conda_lock.src_parser import (
+from conda_lock.lockfile import (
     Dependency,
     GitMeta,
     InputMeta,
     LockedDependency,
     Lockfile,
     LockMeta,
-    LockSpecification,
     MetadataOption,
     TimeMeta,
     UpdateSpecification,
-    aggregate_lock_specs,
+    parse_conda_lock_file,
+    write_conda_lock_file,
 )
+from conda_lock.lookup import set_lookup_location
+from conda_lock.src_parser import LockSpecification, aggregate_lock_specs
 from conda_lock.src_parser.environment_yaml import parse_environment_file
-from conda_lock.src_parser.lockfile import parse_conda_lock_file, write_conda_lock_file
 from conda_lock.src_parser.meta_yaml import parse_meta_yaml_file
 from conda_lock.src_parser.pyproject_toml import parse_pyproject_toml
 from conda_lock.virtual_package import (

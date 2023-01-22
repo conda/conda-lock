@@ -1,16 +1,15 @@
 import re
 import sys
-import typing
 
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import TYPE_CHECKING, Dict, List, Optional
 from urllib.parse import urldefrag
 
 from clikit.api.io.flags import VERY_VERBOSE
 from clikit.io import ConsoleIO, NullIO
 from packaging.tags import compatible_tags, cpython_tags
 
-from conda_lock import src_parser
+from conda_lock import lockfile, src_parser
 from conda_lock._vendor.poetry.core.packages import Dependency as PoetryDependency
 from conda_lock._vendor.poetry.core.packages import Package as PoetryPackage
 from conda_lock._vendor.poetry.core.packages import (
@@ -28,8 +27,9 @@ from conda_lock._vendor.poetry.utils.env import Env
 from conda_lock.lookup import conda_name_to_pypi_name
 
 
-if typing.TYPE_CHECKING:
+if TYPE_CHECKING:
     from packaging.tags import Tag
+
 
 # NB: in principle these depend on the glibc in the conda env
 MANYLINUX_TAGS = ["1", "2010", "2014", "_2_17"]
@@ -159,7 +159,7 @@ def get_dependency(dep: src_parser.Dependency) -> PoetryDependency:
         raise ValueError(f"Unknown requirement {dep}")
 
 
-def get_package(locked: src_parser.LockedDependency) -> PoetryPackage:
+def get_package(locked: lockfile.LockedDependency) -> PoetryPackage:
     if locked.source is not None:
         return PoetryPackage(
             locked.name,
@@ -174,12 +174,12 @@ def get_package(locked: src_parser.LockedDependency) -> PoetryPackage:
 def solve_pypi(
     pip_specs: Dict[str, src_parser.Dependency],
     use_latest: List[str],
-    pip_locked: Dict[str, src_parser.LockedDependency],
-    conda_locked: Dict[str, src_parser.LockedDependency],
+    pip_locked: Dict[str, lockfile.LockedDependency],
+    conda_locked: Dict[str, lockfile.LockedDependency],
     python_version: str,
     platform: str,
     verbose: bool = False,
-) -> Dict[str, src_parser.LockedDependency]:
+) -> Dict[str, lockfile.LockedDependency]:
     """
     Solve pip dependencies for the given platform
 
@@ -226,7 +226,7 @@ def solve_pypi(
     locked = Repository()
 
     python_packages = dict()
-    locked_dep: src_parser.LockedDependency
+    locked_dep: lockfile.LockedDependency
     for locked_dep in conda_locked.values():
         if locked_dep.name.startswith("__"):
             continue
@@ -273,16 +273,16 @@ def solve_pypi(
     # Extract distributions from Poetry package plan, ignoring uninstalls
     # (usually: conda package with no pypi equivalent) and skipped ops
     # (already installed)
-    requirements: List[src_parser.LockedDependency] = []
+    requirements: List[lockfile.LockedDependency] = []
     for op in result:
         if not isinstance(op, Uninstall) and not op.skipped:
             # Take direct references verbatim
-            source: Optional[src_parser.DependencySource] = None
+            source: Optional[lockfile.DependencySource] = None
             if op.package.source_type == "url":
                 url, fragment = urldefrag(op.package.source_url)
                 hash_type, hash = fragment.split("=")
-                hash = src_parser.HashModel(**{hash_type: hash})
-                source = src_parser.DependencySource(
+                hash = lockfile.HashModel(**{hash_type: hash})
+                source = lockfile.DependencySource(
                     type="url", url=op.package.source_url
                 )
             # Choose the most specific distribution for the target
@@ -292,10 +292,10 @@ def solve_pypi(
                 hashes: Dict[str, str] = {}
                 if link.hash_name is not None and link.hash is not None:
                     hashes[link.hash_name] = link.hash
-                hash = src_parser.HashModel.parse_obj(hashes)
+                hash = lockfile.HashModel.parse_obj(hashes)
 
             requirements.append(
-                src_parser.LockedDependency(
+                lockfile.LockedDependency(
                     name=op.package.name,
                     version=str(op.package.version),
                     manager="pip",
@@ -324,6 +324,6 @@ def solve_pypi(
             continue
         planned[pypi_name] = locked_dep
 
-    src_parser._apply_categories(requested=pip_specs, planned=planned)
+    lockfile._apply_categories(requested=pip_specs, planned=planned)
 
     return {dep.name: dep for dep in requirements}
