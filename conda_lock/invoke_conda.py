@@ -158,7 +158,11 @@ def _process_stdout(stdout: IO[str]) -> Iterator[str]:
 
 
 def conda_env_override(platform: str) -> Dict[str, str]:
-    env = dict(os.environ)
+    env = {
+        key: val
+        for key, val in os.environ.items()
+        if not (key.startswith("CONDA_OVERRIDE_") and val == "")
+    }
     env.update(
         {
             "CONDA_SUBDIR": platform,
