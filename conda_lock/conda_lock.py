@@ -914,8 +914,11 @@ def _add_auth_to_line(line: str, auth: Dict[str, str]) -> str:
 
 
 def _add_auth_to_lockfile(lockfile: str, auth: Dict[str, str]) -> str:
+    # do not substitute in comments, but do substitute in pip installable packages
+    # with the pattern: # pip package @ url.
+    pkg_pattern = re.compile(r"(^[^#@].*|^# pip .*)")
     lockfile_with_auth = "\n".join(
-        _add_auth_to_line(line, auth) if line[0] not in ("#", "@") else line
+        _add_auth_to_line(line, auth) if pkg_pattern.match(line) else line
         for line in lockfile.strip().split("\n")
     )
     if lockfile.endswith("\n"):
