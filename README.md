@@ -1,6 +1,6 @@
 # conda-lock
 
-[![GitHub deployments](https://img.shields.io/github/deployments/conda-incubator/conda-lock/github-pages?label=docs&style=for-the-badge)](https://conda-incubator.github.io/conda-lock/)
+[![GitHub deployments](https://img.shields.io/github/deployments/conda/conda-lock/github-pages?label=docs&style=for-the-badge)](https://conda.github.io/conda-lock/)
 [![PyPI](https://img.shields.io/pypi/v/conda-lock?style=for-the-badge)](https://pypi.org/project/conda-lock/)
 [![Conda](https://img.shields.io/conda/v/conda-forge/conda-lock?style=for-the-badge)](https://github.com/conda-forge/conda-lock-feedstock)
 [![pre-commit](https://img.shields.io/badge/pre--commit-enabled-brightgreen?style=for-the-badge)](https://results.pre-commit.ci/latest/github/conda/conda-lock/main)
