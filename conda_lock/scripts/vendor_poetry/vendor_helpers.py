@@ -125,7 +125,6 @@ class DependencyData(BaseModel):
         )
 
     def search_vendored_dependencies(self) -> dict[str, DependencyData]:
-
         candidate_licenses = [
             m
             for m in self._tarfile_obj.getmembers()
