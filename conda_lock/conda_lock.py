@@ -1057,7 +1057,9 @@ def run_lock(
             # reconstruct native paths
             locked_environment_files = [
                 pathlib.Path(p)
-                if pathlib.Path(p).is_absolute
+                # absolute paths could be locked for both flavours
+                if pathlib.PurePosixPath(p).is_absolute()
+                or pathlib.PureWindowsPath(p).is_absolute()
                 else pathlib.Path(
                     pathlib.PurePosixPath(lockfile_path).parent
                     / pathlib.PurePosixPath(p)
