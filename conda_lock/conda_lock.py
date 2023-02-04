@@ -759,7 +759,7 @@ def create_lockfile_from_spec(
         for dep in deps:
             locked[(dep.manager, dep.name, dep.platform)] = dep
 
-    spec_sources: Dict[str, pathlib.Path] = {}
+    meta_sources: Dict[str, pathlib.Path] = {}
     for source in spec.sources:
         try:
             path = relative_path(lockfile_path.parent, source)
@@ -767,7 +767,7 @@ def create_lockfile_from_spec(
             if "Paths don't have the same drive" not in str(e):
                 raise e
             path = str(source.resolve())
-        spec_sources[path] = source
+        meta_sources[path] = source
 
     if MetadataOption.TimeStamp in metadata_choices:
         time_metadata = TimeMeta.create()
@@ -792,10 +792,10 @@ def create_lockfile_from_spec(
 
     if metadata_choices & {MetadataOption.InputSha, MetadataOption.InputMd5}:
         inputs_metadata: Optional[Dict[str, InputMeta]] = {
-            relative_path: InputMeta.create(
+            meta_src: InputMeta.create(
                 metadata_choices=metadata_choices, src_file=src_file
             )
-            for relative_path, src_file in spec_sources.items()
+            for meta_src, src_file in meta_sources.items()
         }
     else:
         inputs_metadata = None
@@ -808,7 +808,7 @@ def create_lockfile_from_spec(
             content_hash=spec.content_hash(),
             channels=[c for c in spec.channels],
             platforms=spec.platforms,
-            sources=[str(source.resolve()) for source in spec.sources],
+            sources=list(meta_sources.keys()),
             git_metadata=git_metadata,
             time_metadata=time_metadata,
             inputs_metadata=inputs_metadata,
