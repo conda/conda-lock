@@ -921,6 +921,36 @@ def test_run_lock_with_locked_environment_files(
     ]
 
 
+@pytest.fixture
+def source_paths(tmp_path: Path) -> Path:
+    return clone_test_dir("test-source-paths", tmp_path)
+
+
+def test_run_lock_relative_source_path(
+    monkeypatch: "pytest.MonkeyPatch", source_paths: Path, conda_exe: str
+):
+    """run_lock() stores and restores lockfile-relative source paths"""
+    source_paths.joinpath("lockfile").mkdir()
+    monkeypatch.chdir(source_paths)
+    environment = Path("sources/environment.yaml")
+    lockfile = Path("lockfile/conda-lock.yml")
+    run_lock([environment], lockfile_path=lockfile, conda_exe="mamba")
+    lock_content = parse_conda_lock_file(lockfile)
+    locked_environment = lock_content.metadata.sources[0]
+    assert Path(locked_environment) == Path("../sources/environment.yaml")
+    make_lock_files = MagicMock()
+    monkeypatch.setattr("conda_lock.conda_lock.make_lock_files", make_lock_files)
+    run_lock(
+        DEFAULT_FILES, lockfile_path=lockfile, conda_exe=conda_exe, update=["pydantic"]
+    )
+    if sys.version_info < (3, 8):
+        # backwards compat
+        src_files = make_lock_files.call_args_list[0][1]["src_files"]
+    else:
+        src_files = make_lock_files.call_args.kwargs["src_files"]
+    assert [p.resolve() for p in src_files] == [environment.resolve()]
+
+
 def test_run_lock_with_pip(
     monkeypatch: "pytest.MonkeyPatch", pip_environment: Path, conda_exe: str
 ):
