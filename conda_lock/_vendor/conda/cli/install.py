@@ -292,11 +292,11 @@ def install(args, parser, command='install'):
                 # Other solvers might implement their own internal retry logic without
                 # depending --freeze-install implicitly like conda classic does. Example
                 # retry loop in conda-libmamba-solver:
-                # https://github.com/conda/conda-libmamba-solver/blob/da5b1ba/conda_libmamba_solver/solver.py#L254-L299
+                # https://github.com/conda-incubator/conda-libmamba-solver/blob/da5b1ba/conda_libmamba_solver/solver.py#L254-L299
                 # If we end up raising UnsatisfiableError, we annotate it with `allow_retry`
                 # so we don't have go through all the repodatas and freeze-installed logic
                 # unnecessarily (see https://github.com/conda/conda/issues/11294). see also:
-                # https://github.com/conda/conda-libmamba-solver/blob/7c698209/conda_libmamba_solver/solver.py#L617
+                # https://github.com/conda-incubator/conda-libmamba-solver/blob/7c698209/conda_libmamba_solver/solver.py#L617
                 raise e
             # Quick solve with frozen env or trimmed repodata failed.  Try again without that.
             if not hasattr(args, 'update_modifier'):
