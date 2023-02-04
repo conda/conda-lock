@@ -5,7 +5,7 @@
 Conda lock's default output format is a unified multi-platform lockfile.
 
 This is defined by a [pydantic](https://pydantic-docs.helpmanual.io/usage/models/) model
-[here](https://github.com/conda/conda-lock/blob/main/conda_lock/src_parser/__init__.py#L126)
+[conda_lock.lockfile.Lockfile](https://github.com/conda/conda-lock/blob/main/conda_lock/lockfile/models.py)
 
 In order to explicitly use this format
 
