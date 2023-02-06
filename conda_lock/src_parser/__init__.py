@@ -108,7 +108,6 @@ class LockSpecification(BaseModel):
 def aggregate_lock_specs(
     lock_specs: List[LockSpecification],
 ) -> LockSpecification:
-
     # unique dependencies
     unique_deps: Dict[Tuple[str, str], Dependency] = {}
     for dep in chain.from_iterable(
