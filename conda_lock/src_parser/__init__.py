@@ -71,6 +71,7 @@ class LockSpecification(BaseModel):
     platforms: List[str]
     sources: List[pathlib.Path]
     virtual_package_repo: Optional[FakeRepoData] = None
+    allow_pypi_requests: bool = True
 
     def content_hash(self) -> Dict[str, str]:
         return {

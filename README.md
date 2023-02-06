@@ -162,6 +162,8 @@ Right now `conda-lock` only supports [legacy](https://warehouse.pypa.io/api-refe
 poetry config repositories.foo https://username:password@foo.repo/simple/
 ```
 
+The private repo will be used in addition to `pypi.org`. For projects using `pyproject.toml`, it is possible to [disable `pypi.org` entirely](#disabling-pypiorg).
+
 ### --dev-dependencies/--no-dev-dependencies
 
 By default conda-lock will include dev dependencies in the specification of the lock (if the files that the lock
@@ -390,6 +392,14 @@ ampel-ztf = {source = "pypi"}
 In both these cases, the dependencies of `pip`-installable packages will also be
 installed with `pip`, unless they were already requested by a `conda`
 dependency.
+
+#### Disabling pypi.org
+
+When using private pip repos, it is possible to disable `pypi.org` entirely. This can be useful when using `conda-lock` behind a network proxy that does not allow access to `pypi.org`.
+```toml
+[tool.conda-lock]
+allow-pypi-requests = false
+```
 
 ## Dockerfile example
 
