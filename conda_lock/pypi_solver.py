@@ -178,6 +178,7 @@ def solve_pypi(
     conda_locked: Dict[str, lockfile.LockedDependency],
     python_version: str,
     platform: str,
+    allow_pypi_requests: bool = True,
     verbose: bool = False,
 ) -> Dict[str, lockfile.LockedDependency]:
     """
@@ -199,6 +200,8 @@ def solve_pypi(
         Version of Python in conda_locked
     platform :
         Target platform
+    allow_pypi_requests :
+        Add pypi.org to the list of repositories (pip packages only)
     verbose :
         Print chatter from solver
 
@@ -210,17 +213,7 @@ def solve_pypi(
     for dep in dependencies:
         dummy_package.add_dependency(dep)
 
-    factory = Factory()
-    config = factory.create_config()
-    repos = [
-        factory.create_legacy_repository(
-            {"name": source[0], "url": source[1]["url"]}, config
-        )
-        for source in config.get("repositories", {}).items()
-    ]
-
-    pypi = PyPiRepository()
-    pool = Pool(repositories=[*repos, pypi])
+    pool = _prepare_repositories_pool(allow_pypi_requests)
 
     installed = Repository()
     locked = Repository()
@@ -327,3 +320,25 @@ def solve_pypi(
     lockfile._apply_categories(requested=pip_specs, planned=planned)
 
     return {dep.name: dep for dep in requirements}
+
+
+def _prepare_repositories_pool(allow_pypi_requests: bool) -> Pool:
+    """
+    Prepare the pool of repositories to solve pip dependencies
+
+    Parameters
+    ----------
+    allow_pypi_requests :
+            Add pypi.org to the list of repositories
+    """
+    factory = Factory()
+    config = factory.create_config()
+    repos = [
+        factory.create_legacy_repository(
+            {"name": source[0], "url": source[1]["url"]}, config
+        )
+        for source in config.get("repositories", {}).items()
+    ]
+    if allow_pypi_requests:
+        repos.append(PyPiRepository())
+    return Pool(repositories=[*repos])
