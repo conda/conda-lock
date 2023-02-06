@@ -196,7 +196,6 @@ def do_conda_install(
     file: pathlib.Path,
     copy: bool,
 ) -> None:
-
     _conda = partial(_invoke_conda, conda, prefix, name, check_call=True)
 
     kind = "env" if file.name.endswith(".yml") else "explicit"
@@ -743,6 +742,7 @@ def _solve_for_arch(
             conda_locked={dep.name: dep for dep in conda_deps.values()},
             python_version=conda_deps["python"].version,
             platform=platform,
+            allow_pypi_requests=spec.allow_pypi_requests,
         )
     else:
         pip_deps = {}
@@ -797,7 +797,6 @@ def create_lockfile_from_spec(
     locked: Dict[Tuple[str, str, str], LockedDependency] = {}
 
     for platform in platforms or spec.platforms:
-
         deps = _solve_for_arch(
             conda=conda,
             spec=spec,

@@ -1,26 +1,30 @@
+# disable autofixing PRs, commenting "pre-commit.ci autofix" on a pull request triggers a autofix
+ci:
+    autofix_prs: false
+
 exclude: ^conda_lock/_vendor/.*$
 
 repos:
 - repo: https://github.com/pre-commit/pre-commit-hooks
-  rev: v4.3.0
+  rev: v4.4.0
   hooks:
     - id: trailing-whitespace
       exclude: "^.*\\.patch$"
     - id: check-ast
 
 - repo: https://github.com/psf/black
-  rev: 22.10.0
+  rev: 23.1.0
   hooks:
   - id: black
     language_version: python3
 
 - repo: https://github.com/pycqa/flake8
-  rev: 5.0.4
+  rev: 6.0.0
   hooks:
     - id: flake8
 
 - repo: https://github.com/pycqa/isort
-  rev: 5.10.1
+  rev: 5.12.0
   hooks:
   - id: isort
     args: ["--profile", "black", "--filter-files"]
@@ -30,4 +34,4 @@ repos:
   hooks:
   - id: mypy
     additional_dependencies: [types-filelock, types-requests, types-toml, types-PyYAML, types-freezegun, types-setuptools, pydantic]
-    exclude: ^tests/test-local-pip/setup.py$
+    exclude: ^(tests/test-local-pip/setup.py$|tests/test_conda_lock.py)

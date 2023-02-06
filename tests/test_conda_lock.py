@@ -25,7 +25,7 @@ import yaml
 from flaky import flaky
 from freezegun import freeze_time
 
-from conda_lock import __version__
+from conda_lock import __version__, pypi_solver
 from conda_lock._vendor.conda.models.match_spec import MatchSpec
 from conda_lock.conda_lock import (
     DEFAULT_FILES,
@@ -173,6 +173,11 @@ def meta_yaml_environment(tmp_path: Path):
 @pytest.fixture
 def poetry_pyproject_toml(tmp_path: Path):
     return clone_test_dir("test-poetry", tmp_path).joinpath("pyproject.toml")
+
+
+@pytest.fixture
+def poetry_pyproject_toml_no_pypi(tmp_path: Path):
+    return clone_test_dir("test-poetry-no-pypi", tmp_path).joinpath("pyproject.toml")
 
 
 @pytest.fixture
@@ -571,8 +576,26 @@ def test_parse_poetry(poetry_pyproject_toml: Path):
     assert res.channels == [Channel.from_string("defaults")]
 
 
-def test_spec_poetry(poetry_pyproject_toml: Path):
+def test_parse_poetry_no_pypi(poetry_pyproject_toml_no_pypi: Path):
+    res = parse_pyproject_toml(
+        poetry_pyproject_toml_no_pypi,
+    )
+    assert res.allow_pypi_requests is False
 
+
+def test_prepare_repositories_pool():
+    def contains_pypi(pool):
+        return any(repo.name == "PyPI" for repo in pool.repositories)
+
+    assert contains_pypi(
+        pypi_solver._prepare_repositories_pool(allow_pypi_requests=True)
+    )
+    assert not contains_pypi(
+        pypi_solver._prepare_repositories_pool(allow_pypi_requests=False)
+    )
+
+
+def test_spec_poetry(poetry_pyproject_toml: Path):
     virtual_package_repo = default_virtual_package_repodata()
     with virtual_package_repo:
         spec = make_lock_spec(
@@ -1590,7 +1613,6 @@ def conda_lock_yaml():
 
 
 def test_fake_conda_env(conda_exe: str, conda_lock_yaml: Path):
-
     lockfile_content = parse_conda_lock_file(conda_lock_yaml)
 
     with fake_conda_environment(
