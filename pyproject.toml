@@ -10,7 +10,7 @@ authors = [
 ]
 readme = "README.md"
 license = "MIT"
-requires-python = ">=3.6"
+requires-python = ">=3.8"
 classifiers = [
     "Development Status :: 5 - Production/Stable",
     "Intended Audience :: Science/Research",
@@ -18,11 +18,10 @@ classifiers = [
     "License :: OSI Approved :: MIT License",
     "Programming Language :: Python",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.6",
-    "Programming Language :: Python :: 3.7",
     "Programming Language :: Python :: 3.8",
     "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
 ]
 dynamic = ["dependencies", "version"]
 license-files = { paths = ["LICENSE"] }
@@ -31,10 +30,10 @@ license-files = { paths = ["LICENSE"] }
 conda-lock = "conda_lock:main"
 
 [project.urls]
-Homepage = "https://github.com/conda-incubator/conda-lock"
-Repository = "https://github.com/conda-incubator/conda-lock"
-Documentation = "https://conda-incubator.github.io/conda-lock/"
-"Issue Tracker" = "https://github.com/conda-incubator/conda-lock/issues"
+Homepage = "https://github.com/conda/conda-lock"
+Repository = "https://github.com/conda/conda-lock"
+Documentation = "https://conda.github.io/conda-lock/"
+"Issue Tracker" = "https://github.com/conda/conda-lock/issues"
 "Conda-Forge Feedstock" = "https://github.com/conda-forge/conda-lock-feedstock"
 "Anaconda.org" = "https://anaconda.org/conda-forge/conda-lock"
 
