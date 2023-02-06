@@ -572,7 +572,6 @@ def test_parse_poetry(poetry_pyproject_toml: Path):
 
 
 def test_spec_poetry(poetry_pyproject_toml: Path):
-
     virtual_package_repo = default_virtual_package_repodata()
     with virtual_package_repo:
         spec = make_lock_spec(
@@ -1590,7 +1589,6 @@ def conda_lock_yaml():
 
 
 def test_fake_conda_env(conda_exe: str, conda_lock_yaml: Path):
-
     lockfile_content = parse_conda_lock_file(conda_lock_yaml)
 
     with fake_conda_environment(

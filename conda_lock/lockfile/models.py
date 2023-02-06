@@ -279,7 +279,6 @@ class LockMeta(StrictModel):
 
 
 class Lockfile(StrictModel):
-
     version: ClassVar[int] = 1
 
     package: List[LockedDependency]
