@@ -45,11 +45,14 @@ jobs:
       - name: run-test
         run: |
           conda activate test
+          copy pyproject.toml "%RUNNER_TEMP%"
           Xcopy /E /I tests "%RUNNER_TEMP%\\tests"
           pushd "${RUNNER_TEMP}"
           set TMPDIR="%RUNNER_TEMP%"
           dir
-          pytest -n auto -vrsx --cov=conda_lock tests
+          pytest tests
+          copy coverage.xml %GITHUB_WORKSPACE%
+      - uses: codecov/codecov-action@v3
 
   test:
     runs-on: ${{ matrix.os }}
@@ -96,13 +99,16 @@ jobs:
         shell: bash -l {0}
         run: |
           conda activate test
+          cp pyproject.toml "${RUNNER_TEMP}/"
           cp -a tests "${RUNNER_TEMP}/"
           pushd "${RUNNER_TEMP}"
           export TMPDIR="${RUNNER_TEMP}"
           ls -lah
           set -x
           which pytest
-          pytest -n auto -vrsx --cov=conda_lock tests
+          pytest tests
+          cp coverage.xml "${GITHUB_WORKSPACE}"
+      - uses: codecov/codecov-action@v3
 
       - name: test-gdal
         shell: bash -l {0}
