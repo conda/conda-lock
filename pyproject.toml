@@ -31,10 +31,10 @@ license-files = { paths = ["LICENSE"] }
 conda-lock = "conda_lock:main"
 
 [project.urls]
-Homepage = "https://github.com/conda-incubator/conda-lock"
-Repository = "https://github.com/conda-incubator/conda-lock"
-Documentation = "https://conda-incubator.github.io/conda-lock/"
-"Issue Tracker" = "https://github.com/conda-incubator/conda-lock/issues"
+Homepage = "https://github.com/conda/conda-lock"
+Repository = "https://github.com/conda/conda-lock"
+Documentation = "https://conda.github.io/conda-lock/"
+"Issue Tracker" = "https://github.com/conda/conda-lock/issues"
 "Conda-Forge Feedstock" = "https://github.com/conda-forge/conda-lock-feedstock"
 "Anaconda.org" = "https://anaconda.org/conda-forge/conda-lock"
 
