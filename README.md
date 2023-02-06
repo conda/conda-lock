@@ -4,6 +4,7 @@
 [![PyPI](https://img.shields.io/pypi/v/conda-lock?style=for-the-badge)](https://pypi.org/project/conda-lock/)
 [![Conda](https://img.shields.io/conda/v/conda-forge/conda-lock?style=for-the-badge)](https://github.com/conda-forge/conda-lock-feedstock)
 [![pre-commit](https://img.shields.io/badge/pre--commit-enabled-brightgreen?style=for-the-badge)](https://results.pre-commit.ci/latest/github/conda/conda-lock/main)
+[![codecov](https://img.shields.io/codecov/c/github/conda/conda-lock/main?style=for-the-badge)](https://codecov.io/gh/conda/conda-lock)
 
 Conda lock is a lightweight library that can be used to generate fully reproducible lock files for [conda][conda]
 environments.
