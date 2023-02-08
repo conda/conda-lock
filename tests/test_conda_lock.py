@@ -1474,6 +1474,7 @@ def auth_():
     return {
         "a.mychannel.cloud": "username_a:password_a",
         "c.mychannel.cloud": "username_c:password_c",
+        "d.mychannel.cloud": "username_d:password_d",
     }
 
 

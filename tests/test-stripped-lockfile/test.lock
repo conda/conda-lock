@@ -1,6 +1,8 @@
 # The following domains require authentication:
 # - a.mychannel.cloud
 # - c.mychannel.cloud
+# - d.mychannel.cloud
 http://a.mychannel.cloud/mypackage
 http://b.mychannel.cloud/mypackage
 http://c.mychannel.cloud/mypackage
+# pip mypackage @ http://d.mychannel.cloud/mypackage
