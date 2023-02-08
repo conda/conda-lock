@@ -1,3 +1,4 @@
 http://user:password@a.mychannel.cloud/mypackage
 http://b.mychannel.cloud/mypackage
 http://user:password@c.mychannel.cloud/mypackage
+# pip mypackage @ http://user:password@d.mychannel.cloud/mypackage

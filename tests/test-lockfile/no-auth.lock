@@ -1,3 +1,4 @@
 http://a.mychannel.cloud/mypackage
 http://b.mychannel.cloud/mypackage
 http://c.mychannel.cloud/mypackage
+# pip mypackage @ http://d.mychannel.cloud/mypackage
