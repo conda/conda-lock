@@ -540,7 +540,7 @@ docker container.  This avoids the case where the <code>conda install xyz</code>
 <p>To get this to work nicely generate the platform specific lock run something
 like this in your shell</p>
 <div class="highlight"><pre><span></span><code><span class="c1"># Update the lockfile</span>
-conda<span class="w"> </span>lock<span class="w"> </span>--format<span class="w"> </span>explicit<span class="w"> </span>--platform<span class="w"> </span>linux-64
+conda-lock<span class="w"> </span>--kind<span class="w"> </span>explicit<span class="w"> </span>--platform<span class="w"> </span>linux-64
 <span class="c1"># build the image</span>
 docker<span class="w"> </span>build<span class="w"> </span>-t<span class="w"> </span>myimagename:mytag<span class="w"> </span>.
 </code></pre></div>
