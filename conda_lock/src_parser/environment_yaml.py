@@ -29,8 +29,6 @@ def _parse_environment_file_for_platform(
     environment_file: pathlib.Path,
     content: str,
     platform: str,
-    *,
-    pip_support: bool = False,
 ) -> LockSpecification:
     """
     Parse dependencies from a conda environment specification for an
@@ -40,9 +38,6 @@ def _parse_environment_file_for_platform(
     ----------
     environment_file :
         Path to environment.yml
-    pip_support :
-        Emit dependencies in pip section of environment.yml. If False, print a
-        warning and ignore pip dependencies.
     platform :
         Target platform to use when parsing selectors to filter lines
     """
@@ -68,39 +63,29 @@ def _parse_environment_file_for_platform(
 
     for mapping_spec in mapping_specs:
         if "pip" in mapping_spec:
-            if pip_support:
-                for spec in mapping_spec["pip"]:
-                    if re.match(r"^-e .*$", spec):
-                        print(
-                            (
-                                f"Warning: editable pip dep '{spec}' will not be included in the lock file. "
-                                "You will need to install it separately."
-                            ),
-                            file=sys.stderr,
-                        )
-                        continue
-
-                    dependencies.append(
-                        parse_python_requirement(
-                            spec,
-                            manager="pip",
-                            optional=category != "main",
-                            category=category,
-                            normalize_name=False,
-                        )
+            for spec in mapping_spec["pip"]:
+                if re.match(r"^-e .*$", spec):
+                    print(
+                        (
+                            f"Warning: editable pip dep '{spec}' will not be included in the lock file. "
+                            "You will need to install it separately."
+                        ),
+                        file=sys.stderr,
                     )
+                    continue
 
-                # ensure pip is in target env
-                dependencies.append(parse_python_requirement("pip", manager="conda"))
-            else:
-                print(
-                    (
-                        "Warning: found pip deps, but conda-lock was installed without pypi support. "
-                        "pip dependencies will not be included in the lock file. Either install them "
-                        "separately, or install conda-lock with `-E pip_support`."
-                    ),
-                    file=sys.stderr,
+                dependencies.append(
+                    parse_python_requirement(
+                        spec,
+                        manager="pip",
+                        optional=category != "main",
+                        category=category,
+                        normalize_name=False,
+                    )
                 )
+
+            # ensure pip is in target env
+            dependencies.append(parse_python_requirement("pip", manager="conda"))
 
     return LockSpecification(
         dependencies=dependencies,
@@ -115,7 +100,6 @@ def parse_environment_file(
     given_platforms: Optional[Sequence[str]],
     *,
     default_platforms: List[str] = [],
-    pip_support: bool = True,
 ) -> LockSpecification:
     """Parse a simple environment-yaml file for dependencies assuming the target platforms.
 
@@ -143,7 +127,9 @@ def parse_environment_file(
     spec = aggregate_lock_specs(
         [
             _parse_environment_file_for_platform(
-                environment_file, content, platform, pip_support=pip_support
+                environment_file,
+                content,
+                platform,
             )
             for platform in platforms
         ]
