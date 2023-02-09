@@ -25,11 +25,12 @@ import yaml
 from flaky import flaky
 from freezegun import freeze_time
 
-from conda_lock import __version__
+from conda_lock import __version__, pypi_solver
 from conda_lock._vendor.conda.models.match_spec import MatchSpec
 from conda_lock.conda_lock import (
     DEFAULT_FILES,
     DEFAULT_LOCKFILE_NAME,
+    DEFAULT_PLATFORMS,
     _add_auth_to_line,
     _add_auth_to_lockfile,
     _extract_domain,
@@ -57,18 +58,16 @@ from conda_lock.invoke_conda import (
     is_micromamba,
     reset_conda_pkgs_dir,
 )
-from conda_lock.models.channel import Channel
-from conda_lock.pypi_solver import parse_pip_requirement, solve_pypi
-from conda_lock.src_parser import (
+from conda_lock.lockfile import (
     HashModel,
     LockedDependency,
-    LockSpecification,
     MetadataOption,
-    Selectors,
-    VersionedDependency,
+    parse_conda_lock_file,
 )
+from conda_lock.models.channel import Channel
+from conda_lock.pypi_solver import parse_pip_requirement, solve_pypi
+from conda_lock.src_parser import LockSpecification, Selectors, VersionedDependency
 from conda_lock.src_parser.environment_yaml import parse_environment_file
-from conda_lock.src_parser.lockfile import parse_conda_lock_file
 from conda_lock.src_parser.pyproject_toml import (
     parse_pyproject_toml,
     poetry_version_to_conda_version,
@@ -84,7 +83,7 @@ TEST_DIR = Path(__file__).parent
 
 @pytest.fixture(autouse=True)
 def logging_setup(caplog):
-    caplog.set_level(logging.DEBUG)
+    caplog.set_level(logging.INFO)
 
 
 @pytest.fixture
@@ -114,6 +113,13 @@ def install_lock():
 @pytest.fixture
 def gdal_environment(tmp_path: Path):
     x = clone_test_dir("gdal", tmp_path).joinpath("environment.yml")
+    assert x.exists()
+    return x
+
+
+@pytest.fixture
+def filter_conda_environment(tmp_path: Path):
+    x = clone_test_dir("test-env-filter-platform", tmp_path).joinpath("environment.yml")
     assert x.exists()
     return x
 
@@ -167,6 +173,11 @@ def meta_yaml_environment(tmp_path: Path):
 @pytest.fixture
 def poetry_pyproject_toml(tmp_path: Path):
     return clone_test_dir("test-poetry", tmp_path).joinpath("pyproject.toml")
+
+
+@pytest.fixture
+def poetry_pyproject_toml_no_pypi(tmp_path: Path):
+    return clone_test_dir("test-poetry-no-pypi", tmp_path).joinpath("pyproject.toml")
 
 
 @pytest.fixture
@@ -273,17 +284,47 @@ def custom_json_metadata(custom_metadata_environment: Path) -> Path:
     return outfile
 
 
+def test_lock_poetry_ibis(
+    tmp_path: Path, mamba_exe: Path, monkeypatch: "pytest.MonkeyPatch"
+):
+    pyproject = clone_test_dir("test-poetry-ibis", tmp_path).joinpath("pyproject.toml")
+    monkeypatch.chdir(pyproject.parent)
+
+    extra_categories = {"test", "dev", "docs"}
+
+    run_lock(
+        [pyproject],
+        conda_exe=str(mamba_exe),
+        platforms=["linux-64"],
+        extras={"test", "dev", "docs"},
+        filter_categories=True,
+    )
+    lockfile = parse_conda_lock_file(pyproject.parent / DEFAULT_LOCKFILE_NAME)
+
+    all_categories = set()
+
+    for pkg in lockfile.package:
+        all_categories.add(pkg.category)
+
+    for desired_category in extra_categories:
+        assert (
+            desired_category in all_categories
+        ), "Extra category not found in lockfile"
+
+
 def test_parse_environment_file(gdal_environment: Path):
-    res = parse_environment_file(gdal_environment, pip_support=True)
+    res = parse_environment_file(gdal_environment, DEFAULT_PLATFORMS, pip_support=True)
     assert all(
         x in res.dependencies
         for x in [
             VersionedDependency(
                 name="python",
+                manager="conda",
                 version=">=3.7,<3.8",
             ),
             VersionedDependency(
                 name="gdal",
+                manager="conda",
                 version="",
             ),
         ]
@@ -302,7 +343,7 @@ def test_parse_environment_file(gdal_environment: Path):
 
 
 def test_parse_environment_file_with_pip(pip_environment: Path):
-    res = parse_environment_file(pip_environment, pip_support=True)
+    res = parse_environment_file(pip_environment, DEFAULT_PLATFORMS, pip_support=True)
     assert [dep for dep in res.dependencies if dep.manager == "pip"] == [
         VersionedDependency(
             name="requests-toolbelt",
@@ -315,8 +356,73 @@ def test_parse_environment_file_with_pip(pip_environment: Path):
     ]
 
 
-def test_choose_wheel() -> None:
+def test_parse_env_file_with_filters_no_args(filter_conda_environment: Path):
+    res = parse_environment_file(filter_conda_environment, None, pip_support=False)
+    assert all(x in res.platforms for x in ["osx-arm64", "osx-64", "linux-64"])
+    assert res.channels == [Channel.from_string("conda-forge")]
 
+    assert all(
+        x in res.dependencies
+        for x in [
+            VersionedDependency(
+                name="python",
+                manager="conda",
+                version="<3.11",
+            ),
+            VersionedDependency(
+                name="clang_osx-arm64",
+                manager="conda",
+                version="",
+                selectors=Selectors(platform=["osx-arm64"]),
+            ),
+            VersionedDependency(
+                name="clang_osx-64",
+                manager="conda",
+                version="",
+                selectors=Selectors(platform=["osx-64"]),
+            ),
+            VersionedDependency(
+                name="gcc_linux-64",
+                manager="conda",
+                version=">=6",
+                selectors=Selectors(platform=["linux-64"]),
+            ),
+        ]
+    )
+
+
+def test_parse_env_file_with_filters_defaults(filter_conda_environment: Path):
+    res = parse_environment_file(
+        filter_conda_environment, DEFAULT_PLATFORMS, pip_support=False
+    )
+    assert all(x in res.platforms for x in DEFAULT_PLATFORMS)
+    assert res.channels == [Channel.from_string("conda-forge")]
+
+    assert all(
+        x in res.dependencies
+        for x in [
+            VersionedDependency(
+                name="python",
+                manager="conda",
+                version="<3.11",
+            ),
+            VersionedDependency(
+                name="clang_osx-64",
+                manager="conda",
+                version="",
+                selectors=Selectors(platform=["osx-64"]),
+            ),
+            VersionedDependency(
+                name="gcc_linux-64",
+                manager="conda",
+                version=">=6",
+                selectors=Selectors(platform=["linux-64"]),
+            ),
+        ]
+    )
+
+
+def test_choose_wheel() -> None:
     solution = solve_pypi(
         {
             "fastavro": VersionedDependency(
@@ -470,8 +576,26 @@ def test_parse_poetry(poetry_pyproject_toml: Path):
     assert res.channels == [Channel.from_string("defaults")]
 
 
-def test_spec_poetry(poetry_pyproject_toml: Path):
+def test_parse_poetry_no_pypi(poetry_pyproject_toml_no_pypi: Path):
+    res = parse_pyproject_toml(
+        poetry_pyproject_toml_no_pypi,
+    )
+    assert res.allow_pypi_requests is False
 
+
+def test_prepare_repositories_pool():
+    def contains_pypi(pool):
+        return any(repo.name == "PyPI" for repo in pool.repositories)
+
+    assert contains_pypi(
+        pypi_solver._prepare_repositories_pool(allow_pypi_requests=True)
+    )
+    assert not contains_pypi(
+        pypi_solver._prepare_repositories_pool(allow_pypi_requests=False)
+    )
+
+
+def test_spec_poetry(poetry_pyproject_toml: Path):
     virtual_package_repo = default_virtual_package_repodata()
     with virtual_package_repo:
         spec = make_lock_spec(
@@ -1489,7 +1613,6 @@ def conda_lock_yaml():
 
 
 def test_fake_conda_env(conda_exe: str, conda_lock_yaml: Path):
-
     lockfile_content = parse_conda_lock_file(conda_lock_yaml)
 
     with fake_conda_environment(

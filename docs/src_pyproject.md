@@ -134,6 +134,27 @@ When generating lockfiles that make use of extras it is recommended to make use 
     conda-lock --extra incompatiblea --filter-extras -f pyproject.toml
     ```
 
+## Poetry specific supported features
+
+### Dependency groups
+
+conda-lock can map (dependency groups)[https://python-poetry.org/docs/master/managing-dependencies/#dependency-groups] to
+categories similar to how extras are handled.
+
+```{.toml title="pyproject.toml"}
+[tool.poetry.group.docs.dependencies]
+mkdocs = "*"
+```
+
+!!! note ""
+
+    By default *ALL* dependency groups are included.  Depdency groups that have the same name as an extra are fused.
+    These can be filtered out / included using the same flags as for extras.
+
+    ```
+    conda-lock --extra docs --filter-extras -f pyproject.toml
+    ```
+
 ## Extensions
 
 As the `pyproject.toml` format is not really designed for conda there are a few extensions we support in the

@@ -2,7 +2,6 @@
 black
 check-manifest
 doctr
-filelock
 flake8
 flake8-builtins
 flake8-comprehensions
@@ -27,3 +26,4 @@ mkdocs-click
 mkdocs-include-markdown-plugin
 flaky
 docker
+gitpython

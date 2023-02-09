@@ -6,11 +6,11 @@ build-backend = "hatchling.build"
 name = "conda_lock"
 description = "Lockfiles for conda"
 authors = [
-    { "name" = "Marius van Niekerk", email = "marius.v.niekerk@gmail.com" },
+    { name = "Marius van Niekerk", email = "marius.v.niekerk@gmail.com" },
 ]
 readme = "README.md"
 license = "MIT"
-requires-python = ">=3.6"
+requires-python = ">=3.8"
 classifiers = [
     "Development Status :: 5 - Production/Stable",
     "Intended Audience :: Science/Research",
@@ -18,26 +18,22 @@ classifiers = [
     "License :: OSI Approved :: MIT License",
     "Programming Language :: Python",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.6",
-    "Programming Language :: Python :: 3.7",
     "Programming Language :: Python :: 3.8",
     "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
 ]
 dynamic = ["dependencies", "version"]
 license-files = { paths = ["LICENSE"] }
-
-[project.optional-dependencies]
-pip_support = ["poetry ==1.1.*"]
 
 [project.scripts]
 conda-lock = "conda_lock:main"
 
 [project.urls]
-Homepage = "https://github.com/conda-incubator/conda-lock"
-Repository = "https://github.com/conda-incubator/conda-lock"
-Documentation = "https://conda-incubator.github.io/conda-lock/"
-"Issue Tracker" = "https://github.com/conda-incubator/conda-lock/issues"
+Homepage = "https://github.com/conda/conda-lock"
+Repository = "https://github.com/conda/conda-lock"
+Documentation = "https://conda.github.io/conda-lock/"
+"Issue Tracker" = "https://github.com/conda/conda-lock/issues"
 "Conda-Forge Feedstock" = "https://github.com/conda-forge/conda-lock-feedstock"
 "Anaconda.org" = "https://anaconda.org/conda-forge/conda-lock"
 
@@ -57,7 +53,7 @@ ignore = [
 
 [tool.coverage.run]
 omit = [
-    "conda_lock/vendor/*",
+    "*/conda_lock/_vendor/*",
 ]
 source = [
     "conda_lock/*",
@@ -85,10 +81,10 @@ use_parentheses = true
 known_first_party = "attr"
 
 [tool.pytest.ini_options]
-addopts = "-vrsx -n auto"
+addopts = "-vrsx -n auto --cov=conda_lock --cov-branch --cov-report=xml --cov-report term"
 flake8-max-line-length = 105
 flake8-ignore = ["docs/* ALL", "conda_lock/_version.py ALL"]
-
+filterwarnings = "ignore::DeprecationWarning"
 
 [tool.vendoring]
 destination = "conda_lock/_vendor"

@@ -5,7 +5,17 @@ import pathlib
 import sys
 
 from functools import partial
-from typing import AbstractSet, Any, List, Mapping, Optional, Sequence, Union
+from typing import (
+    AbstractSet,
+    Any,
+    Dict,
+    List,
+    Mapping,
+    Optional,
+    Sequence,
+    Tuple,
+    Union,
+)
 from urllib.parse import urldefrag
 
 
@@ -94,16 +104,25 @@ def parse_poetry_pyproject_toml(
     """
     dependencies: List[Dependency] = []
 
-    categories = {"dependencies": "main", "dev-dependencies": "dev"}
+    categories: Dict[Tuple[str, ...], str] = {
+        ("dependencies",): "main",
+        ("dev-dependencies",): "dev",
+    }
 
     dep_to_extra = {}
     for category, deps in get_in(["tool", "poetry", "extras"], contents, {}).items():
         for dep in deps:
             dep_to_extra[dep] = category
 
+    # Support for poetry dependency groups as specified in
+    # https://python-poetry.org/docs/managing-dependencies/#optional-groups
+    for group_name, _ in get_in(["tool", "poetry", "group"], contents, {}).items():
+        group_key = tuple(["group", group_name, "dependencies"])
+        categories[group_key] = group_name
+
     for section, default_category in categories.items():
         for depname, depattrs in get_in(
-            ["tool", "poetry", section], contents, {}
+            ["tool", "poetry", *section], contents, {}
         ).items():
             category = dep_to_extra.get(depname) or default_category
             optional = category != "main"
@@ -202,6 +221,9 @@ def specification_with_dependencies(
         channels=get_in(["tool", "conda-lock", "channels"], toml_contents, []),
         platforms=get_in(["tool", "conda-lock", "platforms"], toml_contents, []),
         sources=[path],
+        allow_pypi_requests=get_in(
+            ["tool", "conda-lock", "allow-pypi-requests"], toml_contents, True
+        ),
     )
 
 

@@ -39,7 +39,7 @@ override the values in the environment specification. If neither `platforms` nor
 
 ### Categories
 
-You can may wish to split your dependencies into separate files for better
+You may wish to split your dependencies into separate files for better
 organization, e.g. a `environment.yml` for production dependencies and a
 `dev-environment.yml` for development dependencies. You can assign all the
 dependencies parsed from a single file to a category using the (nonstandard)
@@ -62,4 +62,27 @@ These can be used in a [compound specification](/compound_specification) as foll
 conda-lock --file environment.yml --file dev-environment.yml
 ```
 
+### Preprocessing Selectors
+
+You may use preprocessing selectors supported by conda-build `meta.yaml` files to specify platform-specific dependencies.
+
+```{.yaml title="environment.yml"}
+channels:
+  - conda-forge
+dependencies:
+  - python=3.9
+  - pywin32 # [win]
+platforms:
+  - linux-64
+  - win-64
+```
+
+There are currently some limitations to selectors to be aware of:
+- Only OS-specific selectors are currently supported. See Conda's [documentation][selectors] for the list of supported selectors. Selectors related to Python or Numpy versions are not supported
+- conda-lock supports an additional unique selector `osx64`. It is true if the platform is macOS and the Python architecture is 64-bit and uses x86.
+- `not`, `and`, and `or` clauses inside of selectors are not supported
+- Comparison operators (`==`, `>`, `<`, etc) are not supported
+
+
 [envyaml]: https://docs.conda.io/projects/conda/en/latest/user-guide/tasks/manage-environments.html#create-env-file-manually
+[selectors]: https://docs.conda.io/projects/conda-build/en/latest/resources/define-metadata.html#preprocessing-selectors

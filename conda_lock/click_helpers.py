@@ -11,7 +11,7 @@ class OrderedGroup(DefaultGroup):
         self,
         name: Optional[str] = None,
         commands: Optional[Mapping[str, click.Command]] = None,
-        **kwargs: Any
+        **kwargs: Any,
     ):
         super(OrderedGroup, self).__init__(name, commands, **kwargs)
         #: the registered subcommands by their exported names.

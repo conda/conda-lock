@@ -3,6 +3,7 @@ Somewhat hacky solution to create conda lock files.
 """
 
 import datetime
+import importlib.util
 import logging
 import os
 import pathlib
@@ -61,22 +62,22 @@ try:
     PIP_SUPPORT = True
 except ImportError:
     PIP_SUPPORT = False
-from conda_lock.lookup import set_lookup_location
-from conda_lock.src_parser import (
+from conda_lock.lockfile import (
     Dependency,
     GitMeta,
     InputMeta,
     LockedDependency,
     Lockfile,
     LockMeta,
-    LockSpecification,
     MetadataOption,
     TimeMeta,
     UpdateSpecification,
-    aggregate_lock_specs,
+    parse_conda_lock_file,
+    write_conda_lock_file,
 )
+from conda_lock.lookup import set_lookup_location
+from conda_lock.src_parser import LockSpecification, aggregate_lock_specs
 from conda_lock.src_parser.environment_yaml import parse_environment_file
-from conda_lock.src_parser.lockfile import parse_conda_lock_file, write_conda_lock_file
 from conda_lock.src_parser.meta_yaml import parse_meta_yaml_file
 from conda_lock.src_parser.pyproject_toml import parse_pyproject_toml
 from conda_lock.virtual_package import (
@@ -195,7 +196,6 @@ def do_conda_install(
     file: pathlib.Path,
     copy: bool,
 ) -> None:
-
     _conda = partial(_invoke_conda, conda, prefix, name, check_call=True)
 
     kind = "env" if file.name.endswith(".yml") else "explicit"
@@ -252,7 +252,7 @@ def make_lock_spec(
 ) -> LockSpecification:
     """Generate the lockfile specs from a set of input src_files.  If required_categories is set filter out specs that do not match those"""
     lock_specs = parse_source_files(
-        src_files=src_files, platform_overrides=platform_overrides or DEFAULT_PLATFORMS
+        src_files=src_files, platform_overrides=platform_overrides
     )
 
     lock_spec = aggregate_lock_specs(lock_specs)
@@ -742,6 +742,7 @@ def _solve_for_arch(
             conda_locked={dep.name: dep for dep in conda_deps.values()},
             python_version=conda_deps["python"].version,
             platform=platform,
+            allow_pypi_requests=spec.allow_pypi_requests,
         )
     else:
         pip_deps = {}
@@ -796,7 +797,6 @@ def create_lockfile_from_spec(
     locked: Dict[Tuple[str, str, str], LockedDependency] = {}
 
     for platform in platforms or spec.platforms:
-
         deps = _solve_for_arch(
             conda=conda,
             spec=spec,
@@ -823,10 +823,21 @@ def create_lockfile_from_spec(
     else:
         time_metadata = None
 
-    git_metadata = GitMeta.create(
-        metadata_choices=metadata_choices,
-        src_files=spec.sources,
-    )
+    if metadata_choices & {
+        MetadataOption.GitUserEmail,
+        MetadataOption.GitUserName,
+        MetadataOption.GitSha,
+    }:
+        if not importlib.util.find_spec("git"):
+            raise RuntimeError(
+                "The GitPython package is required to read Git metadata."
+            )
+        git_metadata = GitMeta.create(
+            metadata_choices=metadata_choices,
+            src_files=spec.sources,
+        )
+    else:
+        git_metadata = None
 
     if metadata_choices & {MetadataOption.InputSha, MetadataOption.InputMd5}:
         inputs_metadata: Optional[Dict[str, InputMeta]] = {
@@ -857,7 +868,7 @@ def create_lockfile_from_spec(
 
 def parse_source_files(
     src_files: List[pathlib.Path],
-    platform_overrides: Sequence[str],
+    platform_overrides: Optional[Sequence[str]],
 ) -> List[LockSpecification]:
     """
     Parse a sequence of dependency specifications from source files
@@ -867,19 +878,26 @@ def parse_source_files(
     src_files :
         Files to parse for dependencies
     platform_overrides :
-        Target platforms to render meta.yaml files for
+        Target platforms to render environment.yaml and meta.yaml files for
     """
     desired_envs: List[LockSpecification] = []
     for src_file in src_files:
         if src_file.name == "meta.yaml":
             desired_envs.append(
-                parse_meta_yaml_file(src_file, list(platform_overrides))
+                parse_meta_yaml_file(
+                    src_file, list(platform_overrides or DEFAULT_PLATFORMS)
+                )
             )
         elif src_file.name == "pyproject.toml":
             desired_envs.append(parse_pyproject_toml(src_file))
         else:
             desired_envs.append(
-                parse_environment_file(src_file, pip_support=PIP_SUPPORT)
+                parse_environment_file(
+                    src_file,
+                    platform_overrides,
+                    default_platforms=DEFAULT_PLATFORMS,
+                    pip_support=PIP_SUPPORT,
+                )
             )
     return desired_envs
 
