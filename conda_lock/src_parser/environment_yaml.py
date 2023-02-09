@@ -115,7 +115,7 @@ def parse_environment_file(
     given_platforms: Optional[Sequence[str]],
     *,
     default_platforms: List[str] = [],
-    pip_support: bool = False,
+    pip_support: bool = True,
 ) -> LockSpecification:
     """Parse a simple environment-yaml file for dependencies assuming the target platforms.
 
