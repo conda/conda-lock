@@ -3,7 +3,7 @@ import pathlib
 
 from collections import defaultdict
 from textwrap import dedent
-from typing import Collection, Dict, List, Mapping, Optional, Sequence, Set
+from typing import Collection, Dict, List, Mapping, Optional, Sequence, Set, Union
 
 import yaml
 
@@ -68,7 +68,7 @@ def _apply_categories(
         deps: Set[str] = set()
         item = name
         while True:
-            planned_items = extract_planned_items(_seperator_munge_get(planned, item))
+            planned_items = extract_planned_items(seperator_munge_get(planned, item))
 
             for planned_item in planned_items:
                 todo.extend(
@@ -102,7 +102,7 @@ def _apply_categories(
     for dep, root in root_requests.items():
         source = requested[root]
         # try a conda target first
-        targets = _seperator_munge_get(planned, dep)
+        targets = seperator_munge_get(planned, dep)
         if not isinstance(targets, list):
             targets = [targets]
         for target in targets:
