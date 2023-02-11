@@ -587,7 +587,7 @@
 these can only be installed by conda-lock</p>
 <div class="highlight"><pre><span></span><code>conda-lock<span class="w"> </span>--kind<span class="w"> </span>explicit<span class="w"> </span>--platform
 </code></pre></div>
-<p>To install from this lockfile you can aither use conda/mamba directly</p>
+<p>To install from this lockfile you can either use conda/mamba directly</p>
 <div class="highlight"><pre><span></span><code>conda<span class="w"> </span>create<span class="w"> </span>--name<span class="w"> </span>YOURENV<span class="w"> </span>--file<span class="w"> </span>conda-linux-64.lock
 </code></pre></div>
 <p>or</p>
@@ -596,7 +596,7 @@ these can only be installed by conda-lock</p>
 <h2 id="environment-lockfile">Environment lockfile</h2>
 <p>This format is itself a conda <a href="https://docs.conda.io/projects/conda/en/latest/user-guide/tasks/manage-environments.html#create-env-file-manually">environment.yml</a> that can be installed by <code>conda env create</code>.</p>
 <p>This format does have the drawback that using it will invoke a new solve unlike the explicit format.</p>
-<p>To install from this lockfile you can aither use conda/mamba directly</p>
+<p>To install from this lockfile you can either use conda/mamba directly</p>
 <div class="highlight"><pre><span></span><code>conda<span class="w"> </span>env<span class="w"> </span>create<span class="w"> </span>--name<span class="w"> </span>YOURENV<span class="w"> </span>--file<span class="w"> </span>conda-linux-64.lock.yml
 </code></pre></div>
 <p>or</p>
