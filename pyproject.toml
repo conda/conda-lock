@@ -107,5 +107,6 @@ drop = [
 ]
 substitute = [
     # simple substitution patch to fix conda.exports
-    { match = 'conda\.base\.context', replace = 'conda_lock.vendor.conda.base.context' }
+    { match = 'conda\.base\.context', replace = 'conda_lock.vendor.conda.base.context' },
+    { match = '"pypoetry"', replace = '"pypoetry-conda-lock"' }
 ]
