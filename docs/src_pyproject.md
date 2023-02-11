@@ -114,7 +114,7 @@ If your pyproject.toml file contains optional dependencies/extras these can be r
     pgsql = ["psycopg2 ^2.7"]
     ```
 
-These can be referened as follows
+These can be referenced as follows
 
 ```sh
 conda-lock --extra mysql --extra pgsql -f pyproject.toml
