@@ -235,59 +235,6 @@ def to_match_spec(conda_dep_name: str, conda_version: Optional[str]) -> str:
     return spec
 
 
-def parse_pyproject_toml(
-    pyproject_toml: pathlib.Path,
-) -> LockSpecification:
-    with pyproject_toml.open("rb") as fp:
-        contents = toml_load(fp)
-    build_system = get_in(["build-system", "build-backend"], contents)
-    if "dependencies" in get_in(["project", "dynamic"], contents, []):
-        # In this case, the dependencies are not declaratively defined in the
-        # pyproject.toml, so we can't parse them. Instead they are provided dynamically
-        # during hte build process. For example, see
-        # <https://pypi.org/project/hatch-requirements-txt/>.
-        # To properly handle this case, we would need to build the project and then
-        # extract the metadata with something like
-        # <https://pypa-build.readthedocs.io/en/latest/api.html#module-build.util>.
-        # For more details, see <https://peps.python.org/pep-0621/#dynamic>.
-        logging.warning(
-            "conda-lock does not yet support reading dynamic dependencies "
-            "from pyproject.toml. They will be ignored."
-        )
-        pep_621_probe = None
-    else:
-        pep_621_probe = get_in(["project", "dependencies"], contents)
-    pdm_probe = get_in(["tool", "pdm"], contents)
-    parse = parse_poetry_pyproject_toml
-    if pep_621_probe is not None:
-        if pdm_probe is None:
-            parse = partial(
-                parse_requirements_pyproject_toml,
-                prefix=("project",),
-                main_tag="dependencies",
-                optional_tag="optional-dependencies",
-            )
-        else:
-            parse = parse_pdm_pyproject_toml
-    elif build_system.startswith("poetry"):
-        parse = parse_poetry_pyproject_toml
-    elif build_system.startswith("flit"):
-        parse = partial(
-            parse_requirements_pyproject_toml,
-            prefix=("tool", "flit", "metadata"),
-            main_tag="requires",
-            optional_tag="requires-extra",
-        )
-    else:
-        import warnings
-
-        warnings.warn(
-            "Could not detect build-system in pyproject.toml.  Assuming poetry"
-        )
-
-    return parse(pyproject_toml, contents)
-
-
 def parse_python_requirement(
     requirement: str,
     manager: Literal["conda", "pip"] = "conda",
@@ -398,3 +345,56 @@ def parse_pdm_pyproject_toml(
     res.dependencies.extend(dev_reqs)
 
     return res
+
+
+def parse_pyproject_toml(
+    pyproject_toml: pathlib.Path,
+) -> LockSpecification:
+    with pyproject_toml.open("rb") as fp:
+        contents = toml_load(fp)
+    build_system = get_in(["build-system", "build-backend"], contents)
+    if "dependencies" in get_in(["project", "dynamic"], contents, []):
+        # In this case, the dependencies are not declaratively defined in the
+        # pyproject.toml, so we can't parse them. Instead they are provided dynamically
+        # during hte build process. For example, see
+        # <https://pypi.org/project/hatch-requirements-txt/>.
+        # To properly handle this case, we would need to build the project and then
+        # extract the metadata with something like
+        # <https://pypa-build.readthedocs.io/en/latest/api.html#module-build.util>.
+        # For more details, see <https://peps.python.org/pep-0621/#dynamic>.
+        logging.warning(
+            "conda-lock does not yet support reading dynamic dependencies "
+            "from pyproject.toml. They will be ignored."
+        )
+        pep_621_probe = None
+    else:
+        pep_621_probe = get_in(["project", "dependencies"], contents)
+    pdm_probe = get_in(["tool", "pdm"], contents)
+    parse = parse_poetry_pyproject_toml
+    if pep_621_probe is not None:
+        if pdm_probe is None:
+            parse = partial(
+                parse_requirements_pyproject_toml,
+                prefix=("project",),
+                main_tag="dependencies",
+                optional_tag="optional-dependencies",
+            )
+        else:
+            parse = parse_pdm_pyproject_toml
+    elif build_system.startswith("poetry"):
+        parse = parse_poetry_pyproject_toml
+    elif build_system.startswith("flit"):
+        parse = partial(
+            parse_requirements_pyproject_toml,
+            prefix=("tool", "flit", "metadata"),
+            main_tag="requires",
+            optional_tag="requires-extra",
+        )
+    else:
+        import warnings
+
+        warnings.warn(
+            "Could not detect build-system in pyproject.toml.  Assuming poetry"
+        )
+
+    return parse(pyproject_toml, contents)
