@@ -54,7 +54,6 @@ from conda_lock.invoke_conda import (
     is_micromamba,
 )
 from conda_lock.lockfile import (
-    Dependency,
     GitMeta,
     InputMeta,
     LockedDependency,
@@ -69,13 +68,8 @@ from conda_lock.lockfile import (
 from conda_lock.lookup import set_lookup_location
 from conda_lock.models.channel import Channel
 from conda_lock.pypi_solver import solve_pypi
-from conda_lock.src_parser import (
-    LockSpecification,
-    aggregate_lock_specs,
-    parse_source_files,
-)
+from conda_lock.src_parser import LockSpecification, make_lock_spec
 from conda_lock.virtual_package import (
-    FakeRepoData,
     default_virtual_package_repodata,
     virtual_package_repo_from_specification,
 )
@@ -111,8 +105,6 @@ if not (sys.version_info.major >= 3 and sys.version_info.minor >= 6):
     print("conda_lock needs to run under python >=3.6")
     sys.exit(1)
 
-
-DEFAULT_PLATFORMS = ["osx-64", "linux-64", "win-64"]
 
 KIND_EXPLICIT: Literal["explicit"] = "explicit"
 KIND_LOCK: Literal["lock"] = "lock"
@@ -238,44 +230,6 @@ def fn_to_dist_name(fn: str) -> str:
     else:
         raise RuntimeError(f"unexpected file type {fn}", fn)
     return fn
-
-
-def make_lock_spec(
-    *,
-    src_files: List[pathlib.Path],
-    virtual_package_repo: FakeRepoData,
-    channel_overrides: Optional[Sequence[str]] = None,
-    platform_overrides: Optional[Sequence[str]] = None,
-    required_categories: Optional[AbstractSet[str]] = None,
-) -> LockSpecification:
-    """Generate the lockfile specs from a set of input src_files.  If required_categories is set filter out specs that do not match those"""
-    lock_specs = parse_source_files(
-        src_files=src_files, platform_overrides=platform_overrides
-    )
-
-    lock_spec = aggregate_lock_specs(lock_specs)
-    lock_spec.virtual_package_repo = virtual_package_repo
-    lock_spec.channels = (
-        [Channel.from_string(co) for co in channel_overrides]
-        if channel_overrides
-        else lock_spec.channels
-    )
-    lock_spec.platforms = (
-        list(platform_overrides) if platform_overrides else lock_spec.platforms
-    ) or list(DEFAULT_PLATFORMS)
-
-    if required_categories is not None:
-
-        def dep_has_category(d: Dependency, categories: AbstractSet[str]) -> bool:
-            return d.category in categories
-
-        lock_spec.dependencies = [
-            d
-            for d in lock_spec.dependencies
-            if dep_has_category(d, categories=required_categories)
-        ]
-
-    return lock_spec
 
 
 def make_lock_files(

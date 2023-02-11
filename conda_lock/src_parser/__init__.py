@@ -2,21 +2,24 @@ import logging
 import pathlib
 
 from itertools import chain
-from typing import Dict, List, Optional, Sequence, Tuple
+from typing import AbstractSet, Dict, List, Optional, Sequence, Tuple
 
 from conda_lock.common import ordered_union, suffix_union
 from conda_lock.errors import ChannelAggregationError
+from conda_lock.models.channel import Channel
+from conda_lock.src_parser.environment_yaml import parse_environment_file
+from conda_lock.src_parser.meta_yaml import parse_meta_yaml_file
+from conda_lock.src_parser.models import (
+    Dependency,
+    LockSpecification,
+    Selectors,
+    URLDependency,
+    VersionedDependency,
+)
+from conda_lock.src_parser.pyproject_toml import parse_pyproject_toml
+from conda_lock.virtual_package import FakeRepoData
 
-from .environment_yaml import parse_environment_file
-from .meta_yaml import parse_meta_yaml_file
-from .models import Dependency, LockSpecification
-from .models import Selectors as Selectors
-from .models import URLDependency as URLDependency
-from .models import VersionedDependency as VersionedDependency
-from .pyproject_toml import parse_pyproject_toml
 
-
-# TODO: Duplicate, remove in next commit
 DEFAULT_PLATFORMS = ["osx-64", "linux-64", "win-64"]
 
 
@@ -88,3 +91,57 @@ def parse_source_files(
                 )
             )
     return desired_envs
+
+
+def make_lock_spec(
+    *,
+    src_files: List[pathlib.Path],
+    virtual_package_repo: FakeRepoData,
+    channel_overrides: Optional[Sequence[str]] = None,
+    platform_overrides: Optional[Sequence[str]] = None,
+    required_categories: Optional[AbstractSet[str]] = None,
+) -> LockSpecification:
+    """Generate the lockfile specs from a set of input src_files.  If required_categories is set filter out specs that do not match those"""
+    lock_specs = parse_source_files(
+        src_files=src_files, platform_overrides=platform_overrides
+    )
+
+    lock_spec = aggregate_lock_specs(lock_specs)
+    lock_spec.virtual_package_repo = virtual_package_repo
+    lock_spec.channels = (
+        [Channel.from_string(co) for co in channel_overrides]
+        if channel_overrides
+        else lock_spec.channels
+    )
+    lock_spec.platforms = (
+        list(platform_overrides) if platform_overrides else lock_spec.platforms
+    ) or list(DEFAULT_PLATFORMS)
+
+    if required_categories is not None:
+
+        def dep_has_category(d: Dependency, categories: AbstractSet[str]) -> bool:
+            return d.category in categories
+
+        lock_spec.dependencies = [
+            d
+            for d in lock_spec.dependencies
+            if dep_has_category(d, categories=required_categories)
+        ]
+
+    return lock_spec
+
+
+__all__ = [
+    "Dependency",
+    "LockSpecification",
+    "Selectors",
+    "URLDependency",
+    "VersionedDependency",
+    "parse_environment_file",
+    "parse_meta_yaml_file",
+    "parse_pyproject_toml",
+    "DEFAULT_PLATFORMS",
+    "aggregate_lock_specs",
+    "parse_source_files",
+    "make_lock_spec",
+]
