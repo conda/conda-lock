@@ -138,7 +138,7 @@ When generating lockfiles that make use of extras it is recommended to make use 
 
 ### Dependency groups
 
-conda-lock can map (dependency groups)[https://python-poetry.org/docs/master/managing-dependencies/#dependency-groups] to
+conda-lock can map [dependency groups](https://python-poetry.org/docs/master/managing-dependencies/#dependency-groups) to
 categories similar to how extras are handled.
 
 ```{.toml title="pyproject.toml"}
