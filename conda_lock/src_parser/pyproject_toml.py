@@ -28,7 +28,7 @@ from typing_extensions import Literal
 
 from conda_lock.common import get_in
 from conda_lock.lookup import get_forward_lookup as get_lookup
-from conda_lock.src_parser import (
+from conda_lock.src_parser.models import (
     Dependency,
     LockSpecification,
     URLDependency,
