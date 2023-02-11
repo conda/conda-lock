@@ -267,8 +267,10 @@ def _reconstruct_fetch_actions(
         # actions, and so can be used to fill out the FETCH section.
         # Explicitly copy key-by-key to make missing keys obvious, should
         # this change in the future.
+        print(f"{link_actions=}, {fetch_actions=}, {link_only_names=}")
         for link_pkg_name in link_only_names:
             item = cast(Dict[str, Any], link_actions[link_pkg_name])
+            print(f"{link_pkg_name=}, {item=}")
             repodata = {
                 "channel": item["channel"],
                 "constrains": item.get("constrains"),
