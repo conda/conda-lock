@@ -69,10 +69,11 @@ from conda_lock.lockfile import (
 from conda_lock.lookup import set_lookup_location
 from conda_lock.models.channel import Channel
 from conda_lock.pypi_solver import solve_pypi
-from conda_lock.src_parser import LockSpecification, aggregate_lock_specs
-from conda_lock.src_parser.environment_yaml import parse_environment_file
-from conda_lock.src_parser.meta_yaml import parse_meta_yaml_file
-from conda_lock.src_parser.pyproject_toml import parse_pyproject_toml
+from conda_lock.src_parser import (
+    LockSpecification,
+    aggregate_lock_specs,
+    parse_source_files,
+)
 from conda_lock.virtual_package import (
     FakeRepoData,
     default_virtual_package_repodata,
@@ -859,41 +860,6 @@ def create_lockfile_from_spec(
             custom_metadata=custom_metadata,
         ),
     )
-
-
-def parse_source_files(
-    src_files: List[pathlib.Path],
-    platform_overrides: Optional[Sequence[str]],
-) -> List[LockSpecification]:
-    """
-    Parse a sequence of dependency specifications from source files
-
-    Parameters
-    ----------
-    src_files :
-        Files to parse for dependencies
-    platform_overrides :
-        Target platforms to render environment.yaml and meta.yaml files for
-    """
-    desired_envs: List[LockSpecification] = []
-    for src_file in src_files:
-        if src_file.name == "meta.yaml":
-            desired_envs.append(
-                parse_meta_yaml_file(
-                    src_file, list(platform_overrides or DEFAULT_PLATFORMS)
-                )
-            )
-        elif src_file.name == "pyproject.toml":
-            desired_envs.append(parse_pyproject_toml(src_file))
-        else:
-            desired_envs.append(
-                parse_environment_file(
-                    src_file,
-                    platform_overrides,
-                    default_platforms=DEFAULT_PLATFORMS,
-                )
-            )
-    return desired_envs
 
 
 def _add_auth_to_line(line: str, auth: Dict[str, str]) -> str:
