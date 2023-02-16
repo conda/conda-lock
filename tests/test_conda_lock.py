@@ -313,7 +313,7 @@ def test_lock_poetry_ibis(
 
 
 def test_parse_environment_file(gdal_environment: Path):
-    res = parse_environment_file(gdal_environment, DEFAULT_PLATFORMS, pip_support=True)
+    res = parse_environment_file(gdal_environment, DEFAULT_PLATFORMS)
     assert all(
         x in res.dependencies
         for x in [
@@ -343,7 +343,7 @@ def test_parse_environment_file(gdal_environment: Path):
 
 
 def test_parse_environment_file_with_pip(pip_environment: Path):
-    res = parse_environment_file(pip_environment, DEFAULT_PLATFORMS, pip_support=True)
+    res = parse_environment_file(pip_environment, DEFAULT_PLATFORMS)
     assert [dep for dep in res.dependencies if dep.manager == "pip"] == [
         VersionedDependency(
             name="requests-toolbelt",
@@ -357,7 +357,7 @@ def test_parse_environment_file_with_pip(pip_environment: Path):
 
 
 def test_parse_env_file_with_filters_no_args(filter_conda_environment: Path):
-    res = parse_environment_file(filter_conda_environment, None, pip_support=False)
+    res = parse_environment_file(filter_conda_environment, None)
     assert all(x in res.platforms for x in ["osx-arm64", "osx-64", "linux-64"])
     assert res.channels == [Channel.from_string("conda-forge")]
 
@@ -392,9 +392,7 @@ def test_parse_env_file_with_filters_no_args(filter_conda_environment: Path):
 
 
 def test_parse_env_file_with_filters_defaults(filter_conda_environment: Path):
-    res = parse_environment_file(
-        filter_conda_environment, DEFAULT_PLATFORMS, pip_support=False
-    )
+    res = parse_environment_file(filter_conda_environment, DEFAULT_PLATFORMS)
     assert all(x in res.platforms for x in DEFAULT_PLATFORMS)
     assert res.channels == [Channel.from_string("conda-forge")]
 

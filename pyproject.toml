@@ -53,7 +53,7 @@ ignore = [
 
 [tool.coverage.run]
 omit = [
-    "conda_lock/vendor/*",
+    "*/conda_lock/_vendor/*",
 ]
 source = [
     "conda_lock/*",
@@ -84,7 +84,7 @@ known_first_party = "attr"
 addopts = "-vrsx -n auto"
 flake8-max-line-length = 105
 flake8-ignore = ["docs/* ALL", "conda_lock/_version.py ALL"]
-
+filterwarnings = "ignore::DeprecationWarning"
 
 [tool.vendoring]
 destination = "conda_lock/_vendor"
@@ -107,5 +107,6 @@ drop = [
 ]
 substitute = [
     # simple substitution patch to fix conda.exports
-    { match = 'conda\.base\.context', replace = 'conda_lock.vendor.conda.base.context' }
+    { match = 'conda\.base\.context', replace = 'conda_lock.vendor.conda.base.context' },
+    { match = '"pypoetry"', replace = '"pypoetry-conda-lock"' }
 ]
