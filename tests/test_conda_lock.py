@@ -1391,6 +1391,14 @@ def test_install(
             "http://user:password@conda.mychannel.cloud/mypackage",
             "http://conda.mychannel.cloud/mypackage",
         ),
+        (
+            "# pip mypackage @ https://username1:password1@pypi.mychannel.cloud/simple",
+            "# pip mypackage @ https://pypi.mychannel.cloud/simple",
+        ),
+        (
+            "# pip mypackage @ https://pypi.mychannel.cloud/simple",
+            "# pip mypackage @ https://pypi.mychannel.cloud/simple",
+        ),
     ),
 )
 def test__strip_auth_from_line(line: str, stripped: str):
@@ -1402,6 +1410,10 @@ def test__strip_auth_from_line(line: str, stripped: str):
     (
         ("https://conda.mychannel.cloud/mypackage", "conda.mychannel.cloud"),
         ("http://conda.mychannel.cloud/mypackage", "conda.mychannel.cloud"),
+        (
+            "# pip mypackage @ https://pypi.mychannel.cloud/simple",
+            "pypi.mychannel.cloud",
+        ),
     ),
 )
 def test__extract_domain(line: str, stripped: str):
@@ -1461,6 +1473,22 @@ def test__strip_auth_from_lockfile(lockfile: str, stripped_lockfile: str):
             },
             "https://username1:password1@conda.mychannel.cloud/channel1/mypackage",
         ),
+        (
+            "# pip mypackage @ https://pypi.mychannel.cloud/simple",
+            {
+                "pypi.mychannel.cloud": "username:password",
+                "pypi.mychannel.cloud/simple": "username1:password1",
+            },
+            "# pip mypackage @ https://username1:password1@pypi.mychannel.cloud/simple",
+        ),
+        (
+            "# pip mypackage @ https://pypi.otherchannel.cloud/simple",
+            {
+                "pypi.mychannel.cloud": "username:password",
+                "pypi.mychannel.cloud/simple": "username1:password1",
+            },
+            "# pip mypackage @ https://pypi.otherchannel.cloud/simple",
+        ),
     ),
 )
 def test__add_auth_to_line(line: str, auth: Dict[str, str], line_with_auth: str):
@@ -1472,6 +1500,7 @@ def auth_():
     return {
         "a.mychannel.cloud": "username_a:password_a",
         "c.mychannel.cloud": "username_c:password_c",
+        "d.mychannel.cloud": "username_d:password_d",
     }
 
 

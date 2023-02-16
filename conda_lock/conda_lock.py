@@ -83,11 +83,15 @@ from conda_lock.virtual_package import (
 logger = logging.getLogger(__name__)
 DEFAULT_FILES = [pathlib.Path("environment.yml")]
 
-# Captures basic auth credentials, if they exists, in the second capture group.
-AUTH_PATTERN = re.compile(r"^(https?:\/\/)(.*:.*@)?(.*)")
+# Captures basic auth credentials, if they exists, in the third capture group.
+AUTH_PATTERN = re.compile(r"^(# pip .* @ )?(https?:\/\/)(.*:.*@)?(.*)")
 
-# Captures the domain in the second group.
-DOMAIN_PATTERN = re.compile(r"^(https?:\/\/)?([^\/]+)(.*)")
+# Do not substitute in comments, but do substitute in pip installable packages
+# with the pattern: # pip package @ url.
+PKG_PATTERN = re.compile(r"(^[^#@].*|^# pip .*)")
+
+# Captures the domain in the third group.
+DOMAIN_PATTERN = re.compile(r"^(# pip .* @ )?(https?:\/\/)?([^\/]+)(.*)")
 
 # Captures the platform in the first group.
 PLATFORM_PATTERN = re.compile(r"^# platform: (.*)$")
@@ -904,7 +908,7 @@ def _add_auth_to_line(line: str, auth: Dict[str, str]) -> str:
 
 def _add_auth_to_lockfile(lockfile: str, auth: Dict[str, str]) -> str:
     lockfile_with_auth = "\n".join(
-        _add_auth_to_line(line, auth) if line[0] not in ("#", "@") else line
+        _add_auth_to_line(line, auth) if PKG_PATTERN.match(line) else line
         for line in lockfile.strip().split("\n")
     )
     if lockfile.endswith("\n"):
@@ -920,17 +924,17 @@ def _add_auth(lockfile: str, auth: Dict[str, str]) -> Iterator[pathlib.Path]:
 
 
 def _strip_auth_from_line(line: str) -> str:
-    return AUTH_PATTERN.sub(r"\1\3", line)
+    return AUTH_PATTERN.sub(r"\1\2\4", line)
 
 
 def _extract_domain(line: str) -> str:
-    return DOMAIN_PATTERN.sub(r"\2", line)
+    return DOMAIN_PATTERN.sub(r"\3", line)
 
 
 def _strip_auth_from_lockfile(lockfile: str) -> str:
     lockfile_lines = lockfile.strip().split("\n")
     stripped_lockfile_lines = tuple(
-        _strip_auth_from_line(line) if line[0] not in ("#", "@") else line
+        _strip_auth_from_line(line) if PKG_PATTERN.match(line) else line
         for line in lockfile_lines
     )
     stripped_domains = sorted(
