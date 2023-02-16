@@ -1393,6 +1393,10 @@ def test_install(
             "http://user:password@conda.mychannel.cloud/mypackage",
             "http://conda.mychannel.cloud/mypackage",
         ),
+        (
+            "# pip mypackage @ https://username1:password1@pypi.mychannel.cloud/simple",
+            "# pip mypackage @ https://pypi.mychannel.cloud/simple",
+        ),
     ),
 )
 def test__strip_auth_from_line(line: str, stripped: str):
@@ -1404,6 +1408,10 @@ def test__strip_auth_from_line(line: str, stripped: str):
     (
         ("https://conda.mychannel.cloud/mypackage", "conda.mychannel.cloud"),
         ("http://conda.mychannel.cloud/mypackage", "conda.mychannel.cloud"),
+        (
+            "# pip mypackage @ https://pypi.mychannel.cloud/simple",
+            "pypi.mychannel.cloud",
+        ),
     ),
 )
 def test__extract_domain(line: str, stripped: str):
@@ -1462,6 +1470,14 @@ def test__strip_auth_from_lockfile(lockfile: str, stripped_lockfile: str):
                 "conda.mychannel.cloud/channel1": "username1:password1",
             },
             "https://username1:password1@conda.mychannel.cloud/channel1/mypackage",
+        ),
+        (
+            "# pip mypackage @ https://pypi.mychannel.cloud/simple",
+            {
+                "pypi.mychannel.cloud": "username:password",
+                "pypi.mychannel.cloud/simple": "username1:password1",
+            },
+            "# pip mypackage @ https://username1:password1@pypi.mychannel.cloud/simple",
         ),
     ),
 )
