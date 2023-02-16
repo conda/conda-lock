@@ -16,7 +16,7 @@ dependencies:
 
 ## Extensions
 
-conda-lock makes use of a number of non-standard extensions to the format in ordere to enable additional functionality.
+conda-lock makes use of a number of non-standard extensions to the format in order to enable additional functionality.
 
 ### Platform specification
 

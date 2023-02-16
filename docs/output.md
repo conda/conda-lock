@@ -42,7 +42,7 @@ these can only be installed by conda-lock
 conda-lock --kind explicit --platform
 ```
 
-To install from this lockfile you can aither use conda/mamba directly
+To install from this lockfile you can either use conda/mamba directly
 
 ```shell
 conda create --name YOURENV --file conda-linux-64.lock
@@ -60,7 +60,7 @@ This format is itself a conda [environment.yml][envyaml] that can be installed b
 
 This format does have the drawback that using it will invoke a new solve unlike the explicit format.
 
-To install from this lockfile you can aither use conda/mamba directly
+To install from this lockfile you can either use conda/mamba directly
 
 ```shell
 conda env create --name YOURENV --file conda-linux-64.lock.yml

@@ -4,6 +4,7 @@
 [![PyPI](https://img.shields.io/pypi/v/conda-lock?style=for-the-badge)](https://pypi.org/project/conda-lock/)
 [![Conda](https://img.shields.io/conda/v/conda-forge/conda-lock?style=for-the-badge)](https://github.com/conda-forge/conda-lock-feedstock)
 [![pre-commit](https://img.shields.io/badge/pre--commit-enabled-brightgreen?style=for-the-badge)](https://results.pre-commit.ci/latest/github/conda/conda-lock/main)
+[![codecov](https://img.shields.io/codecov/c/github/conda/conda-lock/main?style=for-the-badge)](https://codecov.io/gh/conda/conda-lock)
 
 Conda lock is a lightweight library that can be used to generate fully reproducible lock files for [conda][conda]
 environments.
@@ -152,8 +153,7 @@ The default category is `main`.
 ### pip support
 
 `conda-lock` can also lock the `dependencies.pip` section of
-[environment.yml][envyaml], using [Poetry's][poetry] dependency solver, if
-installed with the `pip_support` extra.
+[environment.yml][envyaml], using a vendored copy of [Poetry's][poetry] dependency solver.
 
 ### private pip repositories
 Right now `conda-lock` only supports [legacy](https://warehouse.pypa.io/api-reference/legacy.html) pypi repos with basic auth. Most self-hosted repositories like Nexus, Artifactory etc. use this. To use this feature, add your private repo into Poetry's config _including_ the basic auth in the url:

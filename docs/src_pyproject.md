@@ -114,7 +114,7 @@ If your pyproject.toml file contains optional dependencies/extras these can be r
     pgsql = ["psycopg2 ^2.7"]
     ```
 
-These can be referened as follows
+These can be referenced as follows
 
 ```sh
 conda-lock --extra mysql --extra pgsql -f pyproject.toml
@@ -138,7 +138,7 @@ When generating lockfiles that make use of extras it is recommended to make use 
 
 ### Dependency groups
 
-conda-lock can map (dependency groups)[https://python-poetry.org/docs/master/managing-dependencies/#dependency-groups] to
+conda-lock can map [dependency groups](https://python-poetry.org/docs/master/managing-dependencies/#dependency-groups) to
 categories similar to how extras are handled.
 
 ```{.toml title="pyproject.toml"}

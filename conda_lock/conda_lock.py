@@ -53,15 +53,6 @@ from conda_lock.invoke_conda import (
     determine_conda_executable,
     is_micromamba,
 )
-from conda_lock.models.channel import Channel
-
-
-try:
-    from conda_lock.pypi_solver import solve_pypi
-
-    PIP_SUPPORT = True
-except ImportError:
-    PIP_SUPPORT = False
 from conda_lock.lockfile import (
     Dependency,
     GitMeta,
@@ -76,6 +67,8 @@ from conda_lock.lockfile import (
     write_conda_lock_file,
 )
 from conda_lock.lookup import set_lookup_location
+from conda_lock.models.channel import Channel
+from conda_lock.pypi_solver import solve_pypi
 from conda_lock.src_parser import LockSpecification, aggregate_lock_specs
 from conda_lock.src_parser.environment_yaml import parse_environment_file
 from conda_lock.src_parser.meta_yaml import parse_meta_yaml_file
@@ -733,8 +726,6 @@ def _solve_for_arch(
     )
 
     if requested_deps_by_name["pip"]:
-        if not PIP_SUPPORT:
-            raise ValueError("pip support is not enabled")
         if "python" not in conda_deps:
             raise ValueError("Got pip specs without Python")
         pip_deps = solve_pypi(
@@ -900,7 +891,6 @@ def parse_source_files(
                     src_file,
                     platform_overrides,
                     default_platforms=DEFAULT_PLATFORMS,
-                    pip_support=PIP_SUPPORT,
                 )
             )
     return desired_envs
