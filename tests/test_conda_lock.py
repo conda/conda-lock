@@ -1395,6 +1395,10 @@ def test_install(
             "# pip mypackage @ https://username1:password1@pypi.mychannel.cloud/simple",
             "# pip mypackage @ https://pypi.mychannel.cloud/simple",
         ),
+        (
+            "# pip mypackage @ https://pypi.mychannel.cloud/simple",
+            "# pip mypackage @ https://pypi.mychannel.cloud/simple",
+        ),
     ),
 )
 def test__strip_auth_from_line(line: str, stripped: str):
@@ -1476,6 +1480,14 @@ def test__strip_auth_from_lockfile(lockfile: str, stripped_lockfile: str):
                 "pypi.mychannel.cloud/simple": "username1:password1",
             },
             "# pip mypackage @ https://username1:password1@pypi.mychannel.cloud/simple",
+        ),
+        (
+            "# pip mypackage @ https://pypi.otherchannel.cloud/simple",
+            {
+                "pypi.mychannel.cloud": "username:password",
+                "pypi.mychannel.cloud/simple": "username1:password1",
+            },
+            "# pip mypackage @ https://pypi.otherchannel.cloud/simple",
         ),
     ),
 )
