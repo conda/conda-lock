@@ -221,6 +221,9 @@ def specification_with_dependencies(
         channels=get_in(["tool", "conda-lock", "channels"], toml_contents, []),
         platforms=get_in(["tool", "conda-lock", "platforms"], toml_contents, []),
         sources=[path],
+        allow_pypi_requests=get_in(
+            ["tool", "conda-lock", "allow-pypi-requests"], toml_contents, True
+        ),
     )
 
 

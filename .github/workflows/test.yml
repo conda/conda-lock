@@ -3,6 +3,17 @@ name: test
 on:
   pull_request:
   push:
+    branches:
+      - main
+
+concurrency:
+  # Concurrency group that uses the workflow name and PR number if available
+  # or commit SHA as a fallback. If a new build is triggered under that
+  # concurrency group while a previous build is running it will be canceled.
+  # Repeated pushes to a PR will cancel all previous builds, while multiple
+  # merges to main will not cancel.
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}
+  cancel-in-progress: true
 
 jobs:
   test-windows:
@@ -34,11 +45,14 @@ jobs:
       - name: run-test
         run: |
           conda activate test
+          copy pyproject.toml "%RUNNER_TEMP%"
           Xcopy /E /I tests "%RUNNER_TEMP%\\tests"
           pushd "${RUNNER_TEMP}"
           set TMPDIR="%RUNNER_TEMP%"
           dir
-          pytest -n auto -vrsx --cov=conda_lock tests
+          pytest --cov=conda_lock --cov-branch --cov-report=xml --cov-report=term tests
+          copy coverage.xml %GITHUB_WORKSPACE%
+      - uses: codecov/codecov-action@v3
 
   test:
     runs-on: ${{ matrix.os }}
@@ -46,7 +60,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ ubuntu-latest, macos-latest ]
-        python-version: [ '3.7', '3.8', "3.10" ]
+        python-version: [ "3.8", "3.11" ]
     defaults:
       run:
         shell: bash -l {0}
@@ -85,13 +99,16 @@ jobs:
         shell: bash -l {0}
         run: |
           conda activate test
+          cp pyproject.toml "${RUNNER_TEMP}/"
           cp -a tests "${RUNNER_TEMP}/"
           pushd "${RUNNER_TEMP}"
           export TMPDIR="${RUNNER_TEMP}"
           ls -lah
           set -x
           which pytest
-          pytest -n auto -vrsx --cov=conda_lock tests
+          pytest --cov=conda_lock --cov-branch --cov-report=xml --cov-report=term tests
+          cp coverage.xml "${GITHUB_WORKSPACE}"
+      - uses: codecov/codecov-action@v3
 
       - name: test-gdal
         shell: bash -l {0}

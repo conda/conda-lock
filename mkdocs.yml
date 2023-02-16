@@ -1,5 +1,5 @@
 site_name: conda-lock
-repo_url: https://github.com/conda-incubator/conda-lock
+repo_url: https://github.com/conda/conda-lock
 theme:
   name: material
   features:
@@ -62,4 +62,4 @@ extra:
         - mariusvniekerk
   social:
     - icon: fontawesome/brands/github
-      link: https://github.com/conda-incubator/conda-lock
+      link: https://github.com/conda/conda-lock

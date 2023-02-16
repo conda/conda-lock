@@ -53,31 +53,24 @@ from conda_lock.invoke_conda import (
     determine_conda_executable,
     is_micromamba,
 )
-from conda_lock.models.channel import Channel
-
-
-try:
-    from conda_lock.pypi_solver import solve_pypi
-
-    PIP_SUPPORT = True
-except ImportError:
-    PIP_SUPPORT = False
-from conda_lock.lookup import set_lookup_location
-from conda_lock.src_parser import (
+from conda_lock.lockfile import (
     Dependency,
     GitMeta,
     InputMeta,
     LockedDependency,
     Lockfile,
     LockMeta,
-    LockSpecification,
     MetadataOption,
     TimeMeta,
     UpdateSpecification,
-    aggregate_lock_specs,
+    parse_conda_lock_file,
+    write_conda_lock_file,
 )
+from conda_lock.lookup import set_lookup_location
+from conda_lock.models.channel import Channel
+from conda_lock.pypi_solver import solve_pypi
+from conda_lock.src_parser import LockSpecification, aggregate_lock_specs
 from conda_lock.src_parser.environment_yaml import parse_environment_file
-from conda_lock.src_parser.lockfile import parse_conda_lock_file, write_conda_lock_file
 from conda_lock.src_parser.meta_yaml import parse_meta_yaml_file
 from conda_lock.src_parser.pyproject_toml import parse_pyproject_toml
 from conda_lock.virtual_package import (
@@ -90,11 +83,15 @@ from conda_lock.virtual_package import (
 logger = logging.getLogger(__name__)
 DEFAULT_FILES = [pathlib.Path("environment.yml")]
 
-# Captures basic auth credentials, if they exists, in the second capture group.
-AUTH_PATTERN = re.compile(r"^(https?:\/\/)(.*:.*@)?(.*)")
+# Captures basic auth credentials, if they exists, in the third capture group.
+AUTH_PATTERN = re.compile(r"^(# pip .* @ )?(https?:\/\/)(.*:.*@)?(.*)")
 
-# Captures the domain in the second group.
-DOMAIN_PATTERN = re.compile(r"^(https?:\/\/)?([^\/]+)(.*)")
+# Do not substitute in comments, but do substitute in pip installable packages
+# with the pattern: # pip package @ url.
+PKG_PATTERN = re.compile(r"(^[^#@].*|^# pip .*)")
+
+# Captures the domain in the third group.
+DOMAIN_PATTERN = re.compile(r"^(# pip .* @ )?(https?:\/\/)?([^\/]+)(.*)")
 
 # Captures the platform in the first group.
 PLATFORM_PATTERN = re.compile(r"^# platform: (.*)$")
@@ -196,7 +193,6 @@ def do_conda_install(
     file: pathlib.Path,
     copy: bool,
 ) -> None:
-
     _conda = partial(_invoke_conda, conda, prefix, name, check_call=True)
 
     kind = "env" if file.name.endswith(".yml") else "explicit"
@@ -730,8 +726,6 @@ def _solve_for_arch(
     )
 
     if requested_deps_by_name["pip"]:
-        if not PIP_SUPPORT:
-            raise ValueError("pip support is not enabled")
         if "python" not in conda_deps:
             raise ValueError("Got pip specs without Python")
         pip_deps = solve_pypi(
@@ -743,6 +737,7 @@ def _solve_for_arch(
             conda_locked={dep.name: dep for dep in conda_deps.values()},
             python_version=conda_deps["python"].version,
             platform=platform,
+            allow_pypi_requests=spec.allow_pypi_requests,
         )
     else:
         pip_deps = {}
@@ -797,7 +792,6 @@ def create_lockfile_from_spec(
     locked: Dict[Tuple[str, str, str], LockedDependency] = {}
 
     for platform in platforms or spec.platforms:
-
         deps = _solve_for_arch(
             conda=conda,
             spec=spec,
@@ -897,7 +891,6 @@ def parse_source_files(
                     src_file,
                     platform_overrides,
                     default_platforms=DEFAULT_PLATFORMS,
-                    pip_support=PIP_SUPPORT,
                 )
             )
     return desired_envs
@@ -915,7 +908,7 @@ def _add_auth_to_line(line: str, auth: Dict[str, str]) -> str:
 
 def _add_auth_to_lockfile(lockfile: str, auth: Dict[str, str]) -> str:
     lockfile_with_auth = "\n".join(
-        _add_auth_to_line(line, auth) if line[0] not in ("#", "@") else line
+        _add_auth_to_line(line, auth) if PKG_PATTERN.match(line) else line
         for line in lockfile.strip().split("\n")
     )
     if lockfile.endswith("\n"):
@@ -931,17 +924,17 @@ def _add_auth(lockfile: str, auth: Dict[str, str]) -> Iterator[pathlib.Path]:
 
 
 def _strip_auth_from_line(line: str) -> str:
-    return AUTH_PATTERN.sub(r"\1\3", line)
+    return AUTH_PATTERN.sub(r"\1\2\4", line)
 
 
 def _extract_domain(line: str) -> str:
-    return DOMAIN_PATTERN.sub(r"\2", line)
+    return DOMAIN_PATTERN.sub(r"\3", line)
 
 
 def _strip_auth_from_lockfile(lockfile: str) -> str:
     lockfile_lines = lockfile.strip().split("\n")
     stripped_lockfile_lines = tuple(
-        _strip_auth_from_line(line) if line[0] not in ("#", "@") else line
+        _strip_auth_from_line(line) if PKG_PATTERN.match(line) else line
         for line in lockfile_lines
     )
     stripped_domains = sorted(

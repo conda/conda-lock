@@ -5,8 +5,7 @@ conda-lock has experimental support to allow locking mixed conda/pip environment
 ## Usage with environment.yaml
 
 `conda-lock` can lock the `dependencies.pip` section of
-[environment.yml](https://docs.conda.io/projects/conda/en/latest/user-guide/tasks/manage-environments.html#create-env-file-manually), using [Poetry's](https://python-poetry.org) dependency solver, if
-installed with the `pip_support` extra.
+[environment.yml](https://docs.conda.io/projects/conda/en/latest/user-guide/tasks/manage-environments.html#create-env-file-manually), using a vendored copy of [Poetry's](https://python-poetry.org) dependency solver.
 
 ```{.yaml title="environment.yml"}
 channels:
