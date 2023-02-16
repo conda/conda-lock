@@ -90,14 +90,14 @@ from conda_lock.virtual_package import (
 logger = logging.getLogger(__name__)
 DEFAULT_FILES = [pathlib.Path("environment.yml")]
 
-# Captures basic auth credentials, if they exists, in the second capture group.
+# Captures basic auth credentials, if they exists, in the third capture group.
 AUTH_PATTERN = re.compile(r"^(# pip .* @ )?(https?:\/\/)(.*:.*@)?(.*)")
 
 # Do not substitute in comments, but do substitute in pip installable packages
 # with the pattern: # pip package @ url.
 PKG_PATTERN = re.compile(r"(^[^#@].*|^# pip .*)")
 
-# Captures the domain in the second group.
+# Captures the domain in the third group.
 DOMAIN_PATTERN = re.compile(r"^(# pip .* @ )?(https?:\/\/)?([^\/]+)(.*)")
 
 # Captures the platform in the first group.
