@@ -81,7 +81,7 @@ use_parentheses = true
 known_first_party = "attr"
 
 [tool.pytest.ini_options]
-addopts = "-vrsx -n auto --cov=conda_lock --cov-branch --cov-report=xml --cov-report term"
+addopts = "-vrsx -n auto"
 flake8-max-line-length = 105
 flake8-ignore = ["docs/* ALL", "conda_lock/_version.py ALL"]
 filterwarnings = "ignore::DeprecationWarning"

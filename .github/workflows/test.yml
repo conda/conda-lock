@@ -50,7 +50,7 @@ jobs:
           pushd "${RUNNER_TEMP}"
           set TMPDIR="%RUNNER_TEMP%"
           dir
-          pytest tests
+          pytest --cov=conda_lock --cov-branch --cov-report=xml --cov-report=term tests
           copy coverage.xml %GITHUB_WORKSPACE%
       - uses: codecov/codecov-action@v3
 
@@ -106,7 +106,7 @@ jobs:
           ls -lah
           set -x
           which pytest
-          pytest tests
+          pytest --cov=conda_lock --cov-branch --cov-report=xml --cov-report=term tests
           cp coverage.xml "${GITHUB_WORKSPACE}"
       - uses: codecov/codecov-action@v3
 
