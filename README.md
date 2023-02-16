@@ -156,7 +156,33 @@ The default category is `main`.
 [environment.yml][envyaml], using a vendored copy of [Poetry's][poetry] dependency solver.
 
 ### private pip repositories
-Right now `conda-lock` only supports [legacy](https://warehouse.pypa.io/api-reference/legacy.html) pypi repos with basic auth. Most self-hosted repositories like Nexus, Artifactory etc. use this. To use this feature, add your private repo into Poetry's config _including_ the basic auth in the url:
+
+`conda-lock` currently only supports [legacy](https://warehouse.pypa.io/api-reference/legacy.html) pypi repos with basic auth. Most self-hosted repositories like Nexus, Artifactory etc. use this.
+
+#### pyproject.toml: via poetry sources
+
+conda-lock can fetch packages from (private) python indices using [poetry sources](https://python-poetry.org/docs/repositories/#project-configuration) in the pyproject.toml:
+
+```toml
+[[tool.poetry.source]]
+name = "my_pypi"
+url = "https://pypi.python.org/simple"
+default = false
+secondary = false
+```
+
+You need to manually assign the source to the dependent with the `source` keyword.
+
+```toml
+[tool.poetry.dependencies]
+numpy = {version="*", source="my_pypi"}
+```
+
+Should your source require login credentials you can provide them via poetry commandline: `poetry config http-basic.<source-name> <username> <password>`.
+
+#### private pypi repos without pyproject.toml
+
+For sources other than `pyprojoect.toml` add your private repo into Poetry's config _including_ the basic auth in the url:
 
 ```bash
 poetry config repositories.foo https://username:password@foo.repo/simple/

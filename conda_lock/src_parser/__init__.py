@@ -45,10 +45,21 @@ class _BaseDependency(StrictModel):
     selectors: Selectors = Selectors()
 
 
+class PoetrySource(StrictModel):
+    class Config:
+        frozen = True
+
+    name: str
+    url: str
+    default: bool = False
+    secondary: bool = False
+
+
 class VersionedDependency(_BaseDependency):
     version: str
     build: Optional[str] = None
     conda_channel: Optional[str] = None
+    poetry_source: Optional[str] = None
 
 
 class URLDependency(_BaseDependency):
@@ -72,6 +83,7 @@ class LockSpecification(BaseModel):
     sources: List[pathlib.Path]
     virtual_package_repo: Optional[FakeRepoData] = None
     allow_pypi_requests: bool = True
+    poetry_repositories: Optional[List[PoetrySource]] = None
 
     def content_hash(self) -> Dict[str, str]:
         return {
@@ -135,4 +147,8 @@ def aggregate_lock_specs(
         # uniquify metadata, preserving order
         platforms=ordered_union(lock_spec.platforms or [] for lock_spec in lock_specs),
         sources=ordered_union(lock_spec.sources or [] for lock_spec in lock_specs),
+        poetry_repositories=ordered_union(
+            lock_spec.poetry_repositories or [] for lock_spec in lock_specs
+        )
+        or None,
     )

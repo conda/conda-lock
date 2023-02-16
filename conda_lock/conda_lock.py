@@ -733,6 +733,7 @@ def _solve_for_arch(
             conda_locked={dep.name: dep for dep in conda_deps.values()},
             python_version=conda_deps["python"].version,
             platform=platform,
+            poetry_repositories=spec.poetry_repositories,
             allow_pypi_requests=spec.allow_pypi_requests,
         )
     else:

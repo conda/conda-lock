@@ -16,6 +16,7 @@ from conda_lock._vendor.poetry.core.packages import (
     ProjectPackage as PoetryProjectPackage,
 )
 from conda_lock._vendor.poetry.core.packages import URLDependency as PoetryURLDependency
+from conda_lock._vendor.poetry.core.toml.file import TOMLFile
 from conda_lock._vendor.poetry.factory import Factory
 from conda_lock._vendor.poetry.installation.chooser import Chooser
 from conda_lock._vendor.poetry.installation.operations.uninstall import Uninstall
@@ -23,6 +24,7 @@ from conda_lock._vendor.poetry.puzzle import Solver as PoetrySolver
 from conda_lock._vendor.poetry.repositories.pool import Pool
 from conda_lock._vendor.poetry.repositories.pypi_repository import PyPiRepository
 from conda_lock._vendor.poetry.repositories.repository import Repository
+from conda_lock._vendor.poetry.utils.appdirs import user_config_dir
 from conda_lock._vendor.poetry.utils.env import Env
 from conda_lock.lookup import conda_name_to_pypi_name
 
@@ -178,6 +180,7 @@ def solve_pypi(
     conda_locked: Dict[str, lockfile.LockedDependency],
     python_version: str,
     platform: str,
+    poetry_repositories: Optional[List[src_parser.PoetrySource]] = None,
     allow_pypi_requests: bool = True,
     verbose: bool = False,
 ) -> Dict[str, lockfile.LockedDependency]:
@@ -213,7 +216,7 @@ def solve_pypi(
     for dep in dependencies:
         dummy_package.add_dependency(dep)
 
-    pool = _prepare_repositories_pool(allow_pypi_requests)
+    pool = _prepare_repositories_pool(allow_pypi_requests, poetry_repositories)
 
     installed = Repository()
     locked = Repository()
@@ -322,7 +325,10 @@ def solve_pypi(
     return {dep.name: dep for dep in requirements}
 
 
-def _prepare_repositories_pool(allow_pypi_requests: bool) -> Pool:
+def _prepare_repositories_pool(
+    allow_pypi_requests: bool,
+    repositories: Optional[List[src_parser.PoetrySource]] = None,
+) -> Pool:
     """
     Prepare the pool of repositories to solve pip dependencies
 
@@ -333,12 +339,34 @@ def _prepare_repositories_pool(allow_pypi_requests: bool) -> Pool:
     """
     factory = Factory()
     config = factory.create_config()
-    repos = [
-        factory.create_legacy_repository(
-            {"name": source[0], "url": source[1]["url"]}, config
-        )
-        for source in config.get("repositories", {}).items()
-    ]
+
+    # read auth from global poetry config
+    auth_config_file = TOMLFile(Path(user_config_dir("pypoetry")) / "auth.toml")
+    if auth_config_file.exists():
+        config.merge(auth_config_file.read())
+
+    if repositories is not None:
+        repo_config = {}
+        for repo in repositories:
+            repo_config[repo.name] = {"url": repo.url}
+        config.merge(dict(repositories=repo_config))
+        repos = [
+            factory.create_legacy_repository(
+                dict(
+                    name=poetry_repo.name,
+                    url=poetry_repo.url,
+                ),
+                config,
+            )
+            for poetry_repo in repositories
+        ]
+    else:
+        repos = [
+            factory.create_legacy_repository(
+                {"name": source[0], "url": source[1]["url"]}, config
+            )
+            for source in config.get("repositories", {}).items()
+        ]
     if allow_pypi_requests:
         repos.append(PyPiRepository())
     return Pool(repositories=[*repos])

@@ -31,6 +31,7 @@ from conda_lock.lookup import get_forward_lookup as get_lookup
 from conda_lock.src_parser import (
     Dependency,
     LockSpecification,
+    PoetrySource,
     URLDependency,
     VersionedDependency,
 )
@@ -120,6 +121,11 @@ def parse_poetry_pyproject_toml(
         group_key = tuple(["group", group_name, "dependencies"])
         categories[group_key] = group_name
 
+    poetry_repositories = []
+    for repository in get_in(["tool", "poetry", "source"], contents, {}):
+        source = PoetrySource(**repository)
+        poetry_repositories.append(source)
+
     for section, default_category in categories.items():
         for depname, depattrs in get_in(
             ["tool", "poetry", *section], contents, {}
@@ -129,6 +135,7 @@ def parse_poetry_pyproject_toml(
             manager: Literal["conda", "pip"] = "conda"
             url = None
             extras = []
+            poetry_source = None
             if isinstance(depattrs, collections.abc.Mapping):
                 poetry_version_spec = depattrs.get("version", None)
                 url = depattrs.get("url", None)
@@ -136,11 +143,11 @@ def parse_poetry_pyproject_toml(
                 extras = depattrs.get("extras", [])
                 # If a dependency is explicitly marked as sourced from pypi,
                 # or is a URL dependency, delegate to the pip section
-                if (
-                    depattrs.get("source", None) == "pypi"
-                    or poetry_version_spec is None
-                ):
+
+                poetry_source = depattrs.get("source", None)
+                if poetry_source is not None or poetry_version_spec is None:
                     manager = "pip"
+                    poetry_source = poetry_source
                 # TODO: support additional features such as markers for things like sys_platform, platform_system
             elif isinstance(depattrs, str):
                 poetry_version_spec = depattrs
@@ -180,14 +187,20 @@ def parse_poetry_pyproject_toml(
                         optional=optional,
                         category=category,
                         extras=extras,
+                        poetry_source=poetry_source,
                     )
                 )
 
-    return specification_with_dependencies(path, contents, dependencies)
+    return specification_with_dependencies(
+        path, contents, dependencies, poetry_repositories
+    )
 
 
 def specification_with_dependencies(
-    path: pathlib.Path, toml_contents: Mapping[str, Any], dependencies: List[Dependency]
+    path: pathlib.Path,
+    toml_contents: Mapping[str, Any],
+    dependencies: List[Dependency],
+    poetry_repositories: Optional[List[PoetrySource]] = None,
 ) -> LockSpecification:
     force_pypi = set()
     for depname, depattrs in get_in(
@@ -206,7 +219,7 @@ def specification_with_dependencies(
                 )
             )
         elif isinstance(depattrs, collections.abc.Mapping):
-            if depattrs.get("source", None) == "pypi":
+            if depattrs.get("source") is not None:
                 force_pypi.add(depname)
         else:
             raise TypeError(f"Unsupported type for dependency: {depname}: {depattrs:r}")
@@ -221,6 +234,7 @@ def specification_with_dependencies(
         channels=get_in(["tool", "conda-lock", "channels"], toml_contents, []),
         platforms=get_in(["tool", "conda-lock", "platforms"], toml_contents, []),
         sources=[path],
+        poetry_repositories=poetry_repositories,
         allow_pypi_requests=get_in(
             ["tool", "conda-lock", "allow-pypi-requests"], toml_contents, True
         ),
