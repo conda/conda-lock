@@ -135,7 +135,7 @@ platforms: # This is non-standard and recommended by conda-lock.
   - osx-64
   - win-64
   - osx-arm64  # For Apple Silicon, e.g. M1/M2
-``` 
+```
 7. From now on, you will add packages manually to this document under the `dependencies` sequence key unless you have to, for some reason, download a package using pip. Here is an example of that process:
 ```bash
 (env-management-demo) $ conda install -c conda-forge pandas
@@ -165,7 +165,7 @@ Locking dependencies for ['linux-64', 'osx-64', 'osx-arm64', 'win-64']...
 9. Now that your environment is "locked," you can test this by creating a new environment from the `conda-lock.yml` file.
 ```bash
 (env-management-demo) $ conda deactivate
-(base) $ 
+(base) $
 (base) $ conda-lock install -n env-locked
 INFO:root:Downloading and Extracting Packages
 INFO:root:numpy-1.24.1
