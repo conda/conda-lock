@@ -29,5 +29,5 @@ def conda_spec_to_versioned_dep(spec: str, category: str) -> VersionedDependency
         category=category,
         extras=[],
         build=ms.get("build"),
-        conda_channel=channel_str,
+        channel=channel_str,
     )

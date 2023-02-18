@@ -148,9 +148,11 @@ def get_dependency(dep: src_parser.Dependency) -> PoetryDependency:
     # FIXME: how do deal with extras?
     extras: List[str] = []
     if isinstance(dep, src_parser.VersionedDependency):
-        return PoetryDependency(
+        dependency = PoetryDependency(
             name=dep.name, constraint=dep.version or "*", extras=dep.extras
         )
+        dependency.source_name = dep.channel  # type: ignore
+        return dependency
     elif isinstance(dep, src_parser.URLDependency):
         return PoetryURLDependency(
             name=dep.name,
@@ -180,7 +182,7 @@ def solve_pypi(
     conda_locked: Dict[str, lockfile.LockedDependency],
     python_version: str,
     platform: str,
-    poetry_repositories: Optional[List[src_parser.PoetrySource]] = None,
+    pypi_channels: Optional[List[src_parser.PyPIChannel]] = None,
     allow_pypi_requests: bool = True,
     verbose: bool = False,
 ) -> Dict[str, lockfile.LockedDependency]:
@@ -216,7 +218,7 @@ def solve_pypi(
     for dep in dependencies:
         dummy_package.add_dependency(dep)
 
-    pool = _prepare_repositories_pool(allow_pypi_requests, poetry_repositories)
+    pool = _prepare_repositories_pool(allow_pypi_requests, pypi_channels)
 
     installed = Repository()
     locked = Repository()
@@ -327,7 +329,7 @@ def solve_pypi(
 
 def _prepare_repositories_pool(
     allow_pypi_requests: bool,
-    repositories: Optional[List[src_parser.PoetrySource]] = None,
+    repositories: Optional[List[src_parser.PyPIChannel]] = None,
 ) -> Pool:
     """
     Prepare the pool of repositories to solve pip dependencies

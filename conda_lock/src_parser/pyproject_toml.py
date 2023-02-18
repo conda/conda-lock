@@ -31,7 +31,7 @@ from conda_lock.lookup import get_forward_lookup as get_lookup
 from conda_lock.src_parser import (
     Dependency,
     LockSpecification,
-    PoetrySource,
+    PyPIChannel,
     URLDependency,
     VersionedDependency,
 )
@@ -123,7 +123,7 @@ def parse_poetry_pyproject_toml(
 
     poetry_repositories = []
     for repository in get_in(["tool", "poetry", "source"], contents, {}):
-        source = PoetrySource(**repository)
+        source = PyPIChannel(**repository)
         poetry_repositories.append(source)
 
     for section, default_category in categories.items():
@@ -187,7 +187,7 @@ def parse_poetry_pyproject_toml(
                         optional=optional,
                         category=category,
                         extras=extras,
-                        poetry_source=poetry_source,
+                        channel=poetry_source,
                     )
                 )
 
@@ -200,7 +200,7 @@ def specification_with_dependencies(
     path: pathlib.Path,
     toml_contents: Mapping[str, Any],
     dependencies: List[Dependency],
-    poetry_repositories: Optional[List[PoetrySource]] = None,
+    pypi_channels: Optional[List[PyPIChannel]] = None,
 ) -> LockSpecification:
     force_pypi = set()
     for depname, depattrs in get_in(
@@ -234,7 +234,7 @@ def specification_with_dependencies(
         channels=get_in(["tool", "conda-lock", "channels"], toml_contents, []),
         platforms=get_in(["tool", "conda-lock", "platforms"], toml_contents, []),
         sources=[path],
-        poetry_repositories=poetry_repositories,
+        pypi_channels=pypi_channels,
         allow_pypi_requests=get_in(
             ["tool", "conda-lock", "allow-pypi-requests"], toml_contents, True
         ),

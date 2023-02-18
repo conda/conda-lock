@@ -143,7 +143,7 @@ def solve_conda(
     """
 
     conda_specs = [
-        _to_match_spec(dep.name, dep.version, dep.build, dep.conda_channel)
+        _to_match_spec(dep.name, dep.version, dep.build, dep.channel)
         for dep in specs.values()
         if isinstance(dep, VersionedDependency) and dep.manager == "conda"
     ]
