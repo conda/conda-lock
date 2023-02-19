@@ -1,4 +1,3 @@
--r requirements.txt
 black
 check-manifest
 doctr
