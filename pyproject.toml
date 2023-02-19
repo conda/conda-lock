@@ -149,3 +149,14 @@ substitute = [
     { match = 'conda\.base\.context', replace = 'conda_lock.vendor.conda.base.context' },
     { match = '"pypoetry"', replace = '"pypoetry-conda-lock"' }
 ]
+
+[tool.conda-lock]
+channels = ["conda-forge"]
+platforms = ["linux-64", "osx-64", "win-64", "linux-aarch64"]
+
+[tool.conda-lock.dependencies]
+# This is necessary to pull in the lockfile/filelock dependency
+# since we don't handle the optional dependency.
+cachecontrol-with-filecache = ">=0.12.9"
+# This is not being resolved from the dependency list, perhaps due to the period?
+"ruamel.yaml" = "*"
