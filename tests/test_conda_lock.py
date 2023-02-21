@@ -67,9 +67,9 @@ from conda_lock.pypi_solver import parse_pip_requirement, solve_pypi
 from conda_lock.src_parser import (
     DEFAULT_PLATFORMS,
     LockSpecification,
-    aggregate_lock_specs,
     parse_meta_yaml_file,
 )
+from conda_lock.src_parser.aggregation import aggregate_lock_specs
 from conda_lock.src_parser.environment_yaml import parse_environment_file
 from conda_lock.src_parser.pyproject_toml import (
     parse_pyproject_toml,

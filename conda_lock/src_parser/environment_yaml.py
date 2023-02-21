@@ -108,7 +108,7 @@ def parse_environment_file(
     * This does not support multi-output files and will ignore all lines with
       selectors other than platform.
     """
-    from conda_lock.src_parser import aggregate_lock_specs
+    from conda_lock.src_parser.aggregation import aggregate_lock_specs
 
     if not environment_file.exists():
         raise FileNotFoundError(f"{environment_file} not found")

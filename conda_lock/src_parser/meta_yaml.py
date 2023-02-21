@@ -92,7 +92,7 @@ def parse_meta_yaml_file(
     * This does not support multi-output files and will ignore all lines with
       selectors other than platform.
     """
-    from conda_lock.src_parser import aggregate_lock_specs
+    from conda_lock.src_parser.aggregation import aggregate_lock_specs
 
     # parse with selectors for each target platform
     spec = aggregate_lock_specs(
