@@ -1,8 +1,9 @@
 from typing import Optional
 
+from conda_lock.models.lock_spec import VersionedDependency
+
 from .._vendor.conda.models.channel import Channel
 from .._vendor.conda.models.match_spec import MatchSpec
-from ..src_parser.models import VersionedDependency
 
 
 def conda_spec_to_versioned_dep(spec: str, category: str) -> VersionedDependency:

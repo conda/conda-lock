@@ -6,7 +6,7 @@ import jinja2
 import yaml
 
 from conda_lock.common import get_in
-from conda_lock.src_parser.models import Dependency, LockSpecification
+from conda_lock.models.lock_spec import Dependency, LockSpecification
 from conda_lock.src_parser.selectors import filter_platform_selectors
 
 

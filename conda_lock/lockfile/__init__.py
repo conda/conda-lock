@@ -7,7 +7,7 @@ from typing import Collection, Dict, List, Optional, Sequence, Set
 
 import yaml
 
-from conda_lock.src_parser import Dependency
+from conda_lock.models.lock_spec import Dependency
 
 from .models import DependencySource as DependencySource
 from .models import GitMeta as GitMeta

@@ -62,12 +62,11 @@ from conda_lock.lockfile import (
     parse_conda_lock_file,
 )
 from conda_lock.models.channel import Channel
+from conda_lock.models.lock_spec import Selectors, VersionedDependency
 from conda_lock.pypi_solver import parse_pip_requirement, solve_pypi
 from conda_lock.src_parser import (
     DEFAULT_PLATFORMS,
     LockSpecification,
-    Selectors,
-    VersionedDependency,
     aggregate_lock_specs,
     parse_meta_yaml_file,
 )

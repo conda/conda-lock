@@ -7,15 +7,9 @@ from typing import AbstractSet, Dict, List, Optional, Sequence, Tuple
 from conda_lock.common import ordered_union, suffix_union
 from conda_lock.errors import ChannelAggregationError
 from conda_lock.models.channel import Channel
+from conda_lock.models.lock_spec import Dependency, LockSpecification
 from conda_lock.src_parser.environment_yaml import parse_environment_file
 from conda_lock.src_parser.meta_yaml import parse_meta_yaml_file
-from conda_lock.src_parser.models import (
-    Dependency,
-    LockSpecification,
-    Selectors,
-    URLDependency,
-    VersionedDependency,
-)
 from conda_lock.src_parser.pyproject_toml import parse_pyproject_toml
 from conda_lock.virtual_package import FakeRepoData
 
@@ -129,19 +123,3 @@ def make_lock_spec(
         ]
 
     return lock_spec
-
-
-__all__ = [
-    "Dependency",
-    "LockSpecification",
-    "Selectors",
-    "URLDependency",
-    "VersionedDependency",
-    "parse_environment_file",
-    "parse_meta_yaml_file",
-    "parse_pyproject_toml",
-    "DEFAULT_PLATFORMS",
-    "aggregate_lock_specs",
-    "parse_source_files",
-    "make_lock_spec",
-]
