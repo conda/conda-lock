@@ -52,7 +52,7 @@ def aggregate_lock_specs(
     )
 
 
-def parse_source_files(
+def _parse_source_files(
     src_files: List[pathlib.Path],
     platform_overrides: Optional[Sequence[str]],
 ) -> List[LockSpecification]:
@@ -96,7 +96,7 @@ def make_lock_spec(
     required_categories: Optional[AbstractSet[str]] = None,
 ) -> LockSpecification:
     """Generate the lockfile specs from a set of input src_files.  If required_categories is set filter out specs that do not match those"""
-    lock_specs = parse_source_files(
+    lock_specs = _parse_source_files(
         src_files=src_files, platform_overrides=platform_overrides
     )
 
