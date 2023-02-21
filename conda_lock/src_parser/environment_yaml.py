@@ -7,6 +7,7 @@ from typing import List, Optional, Sequence, Tuple
 import yaml
 
 from conda_lock.models.lock_spec import Dependency, LockSpecification
+from conda_lock.src_parser.aggregation import aggregate_lock_specs
 from conda_lock.src_parser.conda_common import conda_spec_to_versioned_dep
 from conda_lock.src_parser.selectors import filter_platform_selectors
 
@@ -108,8 +109,6 @@ def parse_environment_file(
     * This does not support multi-output files and will ignore all lines with
       selectors other than platform.
     """
-    from conda_lock.src_parser.aggregation import aggregate_lock_specs
-
     if not environment_file.exists():
         raise FileNotFoundError(f"{environment_file} not found")
 
