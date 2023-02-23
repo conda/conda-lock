@@ -183,6 +183,13 @@ def poetry_pyproject_toml(tmp_path: Path):
 
 
 @pytest.fixture
+def poetry_pyproject_toml_default_pypi(tmp_path: Path):
+    return clone_test_dir("test-poetry-default-pypi", tmp_path).joinpath(
+        "pyproject.toml"
+    )
+
+
+@pytest.fixture
 def poetry_pyproject_toml_no_pypi(tmp_path: Path):
     return clone_test_dir("test-poetry-no-pypi", tmp_path).joinpath("pyproject.toml")
 
@@ -591,6 +598,23 @@ def test_parse_poetry(poetry_pyproject_toml: Path):
     assert specs["tomlkit"].category == "tomlkit"
 
     assert res.channels == [Channel.from_string("defaults")]
+
+
+def test_parse_poetry_default_pypi(poetry_pyproject_toml_default_pypi: Path):
+    res = parse_pyproject_toml(
+        poetry_pyproject_toml_default_pypi,
+    )
+
+    specs = {
+        dep.name: typing.cast(VersionedDependency, dep) for dep in res.dependencies
+    }
+
+    assert specs["sqlite"].manager == "conda"
+    assert specs["certifi"].manager == "conda"
+    assert specs["requests"].manager == "pip"
+    assert specs["toml"].manager == "pip"
+    assert specs["pytest"].manager == "pip"
+    assert specs["tomlkit"].manager == "pip"
 
 
 def test_parse_poetry_no_pypi(poetry_pyproject_toml_no_pypi: Path):
