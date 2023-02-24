@@ -675,10 +675,10 @@ def render_lockfile_for_platform(  # noqa: C901
 
         if len(pip_deps) > 0:
             logger.warning(
-                "WARNING: installation of pip dependencies is only supported "
-                "by the 'conda-lock install' command. Other tools may silently "
-                "ignore them. For portability, we recommend using the newer "
-                "unified lockfile format (i.e. removing the --kind=explicit "
+                "WARNING: installation of pip dependencies is only supported by the "
+                "'conda-lock install' and 'micromamba install' commands. Other tools "
+                "may silently ignore them. For portability, we recommend using the "
+                "newer unified lockfile format (i.e. removing the --kind=explicit "
                 "argument."
             )
     else:
