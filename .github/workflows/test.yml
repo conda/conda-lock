@@ -17,6 +17,9 @@ concurrency:
 
 jobs:
   test-windows:
+    strategy:
+      matrix:
+        pytest-split-group: [1, 2, 3, 4]
     env:
       PYTHONUNBUFFERED: "1"
       FORCE_COLOR: "1"
@@ -34,7 +37,7 @@ jobs:
       - name: Install dev deps
         run: |
           conda activate test
-          mamba install pip pytest-cov pytest-xdist
+          mamba install pip pytest-cov pytest-xdist pytest-split
           python -m pip install -r requirements-dev.txt
 
       - name: install conda-lock
@@ -50,7 +53,7 @@ jobs:
           pushd "${RUNNER_TEMP}"
           set TMPDIR="%RUNNER_TEMP%"
           dir
-          pytest --cov=conda_lock --cov-branch --cov-report=xml --cov-report=term tests
+          pytest --cov=conda_lock --cov-branch --cov-report=xml --cov-report=term --splits 4 --group ${{ matrix.pytest-split-group }} tests
           copy coverage.xml %GITHUB_WORKSPACE%
       - uses: codecov/codecov-action@v3
 
@@ -61,6 +64,7 @@ jobs:
       matrix:
         os: [ ubuntu-latest, macos-latest ]
         python-version: [ "3.8", "3.11" ]
+        pytest-split-group: [1, 2]
     defaults:
       run:
         shell: bash -l {0}
@@ -81,7 +85,7 @@ jobs:
       - name: Install dev deps
         run: |
           conda activate test
-          mamba install pip pytest-cov pytest-xdist
+          mamba install pip pytest-cov pytest-xdist pytest-split
           set -x
           echo "${PATH}"
           which pip
@@ -106,7 +110,7 @@ jobs:
           ls -lah
           set -x
           which pytest
-          pytest --cov=conda_lock --cov-branch --cov-report=xml --cov-report=term tests
+          pytest --cov=conda_lock --cov-branch --cov-report=xml --cov-report=term --splits 4 --group ${{ matrix.pytest-split-group }} tests
           cp coverage.xml "${GITHUB_WORKSPACE}"
       - uses: codecov/codecov-action@v3
 
