@@ -211,7 +211,13 @@ def solve_conda(
 
 
 def _reconstruct_fetch_actions(
-    conda: PathLike, platform: str, dry_run_install: DryRunInstall
+    conda: PathLike,
+    platform: str,
+    dry_run_install: DryRunInstall,
+    proc: Optional[subprocess.CompletedProcess],
+    solve_or_update: str,
+    args: Optional[List[str]],
+    env: Optional[Dict[str, str]],
 ) -> DryRunInstall:
     """
     Conda may choose to link a previously downloaded distribution from pkgs_dirs rather
@@ -267,24 +273,69 @@ def _reconstruct_fetch_actions(
         # actions, and so can be used to fill out the FETCH section.
         # Explicitly copy key-by-key to make missing keys obvious, should
         # this change in the future.
-        print(f"{link_actions=}, {fetch_actions=}, {link_only_names=}")
         for link_pkg_name in link_only_names:
             item = cast(Dict[str, Any], link_actions[link_pkg_name])
-            print(f"{link_pkg_name=}, {item=}")
-            repodata = {
-                "channel": item["channel"],
-                "constrains": item.get("constrains"),
-                "depends": item.get("depends"),
-                "fn": item["fn"],
-                "md5": item["md5"],
-                "name": item["name"],
-                "subdir": item["subdir"],
-                "timestamp": item["timestamp"],
-                "url": item["url"],
-                "version": item["version"],
-                "sha256": item.get("sha256"),
-            }
-
+            try:
+                repodata = {
+                    "channel": item["channel"],
+                    "constrains": item.get("constrains"),
+                    "depends": item.get("depends"),
+                    "fn": item["fn"],
+                    "md5": item["md5"],
+                    "name": item["name"],
+                    "subdir": item["subdir"],
+                    "timestamp": item["timestamp"],
+                    "url": item["url"],
+                    "version": item["version"],
+                    "sha256": item.get("sha256"),
+                }
+            except KeyError as e:
+                print(f"\n\n---\n{link_actions=}\n\n---\n{fetch_actions=}")
+                print(f"\n\n---\n{link_pkg_name=}, {link_only_names=}")
+                print(f"\n\n---\n{item=}")
+                print(f"\n\n---\n{args=}")
+                print(f"\n\n---\n{env=}")
+                if proc is not None:
+                    print(f"\n\n---\n{proc.stdout=}")
+                    print(f"\n\n---\n{proc.stderr=}")
+                if args is not None:
+                    print("\n\n---\nWith mamba:\n")
+                    subprocess.run(["mamba"] + args[1:], env=env)
+                    print("\n\n---\nWith conda:\n")
+                    subprocess.run(["conda"] + args[1:], env=env)
+                    print("\n\n---\nAgain with micromamba:\n")
+                    subprocess.run(["micromamba"] + args[1:], env=env)
+                print("\n\n---\n")
+                pkgs_dirs = [
+                    pathlib.Path(d)
+                    for d in json.loads(
+                        extract_json_object(
+                            subprocess.check_output(
+                                ["conda", "info", "--json"],
+                                env=conda_env_override(platform),
+                            ).decode()
+                        )
+                    )["pkgs_dirs"]
+                ]
+                link_action_dict = item
+                for pkgs_dir in pkgs_dirs:
+                    record = (
+                        pkgs_dir
+                        / link_action_dict["dist_name"]
+                        / "info"
+                        / "repodata_record.json"
+                    )
+                    if record.exists():
+                        with open(record) as f:
+                            repodata2: FetchAction = json.load(f)
+                        break
+                else:
+                    raise FileExistsError(
+                        f'Distribution \'{link_action_dict["dist_name"]}\' not found in pkgs_dirs {pkgs_dirs}'
+                    )
+                print(f"{record=}, {repodata2=}")
+                print("\n\n---\n")
+                raise e
             dry_run_install["actions"]["FETCH"].append(repodata)
     return dry_run_install
 
@@ -333,9 +384,10 @@ def solve_specs_for_arch(
             args.extend(["--channel", "msys2"])
     args.extend(specs)
     logger.info("%s using specs %s", platform, specs)
+    env = conda_env_override(platform)
     proc = subprocess.run(
         [str(arg) for arg in args],
-        env=conda_env_override(platform),
+        env=env,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         encoding="utf8",
@@ -373,7 +425,9 @@ def solve_specs_for_arch(
 
     try:
         dryrun_install: DryRunInstall = json.loads(extract_json_object(proc.stdout))
-        return _reconstruct_fetch_actions(conda, platform, dryrun_install)
+        return _reconstruct_fetch_actions(
+            conda, platform, dryrun_install, proc, "solve", list(args), env
+        )
     except json.JSONDecodeError:
         raise
 
@@ -456,12 +510,13 @@ def update_specs_for_arch(
                     "update" if is_micromamba(conda) else "install",
                     *_get_conda_flags(channels=channels, platform=platform),
                 ]
+            env = conda_env_override(platform)
             proc = subprocess.run(
                 [
                     str(arg)
                     for arg in args + ["-p", prefix, "--json", "--dry-run", *to_update]
                 ],
-                env=conda_env_override(platform),
+                env=env,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 encoding="utf8",
@@ -478,6 +533,9 @@ def update_specs_for_arch(
             dryrun_install: DryRunInstall = json.loads(proc.stdout)
         else:
             dryrun_install = {"actions": {"LINK": [], "FETCH": []}}
+            env = None
+            proc = None
+            args = None
 
         if "actions" not in dryrun_install:
             dryrun_install["actions"] = {"LINK": [], "FETCH": []}
@@ -514,7 +572,9 @@ def update_specs_for_arch(
                 }
             )
             dryrun_install["actions"]["LINK"].append(entry)
-        return _reconstruct_fetch_actions(conda, platform, dryrun_install)
+        return _reconstruct_fetch_actions(
+            conda, platform, dryrun_install, proc, "update", args, env
+        )
 
 
 @contextmanager
