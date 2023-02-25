@@ -304,7 +304,7 @@ def _reconstruct_fetch_actions(
                     print("\n\n---\nWith conda:\n")
                     subprocess.run(["conda"] + args[1:], env=env)
                     print("\n\n---\nAgain with micromamba:\n")
-                    subprocess.run(["micromamba"] + args[1:], env=env)
+                    subprocess.run(args, env=env)
                 print("\n\n---\n")
                 pkgs_dirs = [
                     pathlib.Path(d)
