@@ -299,12 +299,35 @@ def _reconstruct_fetch_actions(
                     print(f"\n\n---\n{proc.stdout=}")
                     print(f"\n\n---\n{proc.stderr=}")
                 if args is not None:
+
+                    def print_proc(proc: subprocess.CompletedProcess) -> None:
+                        print(f"    Command: {proc.args}", file=sys.stderr)
+                        if proc.stdout:
+                            print(f"    STDOUT:\n{proc.stdout}", file=sys.stderr)
+                        if proc.stderr:
+                            print(f"    STDERR:\n{proc.stderr}", file=sys.stderr)
+
                     print("\n\n---\nWith mamba:\n")
-                    subprocess.run(["mamba"] + args[1:], env=env)
+                    proc = subprocess.run(
+                        ["mamba"] + args[1:],
+                        env=env,
+                        stdout=subprocess.PIPE,
+                        stderr=subprocess.PIPE,
+                    )
+                    print_proc(proc)
                     print("\n\n---\nWith conda:\n")
-                    subprocess.run(["conda"] + args[1:], env=env)
+                    proc = subprocess.run(
+                        ["conda"] + args[1:],
+                        env=env,
+                        stdout=subprocess.PIPE,
+                        stderr=subprocess.PIPE,
+                    )
+                    print_proc(proc)
                     print("\n\n---\nAgain with micromamba:\n")
-                    subprocess.run(args, env=env)
+                    proc = subprocess.run(
+                        args, env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE
+                    )
+                    print_proc(proc)
                 print("\n\n---\n")
                 pkgs_dirs = [
                     pathlib.Path(d)
@@ -317,21 +340,16 @@ def _reconstruct_fetch_actions(
                         )
                     )["pkgs_dirs"]
                 ]
-                link_action_dict = item
+                dist_name = item["fn"].removesuffix(".tar.bz2").removesuffix(".conda")
                 for pkgs_dir in pkgs_dirs:
-                    record = (
-                        pkgs_dir
-                        / link_action_dict["dist_name"]
-                        / "info"
-                        / "repodata_record.json"
-                    )
+                    record = pkgs_dir / dist_name / "info" / "repodata_record.json"
                     if record.exists():
                         with open(record) as f:
                             repodata2: FetchAction = json.load(f)
                         break
                 else:
                     raise FileExistsError(
-                        f'Distribution \'{link_action_dict["dist_name"]}\' not found in pkgs_dirs {pkgs_dirs}'
+                        f"Distribution '{dist_name}' not found in pkgs_dirs {pkgs_dirs}"
                     )
                 print(f"{record=}, {repodata2=}")
                 print("\n\n---\n")
