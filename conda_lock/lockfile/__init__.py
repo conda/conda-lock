@@ -166,5 +166,6 @@ def write_conda_lock_file(
                     content.json(by_alias=True, exclude_unset=True, exclude_none=True)
                 ),
             },
-            f,
+            stream=f,
+            sort_keys=False,
         )
