@@ -31,16 +31,16 @@ jobs:
           miniforge-version: 22.9.0-1
           auto-update-conda: false
 
-      - name: Install deps
+      - name: Install dev deps
         run: |
           conda activate test
           mamba install pip pytest-cov pytest-xdist
           python -m pip install -r requirements-dev.txt
 
-      - name: install lib
+      - name: install conda-lock
         run: |
           conda activate test
-          pip install -e . --no-deps --force-reinstall
+          pip install -e . --force-reinstall
 
       - name: run-test
         run: |
@@ -78,7 +78,7 @@ jobs:
           miniforge-version: 22.9.0-1
           auto-update-conda: false
 
-      - name: Install deps
+      - name: Install dev deps
         run: |
           conda activate test
           mamba install pip pytest-cov pytest-xdist
@@ -88,12 +88,12 @@ jobs:
           which python
           python -m pip install -r requirements-dev.txt
 
-      - name: install lib
+      - name: install conda-lock
         shell: bash -l {0}
         run: |
           conda activate test
           which pip
-          pip install -e . --no-deps --force-reinstall
+          pip install -e . --force-reinstall
 
       - name: run-test
         shell: bash -l {0}
