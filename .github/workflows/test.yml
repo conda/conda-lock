@@ -19,7 +19,8 @@ jobs:
   test-windows:
     strategy:
       matrix:
-        pytest-split-group: [1, 2, 3, 4]
+        pytest-split-group: [1, 2, 3, 4, 5]
+        pytest-split-groups: [5]
     env:
       PYTHONUNBUFFERED: "1"
       FORCE_COLOR: "1"
@@ -53,7 +54,7 @@ jobs:
           pushd "${RUNNER_TEMP}"
           set TMPDIR="%RUNNER_TEMP%"
           dir
-          pytest --cov=conda_lock --cov-branch --cov-report=xml --cov-report=term --splits 4 --group ${{ matrix.pytest-split-group }} tests
+          pytest --cov=conda_lock --cov-branch --cov-report=xml --cov-report=term --splits ${{ matrix.pytest-split-groups }} --group ${{ matrix.pytest-split-group }} tests
           copy coverage.xml %GITHUB_WORKSPACE%
       - uses: codecov/codecov-action@v3
 
@@ -64,7 +65,13 @@ jobs:
       matrix:
         os: [ ubuntu-latest, macos-latest ]
         python-version: [ "3.8", "3.11" ]
-        pytest-split-group: [1, 2]
+        include:
+          - os: ubuntu-latest
+            pytest-split-group: [1, 2]
+            pytest-split-groups: 2
+          - os: macos-latest
+            pytest-split-group: [1, 2, 3]
+            pytest-split-groups: 3
     defaults:
       run:
         shell: bash -l {0}
@@ -110,7 +117,7 @@ jobs:
           ls -lah
           set -x
           which pytest
-          pytest --cov=conda_lock --cov-branch --cov-report=xml --cov-report=term --splits 4 --group ${{ matrix.pytest-split-group }} tests
+          pytest --cov=conda_lock --cov-branch --cov-report=xml --cov-report=term --splits ${{ matrix.pytest-split-group }} --group ${{ matrix.pytest-split-group }} tests
           cp coverage.xml "${GITHUB_WORKSPACE}"
       - uses: codecov/codecov-action@v3
 
