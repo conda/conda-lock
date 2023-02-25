@@ -71,12 +71,15 @@ class PlatformEnv(Env):
         if platform.startswith("osx-"):
             self._sys_platform = "darwin"
             self._platform_system = "Darwin"
+            self._os_name = "posix"
         elif platform.startswith("linux-"):
             self._sys_platform = "linux"
             self._platform_system = "Linux"
+            self._os_name = "posix"
         elif platform.startswith("win-"):
             self._sys_platform = "win32"
             self._platform_system = "Windows"
+            self._os_name = "nt"
         else:
             raise ValueError(f"Unsupported platform '{platform}'")
 
@@ -99,6 +102,7 @@ class PlatformEnv(Env):
             "python_version": ".".join([str(c) for c in self._python_version[:2]]),
             "sys_platform": self._sys_platform,
             "platform_system": self._platform_system,
+            "os_name": self._os_name,
         }
 
 
