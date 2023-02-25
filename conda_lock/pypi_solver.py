@@ -9,7 +9,7 @@ from clikit.api.io.flags import VERY_VERBOSE
 from clikit.io import ConsoleIO, NullIO
 from packaging.tags import compatible_tags, cpython_tags
 
-from conda_lock import lockfile, src_parser
+from conda_lock import lockfile
 from conda_lock._vendor.poetry.core.packages import Dependency as PoetryDependency
 from conda_lock._vendor.poetry.core.packages import Package as PoetryPackage
 from conda_lock._vendor.poetry.core.packages import (
@@ -25,6 +25,7 @@ from conda_lock._vendor.poetry.repositories.pypi_repository import PyPiRepositor
 from conda_lock._vendor.poetry.repositories.repository import Repository
 from conda_lock._vendor.poetry.utils.env import Env
 from conda_lock.lookup import conda_name_to_pypi_name
+from conda_lock.models import lock_spec
 
 
 if TYPE_CHECKING:
@@ -142,14 +143,14 @@ def parse_pip_requirement(requirement: str) -> Optional[Dict[str, str]]:
     return match.groupdict()
 
 
-def get_dependency(dep: src_parser.Dependency) -> PoetryDependency:
+def get_dependency(dep: lock_spec.Dependency) -> PoetryDependency:
     # FIXME: how do deal with extras?
     extras: List[str] = []
-    if isinstance(dep, src_parser.VersionedDependency):
+    if isinstance(dep, lock_spec.VersionedDependency):
         return PoetryDependency(
             name=dep.name, constraint=dep.version or "*", extras=dep.extras
         )
-    elif isinstance(dep, src_parser.URLDependency):
+    elif isinstance(dep, lock_spec.URLDependency):
         return PoetryURLDependency(
             name=dep.name,
             url=f"{dep.url}#{dep.hashes[0].replace(':','=')}",
@@ -172,7 +173,7 @@ def get_package(locked: lockfile.LockedDependency) -> PoetryPackage:
 
 
 def solve_pypi(
-    pip_specs: Dict[str, src_parser.Dependency],
+    pip_specs: Dict[str, lock_spec.Dependency],
     use_latest: List[str],
     pip_locked: Dict[str, lockfile.LockedDependency],
     conda_locked: Dict[str, lockfile.LockedDependency],

@@ -30,20 +30,17 @@ from conda_lock._vendor.conda.models.match_spec import MatchSpec
 from conda_lock.conda_lock import (
     DEFAULT_FILES,
     DEFAULT_LOCKFILE_NAME,
-    DEFAULT_PLATFORMS,
     _add_auth_to_line,
     _add_auth_to_lockfile,
     _extract_domain,
     _strip_auth_from_line,
     _strip_auth_from_lockfile,
-    aggregate_lock_specs,
     create_lockfile_from_spec,
     default_virtual_package_repodata,
     determine_conda_executable,
     extract_input_hash,
     main,
     make_lock_spec,
-    parse_meta_yaml_file,
     run_lock,
 )
 from conda_lock.conda_solver import extract_json_object, fake_conda_environment
@@ -65,8 +62,14 @@ from conda_lock.lockfile import (
     parse_conda_lock_file,
 )
 from conda_lock.models.channel import Channel
+from conda_lock.models.lock_spec import Selectors, VersionedDependency
 from conda_lock.pypi_solver import parse_pip_requirement, solve_pypi
-from conda_lock.src_parser import LockSpecification, Selectors, VersionedDependency
+from conda_lock.src_parser import (
+    DEFAULT_PLATFORMS,
+    LockSpecification,
+    parse_meta_yaml_file,
+)
+from conda_lock.src_parser.aggregation import aggregate_lock_specs
 from conda_lock.src_parser.environment_yaml import parse_environment_file
 from conda_lock.src_parser.pyproject_toml import (
     parse_pyproject_toml,
