@@ -1,0 +1,8 @@
+channels:
+  - conda-forge
+dependencies:
+  - pip
+  - pip:
+    - jupyter-server ==2.3.0
+platforms:
+  - linux-64

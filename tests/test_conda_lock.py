@@ -960,6 +960,25 @@ def test_run_lock_with_pip(
     run_lock([pip_environment], conda_exe=conda_exe)
 
 
+@pytest.fixture
+def os_name_marker_environment(tmp_path: Path):
+    return clone_test_dir("test-os-name-marker", tmp_path).joinpath("environment.yml")
+
+
+def test_os_name_marker(
+    monkeypatch: pytest.MonkeyPatch, os_name_marker_environment: Path, conda_exe: str
+):
+    monkeypatch.chdir(os_name_marker_environment.parent)
+    if is_micromamba(conda_exe):
+        monkeypatch.setenv("CONDA_FLAGS", "-v")
+    run_lock([os_name_marker_environment], conda_exe=conda_exe)
+    lockfile = parse_conda_lock_file(
+        os_name_marker_environment.parent / DEFAULT_LOCKFILE_NAME
+    )
+    for package in lockfile.package:
+        assert package.name != "pywinpty"
+
+
 def test_run_lock_with_pip_environment_different_names_same_deps(
     monkeypatch: "pytest.MonkeyPatch",
     pip_environment_different_names_same_deps: Path,
