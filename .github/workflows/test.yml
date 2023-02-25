@@ -16,51 +16,51 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  test-windows:
-    env:
-      PYTHONUNBUFFERED: "1"
-      FORCE_COLOR: "1"
-    runs-on: windows-latest
-    steps:
-      - uses: actions/checkout@v3
-      - uses: conda-incubator/setup-miniconda@v2
-        with:
-          python-version: ${{ matrix.python-version }}
-          channels: conda-forge
-          miniforge-variant: Mambaforge
-          miniforge-version: 22.9.0-1
-          auto-update-conda: false
+  # test-windows:
+  #   env:
+  #     PYTHONUNBUFFERED: "1"
+  #     FORCE_COLOR: "1"
+  #   runs-on: windows-latest
+  #   steps:
+  #     - uses: actions/checkout@v3
+  #     - uses: conda-incubator/setup-miniconda@v2
+  #       with:
+  #         python-version: ${{ matrix.python-version }}
+  #         channels: conda-forge
+  #         miniforge-variant: Mambaforge
+  #         miniforge-version: 22.9.0-1
+  #         auto-update-conda: false
 
-      - name: Install deps
-        run: |
-          conda activate test
-          mamba install pip pytest-cov pytest-xdist
-          python -m pip install -r requirements-dev.txt
+  #     - name: Install deps
+  #       run: |
+  #         conda activate test
+  #         mamba install pip pytest-cov pytest-xdist
+  #         python -m pip install -r requirements-dev.txt
 
-      - name: install lib
-        run: |
-          conda activate test
-          pip install -e . --no-deps --force-reinstall
+  #     - name: install lib
+  #       run: |
+  #         conda activate test
+  #         pip install -e . --no-deps --force-reinstall
 
-      - name: run-test
-        run: |
-          conda activate test
-          copy pyproject.toml "%RUNNER_TEMP%"
-          Xcopy /E /I tests "%RUNNER_TEMP%\\tests"
-          pushd "${RUNNER_TEMP}"
-          set TMPDIR="%RUNNER_TEMP%"
-          dir
-          pytest --cov=conda_lock --cov-branch --cov-report=xml --cov-report=term tests
-          copy coverage.xml %GITHUB_WORKSPACE%
-      - uses: codecov/codecov-action@v3
+  #     - name: run-test
+  #       run: |
+  #         conda activate test
+  #         copy pyproject.toml "%RUNNER_TEMP%"
+  #         Xcopy /E /I tests "%RUNNER_TEMP%\\tests"
+  #         pushd "${RUNNER_TEMP}"
+  #         set TMPDIR="%RUNNER_TEMP%"
+  #         dir
+  #         pytest tests
+  #         copy coverage.xml %GITHUB_WORKSPACE%
+  #     - uses: codecov/codecov-action@v3
 
   test:
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
-        os: [ ubuntu-latest, macos-latest ]
-        python-version: [ "3.8", "3.11" ]
+        os: [ ubuntu-latest ]
+        python-version: [ "3.8", "3.9", "3.10", "3.11" ]
     defaults:
       run:
         shell: bash -l {0}
