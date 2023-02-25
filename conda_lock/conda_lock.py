@@ -53,17 +53,7 @@ from conda_lock.invoke_conda import (
     determine_conda_executable,
     is_micromamba,
 )
-from conda_lock.models.channel import Channel
-
-
-try:
-    from conda_lock.pypi_solver import solve_pypi
-
-    PIP_SUPPORT = True
-except ImportError:
-    PIP_SUPPORT = False
 from conda_lock.lockfile import (
-    Dependency,
     GitMeta,
     InputMeta,
     LockedDependency,
@@ -76,12 +66,11 @@ from conda_lock.lockfile import (
     write_conda_lock_file,
 )
 from conda_lock.lookup import set_lookup_location
-from conda_lock.src_parser import LockSpecification, aggregate_lock_specs
-from conda_lock.src_parser.environment_yaml import parse_environment_file
-from conda_lock.src_parser.meta_yaml import parse_meta_yaml_file
-from conda_lock.src_parser.pyproject_toml import parse_pyproject_toml
+from conda_lock.models.channel import Channel
+from conda_lock.models.lock_spec import LockSpecification
+from conda_lock.pypi_solver import solve_pypi
+from conda_lock.src_parser import make_lock_spec
 from conda_lock.virtual_package import (
-    FakeRepoData,
     default_virtual_package_repodata,
     virtual_package_repo_from_specification,
 )
@@ -90,11 +79,15 @@ from conda_lock.virtual_package import (
 logger = logging.getLogger(__name__)
 DEFAULT_FILES = [pathlib.Path("environment.yml")]
 
-# Captures basic auth credentials, if they exists, in the second capture group.
-AUTH_PATTERN = re.compile(r"^(https?:\/\/)(.*:.*@)?(.*)")
+# Captures basic auth credentials, if they exists, in the third capture group.
+AUTH_PATTERN = re.compile(r"^(# pip .* @ )?(https?:\/\/)(.*:.*@)?(.*)")
 
-# Captures the domain in the second group.
-DOMAIN_PATTERN = re.compile(r"^(https?:\/\/)?([^\/]+)(.*)")
+# Do not substitute in comments, but do substitute in pip installable packages
+# with the pattern: # pip package @ url.
+PKG_PATTERN = re.compile(r"(^[^#@].*|^# pip .*)")
+
+# Captures the domain in the third group.
+DOMAIN_PATTERN = re.compile(r"^(# pip .* @ )?(https?:\/\/)?([^\/]+)(.*)")
 
 # Captures the platform in the first group.
 PLATFORM_PATTERN = re.compile(r"^# platform: (.*)$")
@@ -113,8 +106,6 @@ if not (sys.version_info.major >= 3 and sys.version_info.minor >= 6):
     print("conda_lock needs to run under python >=3.6")
     sys.exit(1)
 
-
-DEFAULT_PLATFORMS = ["osx-64", "linux-64", "win-64"]
 
 KIND_EXPLICIT: Literal["explicit"] = "explicit"
 KIND_LOCK: Literal["lock"] = "lock"
@@ -240,44 +231,6 @@ def fn_to_dist_name(fn: str) -> str:
     else:
         raise RuntimeError(f"unexpected file type {fn}", fn)
     return fn
-
-
-def make_lock_spec(
-    *,
-    src_files: List[pathlib.Path],
-    virtual_package_repo: FakeRepoData,
-    channel_overrides: Optional[Sequence[str]] = None,
-    platform_overrides: Optional[Sequence[str]] = None,
-    required_categories: Optional[AbstractSet[str]] = None,
-) -> LockSpecification:
-    """Generate the lockfile specs from a set of input src_files.  If required_categories is set filter out specs that do not match those"""
-    lock_specs = parse_source_files(
-        src_files=src_files, platform_overrides=platform_overrides
-    )
-
-    lock_spec = aggregate_lock_specs(lock_specs)
-    lock_spec.virtual_package_repo = virtual_package_repo
-    lock_spec.channels = (
-        [Channel.from_string(co) for co in channel_overrides]
-        if channel_overrides
-        else lock_spec.channels
-    )
-    lock_spec.platforms = (
-        list(platform_overrides) if platform_overrides else lock_spec.platforms
-    ) or list(DEFAULT_PLATFORMS)
-
-    if required_categories is not None:
-
-        def dep_has_category(d: Dependency, categories: AbstractSet[str]) -> bool:
-            return d.category in categories
-
-        lock_spec.dependencies = [
-            d
-            for d in lock_spec.dependencies
-            if dep_has_category(d, categories=required_categories)
-        ]
-
-    return lock_spec
 
 
 def make_lock_files(
@@ -678,10 +631,10 @@ def render_lockfile_for_platform(  # noqa: C901
 
         if len(pip_deps) > 0:
             logger.warning(
-                "WARNING: installation of pip dependencies is only supported "
-                "by the 'conda-lock install' command. Other tools may silently "
-                "ignore them. For portability, we recommend using the newer "
-                "unified lockfile format (i.e. removing the --kind=explicit "
+                "WARNING: installation of pip dependencies is only supported by the "
+                "'conda-lock install' and 'micromamba install' commands. Other tools "
+                "may silently ignore them. For portability, we recommend using the "
+                "newer unified lockfile format (i.e. removing the --kind=explicit "
                 "argument."
             )
     else:
@@ -729,8 +682,6 @@ def _solve_for_arch(
     )
 
     if requested_deps_by_name["pip"]:
-        if not PIP_SUPPORT:
-            raise ValueError("pip support is not enabled")
         if "python" not in conda_deps:
             raise ValueError("Got pip specs without Python")
         pip_deps = solve_pypi(
@@ -866,42 +817,6 @@ def create_lockfile_from_spec(
     )
 
 
-def parse_source_files(
-    src_files: List[pathlib.Path],
-    platform_overrides: Optional[Sequence[str]],
-) -> List[LockSpecification]:
-    """
-    Parse a sequence of dependency specifications from source files
-
-    Parameters
-    ----------
-    src_files :
-        Files to parse for dependencies
-    platform_overrides :
-        Target platforms to render environment.yaml and meta.yaml files for
-    """
-    desired_envs: List[LockSpecification] = []
-    for src_file in src_files:
-        if src_file.name == "meta.yaml":
-            desired_envs.append(
-                parse_meta_yaml_file(
-                    src_file, list(platform_overrides or DEFAULT_PLATFORMS)
-                )
-            )
-        elif src_file.name == "pyproject.toml":
-            desired_envs.append(parse_pyproject_toml(src_file))
-        else:
-            desired_envs.append(
-                parse_environment_file(
-                    src_file,
-                    platform_overrides,
-                    default_platforms=DEFAULT_PLATFORMS,
-                    pip_support=PIP_SUPPORT,
-                )
-            )
-    return desired_envs
-
-
 def _add_auth_to_line(line: str, auth: Dict[str, str]) -> str:
     matching_auths = [a for a in auth if a in line]
     if not matching_auths:
@@ -914,7 +829,7 @@ def _add_auth_to_line(line: str, auth: Dict[str, str]) -> str:
 
 def _add_auth_to_lockfile(lockfile: str, auth: Dict[str, str]) -> str:
     lockfile_with_auth = "\n".join(
-        _add_auth_to_line(line, auth) if line[0] not in ("#", "@") else line
+        _add_auth_to_line(line, auth) if PKG_PATTERN.match(line) else line
         for line in lockfile.strip().split("\n")
     )
     if lockfile.endswith("\n"):
@@ -930,17 +845,17 @@ def _add_auth(lockfile: str, auth: Dict[str, str]) -> Iterator[pathlib.Path]:
 
 
 def _strip_auth_from_line(line: str) -> str:
-    return AUTH_PATTERN.sub(r"\1\3", line)
+    return AUTH_PATTERN.sub(r"\1\2\4", line)
 
 
 def _extract_domain(line: str) -> str:
-    return DOMAIN_PATTERN.sub(r"\2", line)
+    return DOMAIN_PATTERN.sub(r"\3", line)
 
 
 def _strip_auth_from_lockfile(lockfile: str) -> str:
     lockfile_lines = lockfile.strip().split("\n")
     stripped_lockfile_lines = tuple(
-        _strip_auth_from_line(line) if line[0] not in ("#", "@") else line
+        _strip_auth_from_line(line) if PKG_PATTERN.match(line) else line
         for line in lockfile_lines
     )
     stripped_domains = sorted(

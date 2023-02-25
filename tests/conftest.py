@@ -32,7 +32,7 @@ def quetz_server() -> Iterable[QuetzServerInfo]:
 
     client = docker.from_env()
 
-    image = client.images.pull("mambaorg/quetz")
+    image = client.images.pull("mambaorg/quetz:latest")
 
     container: Container = client.containers.run(
         image,

@@ -33,7 +33,7 @@ from conda_lock.invoke_conda import (
 )
 from conda_lock.lockfile import HashModel, LockedDependency, _apply_categories
 from conda_lock.models.channel import Channel
-from conda_lock.src_parser import Dependency, VersionedDependency
+from conda_lock.models.lock_spec import Dependency, VersionedDependency
 
 
 logger = logging.getLogger(__name__)

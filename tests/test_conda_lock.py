@@ -30,20 +30,17 @@ from conda_lock._vendor.conda.models.match_spec import MatchSpec
 from conda_lock.conda_lock import (
     DEFAULT_FILES,
     DEFAULT_LOCKFILE_NAME,
-    DEFAULT_PLATFORMS,
     _add_auth_to_line,
     _add_auth_to_lockfile,
     _extract_domain,
     _strip_auth_from_line,
     _strip_auth_from_lockfile,
-    aggregate_lock_specs,
     create_lockfile_from_spec,
     default_virtual_package_repodata,
     determine_conda_executable,
     extract_input_hash,
     main,
     make_lock_spec,
-    parse_meta_yaml_file,
     run_lock,
 )
 from conda_lock.conda_solver import extract_json_object, fake_conda_environment
@@ -65,8 +62,14 @@ from conda_lock.lockfile import (
     parse_conda_lock_file,
 )
 from conda_lock.models.channel import Channel
+from conda_lock.models.lock_spec import Selectors, VersionedDependency
 from conda_lock.pypi_solver import parse_pip_requirement, solve_pypi
-from conda_lock.src_parser import LockSpecification, Selectors, VersionedDependency
+from conda_lock.src_parser import (
+    DEFAULT_PLATFORMS,
+    LockSpecification,
+    parse_meta_yaml_file,
+)
+from conda_lock.src_parser.aggregation import aggregate_lock_specs
 from conda_lock.src_parser.environment_yaml import parse_environment_file
 from conda_lock.src_parser.pyproject_toml import (
     parse_pyproject_toml,
@@ -313,7 +316,7 @@ def test_lock_poetry_ibis(
 
 
 def test_parse_environment_file(gdal_environment: Path):
-    res = parse_environment_file(gdal_environment, DEFAULT_PLATFORMS, pip_support=True)
+    res = parse_environment_file(gdal_environment, DEFAULT_PLATFORMS)
     assert all(
         x in res.dependencies
         for x in [
@@ -343,7 +346,7 @@ def test_parse_environment_file(gdal_environment: Path):
 
 
 def test_parse_environment_file_with_pip(pip_environment: Path):
-    res = parse_environment_file(pip_environment, DEFAULT_PLATFORMS, pip_support=True)
+    res = parse_environment_file(pip_environment, DEFAULT_PLATFORMS)
     assert [dep for dep in res.dependencies if dep.manager == "pip"] == [
         VersionedDependency(
             name="requests-toolbelt",
@@ -357,7 +360,7 @@ def test_parse_environment_file_with_pip(pip_environment: Path):
 
 
 def test_parse_env_file_with_filters_no_args(filter_conda_environment: Path):
-    res = parse_environment_file(filter_conda_environment, None, pip_support=False)
+    res = parse_environment_file(filter_conda_environment, None)
     assert all(x in res.platforms for x in ["osx-arm64", "osx-64", "linux-64"])
     assert res.channels == [Channel.from_string("conda-forge")]
 
@@ -392,9 +395,7 @@ def test_parse_env_file_with_filters_no_args(filter_conda_environment: Path):
 
 
 def test_parse_env_file_with_filters_defaults(filter_conda_environment: Path):
-    res = parse_environment_file(
-        filter_conda_environment, DEFAULT_PLATFORMS, pip_support=False
-    )
+    res = parse_environment_file(filter_conda_environment, DEFAULT_PLATFORMS)
     assert all(x in res.platforms for x in DEFAULT_PLATFORMS)
     assert res.channels == [Channel.from_string("conda-forge")]
 
@@ -1423,6 +1424,14 @@ def test_install(
             "http://user:password@conda.mychannel.cloud/mypackage",
             "http://conda.mychannel.cloud/mypackage",
         ),
+        (
+            "# pip mypackage @ https://username1:password1@pypi.mychannel.cloud/simple",
+            "# pip mypackage @ https://pypi.mychannel.cloud/simple",
+        ),
+        (
+            "# pip mypackage @ https://pypi.mychannel.cloud/simple",
+            "# pip mypackage @ https://pypi.mychannel.cloud/simple",
+        ),
     ),
 )
 def test__strip_auth_from_line(line: str, stripped: str):
@@ -1434,6 +1443,10 @@ def test__strip_auth_from_line(line: str, stripped: str):
     (
         ("https://conda.mychannel.cloud/mypackage", "conda.mychannel.cloud"),
         ("http://conda.mychannel.cloud/mypackage", "conda.mychannel.cloud"),
+        (
+            "# pip mypackage @ https://pypi.mychannel.cloud/simple",
+            "pypi.mychannel.cloud",
+        ),
     ),
 )
 def test__extract_domain(line: str, stripped: str):
@@ -1493,6 +1506,22 @@ def test__strip_auth_from_lockfile(lockfile: str, stripped_lockfile: str):
             },
             "https://username1:password1@conda.mychannel.cloud/channel1/mypackage",
         ),
+        (
+            "# pip mypackage @ https://pypi.mychannel.cloud/simple",
+            {
+                "pypi.mychannel.cloud": "username:password",
+                "pypi.mychannel.cloud/simple": "username1:password1",
+            },
+            "# pip mypackage @ https://username1:password1@pypi.mychannel.cloud/simple",
+        ),
+        (
+            "# pip mypackage @ https://pypi.otherchannel.cloud/simple",
+            {
+                "pypi.mychannel.cloud": "username:password",
+                "pypi.mychannel.cloud/simple": "username1:password1",
+            },
+            "# pip mypackage @ https://pypi.otherchannel.cloud/simple",
+        ),
     ),
 )
 def test__add_auth_to_line(line: str, auth: Dict[str, str], line_with_auth: str):
@@ -1504,6 +1533,7 @@ def auth_():
     return {
         "a.mychannel.cloud": "username_a:password_a",
         "c.mychannel.cloud": "username_c:password_c",
+        "d.mychannel.cloud": "username_d:password_d",
     }
 
 

@@ -38,7 +38,7 @@ like this in your shell
 
 ```bash
 # Update the lockfile
-conda lock --format explicit --platform linux-64
+conda-lock --kind explicit --platform linux-64
 # build the image
 docker build -t myimagename:mytag .
 ```
