@@ -65,13 +65,18 @@ jobs:
       matrix:
         os: [ ubuntu-latest, macos-latest ]
         python-version: [ "3.8", "3.11" ]
-        include:
+        pytest-split-group: [1, 2, 3]
+        pytest-split-groups: [2, 3]
+        exclude:
           - os: ubuntu-latest
-            pytest-split-group: [1, 2]
-            pytest-split-groups: 2
-          - os: macos-latest
-            pytest-split-group: [1, 2, 3]
+            # Force pytest-split-groups to 2 by excluding 3
             pytest-split-groups: 3
+          - os: macos-latest
+            # Force pytest-split-groups to 3 by excluding 2
+            pytest-split-groups: 2
+          - os: ubuntu-latest
+            # Don't run the third group on ubuntu
+            pytest-split-group: 3
     defaults:
       run:
         shell: bash -l {0}
