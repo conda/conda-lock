@@ -18,6 +18,7 @@ concurrency:
 jobs:
   test-windows:
     strategy:
+      fail-fast: false
       matrix:
         pytest-split-group: [1, 2, 3, 4, 5]
         pytest-split-groups: [5]
