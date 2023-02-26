@@ -210,6 +210,13 @@ def solve_conda(
     return planned
 
 
+def print_pkgs_dirs_contents(pkgs_dirs: List[pathlib.Path]) -> None:
+    for pkgs_dir in pkgs_dirs:
+        print(f"\n\n---\n{pkgs_dir=}\n\n---\n")
+        for entry in pkgs_dir.iterdir():
+            print(entry)
+
+
 def _reconstruct_fetch_actions(
     conda: PathLike,
     platform: str,
@@ -264,7 +271,9 @@ def _reconstruct_fetch_actions(
                         repodata: FetchAction = json.load(f)
                     break
             else:
-                raise FileExistsError(
+                print(f"\n\n---\n{link_pkg_name=}\n\n---\n{link_action=}")
+                print_pkgs_dirs_contents(pkgs_dirs)
+                raise FileNotFoundError(
                     f'Distribution \'{link_action["dist_name"]}\' not found in pkgs_dirs {pkgs_dirs}'
                 )
             dry_run_install["actions"]["FETCH"].append(repodata)
