@@ -7,7 +7,10 @@ from conda_lock.common import ordered_union
 from conda_lock.models.channel import Channel
 from conda_lock.models.lock_spec import Dependency, LockSpecification
 from conda_lock.src_parser.aggregation import aggregate_lock_specs
-from conda_lock.src_parser.environment_yaml import parse_environment_file
+from conda_lock.src_parser.environment_yaml import (
+    parse_environment_file,
+    parse_platforms_from_env_file,
+)
 from conda_lock.src_parser.meta_yaml import parse_meta_yaml_file
 from conda_lock.src_parser.pyproject_toml import parse_pyproject_toml
 from conda_lock.virtual_package import FakeRepoData
@@ -35,9 +38,7 @@ def _parse_platforms_from_srcs(src_files: List[pathlib.Path]) -> List[str]:
         elif src_file.name == "pyproject.toml":
             all_file_platforms.append(parse_pyproject_toml(src_file).platforms)
         else:
-            all_file_platforms.append(
-                parse_environment_file(src_file, DEFAULT_PLATFORMS).platforms
-            )
+            all_file_platforms.append(parse_platforms_from_env_file(src_file))
 
     return ordered_union(all_file_platforms)
 

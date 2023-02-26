@@ -96,6 +96,20 @@ def _parse_environment_file_for_platform(
     )
 
 
+def parse_platforms_from_env_file(environment_file: pathlib.Path) -> List[str]:
+    """
+    Parse the list of platforms from an environment-yaml file
+    """
+    if not environment_file.exists():
+        raise FileNotFoundError(f"{environment_file} not found")
+
+    with environment_file.open("r") as fo:
+        content = fo.read()
+        env_yaml_data = yaml.safe_load(content)
+
+    return env_yaml_data.get("platforms", [])
+
+
 def parse_environment_file(
     environment_file: pathlib.Path,
     given_platforms: Optional[Sequence[str]],

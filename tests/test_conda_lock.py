@@ -70,7 +70,10 @@ from conda_lock.src_parser import (
     parse_meta_yaml_file,
 )
 from conda_lock.src_parser.aggregation import aggregate_lock_specs
-from conda_lock.src_parser.environment_yaml import parse_environment_file
+from conda_lock.src_parser.environment_yaml import (
+    parse_environment_file,
+    parse_platforms_from_env_file,
+)
 from conda_lock.src_parser.pyproject_toml import (
     parse_pyproject_toml,
     poetry_version_to_conda_version,
@@ -360,7 +363,8 @@ def test_parse_environment_file_with_pip(pip_environment: Path):
 
 
 def test_parse_env_file_with_filters_no_args(filter_conda_environment: Path):
-    res = parse_environment_file(filter_conda_environment, None)
+    platforms = parse_platforms_from_env_file(filter_conda_environment)
+    res = parse_environment_file(filter_conda_environment, platforms)
     assert all(x in res.platforms for x in ["osx-arm64", "osx-64", "linux-64"])
     assert res.channels == [Channel.from_string("conda-forge")]
 
