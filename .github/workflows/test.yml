@@ -63,7 +63,7 @@ jobs:
           echo "%RUNNER_TEMP%\\tests"
           echo %GITHUB_WORKSPACE%
           echo ${{ github.workspace }}
-          dir "{{ github.workspace }}\tests\durations"
+          dir "${{ github.workspace }}\tests\durations"
           echo copy pyproject.toml
           copy pyproject.toml "%RUNNER_TEMP%"
           echo copy tests
@@ -73,7 +73,7 @@ jobs:
           echo set TMPDIR
           set TMPDIR="%RUNNER_TEMP%"
           dir
-          pytest --cov=conda_lock --cov-branch --cov-report=xml --cov-report=term --store-durations --durations-path "{{ github.workspace }}\tests\durations\${{ matrix.os }}-py${{ matrix.python-version }}.json" tests
+          pytest --cov=conda_lock --cov-branch --cov-report=xml --cov-report=term --store-durations --durations-path "${{ github.workspace }}\tests\durations\${{ matrix.os }}-py${{ matrix.python-version }}.json" tests
           copy coverage.xml %GITHUB_WORKSPACE%
       - uses: codecov/codecov-action@v3
 
@@ -147,8 +147,8 @@ jobs:
           ls -lah
           set -x
           which pytest
-          pytest --cov=conda_lock --cov-branch --cov-report=xml --cov-report=term --store-durations --durations-path "${GITHUB_WORKSPACE}/tests/durations/${{ matrix.os }}-py${{ matrix.python-version }}.json" tests
-          cp coverage.xml "${GITHUB_WORKSPACE}"
+          pytest --cov=conda_lock --cov-branch --cov-report=xml --cov-report=term --store-durations --durations-path "${{ github.workspace }}/tests/durations/${{ matrix.os }}-py${{ matrix.python-version }}.json" tests
+          cp coverage.xml "${{ github.workspace }}"
       - uses: codecov/codecov-action@v3
 
       - name: print test durations
