@@ -6,6 +6,7 @@ import shlex
 import subprocess
 import sys
 import tempfile
+import time
 
 from contextlib import contextmanager
 from typing import (
@@ -210,6 +211,33 @@ def solve_conda(
     return planned
 
 
+def _get_repodata_record(
+    pkgs_dirs: List[pathlib.Path], dist_name: str
+) -> Optional[FetchAction]:
+    """Get the repodata_record.json of a given distribution from the package cache.
+
+    On rare occasion during the CI tests, conda fails to find a package in the
+    package cache, perhaps because the package is still being processed? Waiting for
+    0.1 seconds seems to solve the issue. Here we allow for a full second to elapse
+    before giving up.
+    """
+    NUM_RETRIES = 10
+    for retry in range(1, NUM_RETRIES + 1):
+        for pkgs_dir in pkgs_dirs:
+            record = pkgs_dir / dist_name / "info" / "repodata_record.json"
+            if record.exists():
+                with open(record) as f:
+                    repodata: FetchAction = json.load(f)
+                return repodata
+        logger.warn(
+            f"Failed to find repodata_record.json for {dist_name}. "
+            f"Retrying in 0.1 seconds ({retry}/{NUM_RETRIES})"
+        )
+        time.sleep(0.1)
+    logger.warn(f"Failed to find repodata_record.json for {dist_name}. Giving up.")
+    return None
+
+
 def _reconstruct_fetch_actions(
     conda: PathLike, platform: str, dry_run_install: DryRunInstall
 ) -> DryRunInstall:
@@ -246,19 +274,9 @@ def _reconstruct_fetch_actions(
 
         for link_pkg_name in link_only_names:
             link_action = link_actions[link_pkg_name]
-            for pkgs_dir in pkgs_dirs:
-                record = (
-                    pkgs_dir
-                    / link_action["dist_name"]
-                    / "info"
-                    / "repodata_record.json"
-                )
-                if record.exists():
-                    with open(record) as f:
-                        repodata: FetchAction = json.load(f)
-                    break
-            else:
-                raise FileExistsError(
+            repodata = _get_repodata_record(pkgs_dirs, link_action["dist_name"])
+            if repodata is None:
+                raise FileNotFoundError(
                     f'Distribution \'{link_action["dist_name"]}\' not found in pkgs_dirs {pkgs_dirs}'
                 )
             dry_run_install["actions"]["FETCH"].append(repodata)
