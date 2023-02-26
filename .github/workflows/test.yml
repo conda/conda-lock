@@ -49,6 +49,12 @@ jobs:
           conda activate test
           pip install -e . --force-reinstall
 
+      - name: Test storing test durations
+        uses: actions/upload-artifact@v3
+        with:
+          name: test-durations-test
+          path: tests\durations\.gitignore
+
       - name: run-test
         run: |
           conda activate test
@@ -57,7 +63,7 @@ jobs:
           pushd "${RUNNER_TEMP}"
           set TMPDIR="%RUNNER_TEMP%"
           dir
-          pytest --cov=conda_lock --cov-branch --cov-report=xml --cov-report=term --store-durations --durations-path "${GITHUB_WORKSPACE}/tests/durations/${{ matrix.os }}-py${{ matrix.python-version }}.json" tests
+          pytest --cov=conda_lock --cov-branch --cov-report=xml --cov-report=term --store-durations --durations-path "%GITHUB_WORKSPACE%\tests\durations\${{ matrix.os }}-py${{ matrix.python-version }}.json" tests
           copy coverage.xml %GITHUB_WORKSPACE%
       - uses: codecov/codecov-action@v3
 
@@ -65,7 +71,7 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: test-durations
-          path: tests/durations/${{ matrix.os }}-py${{ matrix.python-version }}.json
+          path: tests\durations\${{ matrix.os }}-py${{ matrix.python-version }}.json
 
   test:
     runs-on: ${{ matrix.os }}
