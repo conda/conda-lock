@@ -21,6 +21,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ windows-latest ]
+        python-version: ["3.10"]
         # pytest-split-group: [1, 2, 3, 4, 5]
         # pytest-split-groups: [5]
     env:
@@ -56,7 +57,7 @@ jobs:
           pushd "${RUNNER_TEMP}"
           set TMPDIR="%RUNNER_TEMP%"
           dir
-          pytest --cov=conda_lock --cov-branch --cov-report=xml --cov-report=term --store-durations --durations-path "%GITHUB_WORKSPACE%\\tests\\durations\\${{ matrix.os }}-py${{ matrix.python-version }}.json" tests
+          pytest --cov=conda_lock --cov-branch --cov-report=xml --cov-report=term --store-durations --durations-path "${GITHUB_WORKSPACE}/tests/durations/${{ matrix.os }}-py${{ matrix.python-version }}.json" tests
           copy coverage.xml %GITHUB_WORKSPACE%
       - uses: codecov/codecov-action@v3
 
