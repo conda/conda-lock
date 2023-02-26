@@ -6,6 +6,7 @@ import shlex
 import subprocess
 import sys
 import tempfile
+import time
 
 from contextlib import contextmanager
 from typing import (
@@ -217,38 +218,29 @@ def print_pkgs_dirs_contents(pkgs_dirs: List[pathlib.Path]) -> None:
             print(entry)
 
 
-def get_repodata_record(
+def _get_repodata_record(
     pkgs_dirs: List[pathlib.Path], dist_name: str
 ) -> Optional[FetchAction]:
-    import time
-
-    for pkgs_dir in pkgs_dirs:
-        record = pkgs_dir / dist_name / "info" / "repodata_record.json"
-        if record.exists():
-            with open(record) as f:
-                repodata: FetchAction = json.load(f)
-            return repodata
-    print(f"Could not find repodata_record.json for {dist_name} in {pkgs_dirs}")
-    for _ in range(200):
+    """Get the repodata_record.json of a given distribution from the package cache.
+    On rare occasion during the CI tests, conda fails to find a package in the
+    package cache, perhaps because the package is still being processed? Waiting for
+    0.1 seconds seems to solve the issue. Here we allow for a full second to elapse
+    before giving up.
+    """
+    NUM_RETRIES = 10
+    for retry in range(1, NUM_RETRIES + 1):
         for pkgs_dir in pkgs_dirs:
-            for path in pkgs_dir.glob(f"{dist_name}*"):
-                if path.is_file():
-                    print(f"File: {path}")
-                elif path.is_dir():
-                    print(f"Directory: {path}")
-                    if path.name == dist_name:
-                        print("Contents:")
-                        for entry in path.iterdir():
-                            print(f"  {entry}")
-                            if entry.name == "info":
-                                for info_entry in entry.iterdir():
-                                    print(f"    {info_entry}")
-                                    if info_entry.name == "repodata_record.json":
-                                        with open(info_entry) as f:
-                                            print(f.read())
-                                        print("We would have been able to use this.")
-                                        return None
+            record = pkgs_dir / dist_name / "info" / "repodata_record.json"
+            if record.exists():
+                with open(record) as f:
+                    repodata: FetchAction = json.load(f)
+                return repodata
+        logger.warn(
+            f"Failed to find repodata_record.json for {dist_name}. "
+            f"Retrying in 0.1 seconds ({retry}/{NUM_RETRIES})"
+        )
         time.sleep(0.1)
+    logger.warn(f"Failed to find repodata_record.json for {dist_name}. Giving up.")
     return None
 
 
@@ -294,7 +286,7 @@ def _reconstruct_fetch_actions(
 
         for link_pkg_name in link_only_names:
             link_action = link_actions[link_pkg_name]
-            repodata = get_repodata_record(pkgs_dirs, link_action["dist_name"])
+            repodata = _get_repodata_record(pkgs_dirs, link_action["dist_name"])
             if repodata is None:
                 print(f"\n\n---\n{link_pkg_name=}\n\n---\n{link_action=}")
                 print_pkgs_dirs_contents(pkgs_dirs)
