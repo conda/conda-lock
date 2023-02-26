@@ -1,0 +1,6 @@
+dependencies:
+  - python <3.11
+platforms:
+  - osx-arm64
+  - osx-64
+  - linux-64

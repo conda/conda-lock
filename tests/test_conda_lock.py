@@ -67,6 +67,7 @@ from conda_lock.pypi_solver import parse_pip_requirement, solve_pypi
 from conda_lock.src_parser import (
     DEFAULT_PLATFORMS,
     LockSpecification,
+    _parse_platforms_from_srcs,
     parse_meta_yaml_file,
 )
 from conda_lock.src_parser.aggregation import aggregate_lock_specs
@@ -213,6 +214,12 @@ def env_with_uppercase_pip(tmp_path: Path):
 @pytest.fixture
 def git_metadata_zlib_environment(tmp_path: Path):
     return clone_test_dir("zlib", tmp_path).joinpath("environment.yml")
+
+
+@pytest.fixture
+def multi_source_env(tmp_path: Path):
+    f = clone_test_dir("test-multi-sources", tmp_path)
+    return [f.joinpath("main.yml"), f.joinpath("pyproject.toml"), f.joinpath("dev.yml")]
 
 
 @pytest.fixture(
@@ -425,6 +432,11 @@ def test_parse_env_file_with_filters_defaults(filter_conda_environment: Path):
             ),
         ]
     )
+
+
+def test_parse_platforms_from_multi_sources(multi_source_env):
+    platforms = _parse_platforms_from_srcs(multi_source_env)
+    assert platforms == ["osx-arm64", "osx-64", "linux-64", "win-64"]
 
 
 def test_choose_wheel() -> None:
