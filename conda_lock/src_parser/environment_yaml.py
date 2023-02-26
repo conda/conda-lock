@@ -2,7 +2,7 @@ import pathlib
 import re
 import sys
 
-from typing import List, Optional, Sequence, Tuple
+from typing import List, Tuple
 
 import yaml
 
@@ -112,9 +112,7 @@ def parse_platforms_from_env_file(environment_file: pathlib.Path) -> List[str]:
 
 def parse_environment_file(
     environment_file: pathlib.Path,
-    given_platforms: Optional[Sequence[str]],
-    *,
-    default_platforms: List[str] = [],
+    platforms: List[str],
 ) -> LockSpecification:
     """Parse a simple environment-yaml file for dependencies assuming the target platforms.
 
@@ -128,15 +126,6 @@ def parse_environment_file(
 
     with environment_file.open("r") as fo:
         content = fo.read()
-        env_yaml_data = yaml.safe_load(content)
-
-    # Get list of platforms from the input file
-    yaml_platforms: Optional[List[str]] = env_yaml_data.get("platforms")
-    # Final list of platforms is the following order of priority
-    # 1) List Passed in via the -p flag (if any given)
-    # 2) List From the YAML File (if specified)
-    # 3) Default List of Platforms to Render
-    platforms = list(given_platforms or yaml_platforms or default_platforms)
 
     # Parse with selectors for each target platform
     spec = aggregate_lock_specs(
