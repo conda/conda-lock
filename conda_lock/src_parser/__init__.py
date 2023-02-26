@@ -3,6 +3,7 @@ import pathlib
 
 from typing import AbstractSet, List, Optional, Sequence
 
+from conda_lock.common import ordered_union
 from conda_lock.models.channel import Channel
 from conda_lock.models.lock_spec import Dependency, LockSpecification
 from conda_lock.src_parser.aggregation import aggregate_lock_specs
@@ -18,9 +19,32 @@ DEFAULT_PLATFORMS = ["osx-64", "linux-64", "win-64"]
 logger = logging.getLogger(__name__)
 
 
+def _parse_platforms_from_srcs(src_files: List[pathlib.Path]) -> List[str]:
+    """
+    Parse a sequence of dependency specifications from source files
+
+    Parameters
+    ----------
+    src_files :
+        Files to parse for dependencies
+    """
+    all_file_platforms: List[List[str]] = []
+    for src_file in src_files:
+        if src_file.name == "meta.yaml":
+            continue
+        elif src_file.name == "pyproject.toml":
+            all_file_platforms.append(parse_pyproject_toml(src_file).platforms)
+        else:
+            all_file_platforms.append(
+                parse_environment_file(src_file, DEFAULT_PLATFORMS).platforms
+            )
+
+    return ordered_union(all_file_platforms)
+
+
 def _parse_source_files(
     src_files: List[pathlib.Path],
-    platform_overrides: Optional[Sequence[str]],
+    platforms: List[str],
 ) -> List[LockSpecification]:
     """
     Parse a sequence of dependency specifications from source files
@@ -29,27 +53,17 @@ def _parse_source_files(
     ----------
     src_files :
         Files to parse for dependencies
-    platform_overrides :
+    platforms :
         Target platforms to render environment.yaml and meta.yaml files for
     """
     desired_envs: List[LockSpecification] = []
     for src_file in src_files:
         if src_file.name == "meta.yaml":
-            desired_envs.append(
-                parse_meta_yaml_file(
-                    src_file, list(platform_overrides or DEFAULT_PLATFORMS)
-                )
-            )
+            desired_envs.append(parse_meta_yaml_file(src_file, platforms))
         elif src_file.name == "pyproject.toml":
             desired_envs.append(parse_pyproject_toml(src_file))
         else:
-            desired_envs.append(
-                parse_environment_file(
-                    src_file,
-                    platform_overrides,
-                    default_platforms=DEFAULT_PLATFORMS,
-                )
-            )
+            desired_envs.append(parse_environment_file(src_file, platforms))
     return desired_envs
 
 
@@ -62,20 +76,22 @@ def make_lock_spec(
     required_categories: Optional[AbstractSet[str]] = None,
 ) -> LockSpecification:
     """Generate the lockfile specs from a set of input src_files.  If required_categories is set filter out specs that do not match those"""
-    lock_specs = _parse_source_files(
-        src_files=src_files, platform_overrides=platform_overrides
-    )
+    platforms = (
+        list(platform_overrides)
+        if platform_overrides
+        else _parse_platforms_from_srcs(src_files)
+    ) or DEFAULT_PLATFORMS
+
+    lock_specs = _parse_source_files(src_files, platforms)
 
     lock_spec = aggregate_lock_specs(lock_specs)
     lock_spec.virtual_package_repo = virtual_package_repo
+    lock_spec.platforms = platforms
     lock_spec.channels = (
         [Channel.from_string(co) for co in channel_overrides]
         if channel_overrides
         else lock_spec.channels
     )
-    lock_spec.platforms = (
-        list(platform_overrides) if platform_overrides else lock_spec.platforms
-    ) or list(DEFAULT_PLATFORMS)
 
     if required_categories is not None:
 
