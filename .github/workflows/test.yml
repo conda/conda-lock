@@ -56,7 +56,7 @@ jobs:
           pushd "${RUNNER_TEMP}"
           set TMPDIR="%RUNNER_TEMP%"
           dir
-          pytest --cov=conda_lock --cov-branch --cov-report=xml --cov-report=term --store-durations --durations-path tests/durations/${{ matrix.os }}-py${{ matrix.python-version }}.json tests
+          pytest --cov=conda_lock --cov-branch --cov-report=xml --cov-report=term --store-durations --durations-path "%GITHUB_WORKSPACE%\\tests\\durations\\${{ matrix.os }}-py${{ matrix.python-version }}.json" tests
           copy coverage.xml %GITHUB_WORKSPACE%
       - uses: codecov/codecov-action@v3
 
@@ -130,9 +130,20 @@ jobs:
           ls -lah
           set -x
           which pytest
-          pytest --cov=conda_lock --cov-branch --cov-report=xml --cov-report=term --store-durations --durations-path tests/durations/${{ matrix.os }}-py${{ matrix.python-version }}.json tests
+          pytest --cov=conda_lock --cov-branch --cov-report=xml --cov-report=term --store-durations --durations-path "${GITHUB_WORKSPACE}/tests/durations/${{ matrix.os }}-py${{ matrix.python-version }}.json" tests
+          ls -al "${GITHUB_WORKSPACE}/tests/durations"
+          cat "${GITHUB_WORKSPACE}/tests/durations/"*
+          cat "${GITHUB_WORKSPACE}/tests/durations/${{ matrix.os }}-py${{ matrix.python-version }}.json"
           cp coverage.xml "${GITHUB_WORKSPACE}"
       - uses: codecov/codecov-action@v3
+
+      - name: look for test durations
+        shell: bash -l {0}
+        run: |
+          ls -al tests/durations
+          cat tests/durations/*
+          cat tests/durations/${{ matrix.os }}-py${{ matrix.python-version }}.json
+          cp coverage.xml "${GITHUB_WORKSPACE}"
 
       - name: Store test durations
         uses: actions/upload-artifact@v3
