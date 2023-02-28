@@ -394,10 +394,10 @@ Alternatively, the above behavior is defaulted for all dependencies defined in `
 - Defaulting to PyPI dependencies for `[tool.poetry.dependencies]`
 - Defaulting to Conda dependencies for `[tool.conda-lock.dependencies]`
 
-by explicitly providing  `default-poetry-source-pypi = true` in `[tool.conda-lock]` section, e.g.:
+by explicitly providing  `default-dependencies-to-conda = false` in `[tool.conda-lock.poetry]` section, e.g.:
 ```toml
-[tool.conda-lock]
-default-poetry-source-pypi = true
+[tool.conda-lock.poetry]
+default-dependencies-to-conda = false
 ```
 In all cases, the dependencies of `pip`-installable packages will also be
 installed with `pip`, unless they were already requested by a `conda`

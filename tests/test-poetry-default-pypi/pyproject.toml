@@ -20,10 +20,12 @@ requires = ["poetry>=0.12"]
 build-backend = "poetry.masonry.api"
 
 [tool.conda-lock]
-default-poetry-source-pypi = true
 channels = [
     'defaults'
 ]
+
+[tool.conda-lock.poetry]
+default-dependencies-to-conda = false
 
 [tool.conda-lock.dependencies]
 sqlite = "<3.34"

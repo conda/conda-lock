@@ -95,10 +95,10 @@ def parse_poetry_pyproject_toml(
     * dependencies in [tool.poetry.dev-dependencies] have category dev
     * dependencies in each `key` of [tool.poetry.extras] have category `key`
 
-    * By default, dependency names are translated to the conda equivalent, with two exceptions:
+    * By default, dependency names are translated to the conda equivalent, with three exceptions:
         - If a dependency has `source = "pypi"`, it is treated as a pip dependency (by name)
         - If a dependency has a url, it is treated as a direct pip dependency (by url)
-        - If all dependencies are defaulted to pypi, `default-poetry-source-pypi = true`
+        - If all dependencies are defaulted to pypi, `default-dependencies-to-conda = false`
 
     * markers are not supported
 
@@ -121,13 +121,20 @@ def parse_poetry_pyproject_toml(
         group_key = tuple(["group", group_name, "dependencies"])
         categories[group_key] = group_name
 
+    default_dependencies_to_conda = get_in(
+        ["tool", "conda-lock", "poetry", "default-dependencies-to-conda"],
+        contents,
+        True,
+    )
     for section, default_category in categories.items():
         for depname, depattrs in get_in(
             ["tool", "poetry", *section], contents, {}
         ).items():
             category = dep_to_extra.get(depname) or default_category
             optional = category != "main"
-            manager: Literal["conda", "pip"] = "conda"
+            manager: Literal["conda", "pip"] = (
+                "conda" if default_dependencies_to_conda else "pip"
+            )
             url = None
             extras = []
             if isinstance(depattrs, collections.abc.Mapping):
@@ -135,18 +142,11 @@ def parse_poetry_pyproject_toml(
                 url = depattrs.get("url", None)
                 optional = depattrs.get("optional", False)
                 extras = depattrs.get("extras", [])
-                default_poetry_source_pypi = get_in(
-                    ["tool", "conda-lock", "default-poetry-source-pypi"],
-                    contents,
-                    False,
-                )
                 # If a dependency is explicitly marked as sourced from pypi,
-                # or is a URL dependency,
-                # or if default to pypi is marked explicitly, delegate to the pip section,
+                # or is a URL dependency, delegate to the pip section
                 if (
                     depattrs.get("source", None) == "pypi"
                     or poetry_version_spec is None
-                    or default_poetry_source_pypi
                 ):
                     manager = "pip"
                 # TODO: support additional features such as markers for things like sys_platform, platform_system
