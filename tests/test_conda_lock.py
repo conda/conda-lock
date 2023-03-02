@@ -1011,6 +1011,21 @@ def test_run_lock_with_pip(
 
 
 @pytest.fixture
+def test_prefect_environment(tmp_path: Path):
+    return clone_test_dir("test-prefect", tmp_path).joinpath("environment.yml")
+
+
+def test_prefect_gh_380(
+    monkeypatch: pytest.MonkeyPatch, test_prefect_environment: Path, conda_exe: str
+):
+    monkeypatch.chdir(test_prefect_environment.parent)
+    if is_micromamba(conda_exe):
+        monkeypatch.setenv("CONDA_FLAGS", "-v")
+    # Fails with "KeyError: 'docker-py'"
+    run_lock([test_prefect_environment], conda_exe=conda_exe)
+
+
+@pytest.fixture
 def os_name_marker_environment(tmp_path: Path):
     return clone_test_dir("test-os-name-marker", tmp_path).joinpath("environment.yml")
 

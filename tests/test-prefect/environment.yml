@@ -1,0 +1,9 @@
+channels:
+  - conda-forge
+dependencies:
+  - prefect
+  - pip
+  - pip:
+    - prefect-dask
+platforms:
+  - linux-64
