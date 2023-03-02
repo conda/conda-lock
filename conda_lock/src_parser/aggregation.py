@@ -40,4 +40,7 @@ def aggregate_lock_specs(
         # uniquify metadata, preserving order
         platforms=ordered_union(lock_spec.platforms or [] for lock_spec in lock_specs),
         sources=ordered_union(lock_spec.sources or [] for lock_spec in lock_specs),
+        allow_pypi_requests=all(
+            lock_spec.allow_pypi_requests for lock_spec in lock_specs
+        ),
     )
