@@ -14,7 +14,7 @@ import uuid
 
 from glob import glob
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any, Dict, List
 from unittest.mock import MagicMock
 from urllib.parse import urldefrag, urlsplit
 
@@ -192,6 +192,15 @@ def poetry_pyproject_toml_default_pypi(tmp_path: Path):
 @pytest.fixture
 def poetry_pyproject_toml_no_pypi(tmp_path: Path):
     return clone_test_dir("test-poetry-no-pypi", tmp_path).joinpath("pyproject.toml")
+
+
+@pytest.fixture
+def poetry_pyproject_toml_no_pypi_other_projects(tmp_path: Path):
+    tmp = clone_test_dir("test-poetry-no-pypi", tmp_path)
+    return [
+        tmp.joinpath("other_project1/pyproject.toml"),
+        tmp.joinpath("other_project2/pyproject.toml"),
+    ]
 
 
 @pytest.fixture
@@ -622,6 +631,31 @@ def test_parse_poetry_no_pypi(poetry_pyproject_toml_no_pypi: Path):
         poetry_pyproject_toml_no_pypi,
     )
     assert res.allow_pypi_requests is False
+
+
+def test_poetry_no_pypi_multiple_pyprojects(
+    poetry_pyproject_toml_no_pypi: Path,
+    poetry_pyproject_toml_no_pypi_other_projects: List[Path],
+):
+    virtual_package_repo = default_virtual_package_repodata()
+    with virtual_package_repo:
+        spec = make_lock_spec(
+            src_files=poetry_pyproject_toml_no_pypi_other_projects,
+            virtual_package_repo=virtual_package_repo,
+        )
+        assert (
+            spec.allow_pypi_requests is True
+        ), "PyPI requests should be allowed when all pyprojects.toml allow PyPI requests"
+        spec = make_lock_spec(
+            src_files=[
+                *poetry_pyproject_toml_no_pypi_other_projects,
+                poetry_pyproject_toml_no_pypi,
+            ],
+            virtual_package_repo=virtual_package_repo,
+        )
+        assert (
+            spec.allow_pypi_requests is False
+        ), "PyPI requests should be forbidden when at least one pyproject.toml forbids PyPI requests"
 
 
 def test_prepare_repositories_pool():
