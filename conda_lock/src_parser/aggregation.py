@@ -25,11 +25,6 @@ def aggregate_lock_specs(
             lock_spec.dependencies.get(platform, []) for lock_spec in lock_specs
         ):
             key = (dep.manager, dep.name)
-            if key in unique_deps:
-                # Override existing, but merge selectors
-                previous_selectors = unique_deps[key].selectors
-                previous_selectors |= dep.selectors
-                dep.selectors = previous_selectors
             unique_deps[key] = dep
 
         dependencies[platform] = list(unique_deps.values())

@@ -142,7 +142,6 @@ def _parse_meta_yaml_file_for_platform(
             return
 
         dep = conda_spec_to_versioned_dep(spec, category)
-        dep.selectors.platform = [platform]
         dependencies.append(dep)
 
     def add_requirements_from_recipe_or_output(yaml_data: Dict[str, Any]) -> None:

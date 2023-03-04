@@ -51,9 +51,7 @@ def _parse_environment_file_for_platform(
 
     dependencies: List[Dependency] = []
     for spec in specs:
-        vdep = conda_spec_to_versioned_dep(spec, category)
-        vdep.selectors.platform = [platform]
-        dependencies.append(vdep)
+        dependencies.append(conda_spec_to_versioned_dep(spec, category))
 
     for mapping_spec in mapping_specs:
         if "pip" in mapping_spec:

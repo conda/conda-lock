@@ -62,7 +62,7 @@ from conda_lock.lockfile import (
     parse_conda_lock_file,
 )
 from conda_lock.models.channel import Channel
-from conda_lock.models.lock_spec import Selectors, VersionedDependency
+from conda_lock.models.lock_spec import VersionedDependency
 from conda_lock.pypi_solver import parse_pip_requirement, solve_pypi
 from conda_lock.src_parser import (
     DEFAULT_PLATFORMS,
@@ -338,7 +338,7 @@ def test_lock_poetry_ibis(
 def test_parse_environment_file(gdal_environment: Path):
     res = parse_environment_file(gdal_environment, DEFAULT_PLATFORMS)
     assert all(
-        x in res.dependencies
+        x in res.dependencies[plat]
         for x in [
             VersionedDependency(
                 name="python",
@@ -351,14 +351,16 @@ def test_parse_environment_file(gdal_environment: Path):
                 version="",
             ),
         ]
+        for plat in DEFAULT_PLATFORMS
     )
-    assert (
+    assert all(
         VersionedDependency(
             name="toolz",
             manager="pip",
             version="*",
         )
-        in res.dependencies
+        in res.dependencies[plat]
+        for plat in DEFAULT_PLATFORMS
     )
     assert all(
         Channel.from_string(x) in res.channels for x in ["conda-forge", "defaults"]
@@ -387,32 +389,42 @@ def test_parse_env_file_with_filters_no_args(filter_conda_environment: Path):
     assert res.channels == [Channel.from_string("conda-forge")]
 
     assert all(
-        x in res.dependencies
-        for x in [
-            VersionedDependency(
-                name="python",
-                manager="conda",
-                version="<3.11",
+        x in res.dependencies[plat]
+        for x, platforms in [
+            (
+                VersionedDependency(
+                    name="python",
+                    manager="conda",
+                    version="<3.11",
+                ),
+                platforms,
             ),
-            VersionedDependency(
-                name="clang_osx-arm64",
-                manager="conda",
-                version="",
-                selectors=Selectors(platform=["osx-arm64"]),
+            (
+                VersionedDependency(
+                    name="clang_osx-arm64",
+                    manager="conda",
+                    version="",
+                ),
+                ["osx-arm64"],
             ),
-            VersionedDependency(
-                name="clang_osx-64",
-                manager="conda",
-                version="",
-                selectors=Selectors(platform=["osx-64"]),
+            (
+                VersionedDependency(
+                    name="clang_osx-64",
+                    manager="conda",
+                    version="",
+                ),
+                ["osx-64"],
             ),
-            VersionedDependency(
-                name="gcc_linux-64",
-                manager="conda",
-                version=">=6",
-                selectors=Selectors(platform=["linux-64"]),
+            (
+                VersionedDependency(
+                    name="gcc_linux-64",
+                    manager="conda",
+                    version=">=6",
+                ),
+                ["linux-64"],
             ),
         ]
+        for plat in platforms
     )
 
 
@@ -422,26 +434,34 @@ def test_parse_env_file_with_filters_defaults(filter_conda_environment: Path):
     assert res.channels == [Channel.from_string("conda-forge")]
 
     assert all(
-        x in res.dependencies
-        for x in [
-            VersionedDependency(
-                name="python",
-                manager="conda",
-                version="<3.11",
+        x in res.dependencies[plat]
+        for x, platforms in [
+            (
+                VersionedDependency(
+                    name="python",
+                    manager="conda",
+                    version="<3.11",
+                ),
+                DEFAULT_PLATFORMS,
             ),
-            VersionedDependency(
-                name="clang_osx-64",
-                manager="conda",
-                version="",
-                selectors=Selectors(platform=["osx-64"]),
+            (
+                VersionedDependency(
+                    name="clang_osx-64",
+                    manager="conda",
+                    version="",
+                ),
+                ["osx-64"],
             ),
-            VersionedDependency(
-                name="gcc_linux-64",
-                manager="conda",
-                version=">=6",
-                selectors=Selectors(platform=["linux-64"]),
+            (
+                VersionedDependency(
+                    name="gcc_linux-64",
+                    manager="conda",
+                    version=">=6",
+                ),
+                ["linux-64"],
             ),
         ]
+        for plat in platforms
     )
 
 
@@ -568,13 +588,6 @@ def test_parse_meta_yaml_file(meta_yaml_environment: Path):
     for plat in platforms:
         specs = {dep.name: dep for dep in res.dependencies[plat]}
         assert all(x in specs for x in ["python", "numpy"])
-        assert all(
-            dep.selectors
-            == Selectors(
-                platform=None
-            )  # Platform will be set to None if all dependencies are the same
-            for dep in specs.values()
-        )
         # Ensure that this dep specified by a python selector is ignored
         assert "enum34" not in specs
         # Ensure that this platform specific dep is included
@@ -1198,16 +1211,6 @@ def _make_spec(name: str, constraint: str = "*"):
     return VersionedDependency(
         name=name,
         version=constraint,
-    )
-
-
-def _make_dependency_with_platforms(
-    name: str, platforms: typing.List[str], constraint: str = "*"
-):
-    return VersionedDependency(
-        name=name,
-        version=constraint,
-        selectors=Selectors(platform=platforms),
     )
 
 
