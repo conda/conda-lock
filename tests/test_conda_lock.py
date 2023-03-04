@@ -76,6 +76,7 @@ from conda_lock.src_parser.environment_yaml import (
     parse_platforms_from_env_file,
 )
 from conda_lock.src_parser.pyproject_toml import (
+    parse_platforms_from_pyproject_toml,
     parse_pyproject_toml,
     poetry_version_to_conda_version,
 )
@@ -580,9 +581,7 @@ def test_parse_meta_yaml_file(meta_yaml_environment: Path):
 
 
 def test_parse_poetry(poetry_pyproject_toml: Path):
-    res = parse_pyproject_toml(
-        poetry_pyproject_toml,
-    )
+    res = parse_pyproject_toml(poetry_pyproject_toml, ["linux-64"])
 
     specs = {
         dep.name: typing.cast(VersionedDependency, dep) for dep in res.dependencies
@@ -603,9 +602,8 @@ def test_parse_poetry(poetry_pyproject_toml: Path):
 
 
 def test_parse_poetry_no_pypi(poetry_pyproject_toml_no_pypi: Path):
-    res = parse_pyproject_toml(
-        poetry_pyproject_toml_no_pypi,
-    )
+    platforms = parse_platforms_from_pyproject_toml(poetry_pyproject_toml_no_pypi)
+    res = parse_pyproject_toml(poetry_pyproject_toml_no_pypi, platforms)
     assert res.allow_pypi_requests is False
 
 
@@ -679,9 +677,7 @@ def test_spec_poetry(poetry_pyproject_toml: Path):
 
 
 def test_parse_flit(flit_pyproject_toml: Path):
-    res = parse_pyproject_toml(
-        flit_pyproject_toml,
-    )
+    res = parse_pyproject_toml(flit_pyproject_toml, ["linux-64"])
 
     specs = {
         dep.name: typing.cast(VersionedDependency, dep) for dep in res.dependencies
@@ -701,9 +697,7 @@ def test_parse_flit(flit_pyproject_toml: Path):
 
 
 def test_parse_pdm(pdm_pyproject_toml: Path):
-    res = parse_pyproject_toml(
-        pdm_pyproject_toml,
-    )
+    res = parse_pyproject_toml(pdm_pyproject_toml, ["linux-64"])
 
     specs = {
         dep.name: typing.cast(VersionedDependency, dep) for dep in res.dependencies

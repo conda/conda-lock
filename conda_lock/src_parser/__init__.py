@@ -12,7 +12,10 @@ from conda_lock.src_parser.environment_yaml import (
     parse_platforms_from_env_file,
 )
 from conda_lock.src_parser.meta_yaml import parse_meta_yaml_file
-from conda_lock.src_parser.pyproject_toml import parse_pyproject_toml
+from conda_lock.src_parser.pyproject_toml import (
+    parse_platforms_from_pyproject_toml,
+    parse_pyproject_toml,
+)
 from conda_lock.virtual_package import FakeRepoData
 
 
@@ -36,7 +39,7 @@ def _parse_platforms_from_srcs(src_files: List[pathlib.Path]) -> List[str]:
         if src_file.name == "meta.yaml":
             continue
         elif src_file.name == "pyproject.toml":
-            all_file_platforms.append(parse_pyproject_toml(src_file).platforms)
+            all_file_platforms.append(parse_platforms_from_pyproject_toml(src_file))
         else:
             all_file_platforms.append(parse_platforms_from_env_file(src_file))
 
@@ -62,7 +65,7 @@ def _parse_source_files(
         if src_file.name == "meta.yaml":
             desired_envs.append(parse_meta_yaml_file(src_file, platforms))
         elif src_file.name == "pyproject.toml":
-            desired_envs.append(parse_pyproject_toml(src_file))
+            desired_envs.append(parse_pyproject_toml(src_file, platforms))
         else:
             desired_envs.append(parse_environment_file(src_file, platforms))
     return desired_envs
