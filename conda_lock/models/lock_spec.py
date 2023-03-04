@@ -58,13 +58,16 @@ class Package(StrictModel):
 
 
 class LockSpecification(BaseModel):
-    dependencies: List[Dependency]
+    dependencies: Dict[str, List[Dependency]]
     # TODO: Should we store the auth info in here?
     channels: List[Channel]
-    platforms: List[str]
     sources: List[pathlib.Path]
     virtual_package_repo: Optional[FakeRepoData] = None
     allow_pypi_requests: bool = True
+
+    @property
+    def platforms(self) -> List[str]:
+        return list(self.dependencies.keys())
 
     def content_hash(self) -> Dict[str, str]:
         return {
@@ -77,8 +80,9 @@ class LockSpecification(BaseModel):
             "channels": [c.json() for c in self.channels],
             "specs": [
                 p.dict()
-                for p in sorted(self.dependencies, key=lambda p: (p.manager, p.name))
-                if p.selectors.for_platform(platform)
+                for p in sorted(
+                    self.dependencies[platform], key=lambda p: (p.manager, p.name)
+                )
             ],
         }
         if self.virtual_package_repo is not None:

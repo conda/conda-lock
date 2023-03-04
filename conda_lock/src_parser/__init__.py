@@ -90,7 +90,6 @@ def make_lock_spec(
 
     lock_spec = aggregate_lock_specs(lock_specs)
     lock_spec.virtual_package_repo = virtual_package_repo
-    lock_spec.platforms = platforms
     lock_spec.channels = (
         [Channel.from_string(co) for co in channel_overrides]
         if channel_overrides
@@ -102,10 +101,13 @@ def make_lock_spec(
         def dep_has_category(d: Dependency, categories: AbstractSet[str]) -> bool:
             return d.category in categories
 
-        lock_spec.dependencies = [
-            d
-            for d in lock_spec.dependencies
-            if dep_has_category(d, categories=required_categories)
-        ]
+        lock_spec.dependencies = {
+            platform: [
+                d
+                for d in dependencies
+                if dep_has_category(d, categories=required_categories)
+            ]
+            for platform, dependencies in lock_spec.dependencies.items()
+        }
 
     return lock_spec

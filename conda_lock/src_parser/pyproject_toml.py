@@ -221,9 +221,8 @@ def specification_with_dependencies(
                 dep.manager = "pip"
 
     return LockSpecification(
-        dependencies=dependencies,
+        dependencies={platform: dependencies for platform in platforms},
         channels=get_in(["tool", "conda-lock", "channels"], toml_contents, []),
-        platforms=platforms,
         sources=[path],
         allow_pypi_requests=get_in(
             ["tool", "conda-lock", "allow-pypi-requests"], toml_contents, True
@@ -351,7 +350,8 @@ def parse_pdm_pyproject_toml(
             ]
         )
 
-    res.dependencies.extend(dev_reqs)
+    for dep_list in res.dependencies.values():
+        dep_list.extend(dev_reqs)
 
     return res
 

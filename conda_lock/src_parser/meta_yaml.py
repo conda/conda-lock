@@ -102,9 +102,10 @@ def parse_meta_yaml_file(
         ]
     )
     # remove platform selectors if they apply to all targets
-    for dep in spec.dependencies:
-        if dep.selectors.platform == platforms:
-            dep.selectors.platform = None
+    for platform in spec.platforms:
+        for dep in spec.dependencies[platform]:
+            if dep.selectors.platform == platforms:
+                dep.selectors.platform = None
 
     return spec
 
@@ -155,8 +156,7 @@ def _parse_meta_yaml_file_for_platform(
         add_requirements_from_recipe_or_output(output)
 
     return LockSpecification(
-        dependencies=dependencies,
+        dependencies={platform: dependencies},
         channels=channels,
-        platforms=[platform],
         sources=[meta_yaml_file],
     )

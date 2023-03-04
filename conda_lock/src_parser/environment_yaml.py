@@ -49,7 +49,6 @@ def _parse_environment_file_for_platform(
     channels: List[str] = env_yaml_data.get("channels", [])
 
     # These extension fields are nonstandard
-    platforms: List[str] = env_yaml_data.get("platforms", [])
     category: str = env_yaml_data.get("category") or "main"
 
     # Split out any sub spec sections from the dependencies mapping
@@ -89,9 +88,8 @@ def _parse_environment_file_for_platform(
             dependencies.append(parse_python_requirement("pip", manager="conda"))
 
     return LockSpecification(
-        dependencies=dependencies,
+        dependencies={platform: dependencies},
         channels=channels,  # type: ignore
-        platforms=platforms,
         sources=[environment_file],
     )
 
@@ -140,13 +138,9 @@ def parse_environment_file(
     )
 
     # Remove platform selectors if they apply to all targets
-    for dep in spec.dependencies:
-        if dep.selectors.platform == platforms:
-            dep.selectors.platform = None
+    for platform in spec.platforms:
+        for dep in spec.dependencies[platform]:
+            if dep.selectors.platform == platforms:
+                dep.selectors.platform = None
 
-    # Use the list of rendered platforms for the output spec only if
-    # there is a dependency that is not used on all platforms.
-    # This is unlike meta.yaml because environment-yaml files can contain an
-    # internal list of platforms, which should be used as long as it
-    spec.platforms = platforms
     return spec
