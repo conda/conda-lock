@@ -245,7 +245,7 @@ def make_lock_files(
     update: Optional[List[str]] = None,
     include_dev_dependencies: bool = True,
     filename_template: Optional[str] = None,
-    filter_categories: bool = True,
+    filter_categories: bool = False,
     extras: Optional[AbstractSet[str]] = None,
     check_input_hash: bool = False,
     metadata_choices: AbstractSet[MetadataOption] = frozenset(),
