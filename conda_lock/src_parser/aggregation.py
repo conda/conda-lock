@@ -13,9 +13,16 @@ logger = logging.getLogger(__name__)
 
 def aggregate_lock_specs(
     lock_specs: List[LockSpecification],
+    platforms: List[str],
 ) -> LockSpecification:
-    # Preserve input order of platforms
-    platforms = ordered_union(lock_spec.platforms for lock_spec in lock_specs)
+    for lock_spec in lock_specs:
+        if set(lock_spec.platforms) != set(platforms):
+            raise ValueError(
+                f"Lock specifications must have the same platforms in order to be "
+                f"aggregated. Expected platforms are {set(platforms)}, but the lock "
+                f"specification from {[str(s) for s in lock_spec.sources]} has "
+                f"platforms {set(lock_spec.platforms)}."
+            )
 
     dependencies: Dict[str, List[Dependency]] = {}
     for platform in platforms:
