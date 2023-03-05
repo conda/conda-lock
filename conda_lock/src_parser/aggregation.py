@@ -15,7 +15,7 @@ def aggregate_lock_specs(
     lock_specs: List[LockSpecification],
 ) -> LockSpecification:
     # Preserve input order of platforms
-    platforms = ordered_union(lock_spec.platforms or [] for lock_spec in lock_specs)
+    platforms = ordered_union(lock_spec.platforms for lock_spec in lock_specs)
 
     dependencies: Dict[str, List[Dependency]] = {}
     for platform in platforms:
@@ -30,7 +30,7 @@ def aggregate_lock_specs(
         dependencies[platform] = list(unique_deps.values())
 
     try:
-        channels = suffix_union(lock_spec.channels or [] for lock_spec in lock_specs)
+        channels = suffix_union(lock_spec.channels for lock_spec in lock_specs)
     except ValueError as e:
         raise ChannelAggregationError(*e.args)
 
@@ -39,7 +39,7 @@ def aggregate_lock_specs(
         # Ensure channel are correctly ordered
         channels=channels,
         # uniquify metadata, preserving order
-        sources=ordered_union(lock_spec.sources or [] for lock_spec in lock_specs),
+        sources=ordered_union(lock_spec.sources for lock_spec in lock_specs),
         allow_pypi_requests=all(
             lock_spec.allow_pypi_requests for lock_spec in lock_specs
         ),
