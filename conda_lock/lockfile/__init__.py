@@ -21,7 +21,7 @@ from .models import TimeMeta as TimeMeta
 from .models import UpdateSpecification as UpdateSpecification
 
 
-def _apply_categories(
+def apply_categories(
     requested: Dict[str, Dependency],
     planned: Dict[str, LockedDependency],
     categories: Sequence[str] = ("main", "dev"),

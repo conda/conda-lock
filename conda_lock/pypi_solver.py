@@ -322,7 +322,7 @@ def solve_pypi(
             continue
         planned[pypi_name] = locked_dep
 
-    lockfile._apply_categories(requested=pip_specs, planned=planned)
+    lockfile.apply_categories(requested=pip_specs, planned=planned)
 
     return {dep.name: dep for dep in requirements}
 
