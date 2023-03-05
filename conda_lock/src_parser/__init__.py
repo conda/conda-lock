@@ -88,7 +88,7 @@ def make_lock_spec(
 
     lock_specs = _parse_source_files(src_files, platforms)
 
-    aggregated_lock_spec = aggregate_lock_specs(lock_specs)
+    aggregated_lock_spec = aggregate_lock_specs(lock_specs, platforms)
 
     # Use channel overrides if given, otherwise use the channels specified in the
     # source files.

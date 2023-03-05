@@ -1229,7 +1229,7 @@ def test_aggregate_lock_specs():
     )
 
     # NB: content hash explicitly does not depend on the source file names
-    actual = aggregate_lock_specs([base_spec, gpu_spec])
+    actual = aggregate_lock_specs([base_spec, gpu_spec], platforms=["linux-64"])
     expected = LockSpecification(
         dependencies={
             "linux-64": [
@@ -1260,7 +1260,7 @@ def test_aggregate_lock_specs_override_version():
         sources=[Path("override.yml")],
     )
 
-    agg_spec = aggregate_lock_specs([base_spec, override_spec])
+    agg_spec = aggregate_lock_specs([base_spec, override_spec], platforms=["linux-64"])
 
     assert agg_spec.dependencies == override_spec.dependencies
 
@@ -1281,7 +1281,7 @@ def test_aggregate_lock_specs_invalid_channels():
             ]
         }
     )
-    agg_spec = aggregate_lock_specs([base_spec, add_conda_forge])
+    agg_spec = aggregate_lock_specs([base_spec, add_conda_forge], platforms=[])
     assert agg_spec.channels == add_conda_forge.channels
 
     # swap the order of the two channels, which is an error
@@ -1295,7 +1295,9 @@ def test_aggregate_lock_specs_invalid_channels():
     )
 
     with pytest.raises(ChannelAggregationError):
-        agg_spec = aggregate_lock_specs([base_spec, add_conda_forge, flipped])
+        agg_spec = aggregate_lock_specs(
+            [base_spec, add_conda_forge, flipped], platforms=[]
+        )
 
     add_pytorch = base_spec.copy(
         update={
@@ -1306,7 +1308,9 @@ def test_aggregate_lock_specs_invalid_channels():
         }
     )
     with pytest.raises(ChannelAggregationError):
-        agg_spec = aggregate_lock_specs([base_spec, add_conda_forge, add_pytorch])
+        agg_spec = aggregate_lock_specs(
+            [base_spec, add_conda_forge, add_pytorch], platforms=[]
+        )
 
 
 @pytest.fixture(scope="session")
