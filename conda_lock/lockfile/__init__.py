@@ -1,4 +1,3 @@
-import json
 import pathlib
 
 from collections import defaultdict
@@ -213,10 +212,8 @@ def write_conda_lock_file(
 
         output: Dict[str, Any] = {
             "version": Lockfile.version,
-            "metadata": json.loads(
-                content.metadata.json(
-                    by_alias=True, exclude_unset=True, exclude_none=True
-                )
+            "metadata": content.metadata.dict(
+                by_alias=True, exclude_unset=True, exclude_none=True
             ),
             "package": [],
         }
