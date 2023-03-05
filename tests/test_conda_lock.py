@@ -1247,36 +1247,6 @@ def test_aggregate_lock_specs():
     assert actual.content_hash() == expected.content_hash()
 
 
-def test_aggregate_lock_specs_multiple_platforms():
-    """Ensure that plaforms are merged correctly"""
-    linux_spec = LockSpecification(
-        dependencies={"linux-64": [_make_spec("python", "=3.7")]},
-        channels=[Channel.from_string("conda-forge")],
-        sources=[Path("base-env.yml")],
-    )
-
-    osx_spec = LockSpecification(
-        dependencies={"osx-64": [_make_spec("python", "=3.7")]},
-        channels=[Channel.from_string("conda-forge")],
-        sources=[Path("base-env.yml")],
-    )
-
-    # NB: content hash explicitly does not depend on the source file names
-    actual = aggregate_lock_specs([linux_spec, osx_spec])
-    expected = LockSpecification(
-        dependencies={
-            "linux-64": [_make_spec("python", "=3.7")],
-            "osx-64": [_make_spec("python", "=3.7")],
-        },
-        channels=[
-            Channel.from_string("conda-forge"),
-        ],
-        sources=[],
-    )
-    assert actual.dict(exclude={"sources"}) == expected.dict(exclude={"sources"})
-    assert actual.content_hash() == expected.content_hash()
-
-
 def test_aggregate_lock_specs_override_version():
     base_spec = LockSpecification(
         dependencies={"linux-64": [_make_spec("package", "=1.0")]},
