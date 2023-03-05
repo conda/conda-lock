@@ -550,9 +550,7 @@ def render_lockfile_for_platform(  # noqa: C901
                 if not p.name.startswith("__"):
                     conda_deps.append(p)
 
-    def format_pip_requirement(
-        spec: LockedDependency, platform: str, direct: bool = False
-    ) -> str:
+    def format_pip_requirement(spec: LockedDependency, direct: bool = False) -> str:
         if spec.source and spec.source.type == "url":
             return f"{spec.name} @ {spec.source.url}"
         elif direct:
@@ -566,9 +564,7 @@ def render_lockfile_for_platform(  # noqa: C901
                 s += f" --hash=sha256:{spec.hash.sha256}"
             return s
 
-    def format_conda_requirement(
-        spec: LockedDependency, platform: str, direct: bool = False
-    ) -> str:
+    def format_conda_requirement(spec: LockedDependency, direct: bool = False) -> str:
         if direct:
             # inject the environment variables in here
             return posixpath.expandvars(f"{spec.url}#{spec.hash.md5}")
@@ -589,7 +585,7 @@ def render_lockfile_for_platform(  # noqa: C901
                 ),
                 "dependencies:",
                 *(
-                    f"  - {format_conda_requirement(dep, platform, direct=False)}"
+                    f"  - {format_conda_requirement(dep, direct=False)}"
                     for dep in conda_deps
                 ),
             ]
@@ -598,7 +594,7 @@ def render_lockfile_for_platform(  # noqa: C901
             [
                 "  - pip:",
                 *(
-                    f"    - {format_pip_requirement(dep, platform, direct=False)}"
+                    f"    - {format_pip_requirement(dep, direct=False)}"
                     for dep in pip_deps
                 ),
             ]
@@ -609,7 +605,7 @@ def render_lockfile_for_platform(  # noqa: C901
         lockfile_contents.append("@EXPLICIT\n")
 
         lockfile_contents.extend(
-            [format_conda_requirement(dep, platform, direct=True) for dep in conda_deps]
+            [format_conda_requirement(dep, direct=True) for dep in conda_deps]
         )
 
         def sanitize_lockfile_line(line: str) -> str:
@@ -623,10 +619,7 @@ def render_lockfile_for_platform(  # noqa: C901
 
         # emit an explicit requirements.txt, prefixed with '# pip '
         lockfile_contents.extend(
-            [
-                f"# pip {format_pip_requirement(dep, platform, direct=True)}"
-                for dep in pip_deps
-            ]
+            [f"# pip {format_pip_requirement(dep, direct=True)}" for dep in pip_deps]
         )
 
         if len(pip_deps) > 0:
