@@ -1,6 +1,7 @@
 name: conda-lock-dev
 channels:
 - conda-forge
+- nodefaults
 dependencies:
 - black
 - check-manifest
