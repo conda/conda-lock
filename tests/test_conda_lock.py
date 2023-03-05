@@ -346,7 +346,7 @@ def test_lock_poetry_ibis(
     all_categories = set()
 
     for pkg in lockfile.package:
-        all_categories.add(pkg.category)
+        all_categories.update(pkg.categories)
 
     for desired_category in extra_categories:
         assert (

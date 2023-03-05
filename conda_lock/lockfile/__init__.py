@@ -3,7 +3,7 @@ import pathlib
 
 from collections import defaultdict
 from textwrap import dedent
-from typing import Any, Collection, Dict, List, Mapping, Optional, Sequence, Set, Union
+from typing import Any, Collection, DefaultDict, Dict, List, Mapping, Optional, Sequence, Set, Union
 
 import yaml
 
@@ -57,7 +57,6 @@ def apply_categories(
 
     # walk dependency tree to assemble all transitive dependencies by request
     dependents: Dict[str, Set[str]] = {}
-    by_category = defaultdict(list)
 
     def extract_planned_items(
         planned_items: Union[List[LockedDependency], LockedDependency]
@@ -79,7 +78,7 @@ def apply_categories(
         return dep
 
     for name, request in requested.items():
-        todo: List[str] = list()
+        todo: List[str] = []
         deps: Set[str] = set()
         item = name
 
@@ -106,29 +105,22 @@ def apply_categories(
 
         dependents[name] = deps
 
-        by_category[request.category].append(request.name)
+    # now, map each package to its root requests / dependencies
+    root_requests: DefaultDict[str, Set[str]] = defaultdict(set)
+    for root, transitive_deps in dependents.items():
+        for transitive_dep in transitive_deps:
+            root_requests[transitive_dep].add(root)
 
-    # now, map each package to its root request preferring the ones earlier in the
-    # list
-    categories = [*categories, *(k for k in by_category if k not in categories)]
-    root_requests = {}
-    for category in categories:
-        for root in by_category.get(category, []):
-            for transitive_dep in dependents[root]:
-                if transitive_dep not in root_requests:
-                    root_requests[transitive_dep] = root
     # include root requests themselves
     for name in requested:
-        root_requests[name] = name
+        root_requests[name].add(name)
 
-    for dep, root in root_requests.items():
-        source = requested[root]
-        # try a conda target first
-        targets = _seperator_munge_get(planned, dep)
-        if not isinstance(targets, list):
-            targets = [targets]
-        for target in targets:
-            target.category = source.category
+    for dep, roots in root_requests.items():
+        target = _seperator_munge_get(planned, dep)
+        for root in roots:
+            source = requested[root]
+            assert isinstance(target, LockedDependency)  # TODO: why?
+            target.categories.add(source.category)
 
 
 def parse_conda_lock_file(path: pathlib.Path) -> Lockfile:
@@ -141,10 +133,13 @@ def parse_conda_lock_file(path: pathlib.Path) -> Lockfile:
     if not (isinstance(version, int) and version <= Lockfile.version):
         raise ValueError(f"{path} has unknown version {version}")
 
+    packages = {}
     for p in content["package"]:
+        del p["category"]
         del p["optional"]
+        packages[(p["name"], p["version"], p["platform"])] = p
 
-    return Lockfile.parse_obj(content)
+    return Lockfile.parse_obj({**content, "package": list(packages.values())})
 
 
 def write_conda_lock_file(
@@ -156,7 +151,7 @@ def write_conda_lock_file(
     content.toposort_inplace()
     with path.open("w") as f:
         if include_help_text:
-            categories = set(p.category for p in content.package)
+            categories = {cat for p in content.package for cat in p.categories}
 
             def write_section(text: str) -> None:
                 lines = dedent(text).split("\n")
@@ -214,15 +209,25 @@ def write_conda_lock_file(
                     by_alias=True, exclude_unset=True, exclude_none=True
                 )
             ),
-            "package": [
-                {
-                    **package.dict(
-                        by_alias=True, exclude_unset=True, exclude_none=True
-                    ),
-                    "optional": (package.category != "main"),
-                }
-                for package in content.package
-            ],
+            "package": [],
         }
+
+        for package in content.package:
+            sorted_cats = sorted(package.categories)
+            for category in sorted_cats:
+                output["package"].append(
+                    dict(
+                        sorted(
+                            {
+                                **package.dict(
+                                    by_alias=True, exclude_unset=True, exclude_none=True
+                                ),
+                                "categories": sorted_cats,
+                                "category": category,
+                                "optional": (category != "main"),
+                            }.items()
+                        )
+                    )
+                )
 
         yaml.dump(output, stream=f, sort_keys=False)
