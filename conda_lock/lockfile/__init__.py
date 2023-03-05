@@ -3,7 +3,17 @@ import pathlib
 
 from collections import defaultdict
 from textwrap import dedent
-from typing import Any, Collection, DefaultDict, Dict, List, Mapping, Optional, Sequence, Set, Union
+from typing import (
+    Any,
+    Collection,
+    DefaultDict,
+    Dict,
+    List,
+    Mapping,
+    Optional,
+    Set,
+    Union,
+)
 
 import yaml
 
@@ -38,7 +48,6 @@ def _seperator_munge_get(
 def apply_categories(
     requested: Dict[str, Dependency],
     planned: Mapping[str, Union[List[LockedDependency], LockedDependency]],
-    categories: Sequence[str] = ("main", "dev"),
     convert_to_pip_names: bool = False,
 ) -> None:
     """map each package onto the root request the with the highest-priority category"""
@@ -77,7 +86,7 @@ def apply_categories(
             return conda_name_to_pypi_name(dep).lower()
         return dep
 
-    for name, request in requested.items():
+    for name in requested:
         todo: List[str] = []
         deps: Set[str] = set()
         item = name
