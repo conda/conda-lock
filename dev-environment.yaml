@@ -27,9 +27,8 @@ dependencies:
 - mkdocs
 - mkdocs-material
 - mkdocs-click
+- mkdocs-include-markdown-plugin
 - flaky
 - docker-py
 - gitpython
 - pip
-- pip:
-  - mkdocs-include-markdown-plugin
