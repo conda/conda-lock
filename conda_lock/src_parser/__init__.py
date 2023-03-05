@@ -88,26 +88,37 @@ def make_lock_spec(
 
     lock_specs = _parse_source_files(src_files, platforms)
 
-    lock_spec = aggregate_lock_specs(lock_specs)
-    lock_spec.virtual_package_repo = virtual_package_repo
-    lock_spec.channels = (
+    aggregated_lock_spec = aggregate_lock_specs(lock_specs)
+
+    # Use channel overrides if given, otherwise use the channels specified in the
+    # source files.
+    channels = (
         [Channel.from_string(co) for co in channel_overrides]
         if channel_overrides
-        else lock_spec.channels
+        else aggregated_lock_spec.channels
     )
 
-    if required_categories is not None:
-
+    if required_categories is None:
+        dependencies = aggregated_lock_spec.dependencies
+    else:
+        # Filtering based on category (e.g. "main" or "dev") was requested.
+        # Thus we need to filter the specs based on the category.
         def dep_has_category(d: Dependency, categories: AbstractSet[str]) -> bool:
             return d.category in categories
 
-        lock_spec.dependencies = {
+        dependencies = {
             platform: [
                 d
                 for d in dependencies
                 if dep_has_category(d, categories=required_categories)
             ]
-            for platform, dependencies in lock_spec.dependencies.items()
+            for platform, dependencies in aggregated_lock_spec.dependencies.items()
         }
 
-    return lock_spec
+    return LockSpecification(
+        dependencies=dependencies,
+        channels=channels,
+        sources=aggregated_lock_spec.sources,
+        virtual_package_repo=virtual_package_repo,
+        allow_pypi_requests=aggregated_lock_spec.allow_pypi_requests,
+    )
