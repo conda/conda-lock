@@ -81,7 +81,6 @@ def _apply_categories(
         # try a conda target first
         target = seperator_munge_get(planned, dep)
         target.category = source.category
-        target.optional = source.optional
 
 
 def parse_conda_lock_file(

@@ -26,7 +26,6 @@ def conda_spec_to_versioned_dep(spec: str, category: str) -> VersionedDependency
         name=ms.name,
         version=ms.get("version", ""),
         manager="conda",
-        optional=category != "main",
         category=category,
         extras=[],
         build=ms.get("build"),
