@@ -7,9 +7,8 @@ from typing import Collection, Dict, List, Mapping, Optional, Sequence, Set, Uni
 
 import yaml
 
-from conda_lock.models.lock_spec import Dependency
 from conda_lock.lookup import conda_name_to_pypi_name
-
+from conda_lock.models.lock_spec import Dependency
 
 from .models import DependencySource as DependencySource
 from .models import GitMeta as GitMeta
@@ -23,9 +22,22 @@ from .models import TimeMeta as TimeMeta
 from .models import UpdateSpecification as UpdateSpecification
 
 
+def _seperator_munge_get(
+    d: Mapping[str, Union[List[LockedDependency], LockedDependency]], key: str
+) -> Union[List[LockedDependency], LockedDependency]:
+    # since separators are not consistent across managers (or even within) we need to do some double attempts here
+    try:
+        return d[key]
+    except KeyError:
+        try:
+            return d[key.replace("-", "_")]
+        except KeyError:
+            return d[key.replace("_", "-")]
+
+
 def _apply_categories(
     requested: Dict[str, Dependency],
-    planned: Dict[str, Union[List[LockedDependency], LockedDependency]],
+    planned: Mapping[str, Union[List[LockedDependency], LockedDependency]],
     categories: Sequence[str] = ("main", "dev"),
     convert_to_pip_names: bool = False,
 ) -> None:
@@ -33,18 +45,6 @@ def _apply_categories(
     # walk dependency tree to assemble all transitive dependencies by request
     dependents: Dict[str, Set[str]] = {}
     by_category = defaultdict(list)
-
-    def seperator_munge_get(
-        d: Mapping[str, Union[List[LockedDependency], LockedDependency]], key: str
-    ) -> Union[List[LockedDependency], LockedDependency]:
-        # since separators are not consistent across managers (or even within) we need to do some double attempts here
-        try:
-            return d[key]
-        except KeyError:
-            try:
-                return d[key.replace("-", "_")]
-            except KeyError:
-                return d[key.replace("_", "-")]
 
     def extract_planned_items(
         planned_items: Union[List[LockedDependency], LockedDependency]
@@ -68,7 +68,7 @@ def _apply_categories(
         deps: Set[str] = set()
         item = name
         while True:
-            planned_items = extract_planned_items(seperator_munge_get(planned, item))
+            planned_items = extract_planned_items(_seperator_munge_get(planned, item))
 
             for planned_item in planned_items:
                 todo.extend(
@@ -102,7 +102,7 @@ def _apply_categories(
     for dep, root in root_requests.items():
         source = requested[root]
         # try a conda target first
-        targets = seperator_munge_get(planned, dep)
+        targets = _seperator_munge_get(planned, dep)
         if not isinstance(targets, list):
             targets = [targets]
         for target in targets:
