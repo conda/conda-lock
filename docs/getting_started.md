@@ -8,11 +8,6 @@ conda-lock is available through `pip`, `conda` and `mamba`.
     pip install conda-lock
     ```
 
-    Install with pip support
-    ```sh
-    pip install conda-lock[pip_support]
-    ```
-
 === "conda"
 
     ```sh

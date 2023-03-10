@@ -2,11 +2,12 @@ import pathlib
 import re
 import sys
 
-from typing import List, Optional, Sequence, Tuple
+from typing import List, Tuple
 
 import yaml
 
-from conda_lock.src_parser import Dependency, LockSpecification, aggregate_lock_specs
+from conda_lock.models.lock_spec import Dependency, LockSpecification
+from conda_lock.src_parser.aggregation import aggregate_lock_specs
 from conda_lock.src_parser.conda_common import conda_spec_to_versioned_dep
 from conda_lock.src_parser.selectors import filter_platform_selectors
 
@@ -29,8 +30,6 @@ def _parse_environment_file_for_platform(
     environment_file: pathlib.Path,
     content: str,
     platform: str,
-    *,
-    pip_support: bool = False,
 ) -> LockSpecification:
     """
     Parse dependencies from a conda environment specification for an
@@ -40,9 +39,6 @@ def _parse_environment_file_for_platform(
     ----------
     environment_file :
         Path to environment.yml
-    pip_support :
-        Emit dependencies in pip section of environment.yml. If False, print a
-        warning and ignore pip dependencies.
     platform :
         Target platform to use when parsing selectors to filter lines
     """
@@ -68,39 +64,29 @@ def _parse_environment_file_for_platform(
 
     for mapping_spec in mapping_specs:
         if "pip" in mapping_spec:
-            if pip_support:
-                for spec in mapping_spec["pip"]:
-                    if re.match(r"^-e .*$", spec):
-                        print(
-                            (
-                                f"Warning: editable pip dep '{spec}' will not be included in the lock file. "
-                                "You will need to install it separately."
-                            ),
-                            file=sys.stderr,
-                        )
-                        continue
-
-                    dependencies.append(
-                        parse_python_requirement(
-                            spec,
-                            manager="pip",
-                            optional=category != "main",
-                            category=category,
-                            normalize_name=False,
-                        )
+            for spec in mapping_spec["pip"]:
+                if re.match(r"^-e .*$", spec):
+                    print(
+                        (
+                            f"Warning: editable pip dep '{spec}' will not be included in the lock file. "
+                            "You will need to install it separately."
+                        ),
+                        file=sys.stderr,
                     )
+                    continue
 
-                # ensure pip is in target env
-                dependencies.append(parse_python_requirement("pip", manager="conda"))
-            else:
-                print(
-                    (
-                        "Warning: found pip deps, but conda-lock was installed without pypi support. "
-                        "pip dependencies will not be included in the lock file. Either install them "
-                        "separately, or install conda-lock with `-E pip_support`."
-                    ),
-                    file=sys.stderr,
+                dependencies.append(
+                    parse_python_requirement(
+                        spec,
+                        manager="pip",
+                        optional=category != "main",
+                        category=category,
+                        normalize_name=False,
+                    )
                 )
+
+            # ensure pip is in target env
+            dependencies.append(parse_python_requirement("pip", manager="conda"))
 
     return LockSpecification(
         dependencies=dependencies,
@@ -110,12 +96,23 @@ def _parse_environment_file_for_platform(
     )
 
 
+def parse_platforms_from_env_file(environment_file: pathlib.Path) -> List[str]:
+    """
+    Parse the list of platforms from an environment-yaml file
+    """
+    if not environment_file.exists():
+        raise FileNotFoundError(f"{environment_file} not found")
+
+    with environment_file.open("r") as fo:
+        content = fo.read()
+        env_yaml_data = yaml.safe_load(content)
+
+    return env_yaml_data.get("platforms", [])
+
+
 def parse_environment_file(
     environment_file: pathlib.Path,
-    given_platforms: Optional[Sequence[str]],
-    *,
-    default_platforms: List[str] = [],
-    pip_support: bool = False,
+    platforms: List[str],
 ) -> LockSpecification:
     """Parse a simple environment-yaml file for dependencies assuming the target platforms.
 
@@ -129,21 +126,14 @@ def parse_environment_file(
 
     with environment_file.open("r") as fo:
         content = fo.read()
-        env_yaml_data = yaml.safe_load(content)
-
-    # Get list of platforms from the input file
-    yaml_platforms: Optional[List[str]] = env_yaml_data.get("platforms")
-    # Final list of platforms is the following order of priority
-    # 1) List Passed in via the -p flag (if any given)
-    # 2) List From the YAML File (if specified)
-    # 3) Default List of Platforms to Render
-    platforms = list(given_platforms or yaml_platforms or default_platforms)
 
     # Parse with selectors for each target platform
     spec = aggregate_lock_specs(
         [
             _parse_environment_file_for_platform(
-                environment_file, content, platform, pip_support=pip_support
+                environment_file,
+                content,
+                platform,
             )
             for platform in platforms
         ]

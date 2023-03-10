@@ -1,4 +1,5 @@
-from typing import Dict, Optional
+from functools import cached_property
+from typing import Dict
 
 import requests
 import yaml
@@ -14,44 +15,33 @@ class MappingEntry(TypedDict):
 
 
 class _LookupLoader:
-    def __init__(self) -> None:
-        self._mapping_url = "https://raw.githubusercontent.com/regro/cf-graph-countyfair/master/mappings/pypi/grayskull_pypi_mapping.yaml"
-        self._pypi_lookup: Optional[Dict[str, MappingEntry]] = None
-        self._conda_lookup: Optional[Dict[str, MappingEntry]] = None
+    _mapping_url: str = "https://raw.githubusercontent.com/regro/cf-graph-countyfair/master/mappings/pypi/grayskull_pypi_mapping.yaml"
 
-    def resolve(self) -> None:
+    @property
+    def mapping_url(self) -> str:
+        return self._mapping_url
+
+    @mapping_url.setter
+    def mapping_url(self, value: str) -> None:
+        del self.pypi_lookup
+        del self.conda_lookup
+        self._mapping_url = value
+
+    @cached_property
+    def pypi_lookup(self) -> Dict[str, MappingEntry]:
         res = requests.get(self._mapping_url)
         res.raise_for_status()
-        self._pypi_lookup = yaml.safe_load(res.content)
+        lookup = yaml.safe_load(res.content)
         # lowercase and kebabcase the pypi names
-        assert self._pypi_lookup is not None
-        self._pypi_lookup = {
-            k.lower().replace("_", "-"): v for k, v in self._pypi_lookup.items()
-        }
-        for v in self._pypi_lookup.values():
+        assert lookup is not None
+        lookup = {k.lower().replace("_", "-"): v for k, v in lookup.items()}
+        for v in lookup.values():
             v["pypi_name"] = v["pypi_name"].lower().replace("_", "-")
+        return lookup
 
-    @property
-    def pypi_lookup(self) -> Dict[str, MappingEntry]:
-        if not self._pypi_lookup:
-            self.resolve()
-            assert isinstance(self._pypi_lookup, dict)
-        return self._pypi_lookup
-
-    @property
+    @cached_property
     def conda_lookup(self) -> Dict[str, MappingEntry]:
-        assert self._pypi_lookup is not None
-        if not self._conda_lookup:
-            self._conda_lookup = {
-                record["conda_name"]: record for record in self.pypi_lookup.values()
-            }
-            assert isinstance(self._conda_lookup, dict)
-        return self._conda_lookup
-
-    def set_lookup(self, lookup_url: str) -> None:
-        self._pypi_lookup = None
-        self._conda_lookup = None
-        self._mapping_url = lookup_url
+        return {record["conda_name"]: record for record in self.pypi_lookup.values()}
 
 
 LOOKUP_OBJECT = _LookupLoader()
@@ -72,7 +62,7 @@ def get_lookup() -> Dict[str, MappingEntry]:
 
 def set_lookup_location(lookup_url: str) -> None:
     global LOOKUP_OBJECT
-    LOOKUP_OBJECT.set_lookup(lookup_url)
+    LOOKUP_OBJECT.mapping_url = lookup_url
 
 
 def conda_name_to_pypi_name(name: str) -> str:

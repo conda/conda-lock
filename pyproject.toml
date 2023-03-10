@@ -1,5 +1,5 @@
 [build-system]
-requires = ["hatchling", "hatch-requirements-txt", "hatch-vcs"]
+requires = ["hatchling", "hatch-vcs"]
 build-backend = "hatchling.build"
 
 [project]
@@ -23,8 +23,48 @@ classifiers = [
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
 ]
-dynamic = ["dependencies", "version"]
+dynamic = ["version"]
 license-files = { paths = ["LICENSE"] }
+dependencies = [
+    "click >=8.0",
+    "click-default-group",
+    "ensureconda >=1.3",
+    "gitpython >=3.1.30",
+    "jinja2",
+    "pydantic >=1.8.1",
+    "pyyaml >= 5.1",
+    "ruamel.yaml",
+    'tomli; python_version<"3.11"',
+    "typing-extensions",
+    "toolz >=0.12.0,<1.0.0",
+    "filelock >=3.8.0",
+    # The following dependencies were added in the process of vendoring Poetry 1.1.15.
+    # poetry:
+    "cachecontrol[filecache] >=0.12.9",
+    # poetry:
+    "cachy >=0.3.0",
+    # cleo, poetry:
+    "clikit >=0.6.2",
+    # poetry:
+    "crashtest >=0.3.0",
+    # poetry:
+    "html5lib >=1.0",
+    # poetry, poetry-core:
+    'importlib-metadata >=1.7.0; python_version <= "3.7"',
+    # poetry:
+    "keyring >=21.2.0",
+    # poetry:
+    "packaging >=20.4",
+    # poetry:
+    "pkginfo >=1.4",
+    # poetry, conda-lock:
+    "requests >=2.18",
+    # poetry:
+    "tomlkit >=0.7.0",
+    # poetry:
+    "virtualenv >=20.0.26",
+]
+
 
 [project.scripts]
 conda-lock = "conda_lock:main"
@@ -59,9 +99,6 @@ source = [
     "conda_lock/*",
 ]
 
-[tool.hatch.metadata.hooks.requirements_txt]
-filename = "requirements.txt"
-
 [tool.hatch.version]
 source = "vcs"
 
@@ -81,7 +118,7 @@ use_parentheses = true
 known_first_party = "attr"
 
 [tool.pytest.ini_options]
-addopts = "-vrsx -n auto --cov=conda_lock --cov-branch --cov-report=xml --cov-report term"
+addopts = "-vrsx -n auto"
 flake8-max-line-length = 105
 flake8-ignore = ["docs/* ALL", "conda_lock/_version.py ALL"]
 filterwarnings = "ignore::DeprecationWarning"
@@ -107,5 +144,6 @@ drop = [
 ]
 substitute = [
     # simple substitution patch to fix conda.exports
-    { match = 'conda\.base\.context', replace = 'conda_lock.vendor.conda.base.context' }
+    { match = 'conda\.base\.context', replace = 'conda_lock.vendor.conda.base.context' },
+    { match = '"pypoetry"', replace = '"pypoetry-conda-lock"' }
 ]

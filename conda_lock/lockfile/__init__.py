@@ -7,8 +7,9 @@ from typing import Collection, Dict, List, Mapping, Optional, Sequence, Set, Uni
 
 import yaml
 
-from conda_lock.src_parser import Dependency
+from conda_lock.models.lock_spec import Dependency
 from conda_lock.lookup import conda_name_to_pypi_name
+
 
 from .models import DependencySource as DependencySource
 from .models import GitMeta as GitMeta
@@ -56,7 +57,6 @@ def _apply_categories(
             for item in planned_items
             if dep_name(item.manager, item.name) not in deps
         ]
-
 
     def dep_name(manager: str, dep: str) -> str:
         if convert_to_pip_names and manager == "conda":
@@ -192,5 +192,6 @@ def write_conda_lock_file(
                     content.json(by_alias=True, exclude_unset=True, exclude_none=True)
                 ),
             },
-            f,
+            stream=f,
+            sort_keys=False,
         )

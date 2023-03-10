@@ -6,7 +6,8 @@ import jinja2
 import yaml
 
 from conda_lock.common import get_in
-from conda_lock.src_parser import Dependency, LockSpecification, aggregate_lock_specs
+from conda_lock.models.lock_spec import Dependency, LockSpecification
+from conda_lock.src_parser.aggregation import aggregate_lock_specs
 from conda_lock.src_parser.selectors import filter_platform_selectors
 
 
@@ -92,6 +93,7 @@ def parse_meta_yaml_file(
     * This does not support multi-output files and will ignore all lines with
       selectors other than platform.
     """
+
     # parse with selectors for each target platform
     spec = aggregate_lock_specs(
         [

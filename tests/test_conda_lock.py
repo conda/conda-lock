@@ -14,7 +14,7 @@ import uuid
 
 from glob import glob
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any, Dict, List
 from unittest.mock import MagicMock
 from urllib.parse import urldefrag, urlsplit
 
@@ -30,20 +30,17 @@ from conda_lock._vendor.conda.models.match_spec import MatchSpec
 from conda_lock.conda_lock import (
     DEFAULT_FILES,
     DEFAULT_LOCKFILE_NAME,
-    DEFAULT_PLATFORMS,
     _add_auth_to_line,
     _add_auth_to_lockfile,
     _extract_domain,
     _strip_auth_from_line,
     _strip_auth_from_lockfile,
-    aggregate_lock_specs,
     create_lockfile_from_spec,
     default_virtual_package_repodata,
     determine_conda_executable,
     extract_input_hash,
     main,
     make_lock_spec,
-    parse_meta_yaml_file,
     run_lock,
 )
 from conda_lock.conda_solver import extract_json_object, fake_conda_environment
@@ -65,9 +62,19 @@ from conda_lock.lockfile import (
     parse_conda_lock_file,
 )
 from conda_lock.models.channel import Channel
+from conda_lock.models.lock_spec import Selectors, VersionedDependency
 from conda_lock.pypi_solver import parse_pip_requirement, solve_pypi
-from conda_lock.src_parser import LockSpecification, Selectors, VersionedDependency
-from conda_lock.src_parser.environment_yaml import parse_environment_file
+from conda_lock.src_parser import (
+    DEFAULT_PLATFORMS,
+    LockSpecification,
+    _parse_platforms_from_srcs,
+    parse_meta_yaml_file,
+)
+from conda_lock.src_parser.aggregation import aggregate_lock_specs
+from conda_lock.src_parser.environment_yaml import (
+    parse_environment_file,
+    parse_platforms_from_env_file,
+)
 from conda_lock.src_parser.pyproject_toml import (
     parse_pyproject_toml,
     poetry_version_to_conda_version,
@@ -181,6 +188,15 @@ def poetry_pyproject_toml_no_pypi(tmp_path: Path):
 
 
 @pytest.fixture
+def poetry_pyproject_toml_no_pypi_other_projects(tmp_path: Path):
+    tmp = clone_test_dir("test-poetry-no-pypi", tmp_path)
+    return [
+        tmp.joinpath("other_project1/pyproject.toml"),
+        tmp.joinpath("other_project2/pyproject.toml"),
+    ]
+
+
+@pytest.fixture
 def flit_pyproject_toml(tmp_path: Path):
     return clone_test_dir("test-flit", tmp_path).joinpath("pyproject.toml")
 
@@ -207,6 +223,12 @@ def env_with_uppercase_pip(tmp_path: Path):
 @pytest.fixture
 def git_metadata_zlib_environment(tmp_path: Path):
     return clone_test_dir("zlib", tmp_path).joinpath("environment.yml")
+
+
+@pytest.fixture
+def multi_source_env(tmp_path: Path):
+    f = clone_test_dir("test-multi-sources", tmp_path)
+    return [f.joinpath("main.yml"), f.joinpath("pyproject.toml"), f.joinpath("dev.yml")]
 
 
 @pytest.fixture(
@@ -313,7 +335,7 @@ def test_lock_poetry_ibis(
 
 
 def test_parse_environment_file(gdal_environment: Path):
-    res = parse_environment_file(gdal_environment, DEFAULT_PLATFORMS, pip_support=True)
+    res = parse_environment_file(gdal_environment, DEFAULT_PLATFORMS)
     assert all(
         x in res.dependencies
         for x in [
@@ -343,7 +365,7 @@ def test_parse_environment_file(gdal_environment: Path):
 
 
 def test_parse_environment_file_with_pip(pip_environment: Path):
-    res = parse_environment_file(pip_environment, DEFAULT_PLATFORMS, pip_support=True)
+    res = parse_environment_file(pip_environment, DEFAULT_PLATFORMS)
     assert [dep for dep in res.dependencies if dep.manager == "pip"] == [
         VersionedDependency(
             name="requests-toolbelt",
@@ -357,7 +379,8 @@ def test_parse_environment_file_with_pip(pip_environment: Path):
 
 
 def test_parse_env_file_with_filters_no_args(filter_conda_environment: Path):
-    res = parse_environment_file(filter_conda_environment, None, pip_support=False)
+    platforms = parse_platforms_from_env_file(filter_conda_environment)
+    res = parse_environment_file(filter_conda_environment, platforms)
     assert all(x in res.platforms for x in ["osx-arm64", "osx-64", "linux-64"])
     assert res.channels == [Channel.from_string("conda-forge")]
 
@@ -392,9 +415,7 @@ def test_parse_env_file_with_filters_no_args(filter_conda_environment: Path):
 
 
 def test_parse_env_file_with_filters_defaults(filter_conda_environment: Path):
-    res = parse_environment_file(
-        filter_conda_environment, DEFAULT_PLATFORMS, pip_support=False
-    )
+    res = parse_environment_file(filter_conda_environment, DEFAULT_PLATFORMS)
     assert all(x in res.platforms for x in DEFAULT_PLATFORMS)
     assert res.channels == [Channel.from_string("conda-forge")]
 
@@ -420,6 +441,11 @@ def test_parse_env_file_with_filters_defaults(filter_conda_environment: Path):
             ),
         ]
     )
+
+
+def test_parse_platforms_from_multi_sources(multi_source_env):
+    platforms = _parse_platforms_from_srcs(multi_source_env)
+    assert platforms == ["osx-arm64", "osx-64", "linux-64", "win-64"]
 
 
 def test_choose_wheel() -> None:
@@ -581,6 +607,31 @@ def test_parse_poetry_no_pypi(poetry_pyproject_toml_no_pypi: Path):
         poetry_pyproject_toml_no_pypi,
     )
     assert res.allow_pypi_requests is False
+
+
+def test_poetry_no_pypi_multiple_pyprojects(
+    poetry_pyproject_toml_no_pypi: Path,
+    poetry_pyproject_toml_no_pypi_other_projects: List[Path],
+):
+    virtual_package_repo = default_virtual_package_repodata()
+    with virtual_package_repo:
+        spec = make_lock_spec(
+            src_files=poetry_pyproject_toml_no_pypi_other_projects,
+            virtual_package_repo=virtual_package_repo,
+        )
+        assert (
+            spec.allow_pypi_requests is True
+        ), "PyPI requests should be allowed when all pyprojects.toml allow PyPI requests"
+        spec = make_lock_spec(
+            src_files=[
+                *poetry_pyproject_toml_no_pypi_other_projects,
+                poetry_pyproject_toml_no_pypi,
+            ],
+            virtual_package_repo=virtual_package_repo,
+        )
+        assert (
+            spec.allow_pypi_requests is False
+        ), "PyPI requests should be forbidden when at least one pyproject.toml forbids PyPI requests"
 
 
 def test_prepare_repositories_pool():
@@ -920,6 +971,36 @@ def test_run_lock_with_locked_environment_files(
     ]
 
 
+@pytest.fixture
+def source_paths(tmp_path: Path) -> Path:
+    return clone_test_dir("test-source-paths", tmp_path)
+
+
+def test_run_lock_relative_source_path(
+    monkeypatch: "pytest.MonkeyPatch", source_paths: Path, conda_exe: str
+):
+    """run_lock() stores and restores lockfile-relative source paths"""
+    source_paths.joinpath("lockfile").mkdir()
+    monkeypatch.chdir(source_paths)
+    environment = Path("sources/environment.yaml")
+    lockfile = Path("lockfile/conda-lock.yml")
+    run_lock([environment], lockfile_path=lockfile, conda_exe="mamba")
+    lock_content = parse_conda_lock_file(lockfile)
+    locked_environment = lock_content.metadata.sources[0]
+    assert Path(locked_environment) == Path("../sources/environment.yaml")
+    make_lock_files = MagicMock()
+    monkeypatch.setattr("conda_lock.conda_lock.make_lock_files", make_lock_files)
+    run_lock(
+        DEFAULT_FILES, lockfile_path=lockfile, conda_exe=conda_exe, update=["pydantic"]
+    )
+    if sys.version_info < (3, 8):
+        # backwards compat
+        src_files = make_lock_files.call_args_list[0][1]["src_files"]
+    else:
+        src_files = make_lock_files.call_args.kwargs["src_files"]
+    assert [p.resolve() for p in src_files] == [environment.resolve()]
+
+
 def test_run_lock_with_pip(
     monkeypatch: "pytest.MonkeyPatch", pip_environment: Path, conda_exe: str
 ):
@@ -927,6 +1008,25 @@ def test_run_lock_with_pip(
     if is_micromamba(conda_exe):
         monkeypatch.setenv("CONDA_FLAGS", "-v")
     run_lock([pip_environment], conda_exe=conda_exe)
+
+
+@pytest.fixture
+def os_name_marker_environment(tmp_path: Path):
+    return clone_test_dir("test-os-name-marker", tmp_path).joinpath("environment.yml")
+
+
+def test_os_name_marker(
+    monkeypatch: pytest.MonkeyPatch, os_name_marker_environment: Path, conda_exe: str
+):
+    monkeypatch.chdir(os_name_marker_environment.parent)
+    if is_micromamba(conda_exe):
+        monkeypatch.setenv("CONDA_FLAGS", "-v")
+    run_lock([os_name_marker_environment], conda_exe=conda_exe)
+    lockfile = parse_conda_lock_file(
+        os_name_marker_environment.parent / DEFAULT_LOCKFILE_NAME
+    )
+    for package in lockfile.package:
+        assert package.name != "pywinpty"
 
 
 def test_run_lock_with_pip_environment_different_names_same_deps(
@@ -1393,6 +1493,14 @@ def test_install(
             "http://user:password@conda.mychannel.cloud/mypackage",
             "http://conda.mychannel.cloud/mypackage",
         ),
+        (
+            "# pip mypackage @ https://username1:password1@pypi.mychannel.cloud/simple",
+            "# pip mypackage @ https://pypi.mychannel.cloud/simple",
+        ),
+        (
+            "# pip mypackage @ https://pypi.mychannel.cloud/simple",
+            "# pip mypackage @ https://pypi.mychannel.cloud/simple",
+        ),
     ),
 )
 def test__strip_auth_from_line(line: str, stripped: str):
@@ -1404,6 +1512,10 @@ def test__strip_auth_from_line(line: str, stripped: str):
     (
         ("https://conda.mychannel.cloud/mypackage", "conda.mychannel.cloud"),
         ("http://conda.mychannel.cloud/mypackage", "conda.mychannel.cloud"),
+        (
+            "# pip mypackage @ https://pypi.mychannel.cloud/simple",
+            "pypi.mychannel.cloud",
+        ),
     ),
 )
 def test__extract_domain(line: str, stripped: str):
@@ -1463,6 +1575,22 @@ def test__strip_auth_from_lockfile(lockfile: str, stripped_lockfile: str):
             },
             "https://username1:password1@conda.mychannel.cloud/channel1/mypackage",
         ),
+        (
+            "# pip mypackage @ https://pypi.mychannel.cloud/simple",
+            {
+                "pypi.mychannel.cloud": "username:password",
+                "pypi.mychannel.cloud/simple": "username1:password1",
+            },
+            "# pip mypackage @ https://username1:password1@pypi.mychannel.cloud/simple",
+        ),
+        (
+            "# pip mypackage @ https://pypi.otherchannel.cloud/simple",
+            {
+                "pypi.mychannel.cloud": "username:password",
+                "pypi.mychannel.cloud/simple": "username1:password1",
+            },
+            "# pip mypackage @ https://pypi.otherchannel.cloud/simple",
+        ),
     ),
 )
 def test__add_auth_to_line(line: str, auth: Dict[str, str], line_with_auth: str):
@@ -1474,6 +1602,7 @@ def auth_():
     return {
         "a.mychannel.cloud": "username_a:password_a",
         "c.mychannel.cloud": "username_c:password_c",
+        "d.mychannel.cloud": "username_d:password_d",
     }
 
 
