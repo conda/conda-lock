@@ -226,6 +226,14 @@ def git_metadata_zlib_environment(tmp_path: Path):
 
 
 @pytest.fixture
+def pip_conda_name_confusion(tmp_path: Path):
+    """Path to an environment.yaml that has a hardcoded channel in one of the dependencies"""
+    return clone_test_dir("test-pip-conda-name-confusion", tmp_path).joinpath(
+        "environment.yaml"
+    )
+
+
+@pytest.fixture
 def multi_source_env(tmp_path: Path):
     f = clone_test_dir("test-multi-sources", tmp_path)
     return [f.joinpath("main.yml"), f.joinpath("pyproject.toml"), f.joinpath("dev.yml")]
