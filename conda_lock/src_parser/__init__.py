@@ -12,7 +12,10 @@ from conda_lock.src_parser.environment_yaml import (
     parse_platforms_from_env_file,
 )
 from conda_lock.src_parser.meta_yaml import parse_meta_yaml_file
-from conda_lock.src_parser.pyproject_toml import parse_pyproject_toml
+from conda_lock.src_parser.pyproject_toml import (
+    parse_platforms_from_pyproject_toml,
+    parse_pyproject_toml,
+)
 from conda_lock.virtual_package import FakeRepoData
 
 
@@ -36,7 +39,7 @@ def _parse_platforms_from_srcs(src_files: List[pathlib.Path]) -> List[str]:
         if src_file.name == "meta.yaml":
             continue
         elif src_file.name == "pyproject.toml":
-            all_file_platforms.append(parse_pyproject_toml(src_file).platforms)
+            all_file_platforms.append(parse_platforms_from_pyproject_toml(src_file))
         else:
             all_file_platforms.append(parse_platforms_from_env_file(src_file))
 
@@ -62,7 +65,7 @@ def _parse_source_files(
         if src_file.name == "meta.yaml":
             desired_envs.append(parse_meta_yaml_file(src_file, platforms))
         elif src_file.name == "pyproject.toml":
-            desired_envs.append(parse_pyproject_toml(src_file))
+            desired_envs.append(parse_pyproject_toml(src_file, platforms))
         else:
             desired_envs.append(parse_environment_file(src_file, platforms))
     return desired_envs
@@ -85,24 +88,37 @@ def make_lock_spec(
 
     lock_specs = _parse_source_files(src_files, platforms)
 
-    lock_spec = aggregate_lock_specs(lock_specs)
-    lock_spec.virtual_package_repo = virtual_package_repo
-    lock_spec.platforms = platforms
-    lock_spec.channels = (
+    aggregated_lock_spec = aggregate_lock_specs(lock_specs, platforms)
+
+    # Use channel overrides if given, otherwise use the channels specified in the
+    # source files.
+    channels = (
         [Channel.from_string(co) for co in channel_overrides]
         if channel_overrides
-        else lock_spec.channels
+        else aggregated_lock_spec.channels
     )
 
-    if required_categories is not None:
-
+    if required_categories is None:
+        dependencies = aggregated_lock_spec.dependencies
+    else:
+        # Filtering based on category (e.g. "main" or "dev") was requested.
+        # Thus we need to filter the specs based on the category.
         def dep_has_category(d: Dependency, categories: AbstractSet[str]) -> bool:
             return d.category in categories
 
-        lock_spec.dependencies = [
-            d
-            for d in lock_spec.dependencies
-            if dep_has_category(d, categories=required_categories)
-        ]
+        dependencies = {
+            platform: [
+                d
+                for d in dependencies
+                if dep_has_category(d, categories=required_categories)
+            ]
+            for platform, dependencies in aggregated_lock_spec.dependencies.items()
+        }
 
-    return lock_spec
+    return LockSpecification(
+        dependencies=dependencies,
+        channels=channels,
+        sources=aggregated_lock_spec.sources,
+        virtual_package_repo=virtual_package_repo,
+        allow_pypi_requests=aggregated_lock_spec.allow_pypi_requests,
+    )

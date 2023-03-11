@@ -13,29 +13,12 @@ from conda_lock.models.channel import Channel
 from conda_lock.virtual_package import FakeRepoData
 
 
-class Selectors(StrictModel):
-    platform: Optional[List[str]] = None
-
-    def __ior__(self, other: "Selectors") -> "Selectors":
-        if not isinstance(other, Selectors):
-            raise TypeError
-        if other.platform and self.platform:
-            for p in other.platform:
-                if p not in self.platform:
-                    self.platform.append(p)
-        return self
-
-    def for_platform(self, platform: str) -> bool:
-        return self.platform is None or platform in self.platform
-
-
 class _BaseDependency(StrictModel):
     name: str
     manager: Literal["conda", "pip"] = "conda"
     optional: bool = False
     category: str = "main"
     extras: List[str] = []
-    selectors: Selectors = Selectors()
 
 
 class VersionedDependency(_BaseDependency):
@@ -58,13 +41,16 @@ class Package(StrictModel):
 
 
 class LockSpecification(BaseModel):
-    dependencies: List[Dependency]
+    dependencies: Dict[str, List[Dependency]]
     # TODO: Should we store the auth info in here?
     channels: List[Channel]
-    platforms: List[str]
     sources: List[pathlib.Path]
     virtual_package_repo: Optional[FakeRepoData] = None
     allow_pypi_requests: bool = True
+
+    @property
+    def platforms(self) -> List[str]:
+        return list(self.dependencies.keys())
 
     def content_hash(self) -> Dict[str, str]:
         return {
@@ -77,8 +63,9 @@ class LockSpecification(BaseModel):
             "channels": [c.json() for c in self.channels],
             "specs": [
                 p.dict()
-                for p in sorted(self.dependencies, key=lambda p: (p.manager, p.name))
-                if p.selectors.for_platform(platform)
+                for p in sorted(
+                    self.dependencies[platform], key=lambda p: (p.manager, p.name)
+                )
             ],
         }
         if self.virtual_package_repo is not None:

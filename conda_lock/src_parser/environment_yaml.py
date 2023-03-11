@@ -7,7 +7,6 @@ from typing import List, Tuple
 import yaml
 
 from conda_lock.models.lock_spec import Dependency, LockSpecification
-from conda_lock.src_parser.aggregation import aggregate_lock_specs
 from conda_lock.src_parser.conda_common import conda_spec_to_versioned_dep
 from conda_lock.src_parser.selectors import filter_platform_selectors
 
@@ -27,10 +26,10 @@ def parse_conda_requirement(req: str) -> Tuple[str, str]:
 
 
 def _parse_environment_file_for_platform(
-    environment_file: pathlib.Path,
     content: str,
+    category: str,
     platform: str,
-) -> LockSpecification:
+) -> List[Dependency]:
     """
     Parse dependencies from a conda environment specification for an
     assumed target platform.
@@ -44,13 +43,7 @@ def _parse_environment_file_for_platform(
     """
     filtered_content = "\n".join(filter_platform_selectors(content, platform=platform))
     env_yaml_data = yaml.safe_load(filtered_content)
-
     specs = env_yaml_data["dependencies"]
-    channels: List[str] = env_yaml_data.get("channels", [])
-
-    # These extension fields are nonstandard
-    platforms: List[str] = env_yaml_data.get("platforms", [])
-    category: str = env_yaml_data.get("category") or "main"
 
     # Split out any sub spec sections from the dependencies mapping
     mapping_specs = [x for x in specs if not isinstance(x, str)]
@@ -58,9 +51,7 @@ def _parse_environment_file_for_platform(
 
     dependencies: List[Dependency] = []
     for spec in specs:
-        vdep = conda_spec_to_versioned_dep(spec, category)
-        vdep.selectors.platform = [platform]
-        dependencies.append(vdep)
+        dependencies.append(conda_spec_to_versioned_dep(spec, category))
 
     for mapping_spec in mapping_specs:
         if "pip" in mapping_spec:
@@ -88,12 +79,7 @@ def _parse_environment_file_for_platform(
             # ensure pip is in target env
             dependencies.append(parse_python_requirement("pip", manager="conda"))
 
-    return LockSpecification(
-        dependencies=dependencies,
-        channels=channels,  # type: ignore
-        platforms=platforms,
-        sources=[environment_file],
-    )
+    return dependencies
 
 
 def parse_platforms_from_env_file(environment_file: pathlib.Path) -> List[str]:
@@ -127,26 +113,20 @@ def parse_environment_file(
     with environment_file.open("r") as fo:
         content = fo.read()
 
+    env_yaml_data = yaml.safe_load(content)
+    channels: List[str] = env_yaml_data.get("channels", [])
+
+    # These extension fields are nonstandard
+    category: str = env_yaml_data.get("category") or "main"
+
     # Parse with selectors for each target platform
-    spec = aggregate_lock_specs(
-        [
-            _parse_environment_file_for_platform(
-                environment_file,
-                content,
-                platform,
-            )
-            for platform in platforms
-        ]
+    dep_map = {
+        platform: _parse_environment_file_for_platform(content, category, platform)
+        for platform in platforms
+    }
+
+    return LockSpecification(
+        dependencies=dep_map,
+        channels=channels,  # type: ignore
+        sources=[environment_file],
     )
-
-    # Remove platform selectors if they apply to all targets
-    for dep in spec.dependencies:
-        if dep.selectors.platform == platforms:
-            dep.selectors.platform = None
-
-    # Use the list of rendered platforms for the output spec only if
-    # there is a dependency that is not used on all platforms.
-    # This is unlike meta.yaml because environment-yaml files can contain an
-    # internal list of platforms, which should be used as long as it
-    spec.platforms = platforms
-    return spec
