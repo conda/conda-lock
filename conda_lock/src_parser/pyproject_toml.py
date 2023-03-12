@@ -37,6 +37,33 @@ from conda_lock.models.lock_spec import (
 )
 
 
+POETRY_INVALID_EXTRA_LOC = (
+    "`{depname}` in file {filename} is part of the `{category}` extra "
+    "but is not defined in [tool.poetry.dependencies]. "
+    "Conda-Lock will treat it as part of the extra. "
+    "Note that Poetry may have different behavior."
+)
+
+POETRY_EXTRA_NOT_OPTIONAL = (
+    "`{depname}` in file {filename} is part of the `{category}` extra "
+    "but is not specified as optional. "
+    "Conda-Lock will treat it as part of the extra. "
+    "Note that Poetry may have different behavior."
+)
+
+POETRY_OPTIONAL_NO_EXTRA = (
+    "`{depname}` in file {filename} is specified as optional but is not in any extra. "
+    "Conda-Lock will treat it as part of the `main` category. "
+    "Note that Poetry may have different behavior."
+)
+
+POETRY_OPTIONAL_NOT_MAIN = (
+    "`{depname}` in file {filename} is specified with the `optional` flag. "
+    "Conda-Lock will follows Poetry behavior and ignore the flag. "
+    "It will be treated as part of the `{category}` category."
+)
+
+
 def join_version_components(pieces: Sequence[Union[str, int]]) -> str:
     return ".".join(str(p) for p in pieces)
 
@@ -96,6 +123,7 @@ def parse_poetry_pyproject_toml(
     * dependencies in [tool.poetry.dependencies] have category main
     * dependencies in [tool.poetry.dev-dependencies] have category dev
     * dependencies in each `key` of [tool.poetry.extras] have category `key`
+    * dependencies in [tool.poetry.{group}.dependencies] have category `group`
 
     * By default, dependency names are translated to the conda equivalent, with two exceptions:
         - If a dependency has `source = "pypi"`, it is treated as a pip dependency (by name)
@@ -138,10 +166,9 @@ def parse_poetry_pyproject_toml(
                 in_extra = category != "main"
             else:
                 warnings.warn(
-                    f"`{depname}` in file {path.name} is part of the `{category}` extra "
-                    f"but is not defined in [tool.poetry.dependencies]. "
-                    f"Conda-Lock will treat it as part of the extra. "
-                    f"Note that Poetry may have different behavior."
+                    POETRY_INVALID_EXTRA_LOC.format(
+                        depname=depname, filename=path.name, category=category
+                    )
                 )
 
             if isinstance(depattrs, collections.abc.Mapping):
@@ -154,25 +181,26 @@ def parse_poetry_pyproject_toml(
                 # inside main and part of an extra
                 if optional_flag is not True and in_extra:
                     warnings.warn(
-                        f"`{depname}` in file {path.name} is part of the `{category}` extra "
-                        f"but is not specified as optional. "
-                        f"Conda-Lock will treat it as part of the extra. "
-                        f"Note that Poetry may have different behavior."
+                        POETRY_EXTRA_NOT_OPTIONAL.format(
+                            depname=depname, filename=path.name, category=category
+                        )
                     )
 
+                # Will ignore `optional = true` if in `tool.poetry.dependencies`
+                # but not in an extra
                 if optional_flag is True and not in_extra and category == "main":
                     warnings.warn(
-                        f"`{depname}` in file {path.name} is specified as optional but is not in any extra. "
-                        f"Conda-Lock will treat it as part of the `main` category. "
-                        f"Note that Poetry may have different behavior."
+                        POETRY_OPTIONAL_NO_EXTRA.format(
+                            depname=depname, filename=path.name
+                        )
                     )
 
                 # Will always ignore optional flag if not in `tool.poetry.dependencies`
                 if optional_flag is not None and default_category != "main":
                     warnings.warn(
-                        f"`{depname}` in file {path.name} is specified with the `optional` flag. "
-                        f"Conda-Lock will follows Poetry behavior and ignore the flag. "
-                        f"It will be treated as part of the `{category}` category."
+                        POETRY_OPTIONAL_NOT_MAIN.format(
+                            depname=depname, filename=path.name, category=category
+                        )
                     )
 
                 # If a dependency is explicitly marked as sourced from pypi,
