@@ -3,6 +3,7 @@ import collections.abc
 import logging
 import pathlib
 import sys
+import warnings
 
 from functools import partial
 from typing import (
@@ -111,9 +112,9 @@ def parse_poetry_pyproject_toml(
     }
 
     dep_to_extra = {}
-    for category, deps in get_in(["tool", "poetry", "extras"], contents, {}).items():
+    for cat, deps in get_in(["tool", "poetry", "extras"], contents, {}).items():
         for dep in deps:
-            dep_to_extra[dep] = category
+            dep_to_extra[dep] = cat
 
     # Support for poetry dependency groups as specified in
     # https://python-poetry.org/docs/managing-dependencies/#optional-groups
@@ -125,16 +126,48 @@ def parse_poetry_pyproject_toml(
         for depname, depattrs in get_in(
             ["tool", "poetry", *section], contents, {}
         ).items():
-            category = dep_to_extra.get(depname) or default_category
-            optional = category != "main"
+            category: str = default_category
+            optional: bool = category != "main"
             manager: Literal["conda", "pip"] = "conda"
             url = None
             extras = []
+            in_extra: bool = False
+
+            # Extras can only be defined in `tool.poetry.dependencies`
+            if default_category == "main":
+                category = dep_to_extra.get(depname) or "main"
+                in_extra = category != "main"
+
             if isinstance(depattrs, collections.abc.Mapping):
                 poetry_version_spec = depattrs.get("version", None)
                 url = depattrs.get("url", None)
-                optional = depattrs.get("optional", False)
                 extras = depattrs.get("extras", [])
+                optional_flag: Optional[bool] = depattrs.get("optional")
+
+                # `optional = true` must be set if dependency is
+                # inside main and part of an extra
+                if optional_flag is not True and in_extra:
+                    warnings.warn(
+                        f"`{depname}` in file {path.name} is part of the `{category}` extra but is not specified as optional. "
+                        f"Conda-Lock will treat it as part of the extra. "
+                        f"Note that Poetry may have different behavior."
+                    )
+
+                if optional_flag is True and not in_extra and category == "main":
+                    warnings.warn(
+                        f"`{depname}` in file {path.name} is specified as optional but is not in any extra. "
+                        f"Conda-Lock will treat it as part of the `main` category. "
+                        f"Note that Poetry may have different behavior."
+                    )
+
+                # Will always ignore optional flag if not in `tool.poetry.dependencies`
+                if optional_flag is not None and default_category != "main":
+                    warnings.warn(
+                        f"`{depname}` in file {path.name} is specified with the `optional` flag. "
+                        f"Conda-Lock will follows Poetry behavior and ignore the flag. "
+                        f"It will be treated as part of the `{category}` category."
+                    )
+
                 # If a dependency is explicitly marked as sourced from pypi,
                 # or is a URL dependency, delegate to the pip section
                 if (
@@ -149,6 +182,7 @@ def parse_poetry_pyproject_toml(
                 raise TypeError(
                     f"Unsupported type for dependency: {depname}: {depattrs}"
                 )
+
             if manager == "conda":
                 name = normalize_pypi_name(depname)
                 version = poetry_version_to_conda_version(poetry_version_spec)
