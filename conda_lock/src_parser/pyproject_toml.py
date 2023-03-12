@@ -126,7 +126,7 @@ def parse_poetry_pyproject_toml(
         for depname, depattrs in get_in(
             ["tool", "poetry", *section], contents, {}
         ).items():
-            category: str = default_category
+            category: str = dep_to_extra.get(depname) or default_category
             optional: bool = category != "main"
             manager: Literal["conda", "pip"] = "conda"
             url = None
@@ -135,8 +135,14 @@ def parse_poetry_pyproject_toml(
 
             # Extras can only be defined in `tool.poetry.dependencies`
             if default_category == "main":
-                category = dep_to_extra.get(depname) or "main"
                 in_extra = category != "main"
+            else:
+                warnings.warn(
+                    f"`{depname}` in file {path.name} is part of the `{category}` extra "
+                    f"but is not defined in [tool.poetry.dependencies]. "
+                    f"Conda-Lock will treat it as part of the extra. "
+                    f"Note that Poetry may have different behavior."
+                )
 
             if isinstance(depattrs, collections.abc.Mapping):
                 poetry_version_spec = depattrs.get("version", None)
@@ -148,7 +154,8 @@ def parse_poetry_pyproject_toml(
                 # inside main and part of an extra
                 if optional_flag is not True and in_extra:
                     warnings.warn(
-                        f"`{depname}` in file {path.name} is part of the `{category}` extra but is not specified as optional. "
+                        f"`{depname}` in file {path.name} is part of the `{category}` extra "
+                        f"but is not specified as optional. "
                         f"Conda-Lock will treat it as part of the extra. "
                         f"Note that Poetry may have different behavior."
                     )
