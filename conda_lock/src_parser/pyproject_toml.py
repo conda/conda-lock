@@ -164,7 +164,7 @@ def parse_poetry_pyproject_toml(
             # Extras can only be defined in `tool.poetry.dependencies`
             if default_category == "main":
                 in_extra = category != "main"
-            else:
+            elif category != default_category:
                 warnings.warn(
                     POETRY_INVALID_EXTRA_LOC.format(
                         depname=depname, filename=path.name, category=category
@@ -211,8 +211,16 @@ def parse_poetry_pyproject_toml(
                 ):
                     manager = "pip"
                 # TODO: support additional features such as markers for things like sys_platform, platform_system
+
             elif isinstance(depattrs, str):
                 poetry_version_spec = depattrs
+                if in_extra:
+                    warnings.warn(
+                        POETRY_EXTRA_NOT_OPTIONAL.format(
+                            depname=depname, filename=path.name, category=category
+                        )
+                    )
+
             else:
                 raise TypeError(
                     f"Unsupported type for dependency: {depname}: {depattrs}"
