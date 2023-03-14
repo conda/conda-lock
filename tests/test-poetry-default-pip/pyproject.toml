@@ -23,9 +23,7 @@ build-backend = "poetry.masonry.api"
 channels = [
     'defaults'
 ]
-
-[tool.conda-lock.poetry]
-default-dependencies-to-conda = false
+default-non-conda-source = "pip"
 
 [tool.conda-lock.dependencies]
 sqlite = "<3.34"

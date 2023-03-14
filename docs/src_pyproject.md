@@ -77,12 +77,12 @@ python = "3.9"
 ampel-ztf = {version = "^0.8.0-alpha.2", source = "pypi"}
 ```
 
-Alternatively, explicitly providing  `default-dependencies-to-conda = false` in the `[tool.conda-lock.poetry]` section will set PyPI as the default source for all dependencies defined in `[tool.poetry.dependencies]`, i.e.:
-- Default to PyPI dependencies for `[tool.poetry.dependencies]`
-- Default to Conda dependencies for `[tool.conda-lock.dependencies]`
+Alternatively, explicitly providing  `default-non-conda-source = "pip"` in the `[tool.conda-lock]` section will treat all non-conda dependencies -- all dependencies defined outside of `[tool.conda-lock.dependencies]` -- as `pip` dependencies, i.e.:
+- Default to `pip` dependencies for `[tool.poetry.dependencies]`, `[project.dependencies]`, etc.
+- Default to `conda` dependencies for `[tool.conda-lock.dependencies]`
 ```toml
-[tool.conda-lock.poetry]
-default-dependencies-to-conda = false
+[tool.conda-lock]
+default-non-conda-source = "pip"
 ```
 
 In all cases, the dependencies of `pip`-installable packages will also be
