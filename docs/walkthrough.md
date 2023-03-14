@@ -190,23 +190,13 @@ The default file result is a file named `conda-linux-64.lock`. This lockfile can
 mamba create -n my-locked-env --file conda-linux-64.lock
 ```
 
-# Upgrade
-Most work related to upgrading your environment requires manually updating your `environment.yml` you created in an earlier step. In the following examples, I will use the existing `environment.yml` to demonstrate upgrading.
-
-## Upgrade an existing package
-Say there is a new version of pandas available and you want to update to the latest one. This is the simplest use case.
+# Updating the Environment
+Currently the `--update` flag for the `conda-lock` command does not work as expected. For now, the way to update a package (e.g., upgrade, downgrade, remove, or add a package) is a workflow described like so:
+1. Update your environment, for example, add the package `matplotlib` via `mamba`:
 ```bash
-(base) $ conda-lock --update pandas
+(env-management-demo) $ mamba install matplotlib
 ```
-
-## Adding a New Package via `conda`
-We have `pandas` installed, but of course we want to use `matplotlib`.
-1. Install `matplotlib`
-```bash
-(base) $ mamba install -c conda-forge matplotlib
-...
-```
-2. Add `matplotlib` to the `environment.yml` file.
+2. Manually add this to the `environment.yml` file:
 ```yml
 # environment.yml
 channels:
@@ -221,16 +211,12 @@ platforms:
   - win-64
   - osx-arm64
 ```
-3. Update the file using `conda-lock`
+3. Rerun `conda-lock` which will resolve the entire environent:
 ```bash
-(base) $ conda-lock --update matplotlib
-Locking dependencies for ['linux-64', 'osx-64', 'osx-arm64', 'win-64']...
-...
+(env-management-demo) $ conda-lock -f environment.yml
 ```
-Note: If you update to a specific version of a package, you will need to provide the version in the command. For example, `matplotlib=3.5` should be included after the `--update` flag. This update flag is useful for the following:
-* Updating to the latest version of a package (no version specified)
-* Updating a package to a specific version
-* Adding a new package
+
+Note that it is not necessary to add the package to your environment as seen in step 1 above, but I would reccomend doing this and testing your code before persisitng this change to `conda-lock.yml`.
 
 ## Adding a New Package via `pip`
 Sometimes `conda` does not have everything you need so you lean on `pip` for a dependency. `conda-lock` comes with `pip` support if you install it with the extra like so:
@@ -268,15 +254,6 @@ platforms:
 Locking dependencies for ['linux-64', 'osx-64', 'osx-arm64', 'win-64']...
 ...
 ```
-## A Quick Note on Downgrading
-Downgrading is done by updating your `environment.yml` with the downgraded version of a package and then running the `conda-lock` command,
-```bash
-(base) $ conda-lock --update conda_package=version
-```
-Or, if it is a pip package (note the double `==`),
-```bash
-(base) $ conda-lock --update pip_package==version
-```
 
 # Debugging
 Last Update: February 6, 2023
@@ -285,7 +262,7 @@ This section will be updated as issues are discovered. If issues are discovered,
 ## `conda-lock` giving vague `AssertionError`
 Sometimes an error from `conda-lock` is vague and hard to debug. I am logging some fixes I have discovered during development.
 ### Are your channels consistent?
-Are the channels you have set in `conda` and your `environment.yml` file consistent? If not, make sure they are by editing your `environment.yml` file to match. Once I have found that deleting the existing `conda-lock.yml` file and trying again will resolve this issue.
+Are the channels you have set in `mamba` and your `environment.yml` file consistent? If not, make sure they are by editing your `environment.yml` file to match. Once I have found that deleting the existing `conda-lock.yml` file and trying again will resolve this issue.
 
 # Terms
 platform
