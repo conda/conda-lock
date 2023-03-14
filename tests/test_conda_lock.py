@@ -636,12 +636,11 @@ def test_parse_poetry(poetry_pyproject_toml: Path):
 
 
 def test_parse_poetry_default_pip(poetry_pyproject_toml_default_pip: Path):
-    res = parse_pyproject_toml(
-        poetry_pyproject_toml_default_pip,
-    )
+    res = parse_pyproject_toml(poetry_pyproject_toml_default_pip, ["linux-64"])
 
     specs = {
-        dep.name: typing.cast(VersionedDependency, dep) for dep in res.dependencies
+        dep.name: typing.cast(VersionedDependency, dep)
+        for dep in res.dependencies["linux-64"]
     }
 
     assert specs["sqlite"].manager == "conda"
@@ -752,12 +751,11 @@ def test_parse_flit(flit_pyproject_toml: Path):
 
 
 def test_parse_flit_default_pip(flit_pyproject_toml_default_pip: Path):
-    res = parse_pyproject_toml(
-        flit_pyproject_toml_default_pip,
-    )
+    res = parse_pyproject_toml(flit_pyproject_toml_default_pip, ["linux-64"])
 
     specs = {
-        dep.name: typing.cast(VersionedDependency, dep) for dep in res.dependencies
+        dep.name: typing.cast(VersionedDependency, dep)
+        for dep in res.dependencies["linux-64"]
     }
 
     assert specs["sqlite"].manager == "conda"
@@ -795,12 +793,11 @@ def test_parse_pdm(pdm_pyproject_toml: Path):
 
 
 def test_parse_pdm_default_pip(pdm_pyproject_toml_default_pip: Path):
-    res = parse_pyproject_toml(
-        pdm_pyproject_toml_default_pip,
-    )
+    res = parse_pyproject_toml(pdm_pyproject_toml_default_pip, ["linux-64"])
 
     specs = {
-        dep.name: typing.cast(VersionedDependency, dep) for dep in res.dependencies
+        dep.name: typing.cast(VersionedDependency, dep)
+        for dep in res.dependencies["linux-64"]
     }
 
     assert specs["sqlite"].manager == "conda"
