@@ -12,7 +12,7 @@
   - [With Docker in Mind](#with-docker-in-mind)
 - [Upgrade](#upgrade)
   - [Upgrade an existing package](#upgrade-an-existing-package)
-  - [Adding a New Package via `conda`](#adding-a-new-package-via-conda)
+  - [Adding a New Package via `mamba`](#adding-a-new-package-via-mamba)
   - [Adding a New Package via `pip`](#adding-a-new-package-via-pip)
   - [A Quick Note on Downgrading](#a-quick-note-on-downgrading)
 - [Debugging](#debugging)
@@ -38,19 +38,16 @@ Ultimately, this guide is just that, a *guide*. The goal was to make the concept
 
 ## Q&A
 
-### Why do you suggest using  `conda`  AND  `pip`?
-Sometimes a package installed via `conda` (even using the `conda-forge` channel) breaks my environment. I have found using `pip` as the *exception to the rule* has resolved most of these issues.
-
-### Why is this process slow?
-Solving the dependencies of dependencies for one operating system is time consuming. Out of the box,  `conda-lock`  will try to solve for 3 different operating systems (i.e., linux-64, osx-64, and win-64). However, `conda` recently announced partnering with a `mamba` solver. You could configure your `conda` instance to use a faster solver like this one. This is beyond the scope of this walkthrough. Regardless, it will still take time.
+### Why do you suggest using  `mamba`  AND  `pip`?
+Sometimes a package installed via `mamba` breaks my environment. I have found using `pip` as the *exception to the rule* has resolved most of these issues.
 
 ### Where should I install  `conda-lock`?
-Using `pipx` to install `conda-lock` allows you to have peace of mind about running the package outside of your `conda` environment (even your `conda` "base" environment). Alternatively, you could install it in your `conda` "base," but I ran into issues that way and this walkthrough will not cover that angle.
+Using `pipx` to install `conda-lock` allows you to have peace of mind about running the package outside of your `mamba` environment (even your `mamba` "base" environment). Alternatively, you could install it in your `mamba` "base," but I ran into issues that way and this walkthrough will not cover that angle.
 
 ### How can I find the version of my conda dependency?
 A command I like to use is,
 ```bash
-(base) $ conda list | grep PACKAGE_NAME
+(base) $ mamba list | grep PACKAGE_NAME
 ```
 This should show you the package with the version.
 
@@ -59,7 +56,7 @@ This should show you the package with the version.
 
 ## Global Dependencies
 - [pipx](https://pypa.github.io/pipx/) — "...help you install and run end-user applications written in Python"
--   [conda](https://docs.conda.io/en/latest/)  — "Package, dependency and environment management for any language..."
+-   [mamba (via mambaforge)](https://github.com/conda-forge/miniforge#mambaforge)  — "Drop-in, faster conda..."
 -   [pip](https://pypi.org/project/pip/)  — "...the package installer for Python"
 -   [conda-lock](https://github.com/conda-incubator/conda-lock)  — "...a lightweight library that can be used to generate fully reproducible lock files for conda environments."
 -   [conda-forge](https://conda-forge.org/)  — "A community-led collection of recipes, build infrastructure and distributions for the conda package manager."
@@ -68,12 +65,12 @@ This should show you the package with the version.
 Find more detailed guides to installing these tools on their websites [below](#references-and-resources).
 * Install `pipx`
 * Install `conda-lock` via `pipx` or install `'conda-lock[pip_support]'` if you expect the need for `pip`
-* Install `conda`
+* Install `mamba`
 
 # Workflow 1: Locking a New Project
 In an ideal world, you can do environment management workflow before you write one line of code.
 
-If you have conda installed properly, your terminal should open like this,
+If you have mamba installed properly, your terminal should open like this,
 ```bash
 (base) $
 ```
@@ -81,24 +78,24 @@ If you have conda installed properly, your terminal should open like this,
 ```bash
 (base) $ cd env-management-demo
 ```
-2. Create a new `conda` environment for your project
+2. Create a new `mamba` environment for your project
 ```bash
-(base) $ conda create -n env-management-demo -c conda-forge python
+(base) $ mamba create -n env-management-demo -c conda-forge python
 ```
 3. Activate your environment. Note that my environment name is the same as my project name. I do this, but you don't have to. This is indicated by how `(base)` changes to `(env-management-demo)`.
 ```bash
-(base) $ conda activate env-management-demo
+(base) $ mamba activate env-management-demo
 (env-management-demo) $
 ```
-4. Before any other packages are installed, generate a `conda` `environment.yml` file. This step will generate a file that will need some editing in a moment.
+4. Before any other packages are installed, generate a `mamba` `environment.yml` file. This step will generate a file that will need some editing in a moment.
 ```bash
-(env-management-demo) $ conda env export --from-history > environment.yml
+(env-management-demo) $ mamba env export --from-history > environment.yml
 ```
-5. `environment.yml` will populate with your current environment parameters and some configurations. It may look different from mine but your channels must match your actual `conda` channels. I have noted which lines to remove.
+5. `environment.yml` will populate with your current environment parameters and some configurations. It may look different from mine but your channels must match your actual `mamba` channels. I have noted which lines to remove.
 
 (Optional) Check your channels
 ```bash
-(env-management-demo) $ conda config --show channels
+(env-management-demo) $ mamba config --show channels
 ```
 
 The following shows a before and after of edits. You will see a `# REMOVE` next to changes.
@@ -138,7 +135,7 @@ platforms: # This is non-standard and recommended by conda-lock.
 ``` 
 7. From now on, you will add packages manually to this document under the `dependencies` sequence key unless you have to, for some reason, download a package using pip. Here is an example of that process:
 ```bash
-(env-management-demo) $ conda install -c conda-forge pandas
+(env-management-demo) $ mamba install -c conda-forge pandas
 ...
 ```
 Then add it to the `environment.yml` (indicated by `# NEW`.)
@@ -164,14 +161,14 @@ Locking dependencies for ['linux-64', 'osx-64', 'osx-arm64', 'win-64']...
 ```
 9. Now that your environment is "locked," you can test this by creating a new environment from the `conda-lock.yml` file.
 ```bash
-(env-management-demo) $ conda deactivate
+(env-management-demo) $ mamba deactivate
 (base) $ 
 (base) $ conda-lock install -n env-locked
 INFO:root:Downloading and Extracting Packages
 INFO:root:numpy-1.24.1
 INFO:root:pandas-1.5.3
 ...
-(base) $ conda activate env-locked
+(base) $ mamba activate env-locked
 (env-locked) $
 ```
 10. After testing this environment on your code, you can share the `conda-lock.yml` file with other developers and have them run the code with the same `conda-lock` command.
@@ -183,7 +180,7 @@ While this part of the tutorial is unfinished, you could get a pretty good idea 
 Once you have the environment locked into a `conda-lock.yml` multi-platform file, you will be able to reproduce the environment (i.e., create and activate it) with the following command as long as the file is in your current directory:
 ```bash
 (base) $ conda-lock install -n NAME
-(base) $ conda activate NAME
+(base) $ mamba activate NAME
 (NAME) $
 ```
 ## With Docker in Mind
@@ -194,7 +191,7 @@ To minimize the size of the lockfile, you may want to render a single-platform l
 ```
 The default file result is a file named `conda-linux-64.lock`. This lockfile can then be copied into an image and used from within the image.
 ```
-conda create -n my-locked-env --file conda-linux-64.lock
+mamba create -n my-locked-env --file conda-linux-64.lock
 ```
 
 # Upgrade
@@ -210,7 +207,7 @@ Say there is a new version of pandas available and you want to update to the lat
 We have `pandas` installed, but of course we want to use `matplotlib`.
 1. Install `matplotlib`
 ```bash
-(base) $ conda install -c conda-forge matplotlib
+(base) $ mamba install -c conda-forge matplotlib
 ...
 ```
 2. Add `matplotlib` to the `environment.yml` file.
@@ -272,7 +269,7 @@ platforms:
 ```
 3. Update with the `conda-lock` command.
 ```
-(env-management-demo) $ conda deactivate
+(env-management-demo) $ mamba deactivate
 (base) $ conda-lock --update fastapi
 Locking dependencies for ['linux-64', 'osx-64', 'osx-arm64', 'win-64']...
 ...
@@ -314,6 +311,7 @@ My local versions for reference.
 System Version: macOS 13.0 (22A380)
 Kernel Version: Darwin 22.1.0
 conda 22.11.1
+mamba 1.1.0
 pipx 1.1.0
 conda-lock 1.4.0, installed using Python 3.11.0
 zsh 5.8.1 (x86_64-apple-darwin22.0)
