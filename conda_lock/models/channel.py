@@ -68,7 +68,7 @@ class CondaUrl(BaseModel):
 
     @classmethod
     def from_string(cls, value: str) -> "CondaUrl":
-        return env_var_normalize(value)
+        return _env_var_normalize(value)
 
     def conda_token_replaced_url(self) -> str:
         """This is basically a crazy thing that conda does for the token replacement in the output"""
@@ -134,7 +134,7 @@ class Channel(ZeroValRepr, BaseModel):
         return expanded_url
 
 
-def detect_used_env_var(
+def _detect_used_env_var(
     value: str, preferred_env_var_suffix: List[str]
 ) -> Optional[str]:
     """Detects if the string exactly matches any current environment variable
@@ -157,7 +157,7 @@ def detect_used_env_var(
     return None
 
 
-def env_var_normalize(url: str) -> CondaUrl:
+def _env_var_normalize(url: str) -> CondaUrl:
     """
     Normalizes url by using env vars
     """
@@ -195,7 +195,7 @@ def env_var_normalize(url: str) -> CondaUrl:
         return val
 
     if res.username:
-        user_env_var = detect_used_env_var(res.username, ["USERNAME", "USER"])
+        user_env_var = _detect_used_env_var(res.username, ["USERNAME", "USER"])
         if user_env_var:
             res_replaced = res_replaced._replace(
                 netloc=make_netloc(
@@ -206,7 +206,7 @@ def env_var_normalize(url: str) -> CondaUrl:
                 )
             )
     if res.password:
-        password_env_var = detect_used_env_var(
+        password_env_var = _detect_used_env_var(
             res.password, ["PASSWORD", "PASS", "TOKEN", "KEY"]
         )
         if password_env_var:
@@ -222,7 +222,7 @@ def env_var_normalize(url: str) -> CondaUrl:
     _token_match = token_pattern.search(res.path)
     token = _token_match.groups()[1][3:] if _token_match else None
     if token:
-        token_env_var = detect_used_env_var(
+        token_env_var = _detect_used_env_var(
             token, ["TOKEN", "CRED", "PASSWORD", "PASS", "KEY"]
         )
         if not token_env_var:

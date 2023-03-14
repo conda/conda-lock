@@ -54,7 +54,6 @@ from conda_lock.invoke_conda import (
     is_micromamba,
 )
 from conda_lock.lockfile import (
-    Dependency,
     GitMeta,
     InputMeta,
     LockedDependency,
@@ -68,13 +67,10 @@ from conda_lock.lockfile import (
 )
 from conda_lock.lookup import set_lookup_location
 from conda_lock.models.channel import Channel
+from conda_lock.models.lock_spec import LockSpecification
 from conda_lock.pypi_solver import solve_pypi
-from conda_lock.src_parser import LockSpecification, aggregate_lock_specs
-from conda_lock.src_parser.environment_yaml import parse_environment_file
-from conda_lock.src_parser.meta_yaml import parse_meta_yaml_file
-from conda_lock.src_parser.pyproject_toml import parse_pyproject_toml
+from conda_lock.src_parser import make_lock_spec
 from conda_lock.virtual_package import (
-    FakeRepoData,
     default_virtual_package_repodata,
     virtual_package_repo_from_specification,
 )
@@ -110,8 +106,6 @@ if not (sys.version_info.major >= 3 and sys.version_info.minor >= 6):
     print("conda_lock needs to run under python >=3.6")
     sys.exit(1)
 
-
-DEFAULT_PLATFORMS = ["osx-64", "linux-64", "win-64"]
 
 KIND_EXPLICIT: Literal["explicit"] = "explicit"
 KIND_LOCK: Literal["lock"] = "lock"
@@ -239,44 +233,6 @@ def fn_to_dist_name(fn: str) -> str:
     return fn
 
 
-def make_lock_spec(
-    *,
-    src_files: List[pathlib.Path],
-    virtual_package_repo: FakeRepoData,
-    channel_overrides: Optional[Sequence[str]] = None,
-    platform_overrides: Optional[Sequence[str]] = None,
-    required_categories: Optional[AbstractSet[str]] = None,
-) -> LockSpecification:
-    """Generate the lockfile specs from a set of input src_files.  If required_categories is set filter out specs that do not match those"""
-    lock_specs = parse_source_files(
-        src_files=src_files, platform_overrides=platform_overrides
-    )
-
-    lock_spec = aggregate_lock_specs(lock_specs)
-    lock_spec.virtual_package_repo = virtual_package_repo
-    lock_spec.channels = (
-        [Channel.from_string(co) for co in channel_overrides]
-        if channel_overrides
-        else lock_spec.channels
-    )
-    lock_spec.platforms = (
-        list(platform_overrides) if platform_overrides else lock_spec.platforms
-    ) or list(DEFAULT_PLATFORMS)
-
-    if required_categories is not None:
-
-        def dep_has_category(d: Dependency, categories: AbstractSet[str]) -> bool:
-            return d.category in categories
-
-        lock_spec.dependencies = [
-            d
-            for d in lock_spec.dependencies
-            if dep_has_category(d, categories=required_categories)
-        ]
-
-    return lock_spec
-
-
 def make_lock_files(
     *,
     conda: PathLike,
@@ -289,7 +245,7 @@ def make_lock_files(
     update: Optional[List[str]] = None,
     include_dev_dependencies: bool = True,
     filename_template: Optional[str] = None,
-    filter_categories: bool = True,
+    filter_categories: bool = False,
     extras: Optional[AbstractSet[str]] = None,
     check_input_hash: bool = False,
     metadata_choices: AbstractSet[MetadataOption] = frozenset(),
@@ -675,10 +631,10 @@ def render_lockfile_for_platform(  # noqa: C901
 
         if len(pip_deps) > 0:
             logger.warning(
-                "WARNING: installation of pip dependencies is only supported "
-                "by the 'conda-lock install' command. Other tools may silently "
-                "ignore them. For portability, we recommend using the newer "
-                "unified lockfile format (i.e. removing the --kind=explicit "
+                "WARNING: installation of pip dependencies is only supported by the "
+                "'conda-lock install' and 'micromamba install' commands. Other tools "
+                "may silently ignore them. For portability, we recommend using the "
+                "newer unified lockfile format (i.e. removing the --kind=explicit "
                 "argument."
             )
     else:
@@ -700,12 +656,8 @@ def _solve_for_arch(
     """
     if update_spec is None:
         update_spec = UpdateSpecification()
-    # filter requested and locked dependencies to the current platform
-    dependencies = [
-        dep
-        for dep in spec.dependencies
-        if (not dep.selectors.platform) or platform in dep.selectors.platform
-    ]
+
+    dependencies = spec.dependencies[platform]
     locked = [dep for dep in update_spec.locked if dep.platform == platform]
     requested_deps_by_name = {
         manager: {dep.name: dep for dep in dependencies if dep.manager == manager}
@@ -803,7 +755,7 @@ def create_lockfile_from_spec(
         for dep in deps:
             locked[(dep.manager, dep.name, dep.platform)] = dep
 
-    spec_sources: Dict[str, pathlib.Path] = {}
+    meta_sources: Dict[str, pathlib.Path] = {}
     for source in spec.sources:
         try:
             path = relative_path(lockfile_path.parent, source)
@@ -811,7 +763,7 @@ def create_lockfile_from_spec(
             if "Paths don't have the same drive" not in str(e):
                 raise e
             path = str(source.resolve())
-        spec_sources[path] = source
+        meta_sources[path] = source
 
     if MetadataOption.TimeStamp in metadata_choices:
         time_metadata = TimeMeta.create()
@@ -836,10 +788,10 @@ def create_lockfile_from_spec(
 
     if metadata_choices & {MetadataOption.InputSha, MetadataOption.InputMd5}:
         inputs_metadata: Optional[Dict[str, InputMeta]] = {
-            relative_path: InputMeta.create(
+            meta_src: InputMeta.create(
                 metadata_choices=metadata_choices, src_file=src_file
             )
-            for relative_path, src_file in spec_sources.items()
+            for meta_src, src_file in meta_sources.items()
         }
     else:
         inputs_metadata = None
@@ -852,48 +804,13 @@ def create_lockfile_from_spec(
             content_hash=spec.content_hash(),
             channels=[c for c in spec.channels],
             platforms=spec.platforms,
-            sources=[str(source.resolve()) for source in spec.sources],
+            sources=list(meta_sources.keys()),
             git_metadata=git_metadata,
             time_metadata=time_metadata,
             inputs_metadata=inputs_metadata,
             custom_metadata=custom_metadata,
         ),
     )
-
-
-def parse_source_files(
-    src_files: List[pathlib.Path],
-    platform_overrides: Optional[Sequence[str]],
-) -> List[LockSpecification]:
-    """
-    Parse a sequence of dependency specifications from source files
-
-    Parameters
-    ----------
-    src_files :
-        Files to parse for dependencies
-    platform_overrides :
-        Target platforms to render environment.yaml and meta.yaml files for
-    """
-    desired_envs: List[LockSpecification] = []
-    for src_file in src_files:
-        if src_file.name == "meta.yaml":
-            desired_envs.append(
-                parse_meta_yaml_file(
-                    src_file, list(platform_overrides or DEFAULT_PLATFORMS)
-                )
-            )
-        elif src_file.name == "pyproject.toml":
-            desired_envs.append(parse_pyproject_toml(src_file))
-        else:
-            desired_envs.append(
-                parse_environment_file(
-                    src_file,
-                    platform_overrides,
-                    default_platforms=DEFAULT_PLATFORMS,
-                )
-            )
-    return desired_envs
 
 
 def _add_auth_to_line(line: str, auth: Dict[str, str]) -> str:
@@ -1049,7 +966,11 @@ def run_lock(
             lock_content = parse_conda_lock_file(lockfile_path)
             # reconstruct native paths
             locked_environment_files = [
-                pathlib.Path(
+                pathlib.Path(p)
+                # absolute paths could be locked for both flavours
+                if pathlib.PurePosixPath(p).is_absolute()
+                or pathlib.PureWindowsPath(p).is_absolute()
+                else pathlib.Path(
                     pathlib.PurePosixPath(lockfile_path).parent
                     / pathlib.PurePosixPath(p)
                 )

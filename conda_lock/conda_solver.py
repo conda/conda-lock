@@ -6,20 +6,13 @@ import shlex
 import subprocess
 import sys
 import tempfile
+import time
 
 from contextlib import contextmanager
-from typing import (
-    Any,
-    Dict,
-    Iterable,
-    Iterator,
-    List,
-    MutableSequence,
-    Optional,
-    Sequence,
-    cast,
-)
+from typing import Dict, Iterable, Iterator, List, MutableSequence, Optional, Sequence
 from urllib.parse import urlsplit, urlunsplit
+
+import yaml
 
 from typing_extensions import TypedDict
 
@@ -33,7 +26,7 @@ from conda_lock.invoke_conda import (
 )
 from conda_lock.lockfile import HashModel, LockedDependency, _apply_categories
 from conda_lock.models.channel import Channel
-from conda_lock.src_parser import Dependency, VersionedDependency
+from conda_lock.models.lock_spec import Dependency, VersionedDependency
 
 
 logger = logging.getLogger(__name__)
@@ -210,6 +203,33 @@ def solve_conda(
     return planned
 
 
+def _get_repodata_record(
+    pkgs_dirs: List[pathlib.Path], dist_name: str
+) -> Optional[FetchAction]:
+    """Get the repodata_record.json of a given distribution from the package cache.
+
+    On rare occasion during the CI tests, conda fails to find a package in the
+    package cache, perhaps because the package is still being processed? Waiting for
+    0.1 seconds seems to solve the issue. Here we allow for a full second to elapse
+    before giving up.
+    """
+    NUM_RETRIES = 10
+    for retry in range(1, NUM_RETRIES + 1):
+        for pkgs_dir in pkgs_dirs:
+            record = pkgs_dir / dist_name / "info" / "repodata_record.json"
+            if record.exists():
+                with open(record) as f:
+                    repodata: FetchAction = json.load(f)
+                return repodata
+        logger.warn(
+            f"Failed to find repodata_record.json for {dist_name}. "
+            f"Retrying in 0.1 seconds ({retry}/{NUM_RETRIES})"
+        )
+        time.sleep(0.1)
+    logger.warn(f"Failed to find repodata_record.json for {dist_name}. Giving up.")
+    return None
+
+
 def _reconstruct_fetch_actions(
     conda: PathLike, platform: str, dry_run_install: DryRunInstall
 ) -> DryRunInstall:
@@ -227,16 +247,28 @@ def _reconstruct_fetch_actions(
     link_actions = {p["name"]: p for p in dry_run_install["actions"]["LINK"]}
     fetch_actions = {p["name"]: p for p in dry_run_install["actions"]["FETCH"]}
     link_only_names = set(link_actions.keys()).difference(fetch_actions.keys())
-    # NB: micromamba does not support info --json, nor does it appear to honor pkgs_dirs from .condarc
-    if not is_micromamba(conda):
+    if is_micromamba(conda):
         if link_only_names:
+            args = [str(conda), "config", "list", "pkgs_dirs"]
+            pkgs_dirs = [
+                pathlib.Path(d)
+                for d in yaml.safe_load(
+                    subprocess.check_output(
+                        args, env=conda_env_override(platform)
+                    ).decode()
+                )["pkgs_dirs"]
+            ]
+        else:
+            pkgs_dirs = []
+    else:
+        if link_only_names:
+            args = [str(conda), "info", "--json"]
             pkgs_dirs = [
                 pathlib.Path(d)
                 for d in json.loads(
                     extract_json_object(
                         subprocess.check_output(
-                            [str(conda), "info", "--json"],
-                            env=conda_env_override(platform),
+                            args, env=conda_env_override(platform)
                         ).decode()
                     )
                 )["pkgs_dirs"]
@@ -244,46 +276,26 @@ def _reconstruct_fetch_actions(
         else:
             pkgs_dirs = []
 
-        for link_pkg_name in link_only_names:
-            link_action = link_actions[link_pkg_name]
-            for pkgs_dir in pkgs_dirs:
-                record = (
-                    pkgs_dir
-                    / link_action["dist_name"]
-                    / "info"
-                    / "repodata_record.json"
-                )
-                if record.exists():
-                    with open(record) as f:
-                        repodata: FetchAction = json.load(f)
-                    break
+    for link_pkg_name in link_only_names:
+        link_action = link_actions[link_pkg_name]
+        if "dist_name" in link_action:
+            dist_name = link_action["dist_name"]
+        elif "fn" in link_action:
+            dist_name = str(link_action["fn"])
+            if dist_name.endswith(".tar.bz2"):
+                dist_name = dist_name[:-8]
+            elif dist_name.endswith(".conda"):
+                dist_name = dist_name[:-6]
             else:
-                raise FileExistsError(
-                    f'Distribution \'{link_action["dist_name"]}\' not found in pkgs_dirs {pkgs_dirs}'
-                )
-            dry_run_install["actions"]["FETCH"].append(repodata)
-    else:
-        # NB: micromamba LINK actions contain the same metadata as FETCH
-        # actions, and so can be used to fill out the FETCH section.
-        # Explicitly copy key-by-key to make missing keys obvious, should
-        # this change in the future.
-        for link_pkg_name in link_only_names:
-            item = cast(Dict[str, Any], link_actions[link_pkg_name])
-            repodata = {
-                "channel": item["channel"],
-                "constrains": item.get("constrains"),
-                "depends": item.get("depends"),
-                "fn": item["fn"],
-                "md5": item["md5"],
-                "name": item["name"],
-                "subdir": item["subdir"],
-                "timestamp": item["timestamp"],
-                "url": item["url"],
-                "version": item["version"],
-                "sha256": item.get("sha256"),
-            }
-
-            dry_run_install["actions"]["FETCH"].append(repodata)
+                raise ValueError(f"Unknown filename format: {dist_name}")
+        else:
+            raise ValueError(f"Unable to extract the dist_name from {link_action}.")
+        repodata = _get_repodata_record(pkgs_dirs, dist_name)
+        if repodata is None:
+            raise FileNotFoundError(
+                f"Distribution '{dist_name}' not found in pkgs_dirs {pkgs_dirs}"
+            )
+        dry_run_install["actions"]["FETCH"].append(repodata)
     return dry_run_install
 
 

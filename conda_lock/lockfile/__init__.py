@@ -7,7 +7,7 @@ from typing import Collection, Dict, List, Optional, Sequence, Set
 
 import yaml
 
-from conda_lock.src_parser import Dependency
+from conda_lock.models.lock_spec import Dependency
 
 from .models import DependencySource as DependencySource
 from .models import GitMeta as GitMeta
@@ -166,5 +166,6 @@ def write_conda_lock_file(
                     content.json(by_alias=True, exclude_unset=True, exclude_none=True)
                 ),
             },
-            f,
+            stream=f,
+            sort_keys=False,
         )

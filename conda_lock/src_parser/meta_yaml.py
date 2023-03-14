@@ -6,7 +6,8 @@ import jinja2
 import yaml
 
 from conda_lock.common import get_in
-from conda_lock.src_parser import Dependency, LockSpecification, aggregate_lock_specs
+from conda_lock.models.lock_spec import Dependency, LockSpecification
+from conda_lock.src_parser.conda_common import conda_spec_to_versioned_dep
 from conda_lock.src_parser.selectors import filter_platform_selectors
 
 
@@ -92,31 +93,38 @@ def parse_meta_yaml_file(
     * This does not support multi-output files and will ignore all lines with
       selectors other than platform.
     """
-    # parse with selectors for each target platform
-    spec = aggregate_lock_specs(
-        [
-            _parse_meta_yaml_file_for_platform(meta_yaml_file, platform)
-            for platform in platforms
-        ]
-    )
-    # remove platform selectors if they apply to all targets
-    for dep in spec.dependencies:
-        if dep.selectors.platform == platforms:
-            dep.selectors.platform = None
 
-    return spec
+    if not meta_yaml_file.exists():
+        raise FileNotFoundError(f"{meta_yaml_file} not found")
+
+    with meta_yaml_file.open("r") as fo:
+        t = jinja2.Template(fo.read(), undefined=UndefinedNeverFail)
+        rendered = t.render()
+        meta_yaml_data = yaml.safe_load(rendered)
+
+    channels = get_in(["extra", "channels"], meta_yaml_data, [])
+
+    # parse with selectors for each target platform
+    dep_map = {
+        platform: _parse_meta_yaml_file_for_platform(meta_yaml_file, platform)
+        for platform in platforms
+    }
+
+    return LockSpecification(
+        dependencies=dep_map,
+        channels=channels,
+        sources=[meta_yaml_file],
+    )
 
 
 def _parse_meta_yaml_file_for_platform(
     meta_yaml_file: pathlib.Path,
     platform: str,
-) -> LockSpecification:
+) -> List[Dependency]:
     """Parse a simple meta-yaml file for dependencies, assuming the target platform.
 
     * This does not support multi-output files and will ignore all lines with selectors other than platform
     """
-    if not meta_yaml_file.exists():
-        raise FileNotFoundError(f"{meta_yaml_file} not found")
 
     with meta_yaml_file.open("r") as fo:
         filtered_recipe = "\n".join(
@@ -127,17 +135,13 @@ def _parse_meta_yaml_file_for_platform(
 
         meta_yaml_data = yaml.safe_load(rendered)
 
-    channels = get_in(["extra", "channels"], meta_yaml_data, [])
     dependencies: List[Dependency] = []
 
     def add_spec(spec: str, category: str) -> None:
         if spec is None:
             return
 
-        from .conda_common import conda_spec_to_versioned_dep
-
         dep = conda_spec_to_versioned_dep(spec, category)
-        dep.selectors.platform = [platform]
         dependencies.append(dep)
 
     def add_requirements_from_recipe_or_output(yaml_data: Dict[str, Any]) -> None:
@@ -152,9 +156,4 @@ def _parse_meta_yaml_file_for_platform(
     for output in get_in(["outputs"], meta_yaml_data, []):
         add_requirements_from_recipe_or_output(output)
 
-    return LockSpecification(
-        dependencies=dependencies,
-        channels=channels,
-        platforms=[platform],
-        sources=[meta_yaml_file],
-    )
+    return dependencies
