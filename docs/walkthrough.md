@@ -31,9 +31,9 @@ Ultimately, this guide is just that, a *guide*. The goal was to make the concept
 ## Gotchas
 * I use `pipx` for parts of this guide, you may choose not to.
 * My platform may not be your platform so keep an eye out for incompatible commands.
-* For simplicity, the guide assumes no explicit versions of packages.
+
 # Goals for the Environment
-**Reproducible**: The environment can be reproduced across platforms.
+**Reproducible**: The environment can be reproduced across platforms.   
 **Upgradeable**: Packages in the environment can be easily changed (e.g., version, new package, etc.)
 
 ## Q&A
@@ -105,7 +105,6 @@ Before...
 name: env-management-demo # REMOVE
 channels:
   - conda-forge
-  - defaults
 dependencies:
   - python
 prefix: /Users/uname/miniconda3/envs/env-management-demo # REMOVE
@@ -115,7 +114,6 @@ After...
 # environment.yml
 channels:
   - conda-forge
-  - defaults
 dependencies:
   - python
 ```
@@ -124,7 +122,6 @@ dependencies:
 # environment.yml
 channels:
   - conda-forge
-  - defaults
 dependencies:
   - python
 platforms: # This is non-standard and recommended by conda-lock.
@@ -143,7 +140,6 @@ Then add it to the `environment.yml` (indicated by `# NEW`.)
 # environment.yml
 channels:
   - conda-forge
-  - defaults
 dependencies:
   - python
   - pandas # NEW
@@ -215,7 +211,6 @@ We have `pandas` installed, but of course we want to use `matplotlib`.
 # environment.yml
 channels:
   - conda-forge
-  - defaults
 dependencies:
   - python
   - pandas
@@ -254,7 +249,6 @@ This allows you to add pip dependencies as needed.
 # environment.yml
 channels:
   - conda-forge
-  - defaults
 dependencies:
   - python
   - pandas
