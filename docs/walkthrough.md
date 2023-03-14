@@ -132,7 +132,7 @@ platforms: # This is non-standard and recommended by conda-lock.
   - osx-64
   - win-64
   - osx-arm64  # For Apple Silicon, e.g. M1/M2
-``` 
+```
 7. From now on, you will add packages manually to this document under the `dependencies` sequence key unless you have to, for some reason, download a package using pip. Here is an example of that process:
 ```bash
 (env-management-demo) $ mamba install -c conda-forge pandas
