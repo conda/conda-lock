@@ -1,35 +1,13 @@
-
-# Table of Contents
-- [How to Use This Guide](#how-to-use-this-guide)
-  - [Gotchas](#gotchas)
-- [Goals for the Environment](#goals-for-the-environment)
-  - [Q&A](#qa)
-- [Your Platform Setup](#your-platform-setup)
-  - [Global Dependencies](#global-dependencies)
-- [Workflow 1: Locking a New Project](#workflow-1-locking-a-new-project)
-- [Workflow 2: Locking an Existing Project (TBD)](#workflow-2-locking-an-existing-project)
-- [Reproduce](#reproduce)
-  - [With Docker in Mind](#with-docker-in-mind)
-- [Upgrade](#upgrade)
-  - [Upgrade an existing package](#upgrade-an-existing-package)
-  - [Adding a New Package via `mamba`](#adding-a-new-package-via-mamba)
-  - [Adding a New Package via `pip`](#adding-a-new-package-via-pip)
-  - [A Quick Note on Downgrading](#a-quick-note-on-downgrading)
-- [Debugging](#debugging)
-  - [`conda-lock` giving vague `AssertionError`](#conda-lock-giving-vague-assertionerror)
-- [Terms](#terms)
-- [References and Resources](#references-and-resources)
-- [Versions](#versions)
-
 # How to Use This Guide
-This is a guide on how to produce a reproducible and upgradeable environment for Python applications. A great deal of inspiration came from a pythonspeed.com article about this very topic.<sup>[4](#references-and-resources)</sup> While the article is a wonderful resource, I needed more so I developed this guide.
+This is a guide on how to produce a reproducible and upgradeable environment for Python applications. A great deal of inspiration came from a pythonspeed.com article about this very topic.<sup>[1](#references-and-resources)</sup> While the article is a wonderful resource, I needed more so I developed this guide.
 
 You can use the table of contents to get a quick look at topics. Or you can skip ahead to [Your Platform Setup](#your-platform-setup) which is the beginning of the walkthrough.
 
 Ultimately, this guide is just that, a *guide*. The goal was to make the concepts easy to follow so that you can apply it to your use case. You may use a different platform than this guide but hopefully still benefit from the content.
 
 ## Gotchas
-* I use `pipx` for parts of this guide, you may choose not to.
+* This guide uses `pipx` for parts of this guide, you may choose not to.
+* This guide use `mamba` in place of `conda`.
 * My platform may not be your platform so keep an eye out for incompatible commands.
 
 # Goals for the Environment
@@ -269,12 +247,12 @@ platform
     : the OS being used for a task (e.g., MacOS, Windows, etc.)
 
 # References and Resources
-1. [pypa.github.io — Global Python package manager `pipx`](https://pypa.github.io/pipx/)
-2. [docs.conda.io — Environment manager `conda` via miniconda](https://docs.conda.io/en/latest/miniconda.html)
-3. [github.com — Cross-platform environment locker `conda-lock`](https://github.com/conda/conda-lock)
-4. [pythonspeed.com — Reproducible and upgradable Conda environments with conda-lock](https://pythonspeed.com/articles/conda-dependency-management/)
-5.  [github.com — Recommended direct dependency update path](https://github.com/conda-incubator/conda-lock/issues/248)
-6.  [github.com — Optional groups of dependencies #7502](https://github.com/conda/conda/issues/7502)
+1. [pythonspeed.com — Reproducible and upgradable Conda environments with conda-lock](https://pythonspeed.com/articles/conda-dependency-management/)
+2. [pypa.github.io — Global Python package manager `pipx`](https://pypa.github.io/pipx/)
+3. [docs.conda.io — Environment manager `conda` via miniconda](https://docs.conda.io/en/latest/miniconda.html)
+4. [github.com — Cross-platform environment locker `conda-lock`](https://github.com/conda/conda-lock)
+5. [github.com — Recommended direct dependency update path](https://github.com/conda-incubator/conda-lock/issues/248)
+6. [github.com — Optional groups of dependencies #7502](https://github.com/conda/conda/issues/7502)
 
 # Versions
 My local versions for reference.
