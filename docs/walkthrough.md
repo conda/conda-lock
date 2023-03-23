@@ -11,7 +11,7 @@ Ultimately, this guide is just that, a *guide*. The goal was to make the concept
 * My platform may not be your platform so keep an eye out for incompatible commands.
 
 # Goals for the Environment
-**Reproducible**: The environment can be reproduced across platforms.   
+**Reproducible**: The environment can be reproduced across platforms.
 **Upgradeable**: Packages in the environment can be easily changed (e.g., version, new package, etc.)
 
 ## Q&A
@@ -136,7 +136,7 @@ Locking dependencies for ['linux-64', 'osx-64', 'osx-arm64', 'win-64']...
 9. Now that your environment is "locked," you can test this by creating a new environment from the `conda-lock.yml` file.
 ```bash
 (env-management-demo) $ mamba deactivate
-(base) $ 
+(base) $
 (base) $ conda-lock install -n env-locked
 INFO:root:Downloading and Extracting Packages
 INFO:root:numpy-1.24.1
