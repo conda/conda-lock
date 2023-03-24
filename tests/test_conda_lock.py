@@ -76,6 +76,10 @@ from conda_lock.src_parser.environment_yaml import (
     parse_platforms_from_env_file,
 )
 from conda_lock.src_parser.pyproject_toml import (
+    POETRY_EXTRA_NOT_OPTIONAL,
+    POETRY_INVALID_EXTRA_LOC,
+    POETRY_OPTIONAL_NO_EXTRA,
+    POETRY_OPTIONAL_NOT_MAIN,
     parse_platforms_from_pyproject_toml,
     parse_pyproject_toml,
     poetry_version_to_conda_version,
@@ -193,6 +197,11 @@ def poetry_pyproject_toml_default_pip(tmp_path: Path):
 @pytest.fixture
 def poetry_pyproject_toml_no_pypi(tmp_path: Path):
     return clone_test_dir("test-poetry-no-pypi", tmp_path).joinpath("pyproject.toml")
+
+
+@pytest.fixture
+def pyproject_optional_toml(tmp_path: Path):
+    return clone_test_dir("test-poetry-optional", tmp_path).joinpath("pyproject.toml")
 
 
 @pytest.fixture
@@ -807,6 +816,38 @@ def test_parse_pdm_default_pip(pdm_pyproject_toml_default_pip: Path):
     assert specs["pytest"].manager == "pip"
     assert specs["tomlkit"].manager == "pip"
     assert specs["click"].manager == "pip"
+
+
+def test_parse_poetry_invalid_optionals(pyproject_optional_toml: Path):
+    filename = pyproject_optional_toml.name
+
+    with pytest.warns(Warning) as record:
+        _ = parse_pyproject_toml(pyproject_optional_toml, ["linux-64"])
+
+    assert len(record) >= 4
+    messages = [str(w.message) for w in record]
+    assert (
+        POETRY_OPTIONAL_NO_EXTRA.format(depname="tomlkit", filename=filename)
+        in messages
+    )
+    assert (
+        POETRY_EXTRA_NOT_OPTIONAL.format(
+            depname="requests", filename=filename, category="rest"
+        )
+        in messages
+    )
+    assert (
+        POETRY_INVALID_EXTRA_LOC.format(
+            depname="pyyaml", filename=filename, category="yaml"
+        )
+        in messages
+    )
+    assert (
+        POETRY_OPTIONAL_NOT_MAIN.format(
+            depname="pytest", filename=filename, category="dev"
+        )
+        in messages
+    )
 
 
 def test_run_lock(
