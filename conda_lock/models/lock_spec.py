@@ -31,8 +31,11 @@ class URLDependency(_BaseDependency):
     url: str
     hashes: List[str]
 
+class VCSDependency(_BaseDependency):
+    source: str
+    vcs: str
 
-Dependency = Union[VersionedDependency, URLDependency]
+Dependency = Union[VersionedDependency, URLDependency, VCSDependency]
 
 
 class Package(StrictModel):
