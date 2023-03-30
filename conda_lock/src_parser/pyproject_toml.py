@@ -3,6 +3,7 @@ import collections.abc
 import logging
 import pathlib
 import sys
+import warnings
 
 from functools import partial
 from typing import (
@@ -33,6 +34,33 @@ from conda_lock.models.lock_spec import (
     LockSpecification,
     URLDependency,
     VersionedDependency,
+)
+
+
+POETRY_INVALID_EXTRA_LOC = (
+    "`{depname}` in file {filename} is part of the `{category}` extra "
+    "but is not defined in [tool.poetry.dependencies]. "
+    "Conda-Lock will treat it as part of the extra. "
+    "Note that Poetry may have different behavior."
+)
+
+POETRY_EXTRA_NOT_OPTIONAL = (
+    "`{depname}` in file {filename} is part of the `{category}` extra "
+    "but is not specified as optional. "
+    "Conda-Lock will treat it as part of the extra. "
+    "Note that Poetry may have different behavior."
+)
+
+POETRY_OPTIONAL_NO_EXTRA = (
+    "`{depname}` in file {filename} is specified as optional but is not in any extra. "
+    "Conda-Lock will treat it as part of the `main` category. "
+    "Note that Poetry may have different behavior."
+)
+
+POETRY_OPTIONAL_NOT_MAIN = (
+    "`{depname}` in file {filename} is specified with the `optional` flag. "
+    "Conda-Lock will follows Poetry behavior and ignore the flag. "
+    "It will be treated as part of the `{category}` category."
 )
 
 
@@ -85,6 +113,7 @@ def poetry_version_to_conda_version(version_string: Optional[str]) -> Optional[s
 
 def parse_poetry_pyproject_toml(
     path: pathlib.Path,
+    platforms: List[str],
     contents: Mapping[str, Any],
 ) -> LockSpecification:
     """
@@ -94,6 +123,7 @@ def parse_poetry_pyproject_toml(
     * dependencies in [tool.poetry.dependencies] have category main
     * dependencies in [tool.poetry.dev-dependencies] have category dev
     * dependencies in each `key` of [tool.poetry.extras] have category `key`
+    * dependencies in [tool.poetry.{group}.dependencies] have category `group`
 
     * By default, dependency names are translated to the conda equivalent, with two exceptions:
         - If a dependency has `source = "pypi"`, it is treated as a pip dependency (by name)
@@ -110,9 +140,9 @@ def parse_poetry_pyproject_toml(
     }
 
     dep_to_extra = {}
-    for category, deps in get_in(["tool", "poetry", "extras"], contents, {}).items():
+    for cat, deps in get_in(["tool", "poetry", "extras"], contents, {}).items():
         for dep in deps:
-            dep_to_extra[dep] = category
+            dep_to_extra[dep] = cat
 
     # Support for poetry dependency groups as specified in
     # https://python-poetry.org/docs/managing-dependencies/#optional-groups
@@ -124,16 +154,55 @@ def parse_poetry_pyproject_toml(
         for depname, depattrs in get_in(
             ["tool", "poetry", *section], contents, {}
         ).items():
-            category = dep_to_extra.get(depname) or default_category
-            optional = category != "main"
+            category: str = dep_to_extra.get(depname) or default_category
+            optional: bool = category != "main"
             manager: Literal["conda", "pip"] = "conda"
             url = None
             extras = []
+            in_extra: bool = False
+
+            # Extras can only be defined in `tool.poetry.dependencies`
+            if default_category == "main":
+                in_extra = category != "main"
+            elif category != default_category:
+                warnings.warn(
+                    POETRY_INVALID_EXTRA_LOC.format(
+                        depname=depname, filename=path.name, category=category
+                    )
+                )
+
             if isinstance(depattrs, collections.abc.Mapping):
                 poetry_version_spec = depattrs.get("version", None)
                 url = depattrs.get("url", None)
-                optional = depattrs.get("optional", False)
                 extras = depattrs.get("extras", [])
+                optional_flag: Optional[bool] = depattrs.get("optional")
+
+                # `optional = true` must be set if dependency is
+                # inside main and part of an extra
+                if optional_flag is not True and in_extra:
+                    warnings.warn(
+                        POETRY_EXTRA_NOT_OPTIONAL.format(
+                            depname=depname, filename=path.name, category=category
+                        )
+                    )
+
+                # Will ignore `optional = true` if in `tool.poetry.dependencies`
+                # but not in an extra
+                if optional_flag is True and not in_extra and category == "main":
+                    warnings.warn(
+                        POETRY_OPTIONAL_NO_EXTRA.format(
+                            depname=depname, filename=path.name
+                        )
+                    )
+
+                # Will always ignore optional flag if not in `tool.poetry.dependencies`
+                if optional_flag is not None and default_category != "main":
+                    warnings.warn(
+                        POETRY_OPTIONAL_NOT_MAIN.format(
+                            depname=depname, filename=path.name, category=category
+                        )
+                    )
+
                 # If a dependency is explicitly marked as sourced from pypi,
                 # or is a URL dependency, delegate to the pip section
                 if (
@@ -142,12 +211,21 @@ def parse_poetry_pyproject_toml(
                 ):
                     manager = "pip"
                 # TODO: support additional features such as markers for things like sys_platform, platform_system
+
             elif isinstance(depattrs, str):
                 poetry_version_spec = depattrs
+                if in_extra:
+                    warnings.warn(
+                        POETRY_EXTRA_NOT_OPTIONAL.format(
+                            depname=depname, filename=path.name, category=category
+                        )
+                    )
+
             else:
                 raise TypeError(
                     f"Unsupported type for dependency: {depname}: {depattrs}"
                 )
+
             if manager == "conda":
                 name = normalize_pypi_name(depname)
                 version = poetry_version_to_conda_version(poetry_version_spec)
@@ -183,11 +261,14 @@ def parse_poetry_pyproject_toml(
                     )
                 )
 
-    return specification_with_dependencies(path, contents, dependencies)
+    return specification_with_dependencies(path, platforms, contents, dependencies)
 
 
 def specification_with_dependencies(
-    path: pathlib.Path, toml_contents: Mapping[str, Any], dependencies: List[Dependency]
+    path: pathlib.Path,
+    platforms: List[str],
+    toml_contents: Mapping[str, Any],
+    dependencies: List[Dependency],
 ) -> LockSpecification:
     force_pypi = set()
     for depname, depattrs in get_in(
@@ -217,9 +298,8 @@ def specification_with_dependencies(
                 dep.manager = "pip"
 
     return LockSpecification(
-        dependencies=dependencies,
+        dependencies={platform: dependencies for platform in platforms},
         channels=get_in(["tool", "conda-lock", "channels"], toml_contents, []),
-        platforms=get_in(["tool", "conda-lock", "platforms"], toml_contents, []),
         sources=[path],
         allow_pypi_requests=get_in(
             ["tool", "conda-lock", "allow-pypi-requests"], toml_contents, True
@@ -284,6 +364,7 @@ def parse_python_requirement(
 
 def parse_requirements_pyproject_toml(
     pyproject_toml_path: pathlib.Path,
+    platforms: List[str],
     contents: Mapping[str, Any],
     prefix: Sequence[str],
     main_tag: str,
@@ -311,11 +392,14 @@ def parse_requirements_pyproject_toml(
                 )
             )
 
-    return specification_with_dependencies(pyproject_toml_path, contents, dependencies)
+    return specification_with_dependencies(
+        pyproject_toml_path, platforms, contents, dependencies
+    )
 
 
 def parse_pdm_pyproject_toml(
     path: pathlib.Path,
+    platforms: List[str],
     contents: Mapping[str, Any],
 ) -> LockSpecification:
     """
@@ -324,6 +408,7 @@ def parse_pdm_pyproject_toml(
     """
     res = parse_requirements_pyproject_toml(
         path,
+        platforms,
         contents,
         prefix=("project",),
         main_tag="dependencies",
@@ -342,13 +427,23 @@ def parse_pdm_pyproject_toml(
             ]
         )
 
-    res.dependencies.extend(dev_reqs)
+    for dep_list in res.dependencies.values():
+        dep_list.extend(dev_reqs)
 
     return res
 
 
+def parse_platforms_from_pyproject_toml(
+    pyproject_toml: pathlib.Path,
+) -> List[str]:
+    with pyproject_toml.open("rb") as fp:
+        contents = toml_load(fp)
+    return get_in(["tool", "conda-lock", "platforms"], contents, [])
+
+
 def parse_pyproject_toml(
     pyproject_toml: pathlib.Path,
+    platforms: List[str],
 ) -> LockSpecification:
     with pyproject_toml.open("rb") as fp:
         contents = toml_load(fp)
@@ -397,4 +492,4 @@ def parse_pyproject_toml(
             "Could not detect build-system in pyproject.toml.  Assuming poetry"
         )
 
-    return parse(pyproject_toml, contents)
+    return parse(pyproject_toml, platforms, contents)

@@ -245,7 +245,7 @@ def make_lock_files(
     update: Optional[List[str]] = None,
     include_dev_dependencies: bool = True,
     filename_template: Optional[str] = None,
-    filter_categories: bool = True,
+    filter_categories: bool = False,
     extras: Optional[AbstractSet[str]] = None,
     check_input_hash: bool = False,
     metadata_choices: AbstractSet[MetadataOption] = frozenset(),
@@ -656,12 +656,8 @@ def _solve_for_arch(
     """
     if update_spec is None:
         update_spec = UpdateSpecification()
-    # filter requested and locked dependencies to the current platform
-    dependencies = [
-        dep
-        for dep in spec.dependencies
-        if (not dep.selectors.platform) or platform in dep.selectors.platform
-    ]
+
+    dependencies = spec.dependencies[platform]
     locked = [dep for dep in update_spec.locked if dep.platform == platform]
     requested_deps_by_name = {
         manager: {dep.name: dep for dep in dependencies if dep.manager == manager}

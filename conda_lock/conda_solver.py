@@ -9,17 +9,7 @@ import tempfile
 import time
 
 from contextlib import contextmanager
-from typing import (
-    Any,
-    Dict,
-    Iterable,
-    Iterator,
-    List,
-    MutableSequence,
-    Optional,
-    Sequence,
-    cast,
-)
+from typing import Dict, Iterable, Iterator, List, MutableSequence, Optional, Sequence
 from urllib.parse import urlsplit, urlunsplit
 
 import yaml
