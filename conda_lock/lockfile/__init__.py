@@ -42,6 +42,19 @@ def _apply_categories(
     convert_to_pip_names: bool = False,
 ) -> None:
     """map each package onto the root request the with the highest-priority category"""
+
+    # requested is a dictionary of packages that were requested (keys are the package
+    # names requested). These can either be pip package names or conda package names
+    # if pip package names, convert_to_pip_names will be True
+    #
+    # planned is the set of packages that are planned to be installed. The key is
+    # again the name of the package. The names of the packages in planned and
+    # requested are consistent (ie: all "pip" names or all "conda" names)
+    #
+    # convert_to_pip_names indicates that the names in requested and planned are
+    # pip names and that, if a conda name is encountered, it should be converted to
+    # a pip name
+
     # walk dependency tree to assemble all transitive dependencies by request
     dependents: Dict[str, Set[str]] = {}
     by_category = defaultdict(list)
@@ -59,6 +72,8 @@ def _apply_categories(
         ]
 
     def dep_name(manager: str, dep: str) -> str:
+        # If we operate on lists of pip names and this is a conda dependency, we
+        # convert the name to a pip name.
         if convert_to_pip_names and manager == "conda":
             return conda_name_to_pypi_name(dep).lower()
         return dep
@@ -67,7 +82,13 @@ def _apply_categories(
         todo: List[str] = list()
         deps: Set[str] = set()
         item = name
+
+        # Loop around all the transitive dependencies of name
         while True:
+            # Get all the LockedDependency that correspond to this requested item.
+            # Note that there may be multiple of them because, if, for example,
+            # the user requests `dask` as a pip package, it may map to `dask` and
+            # `dask-core` as packages that are planned to be installed.
             planned_items = extract_planned_items(_seperator_munge_get(planned, item))
 
             for planned_item in planned_items:
@@ -87,7 +108,8 @@ def _apply_categories(
 
         by_category[request.category].append(request.name)
 
-    # now, map each package to its root request
+    # now, map each package to its root request preferring the ones earlier in the
+    # list
     categories = [*categories, *(k for k in by_category if k not in categories)]
     root_requests = {}
     for category in categories:

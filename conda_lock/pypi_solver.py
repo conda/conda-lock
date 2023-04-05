@@ -311,9 +311,15 @@ def solve_pypi(
     # categories from explicit to transitive dependencies
     planned = {
         **{dep.name: [dep] for dep in requirements},
-        # prefer conda packages so add them afterwards
     }
 
+    # We add the conda packages here -- note that for a given pip package, we
+    # may have multiple conda packages that map to it. One example is the `dask`
+    # pip package; on the Conda side, there are two packages `dask` and `dask-core`
+    # that map to it.
+    # We use the pip names for the packages for everything so that planned
+    # is essentially a dictionary of:
+    #  - pip package name -> list of LockedDependency that are needed for this package
     for conda_name, locked_dep in conda_locked.items():
         pypi_name = conda_name_to_pypi_name(conda_name).lower()
         if pypi_name in planned:
