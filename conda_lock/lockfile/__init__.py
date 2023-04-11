@@ -41,7 +41,19 @@ def _apply_categories(
             try:
                 return d[key.replace("-", "_")]
             except KeyError:
-                return d[key.replace("_", "-")]
+                try:
+                    return d[key.replace("_", "-")]
+                except KeyError:
+                    # for bullet-python or python-tzdata
+                    try:
+                        attempted_split = key.split("_")[0].split("-")[0]
+                        if attempted_split == 'python':
+                            attempted_split = key.split("_")[-1].split('-')[-1]
+                        return d[attempted_split]
+                    except KeyError:
+                        list(d.keys())
+                        raise KeyError(f"Could not find {key} in list of dependencies: {list(d.keys())}")
+
 
     for name, request in requested.items():
         todo: List[str] = list()
