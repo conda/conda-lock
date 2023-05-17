@@ -228,6 +228,9 @@ def solve_pypi(
     for locked_dep in conda_locked.values():
         if locked_dep.name.startswith("__"):
             continue
+        # ignore packages that don't depend on Python
+        if locked_dep.manager != "pip" and "python" not in locked_dep.dependencies:
+            continue
         try:
             pypi_name = conda_name_to_pypi_name(locked_dep.name).lower()
         except KeyError:
