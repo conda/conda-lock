@@ -1362,6 +1362,27 @@ def test_aggregate_lock_specs_invalid_channels():
         )
 
 
+@pytest.mark.parametrize(
+    ["test_dir", "filename"],
+    [
+        ("test-pypi-resolve-gh290/pyproject", "pyproject.toml"),
+        ("test-pypi-resolve-gh290/tzdata", "environment.yml"),
+        ("test-pypi-resolve-gh290/wdl", "environment.yml"),
+    ],
+)
+def test_conda_pip_regressions_gh290(
+    tmp_path: Path,
+    mamba_exe: str,
+    monkeypatch: "pytest.MonkeyPatch",
+    test_dir: str,
+    filename: str,
+):
+    """Simple test that asserts that these engieonments can be locked"""
+    spec = clone_test_dir(test_dir, tmp_path).joinpath(filename)
+    monkeypatch.chdir(spec.parent)
+    run_lock([spec], conda_exe=mamba_exe)
+
+
 @pytest.fixture(scope="session")
 def mamba_exe():
     """Provides a fixture for tests that require mamba"""

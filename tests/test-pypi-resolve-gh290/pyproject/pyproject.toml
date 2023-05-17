@@ -1,0 +1,20 @@
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.poetry]
+name = "tester"
+version = "0.1.0"
+description = "tester project"
+requires-python = ">=3.9"
+
+# Conda lock environment specs
+[tool.conda-lock]
+channels = [
+    "bioconda",
+    "conda-forge"
+]
+platforms = [
+    "linux-64",
+    "osx-64"
+]
