@@ -1366,8 +1366,8 @@ def test_aggregate_lock_specs_invalid_channels():
     ["test_dir", "filename"],
     [
         ("test-pypi-resolve-gh290/pyproject", "pyproject.toml"),
-        ("test-pypi-resolve-gh290/tzdata", "environment.yml"),
-        ("test-pypi-resolve-gh290/wdl", "environment.yml"),
+        ("test-pypi-resolve-gh290/tzdata", "environment.yaml"),
+        ("test-pypi-resolve-gh290/wdl", "environment.yaml"),
     ],
 )
 def test_conda_pip_regressions_gh290(
