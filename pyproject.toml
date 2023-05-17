@@ -63,8 +63,10 @@ dependencies = [
     "tomlkit >=0.7.0",
     # poetry:
     "virtualenv >=20.0.26",
+    # urllib3 is a dependency of requests and poetry, v2 removes some deprecated features that our vendored version of
+    # poetry relies on.
+    "urllib3 >=1.26.5,<2.0",
 ]
-
 
 [project.scripts]
 conda-lock = "conda_lock:main"
