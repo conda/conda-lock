@@ -1,0 +1,11 @@
+# This example aims to test for issues in https://github.com/conda/conda-lock/issues/253
+# The core issue is when multiple conda packages map to the same pip package name. Here,
+# conda has dask and dask-core that both map to the pypi package dask. This would cause
+# confusion when finalizing the resolved environment
+channels:
+  - conda-forge
+dependencies:
+  - pip
+  - dask
+  - pip:
+    - dask
