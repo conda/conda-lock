@@ -14,7 +14,7 @@ import uuid
 
 from glob import glob
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Union
 from unittest.mock import MagicMock
 from urllib.parse import urldefrag, urlsplit
 
@@ -103,8 +103,10 @@ def reset_global_conda_pkgs_dir():
     reset_conda_pkgs_dir()
 
 
-def clone_test_dir(name: str, tmp_path: Path) -> Path:
-    test_dir = TEST_DIR.joinpath(name)
+def clone_test_dir(name: Union[str, List[str]], tmp_path: Path) -> Path:
+    if isinstance(name, str):
+        name = [name]
+    test_dir = TEST_DIR.joinpath(*name)
     assert test_dir.exists()
     assert test_dir.is_dir()
     if sys.version_info >= (3, 8):
@@ -250,6 +252,14 @@ def env_with_uppercase_pip(tmp_path: Path):
 @pytest.fixture
 def git_metadata_zlib_environment(tmp_path: Path):
     return clone_test_dir("zlib", tmp_path).joinpath("environment.yml")
+
+
+@pytest.fixture
+def pip_conda_name_confusion(tmp_path: Path):
+    """Path to an environment.yaml that has a hardcoded channel in one of the dependencies"""
+    return clone_test_dir("test-pip-conda-name-confusion", tmp_path).joinpath(
+        "environment.yaml"
+    )
 
 
 @pytest.fixture
@@ -1418,6 +1428,27 @@ def test_aggregate_lock_specs_invalid_channels():
         agg_spec = aggregate_lock_specs(
             [base_spec, add_conda_forge, add_pytorch], platforms=[]
         )
+
+
+@pytest.mark.parametrize(
+    ["test_dir", "filename"],
+    [
+        (["test-pypi-resolve-gh290", "pyproject"], "pyproject.toml"),
+        (["test-pypi-resolve-gh290", "tzdata"], "environment.yaml"),
+        (["test-pypi-resolve-gh290", "wdl"], "environment.yaml"),
+    ],
+)
+def test_conda_pip_regressions_gh290(
+    tmp_path: Path,
+    mamba_exe: str,
+    monkeypatch: "pytest.MonkeyPatch",
+    test_dir: List[str],
+    filename: str,
+):
+    """Simple test that asserts that these engieonments can be locked"""
+    spec = clone_test_dir(test_dir, tmp_path).joinpath(filename)
+    monkeypatch.chdir(spec.parent)
+    run_lock([spec], conda_exe=mamba_exe)
 
 
 @pytest.fixture(scope="session")

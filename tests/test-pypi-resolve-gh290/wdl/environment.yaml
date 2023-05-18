@@ -1,0 +1,13 @@
+name: python
+platforms:
+  - linux-64
+  - osx-64
+channels:
+  - bioconda
+  - conda-forge
+dependencies:
+  - python=3.9.12
+  - pip
+  - miniwdl=1.2.3
+  - pip:
+    - pytest-wdl

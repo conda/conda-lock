@@ -228,6 +228,9 @@ def solve_pypi(
     for locked_dep in conda_locked.values():
         if locked_dep.name.startswith("__"):
             continue
+        # ignore packages that don't depend on Python
+        if locked_dep.manager != "pip" and "python" not in locked_dep.dependencies:
+            continue
         try:
             pypi_name = conda_name_to_pypi_name(locked_dep.name).lower()
         except KeyError:
@@ -310,19 +313,26 @@ def solve_pypi(
     # use PyPI names of conda packages to walking the dependency tree and propagate
     # categories from explicit to transitive dependencies
     planned = {
-        **{dep.name: dep for dep in requirements},
-        # prefer conda packages so add them afterwards
+        **{dep.name: [dep] for dep in requirements},
     }
 
+    # We add the conda packages here -- note that for a given pip package, we
+    # may have multiple conda packages that map to it. One example is the `dask`
+    # pip package; on the Conda side, there are two packages `dask` and `dask-core`
+    # that map to it.
+    # We use the pip names for the packages for everything so that planned
+    # is essentially a dictionary of:
+    #  - pip package name -> list of LockedDependency that are needed for this package
     for conda_name, locked_dep in conda_locked.items():
-        try:
-            pypi_name = conda_name_to_pypi_name(conda_name).lower()
-        except KeyError:
-            # no conda-name found, assuming conda packages do NOT intersect with the pip package
-            continue
-        planned[pypi_name] = locked_dep
+        pypi_name = conda_name_to_pypi_name(conda_name).lower()
+        if pypi_name in planned:
+            planned[pypi_name].append(locked_dep)
+        else:
+            planned[pypi_name] = [locked_dep]
 
-    lockfile._apply_categories(requested=pip_specs, planned=planned)
+    lockfile._apply_categories(
+        requested=pip_specs, planned=planned, convert_to_pip_names=True
+    )
 
     return {dep.name: dep for dep in requirements}
 
