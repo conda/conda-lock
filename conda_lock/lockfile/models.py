@@ -6,7 +6,16 @@ import pathlib
 import typing
 
 from collections import defaultdict, namedtuple
-from typing import TYPE_CHECKING, AbstractSet, ClassVar, Dict, List, Optional, Union
+from typing import (
+    TYPE_CHECKING,
+    AbstractSet,
+    ClassVar,
+    Dict,
+    List,
+    Optional,
+    Set,
+    Union,
+)
 
 
 if TYPE_CHECKING:
@@ -44,7 +53,7 @@ class LockedDependency(StrictModel):
     dependencies: Dict[str, str] = {}
     url: str
     hash: HashModel
-    category: str = "main"
+    categories: Set[str] = set()
     source: Optional[DependencySource] = None
     build: Optional[str] = None
 
