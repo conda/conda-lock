@@ -330,7 +330,7 @@ def solve_pypi(
         else:
             planned[pypi_name] = [locked_dep]
 
-    lockfile._apply_categories(
+    lockfile.apply_categories(
         requested=pip_specs, planned=planned, convert_to_pip_names=True
     )
 
