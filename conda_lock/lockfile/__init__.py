@@ -1,9 +1,8 @@
-import json
 import pathlib
 
 from collections import defaultdict
 from textwrap import dedent
-from typing import Any, Collection, Dict, List, Mapping, Optional, Sequence, Set, Union
+from typing import Collection, Dict, List, Mapping, Optional, Sequence, Set, Union
 
 import yaml
 
@@ -199,23 +198,5 @@ def write_conda_lock_file(
                     conda-lock {metadata_flags}{' '.join('-f '+path for path in content.metadata.sources)} --lockfile {path.name}
                 """
             )
-
-        output: Dict[str, Any] = {
-            "version": Lockfile.version,
-            "metadata": json.loads(
-                content.metadata.json(
-                    by_alias=True, exclude_unset=True, exclude_none=True
-                )
-            ),
-            "package": [
-                {
-                    **package.dict(
-                        by_alias=True, exclude_unset=True, exclude_none=True
-                    ),
-                    "optional": (package.category != "main"),
-                }
-                for package in content.package
-            ],
-        }
-
+        output = content.to_v1().dict_for_output()
         yaml.dump(output, stream=f, sort_keys=False)

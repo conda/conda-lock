@@ -1,12 +1,22 @@
 import datetime
 import enum
 import hashlib
+import json
 import logging
 import pathlib
 import typing
 
 from collections import namedtuple
-from typing import TYPE_CHECKING, AbstractSet, ClassVar, Dict, List, Optional, Union
+from typing import (
+    TYPE_CHECKING,
+    AbstractSet,
+    Any,
+    ClassVar,
+    Dict,
+    List,
+    Optional,
+    Union,
+)
 
 
 if TYPE_CHECKING:
@@ -286,3 +296,16 @@ class Lockfile(StrictModel):
 
     package: List[LockedDependency]
     metadata: LockMeta
+
+    def dict_for_output(self) -> Dict[str, Any]:
+        """Convert the lockfile to a dictionary that can be written to a file."""
+        return {
+            "version": Lockfile.version,
+            "metadata": json.loads(
+                self.metadata.json(by_alias=True, exclude_unset=True, exclude_none=True)
+            ),
+            "package": [
+                package.dict(by_alias=True, exclude_unset=True, exclude_none=True)
+                for package in self.package
+            ],
+        }
