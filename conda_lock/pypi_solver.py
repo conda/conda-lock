@@ -9,7 +9,6 @@ from clikit.api.io.flags import VERY_VERBOSE
 from clikit.io import ConsoleIO, NullIO
 from packaging.tags import compatible_tags, cpython_tags
 
-from conda_lock import lockfile
 from conda_lock._vendor.poetry.core.packages import Dependency as PoetryDependency
 from conda_lock._vendor.poetry.core.packages import Package as PoetryPackage
 from conda_lock._vendor.poetry.core.packages import (
@@ -24,6 +23,8 @@ from conda_lock._vendor.poetry.repositories.pool import Pool
 from conda_lock._vendor.poetry.repositories.pypi_repository import PyPiRepository
 from conda_lock._vendor.poetry.repositories.repository import Repository
 from conda_lock._vendor.poetry.utils.env import Env
+from conda_lock.lockfile import apply_categories
+from conda_lock.lockfile.models import DependencySource, HashModel, LockedDependency
 from conda_lock.lookup import conda_name_to_pypi_name
 from conda_lock.models import lock_spec
 
@@ -164,7 +165,7 @@ def get_dependency(dep: lock_spec.Dependency) -> PoetryDependency:
         raise ValueError(f"Unknown requirement {dep}")
 
 
-def get_package(locked: lockfile.LockedDependency) -> PoetryPackage:
+def get_package(locked: LockedDependency) -> PoetryPackage:
     if locked.source is not None:
         return PoetryPackage(
             locked.name,
@@ -179,13 +180,13 @@ def get_package(locked: lockfile.LockedDependency) -> PoetryPackage:
 def solve_pypi(
     pip_specs: Dict[str, lock_spec.Dependency],
     use_latest: List[str],
-    pip_locked: Dict[str, lockfile.LockedDependency],
-    conda_locked: Dict[str, lockfile.LockedDependency],
+    pip_locked: Dict[str, LockedDependency],
+    conda_locked: Dict[str, LockedDependency],
     python_version: str,
     platform: str,
     allow_pypi_requests: bool = True,
     verbose: bool = False,
-) -> Dict[str, lockfile.LockedDependency]:
+) -> Dict[str, LockedDependency]:
     """
     Solve pip dependencies for the given platform
 
@@ -224,7 +225,7 @@ def solve_pypi(
     locked = Repository()
 
     python_packages = dict()
-    locked_dep: lockfile.LockedDependency
+    locked_dep: LockedDependency
     for locked_dep in conda_locked.values():
         if locked_dep.name.startswith("__"):
             continue
@@ -274,18 +275,16 @@ def solve_pypi(
     # Extract distributions from Poetry package plan, ignoring uninstalls
     # (usually: conda package with no pypi equivalent) and skipped ops
     # (already installed)
-    requirements: List[lockfile.LockedDependency] = []
+    requirements: List[LockedDependency] = []
     for op in result:
         if not isinstance(op, Uninstall) and not op.skipped:
             # Take direct references verbatim
-            source: Optional[lockfile.DependencySource] = None
+            source: Optional[DependencySource] = None
             if op.package.source_type == "url":
                 url, fragment = urldefrag(op.package.source_url)
                 hash_type, hash = fragment.split("=")
-                hash = lockfile.HashModel(**{hash_type: hash})
-                source = lockfile.DependencySource(
-                    type="url", url=op.package.source_url
-                )
+                hash = HashModel(**{hash_type: hash})
+                source = DependencySource(type="url", url=op.package.source_url)
             # Choose the most specific distribution for the target
             else:
                 link = chooser.choose_for(op.package)
@@ -293,10 +292,10 @@ def solve_pypi(
                 hashes: Dict[str, str] = {}
                 if link.hash_name is not None and link.hash is not None:
                     hashes[link.hash_name] = link.hash
-                hash = lockfile.HashModel.parse_obj(hashes)
+                hash = HashModel.parse_obj(hashes)
 
             requirements.append(
-                lockfile.LockedDependency(
+                LockedDependency(
                     name=op.package.name,
                     version=str(op.package.version),
                     manager="pip",
@@ -330,9 +329,7 @@ def solve_pypi(
         else:
             planned[pypi_name] = [locked_dep]
 
-    lockfile.apply_categories(
-        requested=pip_specs, planned=planned, convert_to_pip_names=True
-    )
+    apply_categories(requested=pip_specs, planned=planned, convert_to_pip_names=True)
 
     return {dep.name: dep for dep in requirements}
 

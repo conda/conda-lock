@@ -7,19 +7,9 @@ from typing import Any, Collection, Dict, List, Mapping, Optional, Sequence, Set
 
 import yaml
 
+from conda_lock.lockfile.models import LockedDependency, Lockfile, MetadataOption
 from conda_lock.lookup import conda_name_to_pypi_name
 from conda_lock.models.lock_spec import Dependency
-
-from .models import DependencySource as DependencySource
-from .models import GitMeta as GitMeta
-from .models import HashModel as HashModel
-from .models import InputMeta as InputMeta
-from .models import LockedDependency, Lockfile
-from .models import LockKey as LockKey
-from .models import LockMeta as LockMeta
-from .models import MetadataOption
-from .models import TimeMeta as TimeMeta
-from .models import UpdateSpecification as UpdateSpecification
 
 
 def _seperator_munge_get(
