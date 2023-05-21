@@ -25,7 +25,7 @@ from conda_lock.invoke_conda import (
     is_micromamba,
 )
 from conda_lock.lockfile import apply_categories
-from conda_lock.lockfile.v1.models import HashModel, LockedDependency
+from conda_lock.lockfile.v2prelim.models import HashModel, LockedDependency
 from conda_lock.models.channel import Channel
 from conda_lock.models.lock_spec import Dependency, VersionedDependency
 

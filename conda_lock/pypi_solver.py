@@ -24,7 +24,11 @@ from conda_lock._vendor.poetry.repositories.pypi_repository import PyPiRepositor
 from conda_lock._vendor.poetry.repositories.repository import Repository
 from conda_lock._vendor.poetry.utils.env import Env
 from conda_lock.lockfile import apply_categories
-from conda_lock.lockfile.v1.models import DependencySource, HashModel, LockedDependency
+from conda_lock.lockfile.v2prelim.models import (
+    DependencySource,
+    HashModel,
+    LockedDependency,
+)
 from conda_lock.lookup import conda_name_to_pypi_name
 from conda_lock.models import lock_spec
 

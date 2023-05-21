@@ -7,7 +7,11 @@ from typing import Any, Collection, Dict, List, Mapping, Optional, Sequence, Set
 
 import yaml
 
-from conda_lock.lockfile.v1.models import LockedDependency, Lockfile, MetadataOption
+from conda_lock.lockfile.v2prelim.models import (
+    LockedDependency,
+    Lockfile,
+    MetadataOption,
+)
 from conda_lock.lookup import conda_name_to_pypi_name
 from conda_lock.models.lock_spec import Dependency
 
