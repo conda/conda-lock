@@ -7,10 +7,12 @@ from typing import Any, Collection, Dict, List, Mapping, Optional, Sequence, Set
 
 import yaml
 
+from conda_lock.lockfile.v1.models import Lockfile as LockfileV1
 from conda_lock.lockfile.v2prelim.models import (
     LockedDependency,
     Lockfile,
     MetadataOption,
+    lockfile_v1_to_v2,
 )
 from conda_lock.lookup import conda_name_to_pypi_name
 from conda_lock.models.lock_spec import Dependency
@@ -132,13 +134,10 @@ def parse_conda_lock_file(path: pathlib.Path) -> Lockfile:
     with path.open() as f:
         content = yaml.safe_load(f)
     version = content.pop("version", None)
-    if not (isinstance(version, int) and version <= Lockfile.version):
+    if version == 1:
+        return lockfile_v1_to_v2(LockfileV1.parse_obj(content))
+    else:
         raise ValueError(f"{path} has unknown version {version}")
-
-    for p in content["package"]:
-        del p["optional"]
-
-    return Lockfile.parse_obj(content)
 
 
 def write_conda_lock_file(
