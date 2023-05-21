@@ -2,15 +2,33 @@ from collections import defaultdict
 from typing import ClassVar, Dict, List, Optional
 
 from conda_lock.lockfile.v1.models import (
+    BaseLockedDependency,
     DependencySource,
     GitMeta,
     HashModel,
     InputMeta,
-    LockedDependency,
 )
+from conda_lock.lockfile.v1.models import LockedDependency as LockedDependencyV1
 from conda_lock.lockfile.v1.models import Lockfile as LockfileV1
 from conda_lock.lockfile.v1.models import LockMeta, MetadataOption, TimeMeta
 from conda_lock.models import StrictModel
+
+
+class LockedDependency(BaseLockedDependency):
+    def to_v1(self) -> LockedDependencyV1:
+        return LockedDependencyV1(
+            name=self.name,
+            version=self.version,
+            manager=self.manager,
+            platform=self.platform,
+            dependencies=self.dependencies,
+            url=self.url,
+            hash=self.hash,
+            category=self.category,
+            source=self.source,
+            build=self.build,
+            optional=self.category != "main",
+        )
 
 
 class Lockfile(StrictModel):
@@ -98,7 +116,7 @@ class Lockfile(StrictModel):
 
     def to_v1(self) -> LockfileV1:
         return LockfileV1(
-            package=self.package,
+            package=[p.to_v1() for p in self.package],
             metadata=self.metadata,
         )
 

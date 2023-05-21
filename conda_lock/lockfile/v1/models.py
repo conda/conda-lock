@@ -36,7 +36,7 @@ class HashModel(StrictModel):
     sha256: Optional[str] = None
 
 
-class LockedDependency(StrictModel):
+class BaseLockedDependency(StrictModel):
     name: str
     version: str
     manager: Literal["conda", "pip"]
@@ -56,6 +56,10 @@ class LockedDependency(StrictModel):
         if (values["manager"] == "conda") and (v.md5 is None):
             raise ValueError("conda package hashes must use MD5")
         return v
+
+
+class LockedDependency(BaseLockedDependency):
+    optional: bool
 
 
 class MetadataOption(enum.Enum):
