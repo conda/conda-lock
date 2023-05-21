@@ -54,7 +54,7 @@ from conda_lock.invoke_conda import (
     is_micromamba,
 )
 from conda_lock.lockfile import parse_conda_lock_file, write_conda_lock_file
-from conda_lock.lockfile.models import (
+from conda_lock.lockfile.v1.models import (
     GitMeta,
     InputMeta,
     LockedDependency,

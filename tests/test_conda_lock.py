@@ -56,7 +56,7 @@ from conda_lock.invoke_conda import (
     reset_conda_pkgs_dir,
 )
 from conda_lock.lockfile import parse_conda_lock_file
-from conda_lock.lockfile.models import HashModel, LockedDependency, MetadataOption
+from conda_lock.lockfile.v1.models import HashModel, LockedDependency, MetadataOption
 from conda_lock.models.channel import Channel
 from conda_lock.models.lock_spec import VersionedDependency
 from conda_lock.pypi_solver import parse_pip_requirement, solve_pypi
