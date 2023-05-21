@@ -7,10 +7,9 @@ from conda_lock.lockfile.v1.models import (
     HashModel,
     InputMeta,
     LockedDependency,
-    LockMeta,
-    MetadataOption,
-    TimeMeta,
 )
+from conda_lock.lockfile.v1.models import Lockfile as LockfileV1
+from conda_lock.lockfile.v1.models import LockMeta, MetadataOption, TimeMeta
 from conda_lock.models import StrictModel
 
 
@@ -96,6 +95,12 @@ class Lockfile(StrictModel):
                     final_package.append(dep)
 
         return final_package
+
+    def to_v1(self) -> LockfileV1:
+        return LockfileV1(
+            package=self.package,
+            metadata=self.metadata,
+        )
 
 
 class UpdateSpecification:
