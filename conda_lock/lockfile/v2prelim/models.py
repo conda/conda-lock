@@ -121,6 +121,33 @@ class Lockfile(StrictModel):
         )
 
 
+def _locked_dependency_v1_to_v2(dep: LockedDependencyV1) -> LockedDependency:
+    """Convert a LockedDependency from v1 to v2.
+
+    * Remove the optional field (it is always equal to category != "main")
+    """
+    return LockedDependency(
+        name=dep.name,
+        version=dep.version,
+        manager=dep.manager,
+        platform=dep.platform,
+        dependencies=dep.dependencies,
+        url=dep.url,
+        hash=dep.hash,
+        category=dep.category,
+        source=dep.source,
+        build=dep.build,
+    )
+
+
+def lockfile_v1_to_v2(lockfile_v1: LockfileV1) -> Lockfile:
+    """Convert a Lockfile from v1 to v2."""
+    return Lockfile(
+        package=[_locked_dependency_v1_to_v2(p) for p in lockfile_v1.package],
+        metadata=lockfile_v1.metadata,
+    )
+
+
 class UpdateSpecification:
     def __init__(
         self,
@@ -142,4 +169,5 @@ __all__ = [
     "MetadataOption",
     "TimeMeta",
     "UpdateSpecification",
+    "lockfile_v1_to_v2",
 ]
