@@ -24,7 +24,7 @@ from conda_lock.invoke_conda import (
     conda_pkgs_dir,
     is_micromamba,
 )
-from conda_lock.lockfile import HashModel, LockedDependency, _apply_categories
+from conda_lock.lockfile import HashModel, LockedDependency, apply_categories
 from conda_lock.models.channel import Channel
 from conda_lock.models.lock_spec import Dependency, VersionedDependency
 
@@ -195,7 +195,7 @@ def solve_conda(
     }
 
     # propagate categories from explicit to transitive dependencies
-    _apply_categories(
+    apply_categories(
         requested={k: v for k, v in specs.items() if v.manager == "conda"},
         planned=planned,
     )

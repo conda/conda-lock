@@ -70,7 +70,6 @@ def _parse_environment_file_for_platform(
                     parse_python_requirement(
                         spec,
                         manager="pip",
-                        optional=category != "main",
                         category=category,
                         normalize_name=False,
                     )

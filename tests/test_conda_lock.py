@@ -410,7 +410,6 @@ def test_parse_environment_file_with_pip(pip_environment: Path):
             VersionedDependency(
                 name="requests-toolbelt",
                 manager="pip",
-                optional=False,
                 category="main",
                 extras=[],
                 version="=0.9.1",
@@ -512,7 +511,6 @@ def test_choose_wheel() -> None:
             "fastavro": VersionedDependency(
                 name="fastavro",
                 manager="pip",
-                optional=False,
                 category="main",
                 extras=[],
                 version="1.4.7",
@@ -629,7 +627,6 @@ def test_parse_meta_yaml_file(meta_yaml_environment: Path):
         # Ensure that this platform specific dep is included
         assert "zlib" in specs
         assert specs["pytest"].category == "dev"
-        assert specs["pytest"].optional is True
 
 
 def test_parse_poetry(poetry_pyproject_toml: Path):
@@ -645,10 +642,8 @@ def test_parse_poetry(poetry_pyproject_toml: Path):
     assert specs["sqlite"].version == "<3.34"
     assert specs["certifi"].version == ">=2019.11.28"
     assert specs["pytest"].version == ">=5.1.0,<5.2.0"
-    assert specs["pytest"].optional is True
     assert specs["pytest"].category == "dev"
     assert specs["tomlkit"].version == ">=0.7.0,<1.0.0"
-    assert specs["tomlkit"].optional is True
     assert specs["tomlkit"].category == "tomlkit"
 
     assert res.channels == [Channel.from_string("defaults")]
@@ -761,7 +756,6 @@ def test_parse_flit(flit_pyproject_toml: Path):
     assert specs["sqlite"].version == "<3.34"
     assert specs["certifi"].version == ">=2019.11.28"
     assert specs["pytest"].version == ">=5.1.0"
-    assert specs["pytest"].optional is True
     assert specs["pytest"].category == "dev"
 
     assert specs["toml"].manager == "pip"
@@ -801,11 +795,9 @@ def test_parse_pdm(pdm_pyproject_toml: Path):
     assert specs["certifi"].version == ">=2019.11.28"
     # PEP 621 optional dependencies (show up in package metadata)
     assert specs["click"].version == ">=7.0"
-    assert specs["click"].optional is True
     assert specs["click"].category == "cli"
     # PDM dev extras
     assert specs["pytest"].version == ">=5.1.0"
-    assert specs["pytest"].optional is True
     assert specs["pytest"].category == "dev"
     # Conda channels
     assert res.channels == [Channel.from_string("defaults")]
@@ -1280,7 +1272,6 @@ def test_poetry_version_parsing_constraints(
                             name=package,
                             version=poetry_version_to_conda_version(version) or "",
                             manager="conda",
-                            optional=False,
                             category="main",
                             extras=[],
                         ),

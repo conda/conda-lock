@@ -161,7 +161,6 @@ def parse_poetry_pyproject_toml(
             ["tool", "poetry", *section], contents, {}
         ).items():
             category: str = dep_to_extra.get(depname) or default_category
-            optional: bool = category != "main"
             manager: Literal["conda", "pip"] = default_non_conda_source
             url = None
             extras = []
@@ -250,7 +249,6 @@ def parse_poetry_pyproject_toml(
                         url=url,
                         hashes=[hashes],
                         manager=manager,
-                        optional=optional,
                         category=category,
                         extras=extras,
                     )
@@ -261,7 +259,6 @@ def parse_poetry_pyproject_toml(
                         name=name,
                         version=version,
                         manager=manager,
-                        optional=optional,
                         category=category,
                         extras=extras,
                     )
@@ -287,7 +284,6 @@ def specification_with_dependencies(
                     name=depname,
                     version=conda_version,
                     manager="conda",
-                    optional=False,
                     category="main",
                     extras=[],
                 )
@@ -324,7 +320,6 @@ def to_match_spec(conda_dep_name: str, conda_version: Optional[str]) -> str:
 def parse_python_requirement(
     requirement: str,
     manager: Literal["conda", "pip"] = "conda",
-    optional: bool = False,
     category: str = "main",
     normalize_name: bool = True,
 ) -> Dependency:
@@ -351,7 +346,6 @@ def parse_python_requirement(
         return URLDependency(
             name=conda_dep_name,
             manager=manager,
-            optional=optional,
             category=category,
             extras=extras,
             url=url,
@@ -362,7 +356,6 @@ def parse_python_requirement(
             name=conda_dep_name,
             version=conda_version or "*",
             manager=manager,
-            optional=optional,
             category=category,
             extras=extras,
         )
@@ -399,10 +392,7 @@ def parse_requirements_pyproject_toml(
         for dep in get_in(list(path), contents, []):
             dependencies.append(
                 parse_python_requirement(
-                    dep,
-                    manager=default_non_conda_source,
-                    category=category,
-                    optional=category != "main",
+                    dep, manager=default_non_conda_source, category=category
                 )
             )
 
@@ -439,7 +429,7 @@ def parse_pdm_pyproject_toml(
         dev_reqs.extend(
             [
                 parse_python_requirement(
-                    dep, manager=default_non_conda_source, category="dev", optional=True
+                    dep, manager=default_non_conda_source, category="dev"
                 )
                 for dep in deps
             ]

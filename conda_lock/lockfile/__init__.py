@@ -3,7 +3,7 @@ import pathlib
 
 from collections import defaultdict
 from textwrap import dedent
-from typing import Collection, Dict, List, Mapping, Optional, Sequence, Set, Union
+from typing import Any, Collection, Dict, List, Mapping, Optional, Sequence, Set, Union
 
 import yaml
 
@@ -35,7 +35,7 @@ def _seperator_munge_get(
             return d[key.replace("_", "-")]
 
 
-def _apply_categories(
+def apply_categories(
     requested: Dict[str, Dependency],
     planned: Mapping[str, Union[List[LockedDependency], LockedDependency]],
     categories: Sequence[str] = ("main", "dev"),
@@ -129,12 +129,9 @@ def _apply_categories(
             targets = [targets]
         for target in targets:
             target.category = source.category
-            target.optional = source.optional
 
 
-def parse_conda_lock_file(
-    path: pathlib.Path,
-) -> Lockfile:
+def parse_conda_lock_file(path: pathlib.Path) -> Lockfile:
     if not path.exists():
         raise FileNotFoundError(f"{path} not found")
 
@@ -143,6 +140,9 @@ def parse_conda_lock_file(
     version = content.pop("version", None)
     if not (isinstance(version, int) and version <= Lockfile.version):
         raise ValueError(f"{path} has unknown version {version}")
+
+    for p in content["package"]:
+        del p["optional"]
 
     return Lockfile.parse_obj(content)
 
@@ -207,13 +207,22 @@ def write_conda_lock_file(
                 """
             )
 
-        yaml.dump(
-            {
-                "version": Lockfile.version,
-                **json.loads(
-                    content.json(by_alias=True, exclude_unset=True, exclude_none=True)
-                ),
-            },
-            stream=f,
-            sort_keys=False,
-        )
+        output: Dict[str, Any] = {
+            "version": Lockfile.version,
+            "metadata": json.loads(
+                content.metadata.json(
+                    by_alias=True, exclude_unset=True, exclude_none=True
+                )
+            ),
+            "package": [
+                {
+                    **package.dict(
+                        by_alias=True, exclude_unset=True, exclude_none=True
+                    ),
+                    "optional": (package.category != "main"),
+                }
+                for package in content.package
+            ],
+        }
+
+        yaml.dump(output, stream=f, sort_keys=False)

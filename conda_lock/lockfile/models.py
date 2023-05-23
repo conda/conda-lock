@@ -44,7 +44,6 @@ class LockedDependency(StrictModel):
     dependencies: Dict[str, str] = {}
     url: str
     hash: HashModel
-    optional: bool = False
     category: str = "main"
     source: Optional[DependencySource] = None
     build: Optional[str] = None

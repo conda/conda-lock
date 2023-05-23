@@ -16,7 +16,6 @@ from conda_lock.virtual_package import FakeRepoData
 class _BaseDependency(StrictModel):
     name: str
     manager: Literal["conda", "pip"] = "conda"
-    optional: bool = False
     category: str = "main"
     extras: List[str] = []
 
