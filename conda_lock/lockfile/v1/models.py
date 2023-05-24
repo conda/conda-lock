@@ -1,12 +1,22 @@
 import datetime
 import enum
 import hashlib
+import json
 import logging
 import pathlib
 import typing
 
-from collections import defaultdict, namedtuple
-from typing import TYPE_CHECKING, AbstractSet, ClassVar, Dict, List, Optional, Union
+from collections import namedtuple
+from typing import (
+    TYPE_CHECKING,
+    AbstractSet,
+    Any,
+    ClassVar,
+    Dict,
+    List,
+    Optional,
+    Union,
+)
 
 
 if TYPE_CHECKING:
@@ -36,7 +46,7 @@ class HashModel(StrictModel):
     sha256: Optional[str] = None
 
 
-class LockedDependency(StrictModel):
+class BaseLockedDependency(StrictModel):
     name: str
     version: str
     manager: Literal["conda", "pip"]
@@ -56,6 +66,10 @@ class LockedDependency(StrictModel):
         if (values["manager"] == "conda") and (v.md5 is None):
             raise ValueError("conda package hashes must use MD5")
         return v
+
+
+class LockedDependency(BaseLockedDependency):
+    optional: bool
 
 
 class MetadataOption(enum.Enum):
@@ -283,89 +297,15 @@ class Lockfile(StrictModel):
     package: List[LockedDependency]
     metadata: LockMeta
 
-    def __or__(self, other: "Lockfile") -> "Lockfile":
-        return other.__ror__(self)
-
-    def __ror__(self, other: "Optional[Lockfile]") -> "Lockfile":
-        """
-        merge self into other
-        """
-        if other is None:
-            return self
-        elif not isinstance(other, Lockfile):
-            raise TypeError
-
-        assert self.metadata.channels == other.metadata.channels
-
-        ours = {d.key(): d for d in self.package}
-        theirs = {d.key(): d for d in other.package}
-
-        # Pick ours preferentially
-        package: List[LockedDependency] = []
-        for key in sorted(set(ours.keys()).union(theirs.keys())):
-            if key not in ours or key[-1] not in self.metadata.platforms:
-                package.append(theirs[key])
-            else:
-                package.append(ours[key])
-
-        # Resort the conda packages topologically
-        final_package = self._toposort(package)
-        return Lockfile(package=final_package, metadata=other.metadata | self.metadata)
-
-    def toposort_inplace(self) -> None:
-        self.package = self._toposort(self.package)
-
-    @staticmethod
-    def _toposort(
-        package: List[LockedDependency], update: bool = False
-    ) -> List[LockedDependency]:
-        platforms = {d.platform for d in package}
-
-        # Resort the conda packages topologically
-        final_package: List[LockedDependency] = []
-        for platform in sorted(platforms):
-            from .._vendor.conda.common.toposort import toposort
-
-            # Add the remaining non-conda packages in the order in which they appeared.
-            # Order the pip packages topologically ordered (might be not 100% perfect if they depend on
-            # other conda packages, but good enough
-            for manager in ["conda", "pip"]:
-                lookup = defaultdict(set)
-                packages: Dict[str, LockedDependency] = {}
-
-                for d in package:
-                    if d.platform != platform:
-                        continue
-
-                    if d.manager != manager:
-                        continue
-
-                    lookup[d.name] = set(d.dependencies)
-                    packages[d.name] = d
-
-                ordered = toposort(lookup)
-                for package_name in ordered:
-                    # since we could have a pure dep in here, that does not have a package
-                    # eg a pip package that depends on a conda package (the conda package will not be in this list)
-                    dep = packages.get(package_name)
-                    if dep is None:
-                        continue
-                    if dep.manager != manager:
-                        continue
-                    # skip virtual packages
-                    if dep.manager == "conda" and dep.name.startswith("__"):
-                        continue
-
-                    final_package.append(dep)
-
-        return final_package
-
-
-class UpdateSpecification:
-    def __init__(
-        self,
-        locked: Optional[List[LockedDependency]] = None,
-        update: Optional[List[str]] = None,
-    ):
-        self.locked = locked or []
-        self.update = update or []
+    def dict_for_output(self) -> Dict[str, Any]:
+        """Convert the lockfile to a dictionary that can be written to a file."""
+        return {
+            "version": Lockfile.version,
+            "metadata": json.loads(
+                self.metadata.json(by_alias=True, exclude_unset=True, exclude_none=True)
+            ),
+            "package": [
+                package.dict(by_alias=True, exclude_unset=True, exclude_none=True)
+                for package in self.package
+            ],
+        }
