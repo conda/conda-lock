@@ -174,16 +174,23 @@ def solve_conda(
         return url
 
     # extract dependencies from package plan
-    planned = {
-        action["name"]: LockedDependency(
+    planned = {}
+    for action in dry_run_install["actions"]["FETCH"]:
+        dependencies = {}
+        for dep in action.get("depends") or []:
+            matchspec = MatchSpec(dep)
+            name = matchspec.name
+            version = (
+                matchspec.version.spec_str if matchspec.version is not None else ""
+            )
+            dependencies[name] = version
+
+        locked_dependency = LockedDependency(
             name=action["name"],
             version=action["version"],
             manager="conda",
             platform=platform,
-            dependencies={
-                item.split()[0]: " ".join(item.split(" ")[1:])
-                for item in action.get("depends") or []
-            },
+            dependencies=dependencies,
             # TODO: Normalize URL here and inject env vars
             url=normalize_url(action["url"]),
             # NB: virtual packages may have no hash
@@ -192,8 +199,7 @@ def solve_conda(
                 sha256=action.get("sha256"),
             ),
         )
-        for action in dry_run_install["actions"]["FETCH"]
-    }
+        planned[action["name"]] = locked_dependency
 
     # propagate categories from explicit to transitive dependencies
     apply_categories(
