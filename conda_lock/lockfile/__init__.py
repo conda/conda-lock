@@ -1,25 +1,20 @@
-import json
 import pathlib
 
 from collections import defaultdict
 from textwrap import dedent
-from typing import Any, Collection, Dict, List, Mapping, Optional, Sequence, Set, Union
+from typing import Collection, Dict, List, Mapping, Optional, Sequence, Set, Union
 
 import yaml
 
+from conda_lock.lockfile.v1.models import Lockfile as LockfileV1
+from conda_lock.lockfile.v2prelim.models import (
+    LockedDependency,
+    Lockfile,
+    MetadataOption,
+    lockfile_v1_to_v2,
+)
 from conda_lock.lookup import conda_name_to_pypi_name
 from conda_lock.models.lock_spec import Dependency
-
-from .models import DependencySource as DependencySource
-from .models import GitMeta as GitMeta
-from .models import HashModel as HashModel
-from .models import InputMeta as InputMeta
-from .models import LockedDependency, Lockfile
-from .models import LockKey as LockKey
-from .models import LockMeta as LockMeta
-from .models import MetadataOption
-from .models import TimeMeta as TimeMeta
-from .models import UpdateSpecification as UpdateSpecification
 
 
 def _seperator_munge_get(
@@ -138,13 +133,10 @@ def parse_conda_lock_file(path: pathlib.Path) -> Lockfile:
     with path.open() as f:
         content = yaml.safe_load(f)
     version = content.pop("version", None)
-    if not (isinstance(version, int) and version <= Lockfile.version):
+    if version == 1:
+        return lockfile_v1_to_v2(LockfileV1.parse_obj(content))
+    else:
         raise ValueError(f"{path} has unknown version {version}")
-
-    for p in content["package"]:
-        del p["optional"]
-
-    return Lockfile.parse_obj(content)
 
 
 def write_conda_lock_file(
@@ -206,23 +198,5 @@ def write_conda_lock_file(
                     conda-lock {metadata_flags}{' '.join('-f '+path for path in content.metadata.sources)} --lockfile {path.name}
                 """
             )
-
-        output: Dict[str, Any] = {
-            "version": Lockfile.version,
-            "metadata": json.loads(
-                content.metadata.json(
-                    by_alias=True, exclude_unset=True, exclude_none=True
-                )
-            ),
-            "package": [
-                {
-                    **package.dict(
-                        by_alias=True, exclude_unset=True, exclude_none=True
-                    ),
-                    "optional": (package.category != "main"),
-                }
-                for package in content.package
-            ],
-        }
-
+        output = content.to_v1().dict_for_output()
         yaml.dump(output, stream=f, sort_keys=False)

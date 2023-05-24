@@ -55,11 +55,11 @@ from conda_lock.invoke_conda import (
     is_micromamba,
     reset_conda_pkgs_dir,
 )
-from conda_lock.lockfile import (
+from conda_lock.lockfile import parse_conda_lock_file
+from conda_lock.lockfile.v2prelim.models import (
     HashModel,
     LockedDependency,
     MetadataOption,
-    parse_conda_lock_file,
 )
 from conda_lock.models.channel import Channel
 from conda_lock.models.lock_spec import VersionedDependency

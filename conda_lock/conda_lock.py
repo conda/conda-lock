@@ -53,7 +53,8 @@ from conda_lock.invoke_conda import (
     determine_conda_executable,
     is_micromamba,
 )
-from conda_lock.lockfile import (
+from conda_lock.lockfile import parse_conda_lock_file, write_conda_lock_file
+from conda_lock.lockfile.v2prelim.models import (
     GitMeta,
     InputMeta,
     LockedDependency,
@@ -62,8 +63,6 @@ from conda_lock.lockfile import (
     MetadataOption,
     TimeMeta,
     UpdateSpecification,
-    parse_conda_lock_file,
-    write_conda_lock_file,
 )
 from conda_lock.lookup import set_lookup_location
 from conda_lock.models.channel import Channel
