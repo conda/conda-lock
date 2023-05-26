@@ -117,7 +117,7 @@ def parse_environment_file(
     try:
         # conda-lock will use `--override-channels` so nodefaults is redundant.
         channels.remove("nodefaults")
-    except IndexError:
+    except ValueError:
         pass
 
     # These extension fields are nonstandard
