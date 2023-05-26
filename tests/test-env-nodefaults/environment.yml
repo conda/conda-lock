@@ -1,0 +1,5 @@
+channels:
+  - nodefaults
+  - conda-forge
+dependencies:
+  - python <3.11

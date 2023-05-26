@@ -114,6 +114,11 @@ def parse_environment_file(
 
     env_yaml_data = yaml.safe_load(content)
     channels: List[str] = env_yaml_data.get("channels", [])
+    try:
+        # conda-lock will use `--override-channels` so nodefaults is redundant.
+        channels.remove("nodefaults")
+    except ValueError:
+        pass
 
     # These extension fields are nonstandard
     category: str = env_yaml_data.get("category") or "main"
