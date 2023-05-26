@@ -139,6 +139,11 @@ def filter_conda_environment(tmp_path: Path):
 
 
 @pytest.fixture
+def nodefaults_environment(tmp_path: Path):
+    return clone_test_dir("test-env-nodefaults", tmp_path).joinpath("environment.yml")
+
+
+@pytest.fixture
 def pip_environment(tmp_path: Path):
     return clone_test_dir("test-pypi-resolve", tmp_path).joinpath("environment.yml")
 
@@ -398,6 +403,11 @@ def test_parse_environment_file_with_pip(pip_environment: Path):
                 version="=0.9.1",
             )
         ]
+
+
+def test_parse_env_file_with_no_defaults(nodefaults_environment: Path):
+    res = parse_environment_file(nodefaults_environment, DEFAULT_PLATFORMS)
+    assert res.channels == [Channel.from_string("conda-forge")]
 
 
 def test_parse_env_file_with_filters_no_args(filter_conda_environment: Path):
