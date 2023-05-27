@@ -122,6 +122,9 @@ flake8-max-line-length = 105
 flake8-ignore = ["docs/* ALL", "conda_lock/_version.py ALL"]
 filterwarnings = "ignore::DeprecationWarning"
 
+[tool.ruff]
+ignore = ["E501"]
+
 [tool.vendoring]
 destination = "conda_lock/_vendor"
 namespace = "conda_lock._vendor"
