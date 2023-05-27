@@ -427,7 +427,7 @@ def merge_requirements(
     relevant_requirements: list[Requirement],
 ) -> dict[str, Requirement]:
     merged_requirements: dict[str, Requirement] = {}
-    for req_name in set(req.name for req in relevant_requirements):
+    for req_name in {req.name for req in relevant_requirements}:
         # Simply concatenate the version specifiers.
         merged_specifiers = ",".join(
             req.version_requirements

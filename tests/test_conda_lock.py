@@ -109,12 +109,7 @@ def clone_test_dir(name: Union[str, List[str]], tmp_path: Path) -> Path:
     test_dir = TEST_DIR.joinpath(*name)
     assert test_dir.exists()
     assert test_dir.is_dir()
-    if sys.version_info >= (3, 8):
-        shutil.copytree(test_dir, tmp_path, dirs_exist_ok=True)
-    else:
-        from distutils.dir_util import copy_tree
-
-        copy_tree(str(test_dir), str(tmp_path))
+    shutil.copytree(test_dir, tmp_path, dirs_exist_ok=True)
     return tmp_path
 
 
@@ -880,12 +875,10 @@ def test_run_lock_with_input_metadata(
     run_lock(
         [zlib_environment],
         conda_exe=conda_exe,
-        metadata_choices=set(
-            [
-                MetadataOption.InputMd5,
-                MetadataOption.InputSha,
-            ]
-        ),
+        metadata_choices={
+            MetadataOption.InputMd5,
+            MetadataOption.InputSha,
+        },
     )
     lockfile = parse_conda_lock_file(zlib_environment.parent / DEFAULT_LOCKFILE_NAME)
 
@@ -917,11 +910,9 @@ def test_run_lock_with_time_metadata(
         run_lock(
             [zlib_environment],
             conda_exe=conda_exe,
-            metadata_choices=set(
-                [
-                    MetadataOption.TimeStamp,
-                ]
-            ),
+            metadata_choices={
+                MetadataOption.TimeStamp,
+            },
         )
     lockfile = parse_conda_lock_file(TIME_DIR / DEFAULT_LOCKFILE_NAME)
 
@@ -969,13 +960,11 @@ def test_run_lock_with_git_metadata(
     run_lock(
         [git_metadata_zlib_environment],
         conda_exe=conda_exe,
-        metadata_choices=set(
-            [
-                MetadataOption.GitSha,
-                MetadataOption.GitUserName,
-                MetadataOption.GitUserEmail,
-            ]
-        ),
+        metadata_choices={
+            MetadataOption.GitSha,
+            MetadataOption.GitUserName,
+            MetadataOption.GitUserEmail,
+        },
     )
     lockfile = parse_conda_lock_file(
         git_metadata_zlib_environment.parent / DEFAULT_LOCKFILE_NAME
@@ -1095,11 +1084,7 @@ def test_run_lock_with_locked_environment_files(
     make_lock_files = MagicMock()
     monkeypatch.setattr("conda_lock.conda_lock.make_lock_files", make_lock_files)
     run_lock(DEFAULT_FILES, conda_exe=conda_exe, update=["pydantic"])
-    if sys.version_info < (3, 8):
-        # backwards compat
-        src_files = make_lock_files.call_args_list[0][1]["src_files"]
-    else:
-        src_files = make_lock_files.call_args.kwargs["src_files"]
+    src_files = make_lock_files.call_args.kwargs["src_files"]
 
     assert [p.resolve() for p in src_files] == [
         Path(update_environment.parent / "environment-preupdate.yml")
@@ -1128,11 +1113,7 @@ def test_run_lock_relative_source_path(
     run_lock(
         DEFAULT_FILES, lockfile_path=lockfile, conda_exe=conda_exe, update=["pydantic"]
     )
-    if sys.version_info < (3, 8):
-        # backwards compat
-        src_files = make_lock_files.call_args_list[0][1]["src_files"]
-    else:
-        src_files = make_lock_files.call_args.kwargs["src_files"]
+    src_files = make_lock_files.call_args.kwargs["src_files"]
     assert [p.resolve() for p in src_files] == [environment.resolve()]
 
 
@@ -1639,7 +1620,7 @@ def test__extract_domain(line: str, stripped: str):
 
 
 def _read_file(filepath: "str | Path") -> str:
-    with open(filepath, mode="r") as file_pointer:
+    with open(filepath) as file_pointer:
         return file_pointer.read()
 
 

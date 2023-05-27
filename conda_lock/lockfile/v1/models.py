@@ -22,8 +22,9 @@ from typing import (
 if TYPE_CHECKING:
     from hashlib import _Hash
 
+from typing import Literal
+
 from pydantic import Field, validator
-from typing_extensions import Literal
 
 from conda_lock.common import ordered_union, relative_path
 from conda_lock.models import StrictModel

@@ -21,6 +21,7 @@ from typing import (
     Dict,
     Iterator,
     List,
+    Literal,
     Optional,
     Sequence,
     Set,
@@ -35,7 +36,6 @@ import pkg_resources
 import yaml
 
 from ensureconda.api import ensureconda
-from typing_extensions import Literal
 
 from conda_lock.click_helpers import OrderedGroup
 from conda_lock.common import (
@@ -1202,7 +1202,7 @@ def lock(
     if pypi_to_conda_lookup_file:
         set_lookup_location(pypi_to_conda_lookup_file)
 
-    metadata_enum_choices = set(MetadataOption(md) for md in metadata_choices)
+    metadata_enum_choices = {MetadataOption(md) for md in metadata_choices}
 
     metadata_yamls = [pathlib.Path(path) for path in metadata_yamls]
 

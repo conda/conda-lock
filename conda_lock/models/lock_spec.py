@@ -3,10 +3,9 @@ import json
 import pathlib
 import typing
 
-from typing import Dict, List, Optional, Union
+from typing import Dict, List, Literal, Optional, Union
 
 from pydantic import BaseModel, validator
-from typing_extensions import Literal
 
 from conda_lock.models import StrictModel
 from conda_lock.models.channel import Channel

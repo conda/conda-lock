@@ -25,7 +25,7 @@ if sys.version_info >= (3, 11):
 else:
     from tomli import load as toml_load
 
-from typing_extensions import Literal
+from typing import Literal
 
 from conda_lock.common import get_in
 from conda_lock.lookup import get_forward_lookup as get_lookup

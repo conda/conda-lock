@@ -353,8 +353,7 @@ def solve_specs_for_arch(
     proc = subprocess.run(
         [str(arg) for arg in args],
         env=conda_env_override(platform),
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
+        capture_output=True,
         encoding="utf8",
     )
 
@@ -479,8 +478,7 @@ def update_specs_for_arch(
                     for arg in args + ["-p", prefix, "--json", "--dry-run", *to_update]
                 ],
                 env=conda_env_override(platform),
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
+                capture_output=True,
                 encoding="utf8",
             )
 

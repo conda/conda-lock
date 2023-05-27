@@ -148,7 +148,7 @@ def write_conda_lock_file(
     content.toposort_inplace()
     with path.open("w") as f:
         if include_help_text:
-            categories = set(p.category for p in content.package)
+            categories = {p.category for p in content.package}
 
             def write_section(text: str) -> None:
                 lines = dedent(text).split("\n")
