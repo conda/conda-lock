@@ -745,7 +745,13 @@ be treated as a <code>pip</code> dependency, e.g.:</p>
 <span class="n">python</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">&quot;3.9&quot;</span>
 <span class="n">ampel-ztf</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span><span class="n">version</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">&quot;^0.8.0-alpha.2&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">source</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">&quot;pypi&quot;</span><span class="p">}</span>
 </code></pre></div>
-<p>In both these cases, the dependencies of <code>pip</code>-installable packages will also be
+<p>Alternatively, explicitly providing  <code>default-non-conda-source = "pip"</code> in the <code>[tool.conda-lock]</code> section will treat all non-conda dependencies -- all dependencies defined outside of <code>[tool.conda-lock.dependencies]</code> -- as <code>pip</code> dependencies, i.e.:
+- Default to <code>pip</code> dependencies for <code>[tool.poetry.dependencies]</code>, <code>[project.dependencies]</code>, etc.
+- Default to <code>conda</code> dependencies for <code>[tool.conda-lock.dependencies]</code>
+<div class="highlight"><pre><span></span><code><span class="k">[tool.conda-lock]</span>
+<span class="n">default-non-conda-source</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">&quot;pip&quot;</span>
+</code></pre></div></p>
+<p>In all cases, the dependencies of <code>pip</code>-installable packages will also be
 installed with <code>pip</code>, unless they were already requested by a <code>conda</code>
 dependency.</p>
 <h3 id="extras">Extras</h3>
