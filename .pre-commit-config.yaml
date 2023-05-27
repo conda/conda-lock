@@ -8,6 +8,8 @@ repos:
 - repo: https://github.com/pre-commit/pre-commit-hooks
   rev: v4.4.0
   hooks:
+    - id: no-commit-to-branch
+      args: [--branch=main]
     - id: trailing-whitespace
       exclude: "^.*\\.patch$"
     - id: check-ast
