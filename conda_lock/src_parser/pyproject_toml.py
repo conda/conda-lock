@@ -148,7 +148,7 @@ def parse_poetry_pyproject_toml(
     # Support for poetry dependency groups as specified in
     # https://python-poetry.org/docs/managing-dependencies/#optional-groups
     for group_name, _ in get_in(["tool", "poetry", "group"], contents, {}).items():
-        group_key = tuple(["group", group_name, "dependencies"])
+        group_key = ("group", group_name, "dependencies")
         categories[group_key] = group_name
 
     default_non_conda_source = get_in(

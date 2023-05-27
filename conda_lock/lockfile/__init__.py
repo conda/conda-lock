@@ -74,7 +74,7 @@ def apply_categories(
         return dep
 
     for name, request in requested.items():
-        todo: List[str] = list()
+        todo: List[str] = []
         deps: Set[str] = set()
         item = name
 

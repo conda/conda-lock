@@ -228,7 +228,7 @@ def solve_pypi(
     installed = Repository()
     locked = Repository()
 
-    python_packages = dict()
+    python_packages = {}
     locked_dep: LockedDependency
     for locked_dep in conda_locked.values():
         if locked_dep.name.startswith("__"):

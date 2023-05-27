@@ -420,7 +420,7 @@ def do_render(
     """
     platforms = lockfile.metadata.platforms
     if override_platform is not None and len(override_platform) > 0:
-        platforms = list(sorted(set(platforms) & set(override_platform)))
+        platforms = sorted(set(platforms) & set(override_platform))
 
     if filename_template:
         if "{platform}" not in filename_template and len(platforms) > 1:
@@ -801,7 +801,7 @@ def create_lockfile_from_spec(
         package=[locked[k] for k in locked],
         metadata=LockMeta(
             content_hash=spec.content_hash(),
-            channels=[c for c in spec.channels],
+            channels=list(spec.channels),
             platforms=spec.platforms,
             sources=list(meta_sources.keys()),
             git_metadata=git_metadata,

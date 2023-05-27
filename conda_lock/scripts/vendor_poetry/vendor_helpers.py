@@ -462,7 +462,7 @@ def merge_requirements(
             name=req_name,
             version_requirements=merged_specifiers,
             python_requirements=python_requirements,
-            sources=sorted(list(sources)),
+            sources=sorted(sources),
         )
     # Sort the merged requirements in alphabetical order
     merged_requirements = dict(sorted(merged_requirements.items()))
