@@ -195,6 +195,13 @@ def poetry_pyproject_toml(tmp_path: Path):
 
 
 @pytest.fixture
+def poetry_pyproject_toml_default_pip(tmp_path: Path):
+    return clone_test_dir("test-poetry-default-pip", tmp_path).joinpath(
+        "pyproject.toml"
+    )
+
+
+@pytest.fixture
 def poetry_pyproject_toml_no_pypi(tmp_path: Path):
     return clone_test_dir("test-poetry-no-pypi", tmp_path).joinpath("pyproject.toml")
 
@@ -221,6 +228,16 @@ def flit_pyproject_toml(tmp_path: Path):
 @pytest.fixture
 def pdm_pyproject_toml(tmp_path: Path):
     return clone_test_dir("test-pdm", tmp_path).joinpath("pyproject.toml")
+
+
+@pytest.fixture
+def flit_pyproject_toml_default_pip(tmp_path: Path):
+    return clone_test_dir("test-flit-default-pip", tmp_path).joinpath("pyproject.toml")
+
+
+@pytest.fixture
+def pdm_pyproject_toml_default_pip(tmp_path: Path):
+    return clone_test_dir("test-pdm-default-pip", tmp_path).joinpath("pyproject.toml")
 
 
 @pytest.fixture
@@ -642,6 +659,22 @@ def test_parse_poetry(poetry_pyproject_toml: Path):
     assert res.channels == [Channel.from_string("defaults")]
 
 
+def test_parse_poetry_default_pip(poetry_pyproject_toml_default_pip: Path):
+    res = parse_pyproject_toml(poetry_pyproject_toml_default_pip, ["linux-64"])
+
+    specs = {
+        dep.name: typing.cast(VersionedDependency, dep)
+        for dep in res.dependencies["linux-64"]
+    }
+
+    assert specs["sqlite"].manager == "conda"
+    assert specs["certifi"].manager == "conda"
+    assert specs["requests"].manager == "pip"
+    assert specs["toml"].manager == "pip"
+    assert specs["pytest"].manager == "pip"
+    assert specs["tomlkit"].manager == "pip"
+
+
 def test_parse_poetry_no_pypi(poetry_pyproject_toml_no_pypi: Path):
     platforms = parse_platforms_from_pyproject_toml(poetry_pyproject_toml_no_pypi)
     res = parse_pyproject_toml(poetry_pyproject_toml_no_pypi, platforms)
@@ -740,6 +773,22 @@ def test_parse_flit(flit_pyproject_toml: Path):
     assert res.channels == [Channel.from_string("defaults")]
 
 
+def test_parse_flit_default_pip(flit_pyproject_toml_default_pip: Path):
+    res = parse_pyproject_toml(flit_pyproject_toml_default_pip, ["linux-64"])
+
+    specs = {
+        dep.name: typing.cast(VersionedDependency, dep)
+        for dep in res.dependencies["linux-64"]
+    }
+
+    assert specs["sqlite"].manager == "conda"
+    assert specs["certifi"].manager == "conda"
+    assert specs["requests"].manager == "pip"
+    assert specs["toml"].manager == "pip"
+    assert specs["pytest"].manager == "pip"
+    assert specs["tomlkit"].manager == "pip"
+
+
 def test_parse_pdm(pdm_pyproject_toml: Path):
     res = parse_pyproject_toml(pdm_pyproject_toml, ["linux-64"])
 
@@ -762,6 +811,23 @@ def test_parse_pdm(pdm_pyproject_toml: Path):
     assert specs["pytest"].category == "dev"
     # Conda channels
     assert res.channels == [Channel.from_string("defaults")]
+
+
+def test_parse_pdm_default_pip(pdm_pyproject_toml_default_pip: Path):
+    res = parse_pyproject_toml(pdm_pyproject_toml_default_pip, ["linux-64"])
+
+    specs = {
+        dep.name: typing.cast(VersionedDependency, dep)
+        for dep in res.dependencies["linux-64"]
+    }
+
+    assert specs["sqlite"].manager == "conda"
+    assert specs["certifi"].manager == "conda"
+    assert specs["requests"].manager == "pip"
+    assert specs["toml"].manager == "pip"
+    assert specs["pytest"].manager == "pip"
+    assert specs["tomlkit"].manager == "pip"
+    assert specs["click"].manager == "pip"
 
 
 def test_parse_poetry_invalid_optionals(pyproject_optional_toml: Path):

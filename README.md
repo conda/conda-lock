@@ -388,8 +388,19 @@ A dependency will also be treated as a `pip` dependency if explicitly marked wit
 [tool.conda-lock.dependencies]
 ampel-ztf = {source = "pypi"}
 ```
+##### Defaulting non-conda dependency sources to PyPI
 
-In both these cases, the dependencies of `pip`-installable packages will also be
+Alternatively, the above behavior is defaulted for all dependencies defined outside of `[tool.conda-lock.dependencies]`, i.e.:
+- Default to `pip` dependencies for `[tool.poetry.dependencies]`, `[project.dependencies]`, etc.
+- Default to `conda` dependencies for `[tool.conda-lock.dependencies]`
+
+by explicitly providing  `default-non-conda-source = "pip"` in `[tool.conda-lock]` section, e.g.:
+```toml
+[tool.conda-lock]
+default-non-conda-source = "pip"
+```
+
+In all cases, the dependencies of `pip`-installable packages will also be
 installed with `pip`, unless they were already requested by a `conda`
 dependency.
 

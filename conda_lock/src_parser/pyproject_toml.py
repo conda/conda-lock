@@ -125,9 +125,10 @@ def parse_poetry_pyproject_toml(
     * dependencies in each `key` of [tool.poetry.extras] have category `key`
     * dependencies in [tool.poetry.{group}.dependencies] have category `group`
 
-    * By default, dependency names are translated to the conda equivalent, with two exceptions:
+    * By default, dependency names are translated to the conda equivalent, with three exceptions:
         - If a dependency has `source = "pypi"`, it is treated as a pip dependency (by name)
         - If a dependency has a url, it is treated as a direct pip dependency (by url)
+        - If all dependencies are default-sourced to pip, `default-non-conda-source = "pip"`
 
     * markers are not supported
 
@@ -150,12 +151,17 @@ def parse_poetry_pyproject_toml(
         group_key = tuple(["group", group_name, "dependencies"])
         categories[group_key] = group_name
 
+    default_non_conda_source = get_in(
+        ["tool", "conda-lock", "default-non-conda-source"],
+        contents,
+        "conda",
+    )
     for section, default_category in categories.items():
         for depname, depattrs in get_in(
             ["tool", "poetry", *section], contents, {}
         ).items():
             category: str = dep_to_extra.get(depname) or default_category
-            manager: Literal["conda", "pip"] = "conda"
+            manager: Literal["conda", "pip"] = default_non_conda_source
             url = None
             extras = []
             in_extra: bool = False
@@ -377,10 +383,17 @@ def parse_requirements_pyproject_toml(
     ):
         sections[(*prefix, optional_tag, extra)] = extra
 
+    default_non_conda_source = get_in(
+        ["tool", "conda-lock", "default-non-conda-source"],
+        contents,
+        "conda",
+    )
     for path, category in sections.items():
         for dep in get_in(list(path), contents, []):
             dependencies.append(
-                parse_python_requirement(dep, manager="conda", category=category)
+                parse_python_requirement(
+                    dep, manager=default_non_conda_source, category=category
+                )
             )
 
     return specification_with_dependencies(
@@ -407,11 +420,17 @@ def parse_pdm_pyproject_toml(
     )
 
     dev_reqs = []
-
+    default_non_conda_source = get_in(
+        ["tool", "conda-lock", "default-non-conda-source"],
+        contents,
+        "conda",
+    )
     for section, deps in get_in(["tool", "pdm", "dev-dependencies"], contents).items():
         dev_reqs.extend(
             [
-                parse_python_requirement(dep, manager="conda", category="dev")
+                parse_python_requirement(
+                    dep, manager=default_non_conda_source, category="dev"
+                )
                 for dep in deps
             ]
         )

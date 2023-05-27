@@ -77,7 +77,15 @@ python = "3.9"
 ampel-ztf = {version = "^0.8.0-alpha.2", source = "pypi"}
 ```
 
-In both these cases, the dependencies of `pip`-installable packages will also be
+Alternatively, explicitly providing  `default-non-conda-source = "pip"` in the `[tool.conda-lock]` section will treat all non-conda dependencies -- all dependencies defined outside of `[tool.conda-lock.dependencies]` -- as `pip` dependencies, i.e.:
+- Default to `pip` dependencies for `[tool.poetry.dependencies]`, `[project.dependencies]`, etc.
+- Default to `conda` dependencies for `[tool.conda-lock.dependencies]`
+```toml
+[tool.conda-lock]
+default-non-conda-source = "pip"
+```
+
+In all cases, the dependencies of `pip`-installable packages will also be
 installed with `pip`, unless they were already requested by a `conda`
 dependency.
 
