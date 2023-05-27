@@ -35,7 +35,6 @@ dependencies = [
     "pyyaml >= 5.1",
     "ruamel.yaml",
     'tomli; python_version<"3.11"',
-    "typing-extensions",
     "toolz >=0.12.0,<1.0.0",
     "filelock >=3.8.0",
     # The following dependencies were added in the process of vendoring Poetry 1.1.15.

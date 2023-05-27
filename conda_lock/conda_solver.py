@@ -9,12 +9,19 @@ import tempfile
 import time
 
 from contextlib import contextmanager
-from typing import Dict, Iterable, Iterator, List, MutableSequence, Optional, Sequence
+from typing import (
+    Dict,
+    Iterable,
+    Iterator,
+    List,
+    MutableSequence,
+    Optional,
+    Sequence,
+    TypedDict,
+)
 from urllib.parse import urlsplit, urlunsplit
 
 import yaml
-
-from typing_extensions import TypedDict
 
 from conda_lock._vendor.conda.models.match_spec import MatchSpec
 from conda_lock.invoke_conda import (

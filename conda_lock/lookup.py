@@ -1,10 +1,8 @@
 from functools import cached_property
-from typing import Dict
+from typing import Dict, TypedDict
 
 import requests
 import yaml
-
-from typing_extensions import TypedDict
 
 
 class MappingEntry(TypedDict):
