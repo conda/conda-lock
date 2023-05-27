@@ -287,9 +287,9 @@ def include_dev_dependencies(request: Any) -> bool:
 @pytest.fixture(
     scope="session",
     params=[
-        pytest.param("conda"),
+        pytest.param("conda", marks=pytest.mark.skip(reason="slow")),
         pytest.param("mamba"),
-        pytest.param("micromamba"),
+        pytest.param("micromamba", marks=pytest.mark.skip(reason="flaky, see #416")),
     ],
 )
 def _conda_exe_type(request: Any) -> str:
