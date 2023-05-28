@@ -299,9 +299,16 @@ def specification_with_dependencies(
             if dep.name in force_pypi:
                 dep.manager = "pip"
 
+    channels = get_in(["tool", "conda-lock", "channels"], toml_contents, [])
+    try:
+        # conda-lock will use `--override-channels` so nodefaults is redundant.
+        channels.remove("nodefaults")
+    except ValueError:
+        pass
+
     return LockSpecification(
         dependencies={platform: dependencies for platform in platforms},
-        channels=get_in(["tool", "conda-lock", "channels"], toml_contents, []),
+        channels=channels,
         sources=[path],
         allow_pypi_requests=get_in(
             ["tool", "conda-lock", "allow-pypi-requests"], toml_contents, True

@@ -81,5 +81,8 @@ class LockSpecification(BaseModel):
     def validate_channels(cls, v: List[Union[Channel, str]]) -> List[Channel]:
         for i, e in enumerate(v):
             if isinstance(e, str):
-                v[i] = Channel.from_string(e)
+                e = Channel.from_string(e)
+                v[i] = e
+            if e.url == "nodefaults":
+                raise ValueError("nodefaults channel is not allowed, ref #418")
         return typing.cast(List[Channel], v)
