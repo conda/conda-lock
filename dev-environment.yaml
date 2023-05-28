@@ -1,4 +1,5 @@
 name: conda-lock-dev
+category: dev
 channels:
 - conda-forge
 - nodefaults
