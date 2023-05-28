@@ -103,6 +103,11 @@ def parse_meta_yaml_file(
         meta_yaml_data = yaml.safe_load(rendered)
 
     channels = get_in(["extra", "channels"], meta_yaml_data, [])
+    try:
+        # conda-lock will use `--override-channels` so nodefaults is redundant.
+        channels.remove("nodefaults")
+    except ValueError:
+        pass
 
     # parse with selectors for each target platform
     dep_map = {
