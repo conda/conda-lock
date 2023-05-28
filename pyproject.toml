@@ -152,7 +152,7 @@ substitute = [
 
 [tool.conda-lock]
 channels = ["conda-forge", "nodefaults"]
-platforms = ["linux-64", "osx-64", "osx-arm64", "win-64", "linux-aarch64"]
+platforms = ["linux-64", "osx-64", "osx-arm64", "win-64", "osx-arm64", "linux-aarch64"]
 
 [tool.conda-lock.dependencies]
 # This is necessary to pull in the lockfile/filelock dependency
