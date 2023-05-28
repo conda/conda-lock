@@ -1,6 +1,7 @@
 name: Run conda-lock to update dependencies
 
 on:
+  push:
   workflow_dispatch:
   schedule:
   # At 5am UTC Monday and Thursday
