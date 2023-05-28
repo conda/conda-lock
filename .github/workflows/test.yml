@@ -15,6 +15,9 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}
   cancel-in-progress: true
 
+env:
+  MICROMAMBA_VERSION: '1.4.2-2'
+
 jobs:
   test-windows:
     env:
@@ -27,6 +30,7 @@ jobs:
       - name: Install Conda environment with Micromamba
         uses: mamba-org/setup-micromamba@v1
         with:
+          micromamba-version: ${{ env.MICROMAMBA_VERSION }}
           environment-name: test-env
           init-shell: powershell
           create-args: >-
@@ -73,6 +77,7 @@ jobs:
 
       - uses: mamba-org/setup-micromamba@v1
         with:
+          micromamba-version: ${{ env.MICROMAMBA_VERSION }}
           environment-name: test-env
           init-shell: bash
           create-args: >-
