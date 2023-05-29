@@ -49,7 +49,9 @@ class Lockfile(StrictModel):
         elif not isinstance(other, Lockfile):
             raise TypeError
 
-        assert self.metadata.channels == other.metadata.channels
+        assert (
+            self.metadata.channels == other.metadata.channels
+        ), f"channels must match: {self.metadata.channels} != {other.metadata.channels}"
 
         ours = {d.key(): d for d in self.package}
         theirs = {d.key(): d for d in other.package}
