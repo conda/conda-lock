@@ -279,13 +279,22 @@ def specification_with_dependencies(
     ).items():
         if isinstance(depattrs, str):
             conda_version = depattrs
+            channel_split = depname.split("::")
+            if len(channel_split) == 1:
+                channel = None
+                name = channel_split[0]
+            else:
+                channel = channel_split[0]
+                name = channel_split[1]
+
             dependencies.append(
                 VersionedDependency(
-                    name=depname,
+                    name=name,
                     version=conda_version,
                     manager="conda",
                     category="main",
                     extras=[],
+                    conda_channel=channel,
                 )
             )
         elif isinstance(depattrs, collections.abc.Mapping):
