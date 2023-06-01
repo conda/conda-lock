@@ -35,6 +35,7 @@ from conda_lock.models.lock_spec import (
     URLDependency,
     VersionedDependency,
 )
+from conda_lock.src_parser.conda_common import conda_spec_to_versioned_dep
 
 
 POETRY_INVALID_EXTRA_LOC = (
@@ -278,24 +279,8 @@ def specification_with_dependencies(
         ["tool", "conda-lock", "dependencies"], toml_contents, {}
     ).items():
         if isinstance(depattrs, str):
-            conda_version = depattrs
-            channel_split = depname.split("::")
-            if len(channel_split) == 1:
-                channel = None
-                name = channel_split[0]
-            else:
-                channel = channel_split[0]
-                name = channel_split[1]
-
             dependencies.append(
-                VersionedDependency(
-                    name=name,
-                    version=conda_version,
-                    manager="conda",
-                    category="main",
-                    extras=[],
-                    conda_channel=channel,
-                )
+                conda_spec_to_versioned_dep(f"{depname} {depattrs}", "main")
             )
         elif isinstance(depattrs, collections.abc.Mapping):
             if depattrs.get("source", None) == "pypi":
