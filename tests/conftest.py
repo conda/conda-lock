@@ -1,6 +1,7 @@
 import os
 import pathlib
 import re
+import tempfile
 
 from typing import Iterable, NamedTuple
 
@@ -114,3 +115,14 @@ def test_quetz(quetz_server: QuetzServerInfo) -> None:
     assert (
         channel["mirror_channel_url"] == "https://conda-static.anaconda.org/conda-forge"
     )
+
+
+@pytest.fixture(autouse=True)
+def chdir_to_temp_dir() -> Iterable[str]:
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        old_dir = os.getcwd()
+        os.chdir(tmpdirname)
+        try:
+            yield tmpdirname
+        finally:
+            os.chdir(old_dir)
