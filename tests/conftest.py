@@ -117,13 +117,14 @@ def test_quetz(quetz_server: QuetzServerInfo) -> None:
     )
 
 
-@pytest.fixture(autouse=True, scope="session")
+@pytest.fixture(autouse=True)
 def chdir_to_temp_dir() -> Iterable[str]:
     with tempfile.TemporaryDirectory() as tmpdirname:
         old_dir = os.getcwd()
         os.chdir(tmpdirname)
         try:
             yield tmpdirname
-            assert not os.listdir(tmpdirname)
         finally:
+            leftover_files = os.listdir(tmpdirname)
+            assert leftover_files == [], f"Test didn't clean up files: {leftover_files}"
             os.chdir(old_dir)
