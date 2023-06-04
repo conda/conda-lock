@@ -117,12 +117,13 @@ def test_quetz(quetz_server: QuetzServerInfo) -> None:
     )
 
 
-@pytest.fixture(autouse=True)
+@pytest.fixture(autouse=True, scope="session")
 def chdir_to_temp_dir() -> Iterable[str]:
     with tempfile.TemporaryDirectory() as tmpdirname:
         old_dir = os.getcwd()
         os.chdir(tmpdirname)
         try:
             yield tmpdirname
+            assert not os.listdir(tmpdirname)
         finally:
             os.chdir(old_dir)
