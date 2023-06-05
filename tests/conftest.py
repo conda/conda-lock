@@ -125,6 +125,10 @@ def chdir_to_temp_dir() -> Iterable[str]:
         try:
             yield tmpdirname
         finally:
+            os.chdir(old_dir)
+            # It's important that we changed the directory back before calling assert.
+            # In case the assert fails, then the chdir won't run, and then cleanup
+            # can't proceed on Windows because you can't delete the current working
+            # directory.
             leftover_files = os.listdir(tmpdirname)
             assert leftover_files == [], f"Test didn't clean up files: {leftover_files}"
-            os.chdir(old_dir)
