@@ -15,6 +15,7 @@ from conda_lock._vendor.poetry.core.packages import (
     ProjectPackage as PoetryProjectPackage,
 )
 from conda_lock._vendor.poetry.core.packages import URLDependency as PoetryURLDependency
+from conda_lock._vendor.poetry.core.packages import VCSDependency as PoetryVCSDependency
 from conda_lock._vendor.poetry.factory import Factory
 from conda_lock._vendor.poetry.installation.chooser import Chooser
 from conda_lock._vendor.poetry.installation.operations.uninstall import Uninstall
@@ -165,6 +166,12 @@ def get_dependency(dep: lock_spec.Dependency) -> PoetryDependency:
             url=f"{dep.url}#{dep.hashes[0].replace(':','=')}",
             extras=extras,
         )
+    elif isinstance(dep, lock_spec.VCSDependency):
+        return PoetryVCSDependency(
+            name=dep.name,
+            vcs=dep.vcs,
+            source=dep.source,
+        )
     else:
         raise ValueError(f"Unknown requirement {dep}")
 
@@ -289,7 +296,14 @@ def solve_pypi(
                 hash_type, hash = fragment.split("=")
                 hash = HashModel(**{hash_type: hash})
                 source = DependencySource(type="url", url=op.package.source_url)
+            elif op.package.source_type == "git":
+                url = f"{op.package.source_type}+{op.package.source_url}@{op.package.source_resolved_reference}"
+                # TODO: FIXME git ls-remoet
+                hash = HashModel(**{"sha256": op.package.source_resolved_reference})
+                source = DependencySource(type="url", url=url)
             # Choose the most specific distribution for the target
+            # TODO: need to handle  git here
+            # https://github.com/conda/conda-lock/blob/ac31f5ddf2951ed4819295238ccf062fb2beb33c/conda_lock/_vendor/poetry/installation/executor.py#L557
             else:
                 link = chooser.choose_for(op.package)
                 url = link.url_without_fragment

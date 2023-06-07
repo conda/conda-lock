@@ -226,6 +226,16 @@ def flit_pyproject_toml(tmp_path: Path):
 
 
 @pytest.fixture
+def git_environment(tmp_path: Path):
+    return clone_test_dir("test-git", tmp_path).joinpath("environment.yml")
+
+
+@pytest.fixture
+def git_tag_environment(tmp_path: Path):
+    return clone_test_dir("test-git-tag", tmp_path).joinpath("environment.yml")
+
+
+@pytest.fixture
 def pdm_pyproject_toml(tmp_path: Path):
     return clone_test_dir("test-pdm", tmp_path).joinpath("pyproject.toml")
 
@@ -418,6 +428,33 @@ def test_parse_environment_file_with_pip(pip_environment: Path):
                 category="main",
                 extras=[],
                 version="=0.9.1",
+            )
+        ]
+
+
+def test_parse_environment_file_with_git(git_environment: Path):
+    res = parse_environment_file(git_environment, DEFAULT_PLATFORMS)
+    for plat in DEFAULT_PLATFORMS:
+        assert [dep for dep in res.dependencies[plat] if dep.manager == "pip"] == [
+            VersionedDependency(
+                name="pydantic",
+                manager="pip",
+                category="main",
+                extras=[],
+            )
+        ]
+
+
+def test_parse_environment_file_with_git_tag(git_tag_environment: Path):
+    res = parse_environment_file(git_tag_environment, DEFAULT_PLATFORMS)
+    for plat in DEFAULT_PLATFORMS:
+        assert [dep for dep in res.dependencies[plat] if dep.manager == "pip"] == [
+            VersionedDependency(
+                name="pydantic",
+                manager="pip",
+                category="main",
+                extras=[],
+                version="==v2.0b2",
             )
         ]
 

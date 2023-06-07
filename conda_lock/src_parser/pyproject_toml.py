@@ -33,6 +33,7 @@ from conda_lock.models.lock_spec import (
     Dependency,
     LockSpecification,
     URLDependency,
+    VCSDependency,
     VersionedDependency,
 )
 
@@ -340,7 +341,14 @@ def parse_python_requirement(
         conda_dep_name = name
     extras = list(parsed_req.extras)
 
-    if parsed_req.url:  # type: ignore[attr-defined]
+    if parsed_req.url and parsed_req.url.startswith("git+"):
+        return VCSDependency(
+            name=conda_dep_name,
+            source=parsed_req.url[4:],
+            manager=manager,
+            vcs="git",
+        )
+    elif parsed_req.url:  # type: ignore[attr-defined]
         assert conda_version in {"", "*", None}
         url, frag = urldefrag(parsed_req.url)  # type: ignore[attr-defined]
         return URLDependency(
