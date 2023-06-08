@@ -260,8 +260,14 @@ def virtual_package_repo_from_specification(
     repodata = _init_fake_repodata()
     for subdir, subdir_spec in spec.subdirs.items():
         for virtual_package, version in subdir_spec.packages.items():
+            version, _, build_string = version.partition("=")
             repodata.add_package(
-                FakePackage(name=virtual_package, version=version), subdirs=[subdir]
+                FakePackage(
+                    name=virtual_package,
+                    version=version,
+                    build_string=build_string,
+                ),
+                subdirs=[subdir],
             )
     repodata.write()
     return repodata
