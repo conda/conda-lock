@@ -133,8 +133,8 @@ KIND_USE_TEXT = {
 _implicit_cuda_message = """
   'cudatoolkit' package added implicitly without specifying that cuda packages
   should be accepted.
-  Add `--with-cuda` to suppress this warning,
-  or specify virtual packages if you want to accept specific cuda versions,
+  Add a minimum cuda version via `--with-cuda VERSION` or via virtual packages
+  to suppress this warning,
   or pass `--without-cuda` to explicitly exclude cuda packages.
 """
 
@@ -258,7 +258,7 @@ def make_lock_files(
     check_input_hash: bool = False,
     metadata_choices: AbstractSet[MetadataOption] = frozenset(),
     metadata_yamls: Sequence[pathlib.Path] = (),
-    with_cuda: Optional[bool] = None,
+    with_cuda: Optional[str] = None,
 ) -> None:
     """
     Generate a lock file from the src files provided
@@ -295,21 +295,25 @@ def make_lock_files(
     metadata_choices:
         Set of selected metadata fields to generate for this lockfile.
     with_cuda:
-        Whether cuda was requested or specified.
-        - None - default version present, warn if used
-        - False - unavailable
-        - True - default version present, no warning
+        The version of cuda requested.
+        '' means no cuda.
+        None will pick a default version and warn if cuda packages are installed.
     metadata_yamls:
         YAML or JSON file(s) containing structured metadata to add to metadata section of the lockfile.
     """
 
-    # initialize virtual package fake
+    cuda_specified = True
+    # initialize virtual packages
     if virtual_package_spec and virtual_package_spec.exists():
         virtual_package_repo = virtual_package_repo_from_specification(
             virtual_package_spec
         )
     else:
-        virtual_package_repo = default_virtual_package_repodata(with_cuda)
+        if with_cuda is None:
+            cuda_specified = False
+            # the default version if cuda is unspecified
+            with_cuda = "11.4"
+        virtual_package_repo = default_virtual_package_repodata(with_cuda=with_cuda)
 
     required_categories = {"main"}
     if include_dev_dependencies:
@@ -398,7 +402,7 @@ def make_lock_files(
         # check for implicit inclusion of cudatoolkit
         # warn if it was pulled in, but not requested explicitly
 
-        if with_cuda is None and not virtual_package_spec:
+        if not cuda_specified:
             # asking for 'cudatoolkit' is explicit enough
             cudatoolkit_requested = any(
                 pkg.name == "cudatoolkit"
@@ -985,7 +989,7 @@ def run_lock(
     check_input_hash: bool = False,
     extras: Optional[AbstractSet[str]] = None,
     virtual_package_spec: Optional[pathlib.Path] = None,
-    with_cuda: Optional[bool] = None,
+    with_cuda: Optional[str] = None,
     update: Optional[List[str]] = None,
     filter_categories: bool = False,
     metadata_choices: AbstractSet[MetadataOption] = frozenset(),
@@ -1184,16 +1188,16 @@ TLogLevel = Union[
 @click.option(
     "--with-cuda",
     "with_cuda",
-    flag_value=True,
+    type=str,
     default=None,
-    help="Explicitly enable cuda in virtual packages. Avoids warning about implicit acceptance of cuda dependencies.",
+    help="Specify cuda version to use in virtual packages. Avoids warning about implicit acceptance of cuda dependencies. Ignored if virtual packages are specified.",
 )
 @click.option(
     "--without-cuda",
     "with_cuda",
-    flag_value=False,
+    flag_value="",
     default=None,
-    help="Disable cuda in virtual packages. Prevents accepting cuda variants of packages.",
+    help="Disable cuda in virtual packages. Prevents accepting cuda variants of packages. Ignored if virtual packages are specified.",
 )
 @click.option(
     "--mdy",
@@ -1226,7 +1230,7 @@ def lock(
     pdb: bool,
     virtual_package_spec: Optional[pathlib.Path],
     pypi_to_conda_lookup_file: Optional[str],
-    with_cuda: Optional[bool] = None,
+    with_cuda: Optional[str] = None,
     update: Optional[List[str]] = None,
     metadata_choices: Sequence[str] = (),
     metadata_yamls: Sequence[pathlib.Path] = (),

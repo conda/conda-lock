@@ -172,7 +172,7 @@ OSX_VERSIONS_X68_ARM64 = ["11.0"]
 OSX_VERSIONS_ARM64: List[str] = []
 
 
-def default_virtual_package_repodata(with_cuda: Optional[bool] = None) -> FakeRepoData:
+def default_virtual_package_repodata(with_cuda: str = "11.4") -> FakeRepoData:
     """Define a reasonable modern set of virtual packages that should be safe enough to assume"""
     repodata = _init_fake_repodata()
 
@@ -211,11 +211,11 @@ def default_virtual_package_repodata(with_cuda: Optional[bool] = None) -> FakeRe
         glibc_virtual, subdirs=["linux-aarch64", "linux-ppc64le", "linux-64"]
     )
 
-    if with_cuda in {None, True}:
+    if with_cuda:
         # default value
-        cuda_versions = ["11.4"]
+        cuda_versions = [with_cuda]
     else:
-        # opt-out
+        # opt-out with falsy empty version string or None
         cuda_versions = []
 
     for cuda_version in cuda_versions:
