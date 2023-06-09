@@ -10,6 +10,7 @@ from typing import Any, Dict, Iterable, List, Optional, Set, Tuple, Type
 
 from pydantic import BaseModel, Field, validator
 
+from conda_lock._vendor.conda.models.match_spec import MatchSpec
 from conda_lock.models.channel import Channel
 
 
@@ -260,12 +261,12 @@ def virtual_package_repo_from_specification(
     repodata = _init_fake_repodata()
     for subdir, subdir_spec in spec.subdirs.items():
         for virtual_package, version in subdir_spec.packages.items():
-            version, _, build_string = version.partition("=")
+            ms = MatchSpec(f"{virtual_package} {version}")
             repodata.add_package(
                 FakePackage(
                     name=virtual_package,
-                    version=version,
-                    build_string=build_string,
+                    version=str(ms.version),
+                    build_string=ms.get("build", ""),
                 ),
                 subdirs=[subdir],
             )
