@@ -1,8 +1,6 @@
 
 ## Developing
 
-For the most up-to-date instructions see the github actions [test.yml workflow](./.github/workflows/test.yml)
-
 1. Ensure that Conda, Mamba, and Micromamba are installed. Install [mambaforge](https://github.com/conda-forge/miniforge#mambaforge) if you're otherwise not sure which Conda distribution to pick.
 2. `micromamba create --name=conda-lock-dev --category=main --category=dev --file=environments/conda-lock.yml`
 3. `conda activate conda-lock-dev`
