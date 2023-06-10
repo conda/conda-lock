@@ -29,7 +29,10 @@ jobs:
     - name: Run conda-lock to recreate lockfile from scratch
       run: |
         rm environments/conda-lock.yml
-        conda-lock -f environments/dev-environment.yaml -f pyproject.toml
+        conda-lock \
+            --file=environments/dev-environment.yaml \
+            --file=pyproject.toml \
+            --lockfile=environments/conda-lock.yml
 
     - name: Open a pull request
       uses: peter-evans/create-pull-request@v5
