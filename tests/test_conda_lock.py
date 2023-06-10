@@ -14,7 +14,7 @@ import uuid
 
 from glob import glob
 from pathlib import Path
-from typing import Any, Dict, List, Union
+from typing import Any, ContextManager, Dict, List, Union
 from unittest.mock import MagicMock
 from urllib.parse import urldefrag, urlsplit
 
@@ -22,6 +22,8 @@ import filelock
 import pytest
 import yaml
 
+from click.testing import CliRunner
+from click.testing import Result as CliResult
 from flaky import flaky
 from freezegun import freeze_time
 
@@ -1508,6 +1510,13 @@ def test_install(
             f"Standalone conda @ '{conda_exe}' does not support materializing from environment files."
         )
 
+    root_prefix = tmp_path / "root_prefix"
+    generated_lockfile_path = tmp_path / "generated_lockfiles"
+
+    root_prefix.mkdir(exist_ok=True)
+    generated_lockfile_path.mkdir(exist_ok=True)
+    monkeypatch.chdir(generated_lockfile_path)
+
     package = "zlib"
     platform = "linux-64"
 
@@ -1519,12 +1528,6 @@ def test_install(
         + "conda-linux-64-true.lock"
         + (".yml" if kind == "env" else "")
     )
-    try:
-        os.remove(lock_filename)
-    except OSError:
-        pass
-
-    from click.testing import CliRunner
 
     with capsys.disabled():
         runner = CliRunner(mix_stderr=False)
@@ -1549,9 +1552,9 @@ def test_install(
     print(result.stderr, file=sys.stderr)
     assert result.exit_code == 0
 
-    env_name = "test_env"
+    prefix = root_prefix / "test_env"
 
-    def invoke_install(*extra_args: str):
+    def invoke_install(*extra_args: str) -> CliResult:
         with capsys.disabled():
             return runner.invoke(
                 main,
@@ -1560,13 +1563,14 @@ def test_install(
                     "--conda",
                     conda_exe,
                     "--prefix",
-                    str(tmp_path / env_name),
+                    str(prefix),
                     *extra_args,
                     lock_filename,
                 ],
                 catch_exceptions=False,
             )
 
+    context: ContextManager
     if sys.platform.lower().startswith("linux"):
         context = contextlib.nullcontext()
     else:
@@ -1586,8 +1590,8 @@ def test_install(
     if sys.platform.lower().startswith("linux"):
         assert _check_package_installed(
             package=package,
-            prefix=str(tmp_path / env_name),
-        ), f"Package {package} does not exist in {tmp_path} environment"
+            prefix=str(prefix),
+        ), f"Package {package} does not exist in {prefix} environment"
 
 
 @pytest.mark.parametrize(
