@@ -48,4 +48,5 @@ jobs:
           This pull request relocks the dependencies with conda-lock.
         branch: relock-deps
         labels: conda-lock
+        reviewers: maresb
         delete-branch: true
