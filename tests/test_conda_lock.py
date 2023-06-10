@@ -243,6 +243,11 @@ def pdm_pyproject_toml_default_pip(tmp_path: Path):
 
 
 @pytest.fixture
+def pyproject_channel_toml(tmp_path: Path):
+    return clone_test_dir("test-toml-channel", tmp_path).joinpath("pyproject.toml")
+
+
+@pytest.fixture
 def channel_inversion(tmp_path: Path):
     """Path to an environment.yaml that has a hardcoded channel in one of the dependencies"""
     return clone_test_dir("test-channel-inversion", tmp_path).joinpath(
@@ -832,6 +837,17 @@ def test_parse_pdm_default_pip(pdm_pyproject_toml_default_pip: Path):
     assert specs["click"].manager == "pip"
 
 
+def test_parse_pyproject_channel_toml(pyproject_channel_toml: Path):
+    res = parse_pyproject_toml(pyproject_channel_toml, ["linux-64"])
+
+    specs = {
+        dep.name: typing.cast(VersionedDependency, dep)
+        for dep in res.dependencies["linux-64"]
+    }
+
+    assert specs["comet_ml"].manager == "conda"
+
+
 def test_parse_poetry_invalid_optionals(pyproject_optional_toml: Path):
     filename = pyproject_optional_toml.name
 
@@ -871,6 +887,15 @@ def test_run_lock(
     if is_micromamba(conda_exe):
         monkeypatch.setenv("CONDA_FLAGS", "-v")
     run_lock([zlib_environment], conda_exe=conda_exe)
+
+
+def test_run_lock_channel_toml(
+    monkeypatch: "pytest.MonkeyPatch", pyproject_channel_toml: Path, conda_exe: str
+):
+    monkeypatch.chdir(pyproject_channel_toml.parent)
+    if is_micromamba(conda_exe):
+        monkeypatch.setenv("CONDA_FLAGS", "-v")
+    run_lock([pyproject_channel_toml], conda_exe=conda_exe)
 
 
 def test_run_lock_with_input_metadata(
