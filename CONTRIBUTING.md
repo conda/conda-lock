@@ -4,7 +4,7 @@
 For the most up-to-date instructions see the github actions [test.yml workflow](./.github/workflows/test.yml)
 
 1. Ensure that Conda, Mamba, and conda-lock are installed. Install [mambaforge](https://github.com/conda-forge/miniforge#mambaforge) if you're otherwise not sure which Conda distribution to pick.
-2. `conda-lock install --name conda-lock-dev conda-lock.yml`
+2. `conda-lock install --name conda-lock-dev environments/conda-lock.yml`
 3. `conda activate conda-lock-dev`
 4. `pip install -e . --force-reinstall`
 

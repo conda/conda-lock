@@ -4,8 +4,8 @@ on:
   push:
   workflow_dispatch:
   schedule:
-  # At 5am UTC Monday and Thursday
-  - cron: 0 5 * * MON,THU
+  # At 5:28am UTC Monday and Thursday
+  - cron: 28 5 * * MON,THU
 
 jobs:
   conda-lock:
@@ -20,7 +20,7 @@ jobs:
     - name: Install Micromamba
       uses: mamba-org/setup-micromamba@v1
       with:
-        environment-file: conda-lock.yml
+        environment-file: environments/conda-lock.yml
         environment-name: conda-lock-dev
 
     - name: Install conda-lock from branch
@@ -28,8 +28,8 @@ jobs:
 
     - name: Run conda-lock to recreate lockfile from scratch
       run: |
-        rm conda-lock.yml
-        conda-lock -f dev-environment.yaml -f pyproject.toml
+        rm environments/conda-lock.yml
+        conda-lock -f environments/dev-environment.yaml -f pyproject.toml
 
     - name: Open a pull request
       uses: peter-evans/create-pull-request@v5
