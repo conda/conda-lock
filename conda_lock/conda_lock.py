@@ -133,7 +133,7 @@ KIND_USE_TEXT = {
 _implicit_cuda_message = """
   'cudatoolkit' package added implicitly without specifying that cuda packages
   should be accepted.
-  Add a minimum cuda version via `--with-cuda VERSION` or via virtual packages
+  Specify a cuda version via `--with-cuda VERSION` or via virtual packages
   to suppress this warning,
   or pass `--without-cuda` to explicitly exclude cuda packages.
 """
