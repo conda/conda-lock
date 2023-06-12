@@ -309,9 +309,8 @@ def make_lock_files(  # noqa: C901
             virtual_package_spec
         )
     else:
-        if with_cuda is None:
-            cuda_specified = False
-            # the default version if cuda is unspecified
+        cuda_specified = with_cuda is not None
+        if not cuda_specified:
             with_cuda = "11.4"
         virtual_package_repo = default_virtual_package_repodata(with_cuda=with_cuda)
 
