@@ -302,17 +302,20 @@ def make_lock_files(  # noqa: C901
         YAML or JSON file(s) containing structured metadata to add to metadata section of the lockfile.
     """
 
-    cuda_specified = True
     # initialize virtual packages
     if virtual_package_spec and virtual_package_spec.exists():
         virtual_package_repo = virtual_package_repo_from_specification(
             virtual_package_spec
         )
+        cuda_specified = True
     else:
-        cuda_specified = with_cuda is not None
-        if not cuda_specified:
+        if with_cuda is None:
+            cuda_specified = False
             with_cuda = "11.4"
-        virtual_package_repo = default_virtual_package_repodata(with_cuda=with_cuda)
+        else:
+            cuda_specified = True
+
+        virtual_package_repo = default_virtual_package_repodata(cuda_version=with_cuda)
 
     required_categories = {"main"}
     if include_dev_dependencies:
