@@ -36,6 +36,7 @@ from conda_lock.models.lock_spec import (
     VCSDependency,
     VersionedDependency,
 )
+from conda_lock.src_parser.conda_common import conda_spec_to_versioned_dep
 
 
 POETRY_INVALID_EXTRA_LOC = (
@@ -279,15 +280,8 @@ def specification_with_dependencies(
         ["tool", "conda-lock", "dependencies"], toml_contents, {}
     ).items():
         if isinstance(depattrs, str):
-            conda_version = depattrs
             dependencies.append(
-                VersionedDependency(
-                    name=depname,
-                    version=conda_version,
-                    manager="conda",
-                    category="main",
-                    extras=[],
-                )
+                conda_spec_to_versioned_dep(f"{depname} {depattrs}", "main")
             )
         elif isinstance(depattrs, collections.abc.Mapping):
             if depattrs.get("source", None) == "pypi":
@@ -300,9 +294,16 @@ def specification_with_dependencies(
             if dep.name in force_pypi:
                 dep.manager = "pip"
 
+    channels = get_in(["tool", "conda-lock", "channels"], toml_contents, [])
+    try:
+        # conda-lock will use `--override-channels` so nodefaults is redundant.
+        channels.remove("nodefaults")
+    except ValueError:
+        pass
+
     return LockSpecification(
         dependencies={platform: dependencies for platform in platforms},
-        channels=get_in(["tool", "conda-lock", "channels"], toml_contents, []),
+        channels=channels,
         sources=[path],
         allow_pypi_requests=get_in(
             ["tool", "conda-lock", "allow-pypi-requests"], toml_contents, True
