@@ -319,6 +319,24 @@ def to_match_spec(conda_dep_name: str, conda_version: Optional[str]) -> str:
     return spec
 
 
+def parse_requirement_specifier(
+    requirement: str,
+) -> URLDependency:
+    """Parse a url requirement to a conda spec"""
+    requirement_specifier = requirement.split(";")[0].strip()
+    from pkg_resources import Requirement
+
+    if requirement_specifier.startswith("git+") or requirement_specifier.startswith(
+        "https://"
+    ):
+        parsed_req = Requirement.parse(
+            requirement_specifier.split("/")[-1].replace("@", "==")
+        )
+        parsed_req.url = requirement_specifier
+        return parsed_req
+    return Requirement.parse(requirement_specifier)
+
+
 def parse_python_requirement(
     requirement: str,
     manager: Literal["conda", "pip"] = "conda",
@@ -326,10 +344,7 @@ def parse_python_requirement(
     normalize_name: bool = True,
 ) -> Dependency:
     """Parse a requirements.txt like requirement to a conda spec"""
-    requirement_specifier = requirement.split(";")[0].strip()
-    from pkg_resources import Requirement
-
-    parsed_req = Requirement.parse(requirement_specifier)
+    parsed_req = parse_requirement_specifier(requirement, manager)
     name = parsed_req.unsafe_name.lower()
     collapsed_version = ",".join("".join(spec) for spec in parsed_req.specs)
     conda_version = poetry_version_to_conda_version(collapsed_version)
