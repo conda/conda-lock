@@ -735,7 +735,7 @@ def test_parse_poetry_git(poetry_pyproject_toml_git: Path):
         for dep in res.dependencies["linux-64"]
     }
 
-    assert specs["pydantic"].manager == "pip"
+    assert specs["pydantic"].vcs == "git"
 
 
 def test_parse_poetry_no_pypi(poetry_pyproject_toml_no_pypi: Path):
