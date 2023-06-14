@@ -25,6 +25,7 @@ if sys.version_info >= (3, 11):
 else:
     from tomli import load as toml_load
 
+from pkg_resources import Requirement
 from typing_extensions import Literal
 
 from conda_lock.common import get_in
@@ -113,6 +114,55 @@ def poetry_version_to_conda_version(version_string: Optional[str]) -> Optional[s
     return ",".join(output_components)
 
 
+def handle_mapping(
+    depattrs: collections.abc.Mapping,
+    depname: str,
+    path: pathlib.Path,
+    category: str,
+    in_extra: bool,
+    default_category: str,
+) -> Tuple[Optional[str], Literal["conda", "pip"], list]:
+    if "git" in depattrs:
+        url: Optional[str] = depattrs.get("git", None)
+        manager: Literal["pip", "conda"] = "pip"
+    else:
+        poetry_version_spec = depattrs.get("version", None)
+        url = depattrs.get("url", None)
+    extras = depattrs.get("extras", [])
+    optional_flag: Optional[bool] = depattrs.get("optional")
+
+    # `optional = true` must be set if dependency is
+    # inside main and part of an extra
+    if optional_flag is not True and in_extra:
+        warnings.warn(
+            POETRY_EXTRA_NOT_OPTIONAL.format(
+                depname=depname, filename=path.name, category=category
+            )
+        )
+
+    # Will ignore `optional = true` if in `tool.poetry.dependencies`
+    # but not in an extra
+    if optional_flag is True and not in_extra and category == "main":
+        warnings.warn(
+            POETRY_OPTIONAL_NO_EXTRA.format(depname=depname, filename=path.name)
+        )
+
+    # Will always ignore optional flag if not in `tool.poetry.dependencies`
+    if optional_flag is not None and default_category != "main":
+        warnings.warn(
+            POETRY_OPTIONAL_NOT_MAIN.format(
+                depname=depname, filename=path.name, category=category
+            )
+        )
+
+    # If a dependency is explicitly marked as sourced from pypi,
+    # or is a URL dependency, delegate to the pip section
+    if depattrs.get("source", None) == "pypi" or poetry_version_spec is None:
+        manager = "pip"
+    # TODO: support additional features such as markers for things like sys_platform, platform_system
+    return url, manager, extras
+
+
 def parse_poetry_pyproject_toml(
     path: pathlib.Path,
     platforms: List[str],
@@ -165,7 +215,7 @@ def parse_poetry_pyproject_toml(
             category: str = dep_to_extra.get(depname) or default_category
             manager: Literal["conda", "pip"] = default_non_conda_source
             url = None
-            extras = []
+            extras: List[Any] = []
             in_extra: bool = False
 
             # Extras can only be defined in `tool.poetry.dependencies`
@@ -179,45 +229,14 @@ def parse_poetry_pyproject_toml(
                 )
 
             if isinstance(depattrs, collections.abc.Mapping):
-                poetry_version_spec = depattrs.get("version", None)
-                url = depattrs.get("url", None)
-                extras = depattrs.get("extras", [])
-                optional_flag: Optional[bool] = depattrs.get("optional")
-
-                # `optional = true` must be set if dependency is
-                # inside main and part of an extra
-                if optional_flag is not True and in_extra:
-                    warnings.warn(
-                        POETRY_EXTRA_NOT_OPTIONAL.format(
-                            depname=depname, filename=path.name, category=category
-                        )
-                    )
-
-                # Will ignore `optional = true` if in `tool.poetry.dependencies`
-                # but not in an extra
-                if optional_flag is True and not in_extra and category == "main":
-                    warnings.warn(
-                        POETRY_OPTIONAL_NO_EXTRA.format(
-                            depname=depname, filename=path.name
-                        )
-                    )
-
-                # Will always ignore optional flag if not in `tool.poetry.dependencies`
-                if optional_flag is not None and default_category != "main":
-                    warnings.warn(
-                        POETRY_OPTIONAL_NOT_MAIN.format(
-                            depname=depname, filename=path.name, category=category
-                        )
-                    )
-
-                # If a dependency is explicitly marked as sourced from pypi,
-                # or is a URL dependency, delegate to the pip section
-                if (
-                    depattrs.get("source", None) == "pypi"
-                    or poetry_version_spec is None
-                ):
-                    manager = "pip"
-                # TODO: support additional features such as markers for things like sys_platform, platform_system
+                url, manager, extras = handle_mapping(
+                    depattrs,
+                    depname,
+                    path,
+                    category,
+                    in_extra,
+                    default_category,
+                )
 
             elif isinstance(depattrs, str):
                 poetry_version_spec = depattrs
@@ -239,7 +258,17 @@ def parse_poetry_pyproject_toml(
             else:
                 name = depname
                 version = poetry_version_spec
-            if version is None:
+
+            if "git" in depattrs and url is not None:
+                dependencies.append(
+                    VCSDependency(
+                        name=name,
+                        source=url[4:],
+                        manager=manager,
+                        vcs="git",
+                    )
+                )
+            elif version is None:
                 if url is None:
                     raise ValueError(
                         f"dependency {depname} has neither version nor url"
@@ -321,10 +350,9 @@ def to_match_spec(conda_dep_name: str, conda_version: Optional[str]) -> str:
 
 def parse_requirement_specifier(
     requirement: str,
-) -> URLDependency:
+) -> Requirement:
     """Parse a url requirement to a conda spec"""
     requirement_specifier = requirement.split(";")[0].strip()
-    from pkg_resources import Requirement
 
     if requirement_specifier.startswith("git+") or requirement_specifier.startswith(
         "https://"
@@ -344,7 +372,7 @@ def parse_python_requirement(
     normalize_name: bool = True,
 ) -> Dependency:
     """Parse a requirements.txt like requirement to a conda spec"""
-    parsed_req = parse_requirement_specifier(requirement, manager)
+    parsed_req = parse_requirement_specifier(requirement)
     name = parsed_req.unsafe_name.lower()
     collapsed_version = ",".join("".join(spec) for spec in parsed_req.specs)
     conda_version = poetry_version_to_conda_version(collapsed_version)

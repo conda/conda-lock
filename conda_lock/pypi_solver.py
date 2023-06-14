@@ -188,6 +188,56 @@ def get_package(locked: LockedDependency) -> PoetryPackage:
         return PoetryPackage(locked.name, version=locked.version)
 
 
+def get_requirements(
+    result: List,
+    platform: str,
+    pool: Pool,
+    env: Env,
+) -> List[LockedDependency]:
+    chooser = Chooser(pool, env=env)
+    requirements: List[LockedDependency] = []
+    for op in result:
+        if not isinstance(op, Uninstall) and not op.skipped:
+            # Take direct references verbatim
+            source: Optional[DependencySource] = None
+            if op.package.source_type == "url":
+                url, fragment = urldefrag(op.package.source_url)
+                hash_type, hash = fragment.split("=")
+                hash = HashModel(**{hash_type: hash})
+                source = DependencySource(type="url", url=op.package.source_url)
+            elif op.package.source_type == "git":
+                url = f"{op.package.source_type}+{op.package.source_url}@{op.package.source_resolved_reference}"
+                # TODO: FIXME git ls-remoet
+                hash = HashModel(**{"sha256": op.package.source_resolved_reference})
+                source = DependencySource(type="url", url=url)
+            # Choose the most specific distribution for the target
+            # TODO: need to handle  git here
+            # https://github.com/conda/conda-lock/blob/ac31f5ddf2951ed4819295238ccf062fb2beb33c/conda_lock/_vendor/poetry/installation/executor.py#L557
+            else:
+                link = chooser.choose_for(op.package)
+                url = link.url_without_fragment
+                hashes: Dict[str, str] = {}
+                if link.hash_name is not None and link.hash is not None:
+                    hashes[link.hash_name] = link.hash
+                hash = HashModel.parse_obj(hashes)
+
+            requirements.append(
+                LockedDependency(
+                    name=op.package.name,
+                    version=str(op.package.version),
+                    manager="pip",
+                    source=source,
+                    platform=platform,
+                    dependencies={
+                        dep.name: str(dep.constraint) for dep in op.package.requires
+                    },
+                    url=url,
+                    hash=hash,
+                )
+            )
+    return requirements
+
+
 def solve_pypi(
     pip_specs: Dict[str, lock_spec.Dependency],
     use_latest: List[str],
@@ -281,51 +331,10 @@ def solve_pypi(
     with s.use_environment(env):
         result = s.solve(use_latest=to_update)
 
-    chooser = Chooser(pool, env=env)
-
     # Extract distributions from Poetry package plan, ignoring uninstalls
     # (usually: conda package with no pypi equivalent) and skipped ops
     # (already installed)
-    requirements: List[LockedDependency] = []
-    for op in result:
-        if not isinstance(op, Uninstall) and not op.skipped:
-            # Take direct references verbatim
-            source: Optional[DependencySource] = None
-            if op.package.source_type == "url":
-                url, fragment = urldefrag(op.package.source_url)
-                hash_type, hash = fragment.split("=")
-                hash = HashModel(**{hash_type: hash})
-                source = DependencySource(type="url", url=op.package.source_url)
-            elif op.package.source_type == "git":
-                url = f"{op.package.source_type}+{op.package.source_url}@{op.package.source_resolved_reference}"
-                # TODO: FIXME git ls-remoet
-                hash = HashModel(**{"sha256": op.package.source_resolved_reference})
-                source = DependencySource(type="url", url=url)
-            # Choose the most specific distribution for the target
-            # TODO: need to handle  git here
-            # https://github.com/conda/conda-lock/blob/ac31f5ddf2951ed4819295238ccf062fb2beb33c/conda_lock/_vendor/poetry/installation/executor.py#L557
-            else:
-                link = chooser.choose_for(op.package)
-                url = link.url_without_fragment
-                hashes: Dict[str, str] = {}
-                if link.hash_name is not None and link.hash is not None:
-                    hashes[link.hash_name] = link.hash
-                hash = HashModel.parse_obj(hashes)
-
-            requirements.append(
-                LockedDependency(
-                    name=op.package.name,
-                    version=str(op.package.version),
-                    manager="pip",
-                    source=source,
-                    platform=platform,
-                    dependencies={
-                        dep.name: str(dep.constraint) for dep in op.package.requires
-                    },
-                    url=url,
-                    hash=hash,
-                )
-            )
+    requirements = get_requirements(result, platform, pool, env)
 
     # use PyPI names of conda packages to walking the dependency tree and propagate
     # categories from explicit to transitive dependencies
