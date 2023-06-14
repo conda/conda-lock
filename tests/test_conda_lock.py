@@ -470,6 +470,7 @@ def test_parse_environment_file_with_git_tag(git_tag_environment: Path):
                 extras=[],
                 source="https://github.com/pydantic/pydantic@v2.0b2",
                 vcs="git",
+                tag="v2.0b2",
             )
         ]
 

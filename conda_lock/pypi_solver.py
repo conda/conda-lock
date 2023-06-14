@@ -171,6 +171,7 @@ def get_dependency(dep: lock_spec.Dependency) -> PoetryDependency:
             name=dep.name,
             vcs=dep.vcs,
             source=dep.source,
+            rev=dep.rev,
         )
     else:
         raise ValueError(f"Unknown requirement {dep}")

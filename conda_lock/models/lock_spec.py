@@ -34,6 +34,7 @@ class URLDependency(_BaseDependency):
 class VCSDependency(_BaseDependency):
     source: str
     vcs: str
+    rev: Optional[str] = None
 
 
 Dependency = Union[VersionedDependency, URLDependency, VCSDependency]

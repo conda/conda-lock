@@ -358,8 +358,10 @@ def parse_requirement_specifier(
     """Parse a url requirement to a conda spec"""
     requirement_specifier = requirement.split(";")[0].strip()
 
-    if requirement_specifier.startswith("git+") or requirement_specifier.startswith(
-        "https://"
+    if (
+        requirement_specifier.startswith("git+")
+        or requirement_specifier.startswith("https://")
+        or requirement_specifier.startswith("ssh://")
     ):
         parsed_req = Requirement.parse(
             requirement_specifier.split("/")[-1].replace("@", "==")
@@ -367,6 +369,22 @@ def parse_requirement_specifier(
         parsed_req.url = requirement_specifier
         return parsed_req
     return Requirement.parse(requirement_specifier)
+
+
+def unpack_git_url(url: str) -> Tuple[str, Optional[str]]:
+    if url.endswith(".git"):
+        url = url[:-4]
+    if url.startswith("git+"):
+        url = url[4:]
+    rev = None
+    if "@" in url:
+        try:
+            url, rev = url.split("@")
+        except ValueError:
+            # SSH URLs can have multiple @s
+            url1, url2, rev = url.split("@")
+            url = f"{url1}@{url2}"
+    return url, rev
 
 
 def parse_python_requirement(
@@ -390,11 +408,13 @@ def parse_python_requirement(
     extras = list(parsed_req.extras)
 
     if parsed_req.url and parsed_req.url.startswith("git+"):
+        url, rev = unpack_git_url(parsed_req.url)
         return VCSDependency(
             name=conda_dep_name,
-            source=parsed_req.url[4:],
+            source=url,
             manager=manager,
             vcs="git",
+            rev=rev,
         )
     elif parsed_req.url:  # type: ignore[attr-defined]
         assert conda_version in {"", "*", None}
