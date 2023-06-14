@@ -1135,7 +1135,7 @@ def test_run_lock_with_update(
     _conda_exe_type: str,
 ):
     if platform.system().lower() == "windows":
-        if _conda_exe_type == "conda":
+        if _conda_exe_type in ("conda", "mamba"):
             pytest.skip(
                 reason="this test just takes too long on windows, due to the slow conda solver"
             )
