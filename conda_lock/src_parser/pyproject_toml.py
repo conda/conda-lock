@@ -121,10 +121,12 @@ def handle_mapping(
     category: str,
     in_extra: bool,
     default_category: str,
-) -> Tuple[Optional[str], Literal["conda", "pip"], list]:
+    manager: Literal["conda", "pip"],
+    poetry_version_spec: Optional[str],
+) -> Tuple[Optional[str], Literal["conda", "pip"], list, Optional[str]]:
     if "git" in depattrs:
         url: Optional[str] = depattrs.get("git", None)
-        manager: Literal["pip", "conda"] = "pip"
+        manager = "pip"
     else:
         poetry_version_spec = depattrs.get("version", None)
         url = depattrs.get("url", None)
@@ -160,7 +162,7 @@ def handle_mapping(
     if depattrs.get("source", None) == "pypi" or poetry_version_spec is None:
         manager = "pip"
     # TODO: support additional features such as markers for things like sys_platform, platform_system
-    return url, manager, extras
+    return url, manager, extras, poetry_version_spec
 
 
 def parse_poetry_pyproject_toml(
@@ -227,15 +229,17 @@ def parse_poetry_pyproject_toml(
                         depname=depname, filename=path.name, category=category
                     )
                 )
-
+            poetry_version_spec: Optional[str] = "None"
             if isinstance(depattrs, collections.abc.Mapping):
-                url, manager, extras = handle_mapping(
+                url, manager, extras, poetry_version_spec = handle_mapping(
                     depattrs,
                     depname,
                     path,
                     category,
                     in_extra,
                     default_category,
+                    manager,
+                    poetry_version_spec,
                 )
 
             elif isinstance(depattrs, str):
