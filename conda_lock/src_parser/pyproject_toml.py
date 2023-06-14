@@ -233,7 +233,7 @@ def parse_poetry_pyproject_toml(
                         depname=depname, filename=path.name, category=category
                     )
                 )
-            poetry_version_spec: Optional[str] = "None"
+            poetry_version_spec: Optional[str] = None
             if isinstance(depattrs, collections.abc.Mapping):
                 pvs = handle_mapping(
                     depattrs,
