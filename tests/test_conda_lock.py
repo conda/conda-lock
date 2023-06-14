@@ -468,9 +468,9 @@ def test_parse_environment_file_with_git_tag(git_tag_environment: Path):
                 manager="pip",
                 category="main",
                 extras=[],
-                source="https://github.com/pydantic/pydantic@v2.0b2",
+                source="https://github.com/pydantic/pydantic",
                 vcs="git",
-                tag="v2.0b2",
+                rev="v2.0b2",
             )
         ]
 
