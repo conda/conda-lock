@@ -33,6 +33,7 @@ from conda_lock.lookup import get_forward_lookup as get_lookup
 from conda_lock.models.lock_spec import (
     Dependency,
     LockSpecification,
+    PoetryMappedDependencySpec,
     URLDependency,
     VCSDependency,
     VersionedDependency,
@@ -123,7 +124,8 @@ def handle_mapping(
     default_category: str,
     manager: Literal["conda", "pip"],
     poetry_version_spec: Optional[str],
-) -> Tuple[Optional[str], Literal["conda", "pip"], list, Optional[str]]:
+) -> PoetryMappedDependencySpec:
+    """Handle a dependency in mapping form from a pyproject.toml file"""
     if "git" in depattrs:
         url: Optional[str] = depattrs.get("git", None)
         manager = "pip"
@@ -162,7 +164,9 @@ def handle_mapping(
     if depattrs.get("source", None) == "pypi" or poetry_version_spec is None:
         manager = "pip"
     # TODO: support additional features such as markers for things like sys_platform, platform_system
-    return url, manager, extras, poetry_version_spec
+    return PoetryMappedDependencySpec(
+        url=url, manager=manager, extras=extras, poetry_version_spec=poetry_version_spec
+    )
 
 
 def parse_poetry_pyproject_toml(
@@ -231,7 +235,7 @@ def parse_poetry_pyproject_toml(
                 )
             poetry_version_spec: Optional[str] = "None"
             if isinstance(depattrs, collections.abc.Mapping):
-                url, manager, extras, poetry_version_spec = handle_mapping(
+                pvs = handle_mapping(
                     depattrs,
                     depname,
                     path,
@@ -240,6 +244,12 @@ def parse_poetry_pyproject_toml(
                     default_category,
                     manager,
                     poetry_version_spec,
+                )
+                url, manager, extras, poetry_version_spec = (
+                    pvs.url,
+                    pvs.manager,
+                    pvs.extras,
+                    pvs.poetry_version_spec,
                 )
 
             elif isinstance(depattrs, str):

@@ -45,6 +45,13 @@ class Package(StrictModel):
     hash: str
 
 
+class PoetryMappedDependencySpec(StrictModel):
+    url: Optional[str]
+    manager: Literal["conda", "pip"]
+    extras: List
+    poetry_version_spec: Optional[str]
+
+
 class LockSpecification(BaseModel):
     dependencies: Dict[str, List[Dependency]]
     # TODO: Should we store the auth info in here?

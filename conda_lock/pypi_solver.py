@@ -195,6 +195,10 @@ def get_requirements(
     pool: Pool,
     env: Env,
 ) -> List[LockedDependency]:
+    """Extract distributions from Poetry package plan, ignoring uninstalls
+    (usually: conda package with no pypi equivalent) and skipped ops
+    (already installed)
+    """
     chooser = Chooser(pool, env=env)
     requirements: List[LockedDependency] = []
     for op in result:
@@ -332,9 +336,6 @@ def solve_pypi(
     with s.use_environment(env):
         result = s.solve(use_latest=to_update)
 
-    # Extract distributions from Poetry package plan, ignoring uninstalls
-    # (usually: conda package with no pypi equivalent) and skipped ops
-    # (already installed)
     requirements = get_requirements(result, platform, pool, env)
 
     # use PyPI names of conda packages to walking the dependency tree and propagate
