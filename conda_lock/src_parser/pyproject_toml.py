@@ -264,12 +264,14 @@ def parse_poetry_pyproject_toml(
                 version = poetry_version_spec
 
             if "git" in depattrs and url is not None:
+                url, rev = unpack_git_url(url)
                 dependencies.append(
                     VCSDependency(
                         name=name,
-                        source=url[4:],
+                        source=url,
                         manager=manager,
                         vcs="git",
+                        rev=rev,
                     )
                 )
             elif version is None:

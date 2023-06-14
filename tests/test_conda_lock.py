@@ -737,6 +737,7 @@ def test_parse_poetry_git(poetry_pyproject_toml_git: Path):
     }
 
     assert specs["pydantic"].vcs == "git"
+    assert specs["pydantic"].rev == "v2.0b2"
 
 
 def test_parse_poetry_no_pypi(poetry_pyproject_toml_no_pypi: Path):
