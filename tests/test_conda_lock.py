@@ -14,7 +14,7 @@ import uuid
 
 from glob import glob
 from pathlib import Path
-from typing import Any, Dict, List, Union
+from typing import Any, ContextManager, Dict, List, Union
 from unittest.mock import MagicMock
 from urllib.parse import urldefrag, urlsplit
 
@@ -22,6 +22,8 @@ import filelock
 import pytest
 import yaml
 
+from click.testing import CliRunner
+from click.testing import Result as CliResult
 from flaky import flaky
 from freezegun import freeze_time
 
@@ -253,6 +255,11 @@ def flit_pyproject_toml_default_pip(tmp_path: Path):
 @pytest.fixture
 def pdm_pyproject_toml_default_pip(tmp_path: Path):
     return clone_test_dir("test-pdm-default-pip", tmp_path).joinpath("pyproject.toml")
+
+
+@pytest.fixture
+def pyproject_channel_toml(tmp_path: Path):
+    return clone_test_dir("test-toml-channel", tmp_path).joinpath("pyproject.toml")
 
 
 @pytest.fixture
@@ -886,6 +893,17 @@ def test_parse_pdm_default_pip(pdm_pyproject_toml_default_pip: Path):
     assert specs["click"].manager == "pip"
 
 
+def test_parse_pyproject_channel_toml(pyproject_channel_toml: Path):
+    res = parse_pyproject_toml(pyproject_channel_toml, ["linux-64"])
+
+    specs = {
+        dep.name: typing.cast(VersionedDependency, dep)
+        for dep in res.dependencies["linux-64"]
+    }
+
+    assert specs["comet_ml"].manager == "conda"
+
+
 def test_parse_poetry_invalid_optionals(pyproject_optional_toml: Path):
     filename = pyproject_optional_toml.name
 
@@ -925,6 +943,15 @@ def test_run_lock(
     if is_micromamba(conda_exe):
         monkeypatch.setenv("CONDA_FLAGS", "-v")
     run_lock([zlib_environment], conda_exe=conda_exe)
+
+
+def test_run_lock_channel_toml(
+    monkeypatch: "pytest.MonkeyPatch", pyproject_channel_toml: Path, conda_exe: str
+):
+    monkeypatch.chdir(pyproject_channel_toml.parent)
+    if is_micromamba(conda_exe):
+        monkeypatch.setenv("CONDA_FLAGS", "-v")
+    run_lock([pyproject_channel_toml], conda_exe=conda_exe)
 
 
 def test_run_lock_with_input_metadata(
@@ -1564,6 +1591,13 @@ def test_install(
             f"Standalone conda @ '{conda_exe}' does not support materializing from environment files."
         )
 
+    root_prefix = tmp_path / "root_prefix"
+    generated_lockfile_path = tmp_path / "generated_lockfiles"
+
+    root_prefix.mkdir(exist_ok=True)
+    generated_lockfile_path.mkdir(exist_ok=True)
+    monkeypatch.chdir(generated_lockfile_path)
+
     package = "zlib"
     platform = "linux-64"
 
@@ -1575,12 +1609,6 @@ def test_install(
         + "conda-linux-64-true.lock"
         + (".yml" if kind == "env" else "")
     )
-    try:
-        os.remove(lock_filename)
-    except OSError:
-        pass
-
-    from click.testing import CliRunner
 
     with capsys.disabled():
         runner = CliRunner(mix_stderr=False)
@@ -1605,9 +1633,9 @@ def test_install(
     print(result.stderr, file=sys.stderr)
     assert result.exit_code == 0
 
-    env_name = "test_env"
+    prefix = root_prefix / "test_env"
 
-    def invoke_install(*extra_args: str):
+    def invoke_install(*extra_args: str) -> CliResult:
         with capsys.disabled():
             return runner.invoke(
                 main,
@@ -1616,13 +1644,14 @@ def test_install(
                     "--conda",
                     conda_exe,
                     "--prefix",
-                    str(tmp_path / env_name),
+                    str(prefix),
                     *extra_args,
                     lock_filename,
                 ],
                 catch_exceptions=False,
             )
 
+    context: ContextManager
     if sys.platform.lower().startswith("linux"):
         context = contextlib.nullcontext()
     else:
@@ -1642,8 +1671,8 @@ def test_install(
     if sys.platform.lower().startswith("linux"):
         assert _check_package_installed(
             package=package,
-            prefix=str(tmp_path / env_name),
-        ), f"Package {package} does not exist in {tmp_path} environment"
+            prefix=str(prefix),
+        ), f"Package {package} does not exist in {prefix} environment"
 
 
 @pytest.mark.parametrize(

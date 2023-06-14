@@ -1,0 +1,16 @@
+[tool.poetry]
+name = "conda-lock-test-poetry-optional"
+version = "0.0.1"
+description = ""
+authors = ["conda-lock"]
+
+[build-system]
+requires = ["poetry>=0.12"]
+build-backend = "poetry.masonry.api"
+
+[tool.conda-lock]
+platforms = ["linux-64"]
+channels = ["conda-forge"]
+
+[tool.conda-lock.dependencies]
+"comet_ml::comet_ml" = "3.32.0"
