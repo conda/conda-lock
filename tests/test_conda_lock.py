@@ -62,7 +62,7 @@ from conda_lock.lockfile.v2prelim.models import (
     MetadataOption,
 )
 from conda_lock.models.channel import Channel
-from conda_lock.models.lock_spec import VersionedDependency
+from conda_lock.models.lock_spec import VCSDependency, VersionedDependency
 from conda_lock.pypi_solver import parse_pip_requirement, solve_pypi
 from conda_lock.src_parser import (
     DEFAULT_PLATFORMS,
@@ -199,6 +199,11 @@ def poetry_pyproject_toml_default_pip(tmp_path: Path):
     return clone_test_dir("test-poetry-default-pip", tmp_path).joinpath(
         "pyproject.toml"
     )
+
+
+@pytest.fixture
+def poetry_pyproject_toml_git(tmp_path: Path):
+    return clone_test_dir("test-poetry-git", tmp_path).joinpath("pyproject.toml")
 
 
 @pytest.fixture
@@ -436,11 +441,13 @@ def test_parse_environment_file_with_git(git_environment: Path):
     res = parse_environment_file(git_environment, DEFAULT_PLATFORMS)
     for plat in DEFAULT_PLATFORMS:
         assert [dep for dep in res.dependencies[plat] if dep.manager == "pip"] == [
-            VersionedDependency(
+            VCSDependency(
                 name="pydantic",
                 manager="pip",
                 category="main",
                 extras=[],
+                source="https://github.com/pydantic/pydantic",
+                vcs="git",
             )
         ]
 
@@ -449,12 +456,13 @@ def test_parse_environment_file_with_git_tag(git_tag_environment: Path):
     res = parse_environment_file(git_tag_environment, DEFAULT_PLATFORMS)
     for plat in DEFAULT_PLATFORMS:
         assert [dep for dep in res.dependencies[plat] if dep.manager == "pip"] == [
-            VersionedDependency(
+            VCSDependency(
                 name="pydantic",
                 manager="pip",
                 category="main",
                 extras=[],
-                version="==v2.0b2",
+                source="https://github.com/pydantic/pydantic@v2.0b2",
+                vcs="git",
             )
         ]
 
@@ -710,6 +718,17 @@ def test_parse_poetry_default_pip(poetry_pyproject_toml_default_pip: Path):
     assert specs["toml"].manager == "pip"
     assert specs["pytest"].manager == "pip"
     assert specs["tomlkit"].manager == "pip"
+
+
+def test_parse_poetry_git(poetry_pyproject_toml_git: Path):
+    res = parse_pyproject_toml(poetry_pyproject_toml_git, ["linux-64"])
+
+    specs = {
+        dep.name: typing.cast(VersionedDependency, dep)
+        for dep in res.dependencies["linux-64"]
+    }
+
+    assert specs["pydantic"].manager == "pip"
 
 
 def test_parse_poetry_no_pypi(poetry_pyproject_toml_no_pypi: Path):
