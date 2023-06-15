@@ -112,7 +112,7 @@ package:
   version: 22.02.00
 ```
 
-The rendered lockfiles will contain substituted environment variables, so if you are making use of `conda-lock`
-in conjunction with git these should _NOT_ be checked into version control.
+Note however that the rendered lockfiles (` --kind explicit`) will contain substituted environment variables, so if you are making use of `conda-lock`
+in conjunction with git these should **NOT** be checked into version control.
 
 [anaconda.org]: https://docs.conda.io/projects/conda/en/latest/user-guide/tasks/manage-environments.html#create-env-file-manually
