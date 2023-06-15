@@ -1,0 +1,35 @@
+name: conda-lock-dev
+category: dev
+channels:
+- conda-forge
+- nodefaults
+dependencies:
+- black
+- check-manifest
+- doctr
+- flake8
+- flake8-builtins
+- flake8-comprehensions
+- flake8-mutable
+- python-build
+- freezegun
+- isort
+- mypy
+- pre-commit
+- pylint
+- pytest
+- pytest-cov
+- pytest-flake8
+- pytest-xdist
+- pytest-timeout
+- tomli
+- twine
+- wheel
+- mkdocs
+- mkdocs-material
+- mkdocs-click
+- mkdocs-include-markdown-plugin
+- flaky
+- docker-py
+- gitpython
+- pip
