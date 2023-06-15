@@ -4,6 +4,7 @@ Somewhat hacky solution to create conda lock files.
 
 import datetime
 import importlib.util
+import itertools
 import logging
 import os
 import pathlib
@@ -129,6 +130,14 @@ KIND_USE_TEXT = {
     KIND_LOCK: "conda-lock install --name YOURENV {lockfile}",
 }
 
+_implicit_cuda_message = """
+  'cudatoolkit' package added implicitly without specifying that cuda packages
+  should be accepted.
+  Specify a cuda version via `--with-cuda VERSION` or via virtual packages
+  to suppress this warning,
+  or pass `--without-cuda` to explicitly exclude cuda packages.
+"""
+
 
 def _extract_platform(line: str) -> Optional[str]:
     search = PLATFORM_PATTERN.search(line)
@@ -232,7 +241,7 @@ def fn_to_dist_name(fn: str) -> str:
     return fn
 
 
-def make_lock_files(
+def make_lock_files(  # noqa: C901
     *,
     conda: PathLike,
     src_files: List[pathlib.Path],
@@ -249,6 +258,7 @@ def make_lock_files(
     check_input_hash: bool = False,
     metadata_choices: AbstractSet[MetadataOption] = frozenset(),
     metadata_yamls: Sequence[pathlib.Path] = (),
+    with_cuda: Optional[str] = None,
 ) -> None:
     """
     Generate a lock file from the src files provided
@@ -284,17 +294,28 @@ def make_lock_files(
         Do not re-solve for each target platform for which specifications are unchanged
     metadata_choices:
         Set of selected metadata fields to generate for this lockfile.
+    with_cuda:
+        The version of cuda requested.
+        '' means no cuda.
+        None will pick a default version and warn if cuda packages are installed.
     metadata_yamls:
         YAML or JSON file(s) containing structured metadata to add to metadata section of the lockfile.
     """
 
-    # initialize virtual package fake
+    # initialize virtual packages
     if virtual_package_spec and virtual_package_spec.exists():
         virtual_package_repo = virtual_package_repo_from_specification(
             virtual_package_spec
         )
+        cuda_specified = True
     else:
-        virtual_package_repo = default_virtual_package_repodata()
+        if with_cuda is None:
+            cuda_specified = False
+            with_cuda = "11.4"
+        else:
+            cuda_specified = True
+
+        virtual_package_repo = default_virtual_package_repodata(cuda_version=with_cuda)
 
     required_categories = {"main"}
     if include_dev_dependencies:
@@ -379,6 +400,21 @@ def make_lock_files(
                 )
 
         assert lock_content is not None
+
+        # check for implicit inclusion of cudatoolkit
+        # warn if it was pulled in, but not requested explicitly
+
+        if not cuda_specified:
+            # asking for 'cudatoolkit' is explicit enough
+            cudatoolkit_requested = any(
+                pkg.name == "cudatoolkit"
+                for pkg in itertools.chain(*lock_spec.dependencies.values())
+            )
+            if not cudatoolkit_requested:
+                for package in lock_content.package:
+                    if package.name == "cudatoolkit":
+                        logger.warning(_implicit_cuda_message)
+                        break
 
         do_render(
             lock_content,
@@ -955,6 +991,7 @@ def run_lock(
     check_input_hash: bool = False,
     extras: Optional[AbstractSet[str]] = None,
     virtual_package_spec: Optional[pathlib.Path] = None,
+    with_cuda: Optional[str] = None,
     update: Optional[List[str]] = None,
     filter_categories: bool = False,
     metadata_choices: AbstractSet[MetadataOption] = frozenset(),
@@ -999,6 +1036,7 @@ def run_lock(
         platform_overrides=platforms,
         channel_overrides=channel_overrides,
         virtual_package_spec=virtual_package_spec,
+        with_cuda=with_cuda,
         update=update,
         kinds=kinds or DEFAULT_KINDS,
         lockfile_path=lockfile_path,
@@ -1150,6 +1188,20 @@ TLogLevel = Union[
     help="Metadata fields to include in lock-file",
 )
 @click.option(
+    "--with-cuda",
+    "with_cuda",
+    type=str,
+    default=None,
+    help="Specify cuda version to use in virtual packages. Avoids warning about implicit acceptance of cuda dependencies. Ignored if virtual packages are specified.",
+)
+@click.option(
+    "--without-cuda",
+    "with_cuda",
+    flag_value="",
+    default=None,
+    help="Disable cuda in virtual packages. Prevents accepting cuda variants of packages. Ignored if virtual packages are specified.",
+)
+@click.option(
     "--mdy",
     "--metadata-yaml",
     "--metadata-json",
@@ -1180,6 +1232,7 @@ def lock(
     pdb: bool,
     virtual_package_spec: Optional[pathlib.Path],
     pypi_to_conda_lookup_file: Optional[str],
+    with_cuda: Optional[str] = None,
     update: Optional[List[str]] = None,
     metadata_choices: Sequence[str] = (),
     metadata_yamls: Sequence[pathlib.Path] = (),
@@ -1248,6 +1301,7 @@ def lock(
         lockfile_path=pathlib.Path(lockfile),
         extras=extras_,
         virtual_package_spec=virtual_package_spec,
+        with_cuda=with_cuda,
         update=update,
         filter_categories=filter_categories,
         metadata_choices=metadata_enum_choices,

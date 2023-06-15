@@ -173,7 +173,8 @@ OSX_VERSIONS_X68_ARM64 = ["11.0"]
 OSX_VERSIONS_ARM64: List[str] = []
 
 
-def default_virtual_package_repodata() -> FakeRepoData:
+def default_virtual_package_repodata(cuda_version: str = "11.4") -> FakeRepoData:
+    """An empty cuda_version indicates that CUDA is unavailable."""
     """Define a reasonable modern set of virtual packages that should be safe enough to assume"""
     repodata = _init_fake_repodata()
 
@@ -212,7 +213,7 @@ def default_virtual_package_repodata() -> FakeRepoData:
         glibc_virtual, subdirs=["linux-aarch64", "linux-ppc64le", "linux-64"]
     )
 
-    for cuda_version in ["11.4"]:
+    if cuda_version != "":
         cuda_virtual = FakePackage(name="__cuda", version=cuda_version)
         repodata.add_package(
             cuda_virtual,
