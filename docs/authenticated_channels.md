@@ -78,7 +78,7 @@ Since we can generally assume that these substitutions are both volatile _and_ s
 the raw version of a url in the unified lockfile.
 
 If it encounters a channel url that looks as if it contains a credential portion (see below) it will search the currently
-available environment variables for a match with that variable. 
+available environment variables for a match with that variable.
 
 `conda-lock` will identify the following environment variables as containing credentials only if they have these *suffixes*:
 
