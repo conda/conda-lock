@@ -86,7 +86,7 @@ available environment variables for a match with that variable.
 * Passwords: `["PASSWORD", "PASS", "TOKEN", "KEY"]`.
 * Tokens: `["TOKEN", "CRED", "PASSWORD", "PASS", "KEY"]`.
 
-In the case of a match that portion of the url will be replaced with a environment variable.
+In the case of a match that portion of the url will be replaced with an environment variable.
 
 For example using this configuration in your `environment.yml`:
 
