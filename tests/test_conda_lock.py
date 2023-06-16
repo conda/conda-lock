@@ -64,7 +64,7 @@ from conda_lock.lockfile.v2prelim.models import (
     MetadataOption,
 )
 from conda_lock.models.channel import Channel
-from conda_lock.models.lock_spec import VersionedDependency
+from conda_lock.models.lock_spec import VCSDependency, VersionedDependency
 from conda_lock.pypi_solver import parse_pip_requirement, solve_pypi
 from conda_lock.src_parser import (
     DEFAULT_PLATFORMS,
@@ -204,6 +204,11 @@ def poetry_pyproject_toml_default_pip(tmp_path: Path):
 
 
 @pytest.fixture
+def poetry_pyproject_toml_git(tmp_path: Path):
+    return clone_test_dir("test-poetry-git", tmp_path).joinpath("pyproject.toml")
+
+
+@pytest.fixture
 def poetry_pyproject_toml_no_pypi(tmp_path: Path):
     return clone_test_dir("test-poetry-no-pypi", tmp_path).joinpath("pyproject.toml")
 
@@ -225,6 +230,16 @@ def poetry_pyproject_toml_no_pypi_other_projects(tmp_path: Path):
 @pytest.fixture
 def flit_pyproject_toml(tmp_path: Path):
     return clone_test_dir("test-flit", tmp_path).joinpath("pyproject.toml")
+
+
+@pytest.fixture
+def git_environment(tmp_path: Path):
+    return clone_test_dir("test-git", tmp_path).joinpath("environment.yml")
+
+
+@pytest.fixture
+def git_tag_environment(tmp_path: Path):
+    return clone_test_dir("test-git-tag", tmp_path).joinpath("environment.yml")
 
 
 @pytest.fixture
@@ -425,6 +440,37 @@ def test_parse_environment_file_with_pip(pip_environment: Path):
                 category="main",
                 extras=[],
                 version="=0.9.1",
+            )
+        ]
+
+
+def test_parse_environment_file_with_git(git_environment: Path):
+    res = parse_environment_file(git_environment, DEFAULT_PLATFORMS)
+    for plat in DEFAULT_PLATFORMS:
+        assert [dep for dep in res.dependencies[plat] if dep.manager == "pip"] == [
+            VCSDependency(
+                name="pydantic",
+                manager="pip",
+                category="main",
+                extras=[],
+                source="https://github.com/pydantic/pydantic",
+                vcs="git",
+            )
+        ]
+
+
+def test_parse_environment_file_with_git_tag(git_tag_environment: Path):
+    res = parse_environment_file(git_tag_environment, DEFAULT_PLATFORMS)
+    for plat in DEFAULT_PLATFORMS:
+        assert [dep for dep in res.dependencies[plat] if dep.manager == "pip"] == [
+            VCSDependency(
+                name="pydantic",
+                manager="pip",
+                category="main",
+                extras=[],
+                source="https://github.com/pydantic/pydantic",
+                vcs="git",
+                rev="v2.0b2",
             )
         ]
 
@@ -680,6 +726,18 @@ def test_parse_poetry_default_pip(poetry_pyproject_toml_default_pip: Path):
     assert specs["toml"].manager == "pip"
     assert specs["pytest"].manager == "pip"
     assert specs["tomlkit"].manager == "pip"
+
+
+def test_parse_poetry_git(poetry_pyproject_toml_git: Path):
+    res = parse_pyproject_toml(poetry_pyproject_toml_git, ["linux-64"])
+
+    specs = {
+        dep.name: typing.cast(VersionedDependency, dep)
+        for dep in res.dependencies["linux-64"]
+    }
+
+    assert specs["pydantic"].vcs == "git"
+    assert specs["pydantic"].rev == "v2.0b2"
 
 
 def test_parse_poetry_no_pypi(poetry_pyproject_toml_no_pypi: Path):
@@ -1077,7 +1135,7 @@ def test_run_lock_with_update(
     _conda_exe_type: str,
 ):
     if platform.system().lower() == "windows":
-        if _conda_exe_type == "conda":
+        if _conda_exe_type in ("conda", "mamba"):
             pytest.skip(
                 reason="this test just takes too long on windows, due to the slow conda solver"
             )

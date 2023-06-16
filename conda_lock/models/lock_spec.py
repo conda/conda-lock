@@ -31,12 +31,25 @@ class URLDependency(_BaseDependency):
     hashes: List[str]
 
 
-Dependency = Union[VersionedDependency, URLDependency]
+class VCSDependency(_BaseDependency):
+    source: str
+    vcs: str
+    rev: Optional[str] = None
+
+
+Dependency = Union[VersionedDependency, URLDependency, VCSDependency]
 
 
 class Package(StrictModel):
     url: str
     hash: str
+
+
+class PoetryMappedDependencySpec(StrictModel):
+    url: Optional[str]
+    manager: Literal["conda", "pip"]
+    extras: List
+    poetry_version_spec: Optional[str]
 
 
 class LockSpecification(BaseModel):

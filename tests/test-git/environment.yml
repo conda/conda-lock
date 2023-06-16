@@ -1,0 +1,7 @@
+channels:
+  - conda-forge
+dependencies:
+  - python
+  - requests
+  - pip:
+    - git+https://github.com/pydantic/pydantic
