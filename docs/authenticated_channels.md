@@ -77,25 +77,42 @@ Additionally simple auth also support the [--strip-auth, --auth and --auth-file]
 Since we can generally assume that these substitutions are both volatile _and_ secret `conda-lock` will not store
 the raw version of a url in the unified lockfile.
 
-If it encounters a channel url that looks as if it contains a credential portion it will search the currently
-available environment variables for a match with that variable.  In the case of a match that portion of the url
-will be replaced with a environment variable.
+If it encounters a channel url that looks as if it contains a credential portion (see below) it will search the currently
+available environment variables for a match with that variable.
 
-??? example "Example output in unified lockfile"
+`conda-lock` will identify the following environment variables as containing credentials only if they have these *suffixes*:
 
-    ```yaml
-    metadata:
-    channels:
-    - url: https://host.tld/t/$QUETZ_API_KEY/channel_name
-        used_env_vars:
-        - QUETZ_API_KEY
-    package:
-    - platform: linux-64
-    url: https://host.tld/t/$QUETZ_API_KEY/channel_name/linux-64/libsomethingprivate-22.02.00.tar.bz2
-    version: 22.02.00
-    ```
+* User names: `["USERNAME", "USER"]`.
+* Passwords: `["PASSWORD", "PASS", "TOKEN", "KEY"]`.
+* Tokens: `["TOKEN", "CRED", "PASSWORD", "PASS", "KEY"]`.
 
-The rendered lockfiles will contain substituted environment variables, so if you are making use of `conda-lock`
-in conjunction with git these should _NOT_ be checked into version control.
+In the case of a match that portion of the url will be replaced with an environment variable.
+
+For example using this configuration in your `environment.yml`:
+
+```yaml
+channels:
+    - https://host.tld/t/$QUETZ_API_KEY/channel_name
+    - conda-forge
+```
+
+Will result in this lock file:
+
+```yaml
+metadata:
+  channels:
+  - url: https://host.tld/t/$QUETZ_API_KEY/channel_name
+    used_env_vars:
+    - QUETZ_API_KEY
+  - url: conda-forge
+    used_env_vars: []
+package:
+- platform: linux-64
+  url: https://host.tld/t/$QUETZ_API_KEY/channel_name/linux-64/libsomethingprivate-22.02.00.tar.bz2
+  version: 22.02.00
+```
+
+Note however that the rendered lockfiles (`--kind explicit`) will contain substituted environment variables, so if you are making use of `conda-lock`
+in conjunction with git these should **NOT** be checked into version control.
 
 [anaconda.org]: https://docs.conda.io/projects/conda/en/latest/user-guide/tasks/manage-environments.html#create-env-file-manually
