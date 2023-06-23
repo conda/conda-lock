@@ -51,18 +51,16 @@ class PlatformEnv(Env):
 
     def __init__(self, python_version: str, platform: str):
         super().__init__(path=Path(sys.prefix))
-        if platform.startswith("linux-"):
-            arch = platform.split("-")[-1]
-            if arch == "64":
-                arch = "x86_64"
+        system, arch = platform.split("-")
+        if arch == "64":
+            arch = "x86_64"
+
+        if system == "linux":
             self._platforms = [
                 f"manylinux{tag}_{arch}" for tag in reversed(MANYLINUX_TAGS)
             ]
             self._platforms.append(f"linux_{arch}")
-        elif platform.startswith("osx"):
-            arch = platform.split("-")[-1]
-            if arch == "64":
-                arch = "x86_64"
+        elif system == "osx":
             self._platforms = list(mac_platforms(MACOS_VERSION, arch))
         elif platform == "win-64":
             self._platforms = ["win_amd64"]
@@ -70,15 +68,15 @@ class PlatformEnv(Env):
             raise ValueError(f"Unsupported platform '{platform}'")
         self._python_version = tuple(map(int, python_version.split(".")))
 
-        if platform.startswith("osx-"):
+        if system == "osx":
             self._sys_platform = "darwin"
             self._platform_system = "Darwin"
             self._os_name = "posix"
-        elif platform.startswith("linux-"):
+        elif system == "linux":
             self._sys_platform = "linux"
             self._platform_system = "Linux"
             self._os_name = "posix"
-        elif platform.startswith("win-"):
+        elif system == "win":
             self._sys_platform = "win32"
             self._platform_system = "Windows"
             self._os_name = "nt"
