@@ -7,7 +7,7 @@ from urllib.parse import urldefrag
 
 from clikit.api.io.flags import VERY_VERBOSE
 from clikit.io import ConsoleIO, NullIO
-from packaging.tags import compatible_tags, cpython_tags
+from packaging.tags import compatible_tags, cpython_tags, mac_platforms
 
 from conda_lock._vendor.poetry.core.packages import Dependency as PoetryDependency
 from conda_lock._vendor.poetry.core.packages import Package as PoetryPackage
@@ -40,6 +40,8 @@ if TYPE_CHECKING:
 
 # NB: in principle these depend on the glibc in the conda env
 MANYLINUX_TAGS = ["1", "2010", "2014", "_2_17"]
+# This needs to be updated periodically as new macOS versions are released.
+MACOS_VERSION = (13, 4)
 
 
 class PlatformEnv(Env):
@@ -57,17 +59,11 @@ class PlatformEnv(Env):
                 f"manylinux{tag}_{arch}" for tag in reversed(MANYLINUX_TAGS)
             ]
             self._platforms.append(f"linux_{arch}")
-        elif platform == "osx-64":
-            self._platforms = [
-                "macosx_10_9_x86_64",
-                *(f"macosx_10_{version}_universal2" for version in range(16, 3, -1)),
-                *(f"macosx_10_{version}_universal" for version in range(16, 3, -1)),
-            ]
-        elif platform == "osx-arm64":
-            self._platforms = [
-                "macosx_11_0_arm64",
-                *(f"macosx_10_{version}_universal2" for version in range(16, 3, -1)),
-            ]
+        elif platform.startswith("osx"):
+            arch = platform.split("-")[-1]
+            if arch == "64":
+                arch = "x86_64"
+            self._platforms = list(mac_platforms(MACOS_VERSION, arch))
         elif platform == "win-64":
             self._platforms = ["win_amd64"]
         else:
