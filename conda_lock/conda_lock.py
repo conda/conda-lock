@@ -1239,7 +1239,10 @@ def lock(
 ) -> None:
     """Generate fully reproducible lock files for conda environments.
 
-    By default, the lock files are written to conda-{platform}.lock. These filenames can be customized using the
+    By default, a multi-platform lock file is written to conda-lock.yml.
+
+    When choosing the "explicit" or "env" kind, lock files are written to
+    conda-{platform}.lock. These filenames can be customized using the
     --filename-template argument. The following tokens are available:
 
     \b
