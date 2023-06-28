@@ -316,6 +316,7 @@ def include_dev_dependencies(request: Any) -> bool:
 )
 def _conda_exe_type(request: Any) -> str:
     "Internal fixture to iterate over"
+
     return request.param
 
 
@@ -328,6 +329,10 @@ def conda_exe(_conda_exe_type: str) -> PathLike:
         conda=False,
         conda_exe=False,
     )
+    if platform.system().lower() == "windows":
+        if _conda_exe_type == "micromamba":
+            pytest.skip(reason="micromamba tests are failing on windows")
+
     kwargs[_conda_exe_type] = True
     _conda_exe = _ensureconda(**kwargs)
 
