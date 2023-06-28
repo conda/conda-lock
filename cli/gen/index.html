@@ -13,7 +13,7 @@
       
       
       <link rel="icon" href="../../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.4.3, mkdocs-material-9.1.16">
+      <meta name="generator" content="mkdocs-1.4.3, mkdocs-material-9.1.17">
     
     
       
@@ -687,7 +687,9 @@ and its various subcommands.</p>
 </table>
 <h3 id="conda-lock-lock">conda-lock lock</h3>
 <p>Generate fully reproducible lock files for conda environments.</p>
-<p>By default, the lock files are written to conda-{platform}.lock. These filenames can be customized using the
+<p>By default, a multi-platform lock file is written to conda-lock.yml.</p>
+<p>When choosing the "explicit" or "env" kind, lock files are written to
+conda-{platform}.lock. These filenames can be customized using the
 --filename-template argument. The following tokens are available:</p>
 <div class="highlight"><pre><span></span><code>platform: The platform this lock file was generated for (conda subdir).
 dev-dependencies: Whether or not dev dependencies are included in this lock file.
@@ -978,7 +980,7 @@ timestamp: The approximate timestamp of the output file in ISO8601 basic format.
     <script id="__config" type="application/json">{"base": "../..", "features": ["content.tabs.link", "header.autohide", "navigation.indexes", "navigation.instant", "navigation.expand"], "search": "../../assets/javascripts/workers/search.208ed371.min.js", "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}}</script>
     
     
-      <script src="../../assets/javascripts/bundle.a51614de.min.js"></script>
+      <script src="../../assets/javascripts/bundle.b425cdc4.min.js"></script>
       
     
   </body>
