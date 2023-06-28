@@ -1542,21 +1542,6 @@ def test_conda_pip_regressions_gh290(
     run_lock([spec], conda_exe=mamba_exe)
 
 
-@pytest.fixture(scope="session")
-def mamba_exe():
-    """Provides a fixture for tests that require mamba"""
-    kwargs = dict(
-        mamba=True,
-        micromamba=False,
-        conda=False,
-        conda_exe=False,
-    )
-    _conda_exe = _ensureconda(**kwargs)
-    if _conda_exe is not None:
-        return _conda_exe
-    pytest.skip("mamba is not installed")
-
-
 def _check_package_installed(package: str, prefix: str):
     import glob
 

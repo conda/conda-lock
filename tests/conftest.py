@@ -2,7 +2,7 @@ import os
 import pathlib
 import re
 
-from typing import Iterable, NamedTuple
+from typing import Iterable, NamedTuple, NoReturn
 
 import docker
 import pytest
@@ -10,6 +10,23 @@ import requests
 
 from docker.models.containers import Container
 from ensureconda.resolve import platform_subdir
+
+from conda_lock.invoke_conda import _ensureconda
+
+
+@pytest.fixture(scope="session")
+def mamba_exe() -> pathlib.Path:
+    """Provides a fixture for tests that require mamba"""
+    kwargs = dict(
+        mamba=True,
+        micromamba=False,
+        conda=False,
+        conda_exe=False,
+    )
+    _conda_exe = _ensureconda(**kwargs)
+    if _conda_exe is not None:
+        return _conda_exe
+    pytest.skip("mamba is not installed")
 
 
 class QuetzServerInfo(NamedTuple):
