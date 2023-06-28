@@ -979,7 +979,7 @@ def _render_lockfile_for_install(
 def run_lock(
     environment_files: List[pathlib.Path],
     *,
-    conda_exe: Optional[str],
+    conda_exe: Optional[PathLike],
     platforms: Optional[List[str]] = None,
     mamba: bool = False,
     micromamba: bool = False,

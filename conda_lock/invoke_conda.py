@@ -40,7 +40,7 @@ def _ensureconda(
 
 
 def _determine_conda_executable(
-    conda_executable: Optional[str], mamba: bool, micromamba: bool
+    conda_executable: Optional[PathLike], mamba: bool, micromamba: bool
 ) -> Iterator[Optional[PathLike]]:
     if conda_executable:
         if pathlib.Path(conda_executable).exists():
@@ -51,7 +51,7 @@ def _determine_conda_executable(
 
 
 def determine_conda_executable(
-    conda_executable: Optional[str], mamba: bool, micromamba: bool
+    conda_executable: Optional[PathLike], mamba: bool, micromamba: bool
 ) -> PathLike:
     for candidate in _determine_conda_executable(conda_executable, mamba, micromamba):
         if candidate is not None:
