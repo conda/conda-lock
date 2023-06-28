@@ -1,8 +1,10 @@
 import os
 import pathlib
+import platform
 import re
+import typing
 
-from typing import Iterable, NamedTuple, NoReturn
+from typing import Any, Iterable, NamedTuple, NoReturn
 
 import docker
 import pytest
@@ -11,7 +13,41 @@ import requests
 from docker.models.containers import Container
 from ensureconda.resolve import platform_subdir
 
-from conda_lock.invoke_conda import _ensureconda
+from conda_lock.invoke_conda import PathLike, _ensureconda
+
+
+@pytest.fixture(
+    scope="session",
+    params=[
+        pytest.param("conda", marks=pytest.mark.skip(reason="slow")),
+        pytest.param("mamba"),
+        pytest.param("micromamba"),
+    ],
+)
+def _conda_exe_type(request: Any) -> str:
+    "Internal fixture to iterate over"
+    return request.param
+
+
+@pytest.fixture(scope="session")
+@typing.no_type_check
+def conda_exe(_conda_exe_type: str) -> PathLike:
+    kwargs = dict(
+        mamba=False,
+        micromamba=False,
+        conda=False,
+        conda_exe=False,
+    )
+    if platform.system().lower() == "windows":
+        if _conda_exe_type == "micromamba":
+            pytest.skip(reason="micromamba tests are failing on windows")
+
+    kwargs[_conda_exe_type] = True
+    _conda_exe = _ensureconda(**kwargs)
+
+    if _conda_exe is not None:
+        return _conda_exe
+    pytest.skip(f"{_conda_exe_type} is not installed")
 
 
 @pytest.fixture(scope="session")
