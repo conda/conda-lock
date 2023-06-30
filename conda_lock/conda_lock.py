@@ -1126,6 +1126,278 @@ TLogLevel = Union[
 ]
 
 
+@main.command("from-env")
+@click.option(
+    "--conda", default=None, help="path (or name) of the conda/mamba executable to use."
+)
+@click.option(
+    "--mamba/--no-mamba",
+    default=HAVE_MAMBA,
+    help="don't attempt to use or install mamba.",
+)
+@click.option(
+    "--micromamba/--no-micromamba",
+    default=False,
+    help="don't attempt to use or install micromamba.",
+)
+@click.option("-p", "--prefix", help="Full path to environment location (i.e. prefix).")
+@click.option("-n", "--name", help="Name of environment.")
+@click.option(
+    "-k",
+    "--kind",
+    default=["lock"],
+    type=str,
+    multiple=True,
+    help="Kind of lock file(s) to generate [should be one of 'lock', 'explicit', or 'env'].",
+)
+@click.option(
+    "--filename-template",
+    default="conda-{platform}.lock",
+    help="Template for single-platform (explicit, env) lock file names. Filename must include {platform} token, and must not end in '.yml'. For a full list and description of available tokens, see the command help text.",
+)
+@click.option(
+    "--lockfile",
+    default=DEFAULT_LOCKFILE_NAME,
+    help="Path to a conda-lock.yml to create or update",
+)
+@click.option(
+    "--strip-auth",
+    is_flag=True,
+    default=False,
+    help="Strip the basic auth credentials from the lockfile.",
+)
+@click.option(
+    "--log-level",
+    help="Log level.",
+    default="INFO",
+    type=click.Choice(["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]),
+)
+@click.option(
+    "--pdb", is_flag=True, help="Drop into a postmortem debugger if conda-lock crashes"
+)
+@click.option(
+    "--md",
+    "--metadata",
+    "metadata_choices",
+    default=[],
+    multiple=True,
+    type=click.Choice([md.value for md in MetadataOption]),
+    help="Metadata fields to include in lock-file",
+)
+@click.option(
+    "--mdy",
+    "--metadata-yaml",
+    "--metadata-json",
+    "metadata_yamls",
+    default=[],
+    multiple=True,
+    type=click.Path(),
+    help="YAML or JSON file(s) containing structured metadata to add to metadata section of the lockfile.",
+)
+def from_env(
+    conda: Optional[str],
+    mamba: bool,
+    micromamba: bool,
+    prefix: Optional[str],
+    name: Optional[str],
+    kind: List[Union[Literal["lock"], Literal["env"], Literal["explicit"]]],
+    filename_template: str,
+    lockfile: PathLike,
+    strip_auth: bool,
+    log_level: TLogLevel,
+    pdb: bool,
+    metadata_choices: Sequence[str] = (),
+    metadata_yamls: Sequence[pathlib.Path] = (),
+) -> None:
+    """Generate fully reproducible lock files from an existing conda environment.
+
+    Pip installed packages in the environment are not included in the lock file.
+
+    By default, a multi-platform lock file is written to conda-lock.yml.
+
+    When choosing the "explicit" or "env" kind, lock files are written to
+    conda-{platform}.lock. These filenames can be customized using the
+    --filename-template argument. The following tokens are available:
+
+    \b
+        platform: The platform this lock file was generated for (conda subdir).
+        dev-dependencies: Whether or not dev dependencies are included in this lock file.
+        input-hash: A sha256 hash of the lock file input specification.
+        version: The version of conda-lock used to generate this lock file.
+        timestamp: The approximate timestamp of the output file in ISO8601 basic format.
+    """
+    logging.basicConfig(level=log_level)
+    if pdb:
+        sys.excepthook = _handle_exception_post_mortem
+    conda = determine_conda_executable(conda, mamba=mamba, micromamba=micromamba)
+    env_info = _conda_env_export(conda, prefix, name)
+    packages, platform = _read_conda_meta_dir(env_info["prefix"])
+    channels = env_info.get("channels", [])
+    metadata_enum_choices = set(MetadataOption(md) for md in metadata_choices)
+    special_metadata = _get_special_metadata(metadata_enum_choices, metadata_yamls)
+    lock_content = Lockfile(
+        package=packages,
+        metadata=LockMeta(
+            content_hash={},
+            channels=channels,
+            platforms=[platform],
+            sources=[],
+            git_metadata=special_metadata["git"],
+            time_metadata=special_metadata["time"],
+            inputs_metadata=special_metadata["inputs"],
+            custom_metadata=special_metadata["custom"],
+        ),
+    )
+    if "lock" in kind:
+        write_conda_lock_file(
+            lock_content,
+            pathlib.Path(lockfile),
+            metadata_choices=metadata_choices,
+        )
+        print(
+            " - Install lock using:",
+            KIND_USE_TEXT["lock"].format(lockfile=str(lockfile)),
+            file=sys.stderr,
+        )
+    if strip_auth:
+        with tempfile.TemporaryDirectory() as tempdir:
+            filename_template_temp = f"{tempdir}/{filename_template.split('/')[-1]}"
+            do_render(
+                lock_content,
+                kinds=[k for k in kind if k != "lock"],
+                filename_template=filename_template_temp,
+            )
+            filename_template_dir = "/".join(filename_template.split("/")[:-1])
+            for file in os.listdir(tempdir):
+                lockfile = read_file(os.path.join(tempdir, file))
+                lockfile = _strip_auth_from_lockfile(lockfile)
+                write_file(lockfile, os.path.join(filename_template_dir, file))
+    else:
+        do_render(
+            lock_content,
+            kinds=[k for k in kind if k != "lock"],
+            filename_template=filename_template,
+        )
+
+
+def _conda_env_export(
+    conda,
+    prefix: Optional[str],
+    name: Optional[str],
+) -> Dict[str, Any]:
+    import subprocess
+    import json
+    args = [
+        conda,
+        "env",
+        "export",
+        "--json",
+        "--ignore-channels",
+    ]
+    if prefix:
+        args.extend(["--prefix", prefix])
+    if name:
+        args.extend(["--name", name])
+    proc = subprocess.run(
+        args,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        encoding="utf8",
+        check=True,
+    )
+    # TODO error checking here
+    env_info = json.loads(proc.stdout)
+    return env_info
+
+
+def _read_conda_meta_dir(prefix: str) -> List[LockedDependency]:
+    import json
+    from conda_lock.lockfile.v2prelim.models import HashModel
+    from conda_lock._vendor.conda.models.match_spec import MatchSpec
+    subdirs = set()
+    packages : List[LockedDependency] = []
+    meta_path = pathlib.Path(prefix) / "conda-meta"
+    for fname in meta_path.glob("*.json"):
+        with open(fname) as fh:
+            pkg_meta = json.load(fh)
+        # refactor into common function which can be used by conda_solver.solve_conda
+        dependencies = {}
+        for dep in pkg_meta.get("depends", []):
+            matchspec = MatchSpec(dep)
+            name = matchspec.name
+            version = (
+                matchspec.version.spec_str if matchspec.version is not None else ""
+            )
+            dependencies[name] = version
+        subdirs.add(pkg_meta["subdir"])
+        packages.append(LockedDependency(
+            name=pkg_meta["name"],
+            version=pkg_meta["version"],
+            manager="conda",
+            platform="unknown",
+            dependencies=dependencies,
+            url=pkg_meta["url"],
+            hash=HashModel(
+                md5=pkg_meta.get("md5"),
+                sha256=pkg_meta.get("sha256")
+            ),
+        ))
+    # fill in the platform for all packages
+    if "noarch" in subdirs:
+        subdirs.remove("noarch")
+    if len(subdirs) > 1:
+        raise ValueError(f"Packages for multiple platforms ({subdirs}) installed in environment.")
+    platform = subdirs.pop()
+    for package in packages:
+        package.platform = platform
+    return packages, platform
+
+
+def _get_special_metadata(
+    metadata_choices: AbstractSet[MetadataOption] = frozenset(),
+    metadata_yamls: Sequence[pathlib.Path] = (),
+) -> Dict[str, Any]:
+    # TODO: refactor into function for reuse in create_lockfile_from_spec
+    if MetadataOption.TimeStamp in metadata_choices:
+        time_metadata = TimeMeta.create()
+    else:
+        time_metadata = None
+
+    if metadata_choices & {
+        MetadataOption.GitUserEmail,
+        MetadataOption.GitUserName,
+        MetadataOption.GitSha,
+    }:
+        if not importlib.util.find_spec("git"):
+            raise RuntimeError(
+                "The GitPython package is required to read Git metadata."
+            )
+        git_metadata = GitMeta.create(
+            metadata_choices=metadata_choices,
+            src_files=spec.sources,
+        )
+    else:
+        git_metadata = None
+
+    if metadata_choices & {MetadataOption.InputSha, MetadataOption.InputMd5}:
+        inputs_metadata: Optional[Dict[str, InputMeta]] = {
+            meta_src: InputMeta.create(
+                metadata_choices=metadata_choices, src_file=src_file
+            )
+            for meta_src, src_file in meta_sources.items()
+        }
+    else:
+        inputs_metadata = None
+
+    custom_metadata = get_custom_metadata(metadata_yamls=metadata_yamls)
+    return {
+        "git": git_metadata,
+        "time": time_metadata,
+        "inputs": inputs_metadata,
+        "custom": custom_metadata,
+    }
+
+
 @main.command("lock")
 @click.option(
     "--conda", default=None, help="path (or name) of the conda/mamba executable to use."
