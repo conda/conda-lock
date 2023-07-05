@@ -51,12 +51,7 @@ from conda_lock.errors import (
     MissingEnvVarError,
     PlatformValidationError,
 )
-from conda_lock.invoke_conda import (
-    PathLike,
-    _ensureconda,
-    is_micromamba,
-    reset_conda_pkgs_dir,
-)
+from conda_lock.invoke_conda import is_micromamba, reset_conda_pkgs_dir
 from conda_lock.lockfile import parse_conda_lock_file
 from conda_lock.lockfile.v2prelim.models import (
     HashModel,
@@ -153,13 +148,6 @@ def pip_environment(tmp_path: Path):
 @pytest.fixture
 def pip_environment_different_names_same_deps(tmp_path: Path):
     return clone_test_dir("test-pypi-resolve-namediff", tmp_path).joinpath(
-        "environment.yml"
-    )
-
-
-@pytest.fixture
-def pip_environment_regression_gh155(tmp_path: Path):
-    return clone_test_dir("test-pypi-resolve-gh155", tmp_path).joinpath(
         "environment.yml"
     )
 
@@ -304,41 +292,6 @@ def multi_source_env(tmp_path: Path):
 )
 def include_dev_dependencies(request: Any) -> bool:
     return request.param
-
-
-@pytest.fixture(
-    scope="session",
-    params=[
-        pytest.param("conda", marks=pytest.mark.skip(reason="slow")),
-        pytest.param("mamba"),
-        pytest.param("micromamba"),
-    ],
-)
-def _conda_exe_type(request: Any) -> str:
-    "Internal fixture to iterate over"
-
-    return request.param
-
-
-@pytest.fixture(scope="session")
-@typing.no_type_check
-def conda_exe(_conda_exe_type: str) -> PathLike:
-    kwargs = dict(
-        mamba=False,
-        micromamba=False,
-        conda=False,
-        conda_exe=False,
-    )
-    if platform.system().lower() == "windows":
-        if _conda_exe_type == "micromamba":
-            pytest.skip(reason="micromamba tests are failing on windows")
-
-    kwargs[_conda_exe_type] = True
-    _conda_exe = _ensureconda(**kwargs)
-
-    if _conda_exe is not None:
-        return _conda_exe
-    pytest.skip(f"{_conda_exe_type} is not installed")
 
 
 JSON_FIELDS: Dict[str, str] = {"json_unique_field": "test1", "common_field": "test2"}
@@ -1265,17 +1218,6 @@ def test_run_lock_with_pip_environment_different_names_same_deps(
     run_lock([pip_environment_different_names_same_deps], conda_exe=conda_exe)
 
 
-def test_run_lock_regression_gh155(
-    monkeypatch: "pytest.MonkeyPatch",
-    pip_environment_regression_gh155: Path,
-    conda_exe: str,
-):
-    monkeypatch.chdir(pip_environment_regression_gh155.parent)
-    if is_micromamba(conda_exe):
-        monkeypatch.setenv("CONDA_FLAGS", "-v")
-    run_lock([pip_environment_regression_gh155], conda_exe=conda_exe)
-
-
 def test_run_lock_uppercase_pip(
     monkeypatch: "pytest.MonkeyPatch",
     env_with_uppercase_pip: Path,
@@ -1519,27 +1461,6 @@ def test_aggregate_lock_specs_invalid_channels():
         agg_spec = aggregate_lock_specs(
             [base_spec, add_conda_forge, add_pytorch], platforms=[]
         )
-
-
-@pytest.mark.parametrize(
-    ["test_dir", "filename"],
-    [
-        (["test-pypi-resolve-gh290", "pyproject"], "pyproject.toml"),
-        (["test-pypi-resolve-gh290", "tzdata"], "environment.yaml"),
-        (["test-pypi-resolve-gh290", "wdl"], "environment.yaml"),
-    ],
-)
-def test_conda_pip_regressions_gh290(
-    tmp_path: Path,
-    mamba_exe: str,
-    monkeypatch: "pytest.MonkeyPatch",
-    test_dir: List[str],
-    filename: str,
-):
-    """Simple test that asserts that these engieonments can be locked"""
-    spec = clone_test_dir(test_dir, tmp_path).joinpath(filename)
-    monkeypatch.chdir(spec.parent)
-    run_lock([spec], conda_exe=mamba_exe)
 
 
 def _check_package_installed(package: str, prefix: str):
