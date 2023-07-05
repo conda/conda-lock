@@ -88,6 +88,7 @@ jobs:
             pytest-xdist
 
       - name: Install dev deps
+        shell: bash -eo pipefail -l {0}
         run: |
           set -x
           echo "${PATH}"
@@ -96,13 +97,13 @@ jobs:
           python -m pip install -r requirements-dev.txt
 
       - name: install conda-lock
-        shell: bash -l {0}
+        shell: bash -eo pipefail -l {0}
         run: |
           which pip
           pip install -e . --force-reinstall
 
       - name: run-test
-        shell: bash -l {0}
+        shell: bash -eo pipefail -l {0}
         run: |
           cp pyproject.toml "${RUNNER_TEMP}/"
           cp -a tests "${RUNNER_TEMP}/"
@@ -116,7 +117,7 @@ jobs:
       - uses: codecov/codecov-action@v3
 
       - name: test-gdal
-        shell: bash -l {0}
+        shell: bash -eo pipefail -l {0}
         run: |
           pushd "${RUNNER_TEMP}/tests/gdal"
           export TMPDIR="${RUNNER_TEMP}"
