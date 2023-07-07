@@ -19,6 +19,10 @@ class _BaseDependency(StrictModel):
     category: str = "main"
     extras: List[str] = []
 
+    @validator("extras")
+    def sorted_extras(cls, v: List[str]) -> List[str]:
+        return sorted(v)
+
 
 class VersionedDependency(_BaseDependency):
     version: str

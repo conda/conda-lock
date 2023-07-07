@@ -153,6 +153,13 @@ def pip_environment_different_names_same_deps(tmp_path: Path):
 
 
 @pytest.fixture
+def pip_environment_with_extras(tmp_path: Path):
+    return clone_test_dir("test-pypi-resolve-gh449", tmp_path).joinpath(
+        "environment.yml"
+    )
+
+
+@pytest.fixture
 def pip_local_package_environment(tmp_path: Path):
     return clone_test_dir("test-local-pip", tmp_path).joinpath("environment.yml")
 
@@ -398,6 +405,20 @@ def test_parse_environment_file_with_pip(pip_environment: Path):
                 category="main",
                 extras=[],
                 version="=0.9.1",
+            )
+        ]
+
+
+def test_parse_environment_file_with_pip_extras(pip_environment_with_extras: Path):
+    res = parse_environment_file(pip_environment_with_extras, DEFAULT_PLATFORMS)
+    for plat in DEFAULT_PLATFORMS:
+        assert [dep for dep in res.dependencies[plat] if dep.manager == "pip"] == [
+            VersionedDependency(
+                name="pydantic",
+                manager="pip",
+                category="main",
+                extras=["dotenv", "email"],
+                version="=1.10.10",
             )
         ]
 
