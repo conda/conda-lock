@@ -1,0 +1,7 @@
+dependencies:
+  - python=3.10
+  - pip
+  - pip:
+    - pydantic[email,dotenv]==1.10.10
+channels:
+  - defaults
