@@ -492,14 +492,7 @@ def update_specs_for_arch(
                     f"Could not lock the environment for platform {platform}: {err_json.get('message')}"
                 ) from exc
 
-            conda_update_output = proc.stdout
-
-            # <https://github.com/conda/conda-lock/pull/448#issuecomment-1627530087>
-            conda_update_output = conda_update_output.replace(
-                "No package record found!", ""
-            )
-
-            dryrun_install: DryRunInstall = json.loads(conda_update_output)
+            dryrun_install: DryRunInstall = json.loads(extract_json_object(proc.stdout))
         else:
             dryrun_install = {"actions": {"LINK": [], "FETCH": []}}
 
