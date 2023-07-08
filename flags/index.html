@@ -808,11 +808,11 @@ them into the solution environment with a reasonable guess at what a default sys
 <div class="highlight"><span class="filename">virtual-packages.yml</span><pre><span></span><code><span class="nt">subdirs</span><span class="p">:</span>
 <span class="w">  </span><span class="nt">linux-64</span><span class="p">:</span>
 <span class="w">    </span><span class="nt">packages</span><span class="p">:</span>
-<span class="w">      </span><span class="nt">__glibc</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">2.17</span>
-<span class="w">      </span><span class="nt">__cuda</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">11.4</span>
+<span class="w">      </span><span class="nt">__glibc</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;2.17&quot;</span>
+<span class="w">      </span><span class="nt">__cuda</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;11.4&quot;</span>
 <span class="w">  </span><span class="nt">win-64</span><span class="p">:</span>
 <span class="w">    </span><span class="nt">packages</span><span class="p">:</span>
-<span class="w">      </span><span class="nt">__cuda</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">11.4</span>
+<span class="w">      </span><span class="nt">__cuda</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;11.4&quot;</span>
 </code></pre></div>
 <p>conda-lock will automatically use a <code>virtual-packages.yml</code> it finds in the the current working directory.  Alternatively one can be specified
 explicitly via the flag.</p>
