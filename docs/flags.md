@@ -145,11 +145,11 @@ If you want to override which virtual packages are injected you can create a vir
 subdirs:
   linux-64:
     packages:
-      __glibc: 2.17
-      __cuda: 11.4
+      __glibc: "2.17"
+      __cuda: "11.4"
   win-64:
     packages:
-      __cuda: 11.4
+      __cuda: "11.4"
 ```
 
 conda-lock will automatically use a `virtual-packages.yml` it finds in the the current working directory.  Alternatively one can be specified
