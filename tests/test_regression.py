@@ -12,6 +12,9 @@ import pytest
 
 from conda_lock.conda_lock import run_lock
 from conda_lock.invoke_conda import is_micromamba
+from conda_lock.models.lock_spec import VersionedDependency
+from conda_lock.src_parser import DEFAULT_PLATFORMS
+from conda_lock.src_parser.environment_yaml import parse_environment_file
 
 
 TEST_DIR = Path(__file__).parent
@@ -88,3 +91,24 @@ def test_run_lock_regression_gh155(
     if is_micromamba(conda_exe):
         monkeypatch.setenv("CONDA_FLAGS", "-v")
     run_lock([pip_environment_regression_gh155], conda_exe=conda_exe)
+
+
+@pytest.fixture
+def pip_environment_regression_gh449(tmp_path: Path):
+    return clone_test_dir("test-pypi-resolve-gh449", tmp_path).joinpath(
+        "environment.yml"
+    )
+
+
+def test_pip_environment_regression_gh449(pip_environment_regression_gh449: Path):
+    res = parse_environment_file(pip_environment_regression_gh449, DEFAULT_PLATFORMS)
+    for plat in DEFAULT_PLATFORMS:
+        assert [dep for dep in res.dependencies[plat] if dep.manager == "pip"] == [
+            VersionedDependency(
+                name="pydantic",
+                manager="pip",
+                category="main",
+                extras=["dotenv", "email"],
+                version="=1.10.10",
+            )
+        ]

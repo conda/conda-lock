@@ -1,4 +1,4 @@
 subdirs:
   linux-64:
     packages:
-      __glibc: 2.11
+      __glibc: "2.11"
