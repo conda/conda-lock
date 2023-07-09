@@ -561,6 +561,7 @@ def fake_conda_environment(
             channel = urlunsplit(
                 (url.scheme, url.hostname, str(path.parent), None, None)
             )
+            file_name = path.name
             while path.suffix in {".tar", ".bz2", ".gz", ".conda"}:
                 path = path.with_suffix("")
             build = path.name.split("-")[-1]
@@ -577,6 +578,7 @@ def fake_conda_environment(
                 "build_number": build_number,
                 "version": dep.version,
                 "subdir": path.parent.name,
+                "fn": file_name,
                 "depends": [f"{k} {v}".strip() for k, v in dep.dependencies.items()],
             }
             # mamba requires these to be stringlike so null are not allowed here
