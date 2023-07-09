@@ -492,7 +492,7 @@ def update_specs_for_arch(
                     f"Could not lock the environment for platform {platform}: {err_json.get('message')}"
                 ) from exc
 
-            dryrun_install: DryRunInstall = json.loads(extract_json_object(proc.stdout))
+            dryrun_install: DryRunInstall = json.loads(proc.stdout)
         else:
             dryrun_install = {"actions": {"LINK": [], "FETCH": []}}
 
