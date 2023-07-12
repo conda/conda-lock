@@ -74,17 +74,19 @@ def join_version_components(pieces: Sequence[Union[str, int]]) -> str:
 
 
 def normalize_pypi_name(name: str) -> str:
-    name = name.replace("_", "-").lower()
-    if name in get_lookup():
-        lookup = get_lookup()[name]
+    cname = canonicalize_pypi_name(name)
+    if cname in get_lookup():
+        lookup = get_lookup()[cname]
         res = lookup.get("conda_name") or lookup.get("conda_forge")
         if res is not None:
             return res
         else:
-            logging.warning(f"Could not find conda name for {name}. Assuming identity.")
-            return name
+            logging.warning(
+                f"Could not find conda name for {cname}. Assuming identity."
+            )
+            return cname
     else:
-        return name
+        return cname
 
 
 def poetry_version_to_conda_version(version_string: Optional[str]) -> Optional[str]:
@@ -377,6 +379,8 @@ def parse_requirement_specifier(
         # Handle the case where only the URL is specified without a package name
         repo_name_and_maybe_tag = requirement.split("/")[-1]
         repo_name = repo_name_and_maybe_tag.split("@")[0]
+        if repo_name.endswith(".git"):
+            repo_name = repo_name[:-4]
         # Use the repo name as a placeholder for the package name
         return Requirement(f"{repo_name} @ {requirement}")
     else:
