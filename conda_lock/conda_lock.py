@@ -15,6 +15,7 @@ import tempfile
 
 from contextlib import contextmanager
 from functools import partial
+from importlib.metadata import distribution
 from types import TracebackType
 from typing import (
     AbstractSet,
@@ -32,7 +33,6 @@ from typing import (
 from urllib.parse import urlsplit
 
 import click
-import pkg_resources
 import yaml
 
 from ensureconda.api import ensureconda
@@ -482,7 +482,7 @@ def do_render(
                     "platform": plat,
                     "dev-dependencies": str(include_dev_dependencies).lower(),
                     "input-hash": lockfile.metadata.content_hash,
-                    "version": pkg_resources.get_distribution("conda_lock").version,
+                    "version": distribution("conda_lock").version,
                     "timestamp": datetime.datetime.utcnow().strftime("%Y%m%dT%H%M%SZ"),
                 }
 
