@@ -1,0 +1,708 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+      
+      
+      
+      
+      <link rel="icon" href="../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.4.3, mkdocs-material-9.1.18">
+    
+    
+      
+        <title>conda-lock scipy 2023 virtual poster - conda-lock</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.26e3688c.min.css">
+      
+      
+
+    
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce((e,_)=>(e<<5)-e+_.charCodeAt(0),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+    
+  </head>
+  
+  
+    <body dir="ltr">
+  
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&"object"==typeof palette.color)for(var key of Object.keys(palette.color))document.body.setAttribute("data-md-color-"+key,palette.color[key])</script>
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#conda-lock-scipy-2023-virtual-poster" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href=".." title="conda-lock" class="md-header__button md-logo" aria-label="conda-lock" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54Z"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3V6m0 5h18v2H3v-2m0 5h18v2H3v-2Z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            conda-lock
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              conda-lock scipy 2023 virtual poster
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+    
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/conda/conda-lock" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 496 512"><!--! Font Awesome Free 6.4.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2023 Fonticons, Inc.--><path d="M165.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6zm-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3zm44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9zM244.8 8C106.1 8 0 113.3 0 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C428.2 457.8 496 362.9 496 252 496 113.3 383.5 8 244.8 8zM97.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1zm-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7zm32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1zm-11.4-14.7c-1.6 1-1.6 3.6 0 5.9 1.6 2.3 4.3 3.3 5.6 2.3 1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2z"/></svg>
+  </div>
+  <div class="md-source__repository">
+    GitHub
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href=".." title="conda-lock" class="md-nav__button md-logo" aria-label="conda-lock" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54Z"/></svg>
+
+    </a>
+    conda-lock
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/conda/conda-lock" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 496 512"><!--! Font Awesome Free 6.4.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2023 Fonticons, Inc.--><path d="M165.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6zm-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3zm44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9zM244.8 8C106.1 8 0 113.3 0 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C428.2 457.8 496 362.9 496 252 496 113.3 383.5 8 244.8 8zM97.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1zm-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7zm32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1zm-11.4-14.7c-1.6 1-1.6 3.6 0 5.9 1.6 2.3 4.3 3.3 5.6 2.3 1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2z"/></svg>
+  </div>
+  <div class="md-source__repository">
+    GitHub
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+      
+
+  
+  
+  
+    <li class="md-nav__item">
+      <a href=".." class="md-nav__link">
+        Home
+      </a>
+    </li>
+  
+
+    
+      
+      
+      
+
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../getting_started/" class="md-nav__link">
+        Installation
+      </a>
+    </li>
+  
+
+    
+      
+      
+      
+
+  
+  
+  
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+      
+      
+      
+        
+      
+      <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3" >
+      
+      
+        
+          
+        
+          
+        
+          
+        
+      
+      
+        <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+          Source Formats
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+        <label class="md-nav__title" for="__nav_3">
+          <span class="md-nav__icon md-icon"></span>
+          Source Formats
+        </label>
+        <ul class="md-nav__list" data-md-scrollfix>
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../src_environment_yml/" class="md-nav__link">
+        environment.yml
+      </a>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../src_meta_yaml/" class="md-nav__link">
+        meta.yaml
+      </a>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../src_pyproject/" class="md-nav__link">
+        pyproject.toml
+      </a>
+    </li>
+  
+
+            
+          
+        </ul>
+      </nav>
+    </li>
+  
+
+    
+      
+      
+      
+
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../output/" class="md-nav__link">
+        Output Formats
+      </a>
+    </li>
+  
+
+    
+      
+      
+      
+
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../pip/" class="md-nav__link">
+        Pip integration
+      </a>
+    </li>
+  
+
+    
+      
+      
+      
+
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../flags/" class="md-nav__link">
+        Flags
+      </a>
+    </li>
+  
+
+    
+      
+      
+      
+
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../authenticated_channels/" class="md-nav__link">
+        Authenticated Channels
+      </a>
+    </li>
+  
+
+    
+      
+      
+      
+
+  
+  
+  
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+      
+      
+      
+        
+      
+      <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_8" >
+      
+      
+        
+          
+        
+          
+        
+      
+      
+        <label class="md-nav__link" for="__nav_8" id="__nav_8_label" tabindex="0">
+          Usage
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_8_label" aria-expanded="false">
+        <label class="md-nav__title" for="__nav_8">
+          <span class="md-nav__icon md-icon"></span>
+          Usage
+        </label>
+        <ul class="md-nav__list" data-md-scrollfix>
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../docker/" class="md-nav__link">
+        Docker
+      </a>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../cli/gen/" class="md-nav__link">
+        CLI Reference
+      </a>
+    </li>
+  
+
+            
+          
+        </ul>
+      </nav>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#abstract" class="md-nav__link">
+    Abstract
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#why-conda" class="md-nav__link">
+    Why conda?
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#why-conda-lock" class="md-nav__link">
+    Why conda-lock?
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#design-principles" class="md-nav__link">
+    Design principles
+  </a>
+  
+    <nav class="md-nav" aria-label="Design principles">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1-the-environment-created-by-conda-lock-should-be-consistent-across-all-machines-on-a-given-platform" class="md-nav__link">
+    1. The environment created by conda lock should be consistent across all machines on a given platform
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2-conda-lock-should-be-adaptible-to-support-alternate-conda-frontends-provided-they-adhere-to-the-same-cli-patterns-as-conda" class="md-nav__link">
+    2. Conda-lock should be adaptible to support alternate conda frontends provided they adhere to the same cli patterns as conda
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#3-at-installation-time-conda-lock-should-not-be-needed-installing-a-locked-set-of-dependencies-should-not-invoke-the-conda-solver-as-that-would-make-the-environment-created-no-longer-reproducible" class="md-nav__link">
+    3. At installation time conda-lock should not be needed.  Installing a locked set of dependencies should not invoke the conda solver as that would make the environment created no longer reproducible
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#4-conda-lock-should-be-able-to-solve-for-non-native-platforms" class="md-nav__link">
+    4. conda-lock should be able to solve for non-native platforms
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#5-subprocessing-and-code-vending" class="md-nav__link">
+    5. Subprocessing and code-vending
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#6-meeting-users-where-they-are" class="md-nav__link">
+    6. Meeting users where they are
+  </a>
+  
+    <nav class="md-nav" aria-label="6. Meeting users where they are">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#pip-conda-forge-crosswalk" class="md-nav__link">
+    pip &lt;-&gt; conda-forge crosswalk
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#common-usage-patterns-observed" class="md-nav__link">
+    Common usage patterns observed
+  </a>
+  
+    <nav class="md-nav" aria-label="Common usage patterns observed">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#human-refreshes" class="md-nav__link">
+    Human refreshes
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#consistent-citest-environments" class="md-nav__link">
+    Consistent CI/test environments
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#container-building" class="md-nav__link">
+    Container building
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+  
+  
+
+
+<h1 id="conda-lock-scipy-2023-virtual-poster">conda-lock scipy 2023 virtual poster</h1>
+<h2 id="abstract">Abstract</h2>
+<p><a href="https://conda.github.io/conda-lock"><code>conda-lock</code></a> is a tool to designed to aid reproducible science and analysis by providing a reliable and easy to use means to ensure consistent creation of computing environments.</p>
+<p>This is not a document on how to use <code>conda-lock</code>, for that consult the <a href="https://conda.github.io/conda-lock/">documentation</a>.</p>
+<p>This document covers the design consideration as well as common usage patterns.</p>
+<h2 id="why-conda">Why conda?</h2>
+<p>A large number of commonly used libraries in python make entensive use of extension modules written in a different language (usually C/C++).  Building these libraries has historically been challenging since the python package management tools (like pip) cannot be used to the  dependencies that are needed by native compilers.</p>
+<p>Conda solves this by building <em>both</em> the native libraries and the python libraries that make use of these.  It performs a few adjustments to the compiled artifacts to ensure that the built binaries can be more easily intalled without needing to recompile.</p>
+<h2 id="why-conda-lock">Why conda-lock?</h2>
+<p>Conda was designed as a developer facing tool, much like its more pure python sibling <code>pip</code>.  This means that when trying to use <code>conda</code> in cases where reproducibility is required it has a number of short-comings that can appear from time to time which can result in inconsistent execution environments.</p>
+<p>conda-lock addresses these shortcomings by leaning on existing package management tools (conda, mamba and poetry) and the concept of a dependency lockfile (popularized by systems like npm and cargo) and allowing users to generate a lockfile that covers both conda and PyPI packages.</p>
+<h2 id="design-principles">Design principles</h2>
+<h3 id="1-the-environment-created-by-conda-lock-should-be-consistent-across-all-machines-on-a-given-platform">1. The environment created by conda lock should be consistent across all machines on a given platform</h3>
+<p>Conda packages are platform-specific binaries we cannot guarantee any resolution more general than platform level.</p>
+<h3 id="2-conda-lock-should-be-adaptible-to-support-alternate-conda-frontends-provided-they-adhere-to-the-same-cli-patterns-as-conda">2. Conda-lock should be adaptible to support alternate conda frontends provided they adhere to the same cli patterns as conda</h3>
+<p>Since conda-lock relies on subprocess based execution, the library does not need to be altered to support additional conda solvers, provided that they implement a sufficiently compatible comnmand line interface</p>
+<h3 id="3-at-installation-time-conda-lock-should-not-be-needed-installing-a-locked-set-of-dependencies-should-not-invoke-the-conda-solver-as-that-would-make-the-environment-created-no-longer-reproducible">3. At installation time conda-lock should not be needed.  Installing a locked set of dependencies should not invoke the conda solver as that would make the environment created no longer reproducible</h3>
+<p>Conda-lock makes use of some lesser-known features of conda to provide an explicit installation file that can be consumed by conda to perform a solve-less installation</p>
+<p>Additionally mamba, micromamba support the conda-lock format natively and can create an environment from that directly.</p>
+<h3 id="4-conda-lock-should-be-able-to-solve-for-non-native-platforms">4. conda-lock should be able to solve for non-native platforms</h3>
+<p>Developers of software are frequently running different operating systems than those used by production systems.</p>
+<p>Since the lockfile generated by conda-lock is merely a set of packages to install (and its installation order), conda-lock forces the conda frontend and poetry to perform the dependency resolution as if it were running on that foreign platform.</p>
+<p>Whilst this does not guarantee that the versions of dependencies resolved for all platforms are identical, by being able to perform the package reolution at the same time for all target platforms it drastically increases the chances of a mostly compatible set of packages.</p>
+<h3 id="5-subprocessing-and-code-vending">5. Subprocessing and code-vending</h3>
+<p>Both conda and mamba's user-facing interface takes the form of a command line-based application.  This interface has remained consistent and stable thoughout most of conda's existance.  This interface stability allows tools like conda-like to reliably invoke conda/mamba as a subprocess instead of needing to be subject to breaking changes when making use of internal apis not meant for end users.</p>
+<p>For resolving python packages from PyPI conda-lock includes the entirely of poetry as a subpackage.  Neither poetry nor pip provided a stable developer api at the time that the library was developed.</p>
+<h3 id="6-meeting-users-where-they-are">6. Meeting users where they are</h3>
+<p>In addition to supporting the standard <code>environment.yaml</code> format for conda environment specifications, conda-lock also supports the use of <code>pyproject.toml</code> files as these are commonly used to define environments for python software projects.</p>
+<p>By allowing for this single-source way of defining the library dependencies, the tool reduces the effort required to maintain both conda and pyi dependency sets for a given project.</p>
+<p>conda-lock achieves this by leveraging the scale of conda-forge - pip crosswalk that is automatically maintained by conda-forge.</p>
+<h4 id="pip-conda-forge-crosswalk">pip &lt;-&gt; conda-forge crosswalk</h4>
+<p>Since conda and pypi packages live in difference namespaces the same name cannot be guaranteed to point to the same package for conda and pypi.  This naming problem is very common across packaging ecosystems.</p>
+<p>Conda-forge uses a graph dependency based heuristic for determining which conda packages correspond to the particular pypi package.  This graph based hueristic does have access to the conda package recipe.</p>
+<p>Selection heuristics.</p>
+<ol>
+<li>If a package has been <a href="https://github.com/regro/cf-scripts/blob/master/conda_forge_tick/pypi_name_mapping_static.yaml">manually mapped</a> prefer that over all other heuristics.</li>
+<li>The package recipe must contain "source" that points to a PyPI source destination.  This allows us to match conda package names to PyPI package names.</li>
+<li>The package recipe must contain a "import" test section that perform the python import associated with this package.  This gives us an additional vote that the package is indeed a python package.</li>
+<li>Since many packages can declare the same "import" section we make use of graph measure (the HITS algorithm) that prefers packages that have fewer ancestors and more successors.  This ensures that we correctly resolve the python import <code>numpy</code> as the package <code>numpy</code> instead of <code>jax</code> which provides an alternate implementation of the numpy api.</li>
+<li>Once an import name determined to belong to (conda, pypi) pair it cannot be resolved to another package.  This ensures that nammespaced packages that declare a common base import are handled correctly.</li>
+<li>If a package is not present in the crosswalk assume that the conda and pypi names are the same.</li>
+</ol>
+<p>Whilst this set of metrics is admittedly fairly arbitrary it does exhibit enough desirable characteristics to work for a large number of environments.</p>
+<p>For details on the implementation see the <a href="https://github.com/regro/cf-scripts/blob/master/conda_forge_tick/pypi_name_mapping.py">code</a>.</p>
+<h2 id="common-usage-patterns-observed">Common usage patterns observed</h2>
+<p>conda-lock has beern observed to have a couple of common usage patterns across open source ecosystems.</p>
+<h3 id="human-refreshes">Human refreshes</h3>
+<p>The initial designed use case for conda-lock was to provision a number of exactly reproducible conda environments across a large fleet of worker machines.  These environments would share a lot of dependencies which mneant that the usage of alternate tools like conda-constructor would impose too much of a disk-usage cost to be feasible (conda by default installs files by making hard-links minimizing the disk usage needed to provision a large number of environments when they share some dependencies.)</p>
+<p>These environments are generally only updated whenever there is a need to do so.</p>
+<h3 id="consistent-citest-environments">Consistent CI/test environments</h3>
+<p>For some continuous integration workflows conda-lock can be used as a means of generating consistent environment definitions used later on in the workflow.</p>
+<p>These systems gnerally generate a lock file dynamically whenever the workflow is invoked.  When the resulting lockfile changes this change is either committed back to the repository or propageted to downstream jobs as an artifact.</p>
+<p>This approach allows projects with larger continous integration processes to have a consistently reproducible test/execution environment that can be used by both developers and CI systems.</p>
+<p>This approach is used by <a href="https://ibis-project.org/">ibis</a>.</p>
+<h3 id="container-building">Container building</h3>
+<p>Whilst conda lock does not directly provide a way to build docker/oci containers, it is commonly used to help aid this task.</p>
+<p>This is generally done by performing the following steps.</p>
+<ol>
+<li>
+<p>Outside the dockerfile</p>
+<p>a. Generate the lockfile (outside of the Dockerfile)</p>
+<p>b. Render the lockfile to a platform specifc explicit lock
+2. Inside the dockerfile</p>
+<p>a. <code>COPY</code> the lockfile generated into the container</p>
+<p>b. Install a conda environmenbt from the explicit lock</p>
+</li>
+</ol>
+<p>For exact details see the excellent <a href="https://uwekorn.com/2021/03/01/deploying-conda-environments-in-docker-how-to-do-it-right.html">article</a> by Uwe Korn.</p>
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+  <script>var tabs=__md_get("__tabs");if(Array.isArray(tabs))e:for(var set of document.querySelectorAll(".tabbed-set")){var tab,labels=set.querySelector(".tabbed-labels");for(tab of tabs)for(var label of labels.getElementsByTagName("label"))if(label.innerText.trim()===tab){var input=document.getElementById(label.htmlFor);input.checked=!0;continue e}}</script>
+
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+        <div class="md-social">
+  
+    
+    
+    
+    
+      
+      
+    
+    <a href="https://github.com/conda/conda-lock" target="_blank" rel="noopener" title="github.com" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 496 512"><!--! Font Awesome Free 6.4.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2023 Fonticons, Inc.--><path d="M165.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6zm-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3zm44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9zM244.8 8C106.1 8 0 113.3 0 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C428.2 457.8 496 362.9 496 252 496 113.3 383.5 8 244.8 8zM97.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1zm-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7zm32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1zm-11.4-14.7c-1.6 1-1.6 3.6 0 5.9 1.6 2.3 4.3 3.3 5.6 2.3 1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2z"/></svg>
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    <script id="__config" type="application/json">{"base": "..", "features": ["content.tabs.link", "header.autohide", "navigation.indexes", "navigation.instant", "navigation.expand"], "search": "../assets/javascripts/workers/search.74e28a9f.min.js", "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.220ee61c.min.js"></script>
+      
+    
+  </body>
+</html>
