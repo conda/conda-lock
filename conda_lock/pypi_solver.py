@@ -346,7 +346,7 @@ def solve_pypi(
     # is essentially a dictionary of:
     #  - pip package name -> list of LockedDependency that are needed for this package
     for conda_name, locked_dep in conda_locked.items():
-        pypi_name = conda_name_to_pypi_name(conda_name).lower()
+        pypi_name = conda_name_to_pypi_name(conda_name)
         if pypi_name in planned:
             planned[pypi_name].append(locked_dep)
         else:

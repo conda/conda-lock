@@ -70,7 +70,7 @@ def apply_categories(
         # If we operate on lists of pip names and this is a conda dependency, we
         # convert the name to a pip name.
         if convert_to_pip_names and manager == "conda":
-            return conda_name_to_pypi_name(dep).lower()
+            return conda_name_to_pypi_name(dep)
         return dep
 
     for name, request in requested.items():
