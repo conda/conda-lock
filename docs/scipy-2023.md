@@ -1,4 +1,4 @@
-# conda-lock
+# conda-lock scipy 2023 virtual poster
 
 ## Abstract
 
@@ -104,10 +104,14 @@ Whilst conda lock does not directly provide a way to build docker/oci containers
 This is generally done by performing the following steps.
 
 1. Outside the dockerfile
+
     a. Generate the lockfile (outside of the Dockerfile)
+
     b. Render the lockfile to a platform specifc explicit lock
 2. Inside the dockerfile
+
     a. `COPY` the lockfile generated into the container
+
     b. Install a conda environmenbt from the explicit lock
 
 For exact details see the excellent [article](https://uwekorn.com/2021/03/01/deploying-conda-environments-in-docker-how-to-do-it-right.html) by Uwe Korn.
