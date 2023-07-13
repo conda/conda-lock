@@ -90,7 +90,7 @@ class ZeroValRepr(BaseModel):
 
 
 class Channel(ZeroValRepr, BaseModel):
-    model_config = ConfigDict(frozen=True)
+    model_config = ConfigDict(frozen=True)  # type: ignore
 
     url: str
     used_env_vars: FrozenSet[str] = Field(default=frozenset())
