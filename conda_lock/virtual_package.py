@@ -10,7 +10,7 @@ from typing import Any, Dict, Iterable, List, Optional, Set, Tuple, Type
 
 from pydantic import BaseModel, Field, validator
 
-from conda_lock._vendor.conda.models.match_spec import MatchSpec
+from conda_lock.interfaces.vendored_conda import MatchSpec
 from conda_lock.models.channel import Channel
 
 

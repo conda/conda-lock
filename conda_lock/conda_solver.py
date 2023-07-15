@@ -16,7 +16,7 @@ import yaml
 
 from typing_extensions import TypedDict
 
-from conda_lock._vendor.conda.models.match_spec import MatchSpec
+from conda_lock.interfaces.vendored_conda import MatchSpec
 from conda_lock.invoke_conda import (
     PathLike,
     _get_conda_flags,

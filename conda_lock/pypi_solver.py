@@ -9,21 +9,21 @@ from clikit.api.io.flags import VERY_VERBOSE
 from clikit.io import ConsoleIO, NullIO
 from packaging.tags import compatible_tags, cpython_tags, mac_platforms
 
-from conda_lock._vendor.poetry.core.packages import Dependency as PoetryDependency
-from conda_lock._vendor.poetry.core.packages import Package as PoetryPackage
-from conda_lock._vendor.poetry.core.packages import (
-    ProjectPackage as PoetryProjectPackage,
+from conda_lock.interfaces.vendored_poetry import (
+    Chooser,
+    Env,
+    Factory,
+    PoetryDependency,
+    PoetryPackage,
+    PoetryProjectPackage,
+    PoetrySolver,
+    PoetryURLDependency,
+    PoetryVCSDependency,
+    Pool,
+    PyPiRepository,
+    Repository,
+    Uninstall,
 )
-from conda_lock._vendor.poetry.core.packages import URLDependency as PoetryURLDependency
-from conda_lock._vendor.poetry.core.packages import VCSDependency as PoetryVCSDependency
-from conda_lock._vendor.poetry.factory import Factory
-from conda_lock._vendor.poetry.installation.chooser import Chooser
-from conda_lock._vendor.poetry.installation.operations.uninstall import Uninstall
-from conda_lock._vendor.poetry.puzzle import Solver as PoetrySolver
-from conda_lock._vendor.poetry.repositories.pool import Pool
-from conda_lock._vendor.poetry.repositories.pypi_repository import PyPiRepository
-from conda_lock._vendor.poetry.repositories.repository import Repository
-from conda_lock._vendor.poetry.utils.env import Env
 from conda_lock.lockfile import apply_categories
 from conda_lock.lockfile.v2prelim.models import (
     DependencySource,

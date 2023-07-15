@@ -28,7 +28,6 @@ from flaky import flaky
 from freezegun import freeze_time
 
 from conda_lock import __version__, pypi_solver
-from conda_lock._vendor.conda.models.match_spec import MatchSpec
 from conda_lock.conda_lock import (
     DEFAULT_FILES,
     DEFAULT_LOCKFILE_NAME,
@@ -51,6 +50,7 @@ from conda_lock.errors import (
     MissingEnvVarError,
     PlatformValidationError,
 )
+from conda_lock.interfaces.vendored_conda import MatchSpec
 from conda_lock.invoke_conda import is_micromamba, reset_conda_pkgs_dir
 from conda_lock.lockfile import parse_conda_lock_file
 from conda_lock.lockfile.v2prelim.models import (
