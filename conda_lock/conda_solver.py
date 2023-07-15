@@ -577,6 +577,7 @@ def fake_conda_environment(
                 "build_number": build_number,
                 "version": dep.version,
                 "subdir": path.parent.name,
+                "fn": path.name,
                 "depends": [f"{k} {v}".strip() for k, v in dep.dependencies.items()],
             }
             # mamba requires these to be stringlike so null are not allowed here
