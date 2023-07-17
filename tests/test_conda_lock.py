@@ -60,7 +60,7 @@ from conda_lock.lockfile.v2prelim.models import (
 )
 from conda_lock.models.channel import Channel
 from conda_lock.models.lock_spec import VCSDependency, VersionedDependency
-from conda_lock.pypi_solver import parse_pip_requirement, solve_pypi, _strip_auth
+from conda_lock.pypi_solver import _strip_auth, parse_pip_requirement, solve_pypi
 from conda_lock.src_parser import (
     DEFAULT_PLATFORMS,
     LockSpecification,
@@ -1648,7 +1648,7 @@ def test__strip_auth_from_line(line: str, stripped: str):
             "https://username:password@symbol@example.com/path?query=string#fragment",
             "https://example.com/path?query=string#fragment",
         ),
-    )
+    ),
 )
 def test_strip_auth_from_url(url: str, stripped: str):
     assert _strip_auth(url) == stripped
