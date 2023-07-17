@@ -386,5 +386,7 @@ def _prepare_repositories_pool(allow_pypi_requests: bool) -> Pool:
 def _strip_auth(url: str) -> str:
     """Strip HTTP Basic authentication from a URL."""
     parts = urlsplit(url, allow_fragments=True)
-    netloc = parts.netloc.replace(f"{parts.username}:{parts.password}@", "")
+    # Remove everything before and including the last '@' character in the part
+    # between 'scheme://' and the subsequent '/'.
+    netloc = parts.netloc.split("@")[-1]
     return urlunsplit((parts.scheme, netloc, parts.path, parts.query, parts.fragment))
