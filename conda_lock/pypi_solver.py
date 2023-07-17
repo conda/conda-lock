@@ -1,6 +1,8 @@
+import os
 import re
 import sys
 
+from functools import lru_cache
 from pathlib import Path
 from typing import TYPE_CHECKING, Dict, List, Optional
 from urllib.parse import urldefrag
@@ -369,6 +371,9 @@ def _prepare_repositories_pool(allow_pypi_requests: bool) -> Pool:
     factory = Factory()
     config = factory.create_config()
     repos = [
+        factory.create_legacy_repository({"name": name, "url": url}, config)
+        for name, url in _parse_repositories_from_environment().items()
+    ] + [
         factory.create_legacy_repository(
             {"name": source[0], "url": source[1]["url"]}, config
         )
@@ -377,3 +382,13 @@ def _prepare_repositories_pool(allow_pypi_requests: bool) -> Pool:
     if allow_pypi_requests:
         repos.append(PyPiRepository())
     return Pool(repositories=[*repos])
+
+
+@lru_cache(maxsize=1)
+def _parse_repositories_from_environment() -> Dict[str, str]:
+    env_prefix = "CONDA_LOCK_PYPI_REPOSITORY_"
+    return {
+        key[len(env_prefix) :].lower(): value
+        for key, value in os.environ.items()
+        if key.startswith(env_prefix)
+    }
