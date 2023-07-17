@@ -259,6 +259,7 @@ def make_lock_files(  # noqa: C901
     metadata_choices: AbstractSet[MetadataOption] = frozenset(),
     metadata_yamls: Sequence[pathlib.Path] = (),
     with_cuda: Optional[str] = None,
+    strip_auth: bool = False,
 ) -> None:
     """
     Generate a lock file from the src files provided
@@ -385,6 +386,7 @@ def make_lock_files(  # noqa: C901
                 update_spec=update_spec,
                 metadata_choices=metadata_choices,
                 metadata_yamls=metadata_yamls,
+                strip_auth=strip_auth,
             )
 
             if "lock" in kinds:
@@ -685,6 +687,7 @@ def _solve_for_arch(
     platform: str,
     channels: List[Channel],
     update_spec: Optional[UpdateSpecification] = None,
+    strip_auth: bool = False,
 ) -> List[LockedDependency]:
     """
     Solve specification for a single platform
@@ -725,6 +728,7 @@ def _solve_for_arch(
             python_version=conda_deps["python"].version,
             platform=platform,
             allow_pypi_requests=spec.allow_pypi_requests,
+            strip_auth=strip_auth,
         )
     else:
         pip_deps = {}
@@ -769,6 +773,7 @@ def create_lockfile_from_spec(
     update_spec: Optional[UpdateSpecification] = None,
     metadata_choices: AbstractSet[MetadataOption] = frozenset(),
     metadata_yamls: Sequence[pathlib.Path] = (),
+    strip_auth: bool = False,
 ) -> Lockfile:
     """
     Solve or update specification
@@ -785,6 +790,7 @@ def create_lockfile_from_spec(
             platform=platform,
             channels=[*spec.channels, virtual_package_channel],
             update_spec=update_spec,
+            strip_auth=strip_auth,
         )
 
         for dep in deps:
@@ -996,6 +1002,7 @@ def run_lock(
     filter_categories: bool = False,
     metadata_choices: AbstractSet[MetadataOption] = frozenset(),
     metadata_yamls: Sequence[pathlib.Path] = (),
+    strip_auth: bool = False,
 ) -> None:
     if environment_files == DEFAULT_FILES:
         if lockfile_path.exists():
@@ -1047,6 +1054,7 @@ def run_lock(
         filter_categories=filter_categories,
         metadata_choices=metadata_choices,
         metadata_yamls=metadata_yamls,
+        strip_auth=strip_auth,
     )
 
 
@@ -1309,6 +1317,7 @@ def lock(
         filter_categories=filter_categories,
         metadata_choices=metadata_enum_choices,
         metadata_yamls=metadata_yamls,
+        strip_auth=strip_auth,
     )
     if strip_auth:
         with tempfile.TemporaryDirectory() as tempdir:
@@ -1316,9 +1325,9 @@ def lock(
             lock_func(filename_template=filename_template_temp)
             filename_template_dir = "/".join(filename_template.split("/")[:-1])
             for file in os.listdir(tempdir):
-                lockfile = read_file(os.path.join(tempdir, file))
-                lockfile = _strip_auth_from_lockfile(lockfile)
-                write_file(lockfile, os.path.join(filename_template_dir, file))
+                lockfile_content = read_file(os.path.join(tempdir, file))
+                lockfile_content = _strip_auth_from_lockfile(lockfile_content)
+                write_file(lockfile_content, os.path.join(filename_template_dir, file))
     else:
         lock_func(
             filename_template=filename_template, check_input_hash=check_input_hash
