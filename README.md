@@ -156,13 +156,14 @@ The default category is `main`.
 [environment.yml][envyaml], using a vendored copy of [Poetry's][poetry] dependency solver.
 
 ### private pip repositories
-Right now `conda-lock` only supports [legacy](https://warehouse.pypa.io/api-reference/legacy.html) pypi repos with basic auth. Most self-hosted repositories like Nexus, Artifactory etc. use this. To use this feature, add your private repo into Poetry's config _including_ the basic auth in the url:
+Right now `conda-lock` only supports [legacy](https://warehouse.pypa.io/api-reference/legacy.html) pypi repos with basic auth. Most self-hosted repositories like Nexus, Artifactory etc. use this. You can configure private repositories by setting the `CONDA_LOCK_PYPI_REPOSITORY_<custom-repository>` environment variable to the URL of the private repo, _including_ any basic auth. For example:
 
 ```bash
-poetry config repositories.foo https://username:password@foo.repo/simple/
+export CONDA_LOCK_PYPI_REPOSITORY_EXAMPLE="https://username:password@example.repo/simple"
 ```
 
 The private repo will be used in addition to `pypi.org`. For projects using `pyproject.toml`, it is possible to [disable `pypi.org` entirely](#disabling-pypiorg).
+
 
 ### --dev-dependencies/--no-dev-dependencies
 
