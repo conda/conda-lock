@@ -5,7 +5,7 @@ import sys
 from functools import lru_cache
 from pathlib import Path
 from typing import TYPE_CHECKING, Dict, List, Optional
-from urllib.parse import urldefrag
+from urllib.parse import urldefrag, urlsplit, urlunsplit
 
 from clikit.api.io.flags import VERY_VERBOSE
 from clikit.io import ConsoleIO, NullIO
@@ -190,6 +190,7 @@ def get_requirements(
     platform: str,
     pool: Pool,
     env: Env,
+    strip_auth: bool = False,
 ) -> List[LockedDependency]:
     """Extract distributions from Poetry package plan, ignoring uninstalls
     (usually: conda package with no pypi equivalent) and skipped ops
@@ -232,7 +233,7 @@ def get_requirements(
                     dependencies={
                         dep.name: str(dep.constraint) for dep in op.package.requires
                     },
-                    url=url,
+                    url=url if not strip_auth else _strip_auth(url),
                     hash=hash,
                 )
             )
@@ -248,6 +249,7 @@ def solve_pypi(
     platform: str,
     allow_pypi_requests: bool = True,
     verbose: bool = False,
+    strip_auth: bool = False,
 ) -> Dict[str, LockedDependency]:
     """
     Solve pip dependencies for the given platform
@@ -272,6 +274,8 @@ def solve_pypi(
         Add pypi.org to the list of repositories (pip packages only)
     verbose :
         Print chatter from solver
+    strip_auth :
+        Whether to strip HTTP Basic auth from URLs.
 
     """
     dummy_package = PoetryProjectPackage("_dummy_package_", "0.0.0")
@@ -332,7 +336,7 @@ def solve_pypi(
     with s.use_environment(env):
         result = s.solve(use_latest=to_update)
 
-    requirements = get_requirements(result, platform, pool, env)
+    requirements = get_requirements(result, platform, pool, env, strip_auth=strip_auth)
 
     # use PyPI names of conda packages to walking the dependency tree and propagate
     # categories from explicit to transitive dependencies
@@ -392,3 +396,13 @@ def _parse_repositories_from_environment() -> Dict[str, str]:
         for key, value in os.environ.items()
         if key.startswith(env_prefix)
     }
+
+
+def _strip_auth(url: str) -> str:
+    """Strip HTTP Basic authentication from a URL."""
+    parts = urlsplit(url, allow_fragments=True)
+    # Remove everything before and including the last '@' character in the part
+    # between 'scheme://' and the subsequent '/'.
+    netloc = parts.netloc.split("@")[-1]
+    return urlunsplit((parts.scheme, netloc, parts.path, parts.query, parts.fragment))
+
