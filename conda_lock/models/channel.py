@@ -42,7 +42,7 @@ from posixpath import expandvars
 from typing import FrozenSet, List, Optional, cast
 from urllib.parse import unquote, urlparse, urlunparse
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 if typing.TYPE_CHECKING:
@@ -90,14 +90,13 @@ class ZeroValRepr(BaseModel):
 
 
 class Channel(ZeroValRepr, BaseModel):
+    model_config = ConfigDict(frozen=True)  # type: ignore
+
     url: str
     used_env_vars: FrozenSet[str] = Field(default=frozenset())
 
     def __lt__(self, other: "Channel") -> bool:
         return tuple(self.dict().values()) < tuple(other.dict().values())
-
-    class Config:
-        frozen = True
 
     @classmethod
     def from_string(cls, value: str) -> "Channel":
