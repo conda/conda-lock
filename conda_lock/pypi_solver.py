@@ -405,4 +405,3 @@ def _strip_auth(url: str) -> str:
     # between 'scheme://' and the subsequent '/'.
     netloc = parts.netloc.split("@")[-1]
     return urlunsplit((parts.scheme, netloc, parts.path, parts.query, parts.fragment))
-
