@@ -1677,16 +1677,20 @@ def test__extract_domain(line: str, stripped: str):
 
 def test_parse_repositories_from_environment():
     # Given a private repository is configured in the environment
-    _parse_repositories_from_environment.cache_clear()
-    repository_url = "https://username:password@example.repo/simple"
-    os.environ["CONDA_LOCK_PYPI_REPOSITORY_EXAMPLE"] = repository_url
-    # When I prepare the repositories pool
-    pool = _prepare_repositories_pool(allow_pypi_requests=False)
-    # Then the private repository is included in the pool
-    assert pool.repositories, "No repositories were detected"
-    assert (
-        pool.repositories[0].url == repository_url
-    ), "Detected repository has incorrect URL"
+    try:
+        _parse_repositories_from_environment.cache_clear()
+        repository_url = "https://username:password@example.repo/simple"
+        os.environ["CONDA_LOCK_PYPI_REPOSITORY_EXAMPLE"] = repository_url
+        # When I prepare the repositories pool
+        pool = _prepare_repositories_pool(allow_pypi_requests=False)
+        # Then the private repository is included in the pool
+        assert pool.repositories, "No repositories were detected"
+        assert (
+            pool.repositories[0].url == repository_url
+        ), "Detected repository has incorrect URL"
+    finally:
+        _parse_repositories_from_environment.cache_clear()
+        del os.environ["CONDA_LOCK_PYPI_REPOSITORY_EXAMPLE"]
 
 
 def _read_file(filepath: "str | Path") -> str:
