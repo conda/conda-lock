@@ -2,6 +2,8 @@ name: Run conda-lock to update dependencies
 
 on:
   push:
+    branches:
+    - main
   workflow_dispatch:
   schedule:
   # At 5:28am UTC Monday and Thursday
@@ -49,6 +51,7 @@ jobs:
         title: Relock dependencies
         body: >
           This pull request relocks the dependencies with conda-lock.
+          It is triggered by [update-lockfile](https://github.com/conda/conda-lock/blob/main/.github/workflows/update-lockfile.yaml).
         branch: relock-deps
         labels: conda-lock
         reviewers: maresb

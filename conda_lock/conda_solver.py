@@ -16,7 +16,7 @@ import yaml
 
 from typing_extensions import TypedDict
 
-from conda_lock._vendor.conda.models.match_spec import MatchSpec
+from conda_lock.interfaces.vendored_conda import MatchSpec
 from conda_lock.invoke_conda import (
     PathLike,
     _get_conda_flags,
@@ -577,6 +577,7 @@ def fake_conda_environment(
                 "build_number": build_number,
                 "version": dep.version,
                 "subdir": path.parent.name,
+                "fn": path.name,
                 "depends": [f"{k} {v}".strip() for k, v in dep.dependencies.items()],
             }
             # mamba requires these to be stringlike so null are not allowed here
