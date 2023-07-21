@@ -25,7 +25,8 @@ if sys.version_info >= (3, 11):
 else:
     from tomli import load as toml_load
 
-from pkg_resources import Requirement
+from packaging.requirements import Requirement
+from packaging.utils import canonicalize_name as canonicalize_pypi_name
 from typing_extensions import Literal
 
 from conda_lock.common import get_in
@@ -73,17 +74,19 @@ def join_version_components(pieces: Sequence[Union[str, int]]) -> str:
 
 
 def normalize_pypi_name(name: str) -> str:
-    name = name.replace("_", "-").lower()
-    if name in get_lookup():
-        lookup = get_lookup()[name]
+    cname = canonicalize_pypi_name(name)
+    if cname in get_lookup():
+        lookup = get_lookup()[cname]
         res = lookup.get("conda_name") or lookup.get("conda_forge")
         if res is not None:
             return res
         else:
-            logging.warning(f"Could not find conda name for {name}. Assuming identity.")
-            return name
+            logging.warning(
+                f"Could not find conda name for {cname}. Assuming identity."
+            )
+            return cname
     else:
-        return name
+        return cname
 
 
 def poetry_version_to_conda_version(version_string: Optional[str]) -> Optional[str]:
@@ -368,19 +371,20 @@ def parse_requirement_specifier(
     requirement: str,
 ) -> Requirement:
     """Parse a url requirement to a conda spec"""
-    requirement_specifier = requirement.split(";")[0].strip()
-
     if (
-        requirement_specifier.startswith("git+")
-        or requirement_specifier.startswith("https://")
-        or requirement_specifier.startswith("ssh://")
+        requirement.startswith("git+")
+        or requirement.startswith("https://")
+        or requirement.startswith("ssh://")
     ):
-        parsed_req = Requirement.parse(
-            requirement_specifier.split("/")[-1].replace("@", "==")
-        )
-        parsed_req.url = requirement_specifier
-        return parsed_req
-    return Requirement.parse(requirement_specifier)
+        # Handle the case where only the URL is specified without a package name
+        repo_name_and_maybe_tag = requirement.split("/")[-1]
+        repo_name = repo_name_and_maybe_tag.split("@")[0]
+        if repo_name.endswith(".git"):
+            repo_name = repo_name[:-4]
+        # Use the repo name as a placeholder for the package name
+        return Requirement(f"{repo_name} @ {requirement}")
+    else:
+        return Requirement(requirement)
 
 
 def unpack_git_url(url: str) -> Tuple[str, Optional[str]]:
@@ -407,8 +411,8 @@ def parse_python_requirement(
 ) -> Dependency:
     """Parse a requirements.txt like requirement to a conda spec"""
     parsed_req = parse_requirement_specifier(requirement)
-    name = parsed_req.unsafe_name.lower()
-    collapsed_version = ",".join("".join(spec) for spec in parsed_req.specs)
+    name = canonicalize_pypi_name(parsed_req.name)
+    collapsed_version = str(parsed_req.specifier)
     conda_version = poetry_version_to_conda_version(collapsed_version)
     if conda_version:
         conda_version = ",".join(sorted(conda_version.split(",")))

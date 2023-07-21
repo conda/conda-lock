@@ -4,6 +4,7 @@ from typing import Dict
 import requests
 import yaml
 
+from packaging.utils import NormalizedName, canonicalize_name
 from typing_extensions import TypedDict
 
 
@@ -11,7 +12,7 @@ class MappingEntry(TypedDict):
     conda_name: str
     # legacy field, generally not used by anything anymore
     conda_forge: str
-    pypi_name: str
+    pypi_name: NormalizedName
 
 
 class _LookupLoader:
@@ -28,15 +29,15 @@ class _LookupLoader:
         self._mapping_url = value
 
     @cached_property
-    def pypi_lookup(self) -> Dict[str, MappingEntry]:
+    def pypi_lookup(self) -> Dict[NormalizedName, MappingEntry]:
         res = requests.get(self._mapping_url)
         res.raise_for_status()
         lookup = yaml.safe_load(res.content)
         # lowercase and kebabcase the pypi names
         assert lookup is not None
-        lookup = {k.lower().replace("_", "-"): v for k, v in lookup.items()}
+        lookup = {canonicalize_name(k): v for k, v in lookup.items()}
         for v in lookup.values():
-            v["pypi_name"] = v["pypi_name"].lower().replace("_", "-")
+            v["pypi_name"] = canonicalize_name(v["pypi_name"])
         return lookup
 
     @cached_property
@@ -47,7 +48,7 @@ class _LookupLoader:
 LOOKUP_OBJECT = _LookupLoader()
 
 
-def get_forward_lookup() -> Dict[str, MappingEntry]:
+def get_forward_lookup() -> Dict[NormalizedName, MappingEntry]:
     global LOOKUP_OBJECT
     return LOOKUP_OBJECT.pypi_lookup
 
@@ -65,12 +66,14 @@ def set_lookup_location(lookup_url: str) -> None:
     LOOKUP_OBJECT.mapping_url = lookup_url
 
 
-def conda_name_to_pypi_name(name: str) -> str:
+def conda_name_to_pypi_name(name: str) -> NormalizedName:
     """return the pypi name for a conda package"""
     lookup = get_lookup()
-    return lookup.get(name, {"pypi_name": name})["pypi_name"]
+    cname = canonicalize_name(name)
+    return lookup.get(cname, {"pypi_name": cname})["pypi_name"]
 
 
 def pypi_name_to_conda_name(name: str) -> str:
     """return the conda name for a pypi package"""
-    return get_forward_lookup().get(name, {"conda_name": name})["conda_name"]
+    cname = canonicalize_name(name)
+    return get_forward_lookup().get(cname, {"conda_name": cname})["conda_name"]
