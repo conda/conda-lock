@@ -60,7 +60,13 @@ from conda_lock.lockfile.v2prelim.models import (
 )
 from conda_lock.models.channel import Channel
 from conda_lock.models.lock_spec import VCSDependency, VersionedDependency
-from conda_lock.pypi_solver import _strip_auth, parse_pip_requirement, solve_pypi
+from conda_lock.pypi_solver import (
+    _parse_repositories_from_environment,
+    _prepare_repositories_pool,
+    _strip_auth,
+    parse_pip_requirement,
+    solve_pypi,
+)
 from conda_lock.src_parser import (
     DEFAULT_PLATFORMS,
     LockSpecification,
@@ -1667,6 +1673,20 @@ def test_strip_auth_from_url(url: str, stripped: str):
 )
 def test__extract_domain(line: str, stripped: str):
     assert _extract_domain(line) == stripped
+
+
+def test_parse_repositories_from_environment():
+    # Given a private repository is configured in the environment
+    _parse_repositories_from_environment.cache_clear()
+    repository_url = "https://username:password@example.repo/simple"
+    os.environ["CONDA_LOCK_PYPI_REPOSITORY_EXAMPLE"] = repository_url
+    # When I prepare the repositories pool
+    pool = _prepare_repositories_pool(allow_pypi_requests=False)
+    # Then the private repository is included in the pool
+    assert pool.repositories, "No repositories were detected"
+    assert (
+        pool.repositories[0].authenticated_url == repository_url
+    ), "Detected repository has incorrect URL"
 
 
 def _read_file(filepath: "str | Path") -> str:
