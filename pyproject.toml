@@ -65,7 +65,7 @@ dependencies = [
     "virtualenv >=20.0.26",
     # urllib3 is a dependency of requests and poetry, v2 removes some deprecated features that our vendored version of
     # poetry relies on.
-    "urllib3 >=1.26.5,<2.0",
+    "urllib3 >=2.0.4,<2.1",
 ]
 
 [project.scripts]
