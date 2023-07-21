@@ -162,7 +162,21 @@ Right now `conda-lock` only supports [legacy](https://warehouse.pypa.io/api-refe
 export CONDA_LOCK_PYPI_REPOSITORY_EXAMPLE="https://username:password@example.repo/simple"
 ```
 
-The private repo will be used in addition to `pypi.org`. For projects using `pyproject.toml`, it is possible to [disable `pypi.org` entirely](#disabling-pypiorg).
+Alternatively, you can use the `poetry` configuration file format to configure private PyPi repositories. The configuration file should be named `config.toml` and have the following format:
+
+```toml
+[repositories.example]
+url = "https://username:password@example.repo/simple"
+```
+
+The discoverable location of this file depends on the operating system:
+
+- **Linux**: `$XDG_CONFIG_HOME/pypoetry-conda-lock` or `~/.config/pypoetry-conda-lock`
+- **OSX**:  `~/Library/Application Support/pypoetry-conda-lock`
+- **Windows**: Check output of `python -c 'from conda_lock._vendor.poetry.locations import CONFIG_DIR;print(CONFIG_DIR)'`
+
+
+Private repositories will be used in addition to `pypi.org`. For projects using `pyproject.toml`, it is possible to [disable `pypi.org` entirely](#disabling-pypiorg).
 
 
 ### --dev-dependencies/--no-dev-dependencies
