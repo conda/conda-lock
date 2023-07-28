@@ -1,17 +1,15 @@
 import pathlib
 import re
-import sys
-
+import tempfile
 from typing import List, Tuple
 
 import yaml
+from packaging._parser import parse_requirement
 
 from conda_lock.models.lock_spec import Dependency, LockSpecification
 from conda_lock.src_parser.conda_common import conda_spec_to_versioned_dep
+from conda_lock.src_parser.requirements_txt import parse_requirements_txt
 from conda_lock.src_parser.selectors import filter_platform_selectors
-
-from .pyproject_toml import parse_python_requirement
-
 
 _whitespace = re.compile(r"\s+")
 _conda_package_pattern = re.compile(r"^(?P<name>[A-Za-z0-9_-]+)\s?(?P<version>.*)?$")
@@ -55,28 +53,16 @@ def _parse_environment_file_for_platform(
 
     for mapping_spec in mapping_specs:
         if "pip" in mapping_spec:
-            for spec in mapping_spec["pip"]:
-                if re.match(r"^-e .*$", spec):
-                    print(
-                        (
-                            f"Warning: editable pip dep '{spec}' will not be included in the lock file. "
-                            "You will need to install it separately."
-                        ),
-                        file=sys.stderr,
-                    )
-                    continue
+            # Generate the temporary requirements file
+            with tempfile.NamedTemporaryFile(suffix="requirements.txt", mode='w', encoding='utf-8') as requirements:
+                requirements.writelines(mapping_spec["pip"])
+                requirements.close()
 
-                dependencies.append(
-                    parse_python_requirement(
-                        spec,
-                        manager="pip",
-                        category=category,
-                        normalize_name=False,
-                    )
-                )
+                dependencies.extend(filter(None, parse_requirements_txt(requirements.name)))
 
             # ensure pip is in target env
-            dependencies.append(parse_python_requirement("pip", manager="conda"))
+            if 'pip' not in {d.name for d in dependencies}:
+                dependencies.append(parse_requirement("pip"))
 
     return dependencies
 
