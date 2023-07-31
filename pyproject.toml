@@ -50,8 +50,6 @@ dependencies = [
     "crashtest >=0.3.0",
     # poetry:
     "html5lib >=1.0",
-    # poetry, poetry-core:
-    'importlib-metadata >=1.7.0; python_version <= "3.7"',
     # poetry:
     "keyring >=21.2.0",
     # poetry:
