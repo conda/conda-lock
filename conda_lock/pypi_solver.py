@@ -32,6 +32,7 @@ from conda_lock.lockfile.v2prelim.models import (
 )
 from conda_lock.lookup import conda_name_to_pypi_name
 from conda_lock.models import lock_spec
+from conda_lock.models.pip_repository import PipRepository
 
 
 if TYPE_CHECKING:
@@ -245,6 +246,7 @@ def solve_pypi(
     conda_locked: Dict[str, LockedDependency],
     python_version: str,
     platform: str,
+    pip_repositories: Optional[List[PipRepository]] = None,
     allow_pypi_requests: bool = True,
     verbose: bool = False,
     strip_auth: bool = False,
@@ -283,7 +285,7 @@ def solve_pypi(
     for dep in dependencies:
         dummy_package.add_dependency(dep)
 
-    pool = _prepare_repositories_pool(allow_pypi_requests)
+    pool = _prepare_repositories_pool(allow_pypi_requests, pip_repositories=pip_repositories)
 
     installed = Repository()
     locked = Repository()
@@ -361,7 +363,7 @@ def solve_pypi(
     return {dep.name: dep for dep in requirements}
 
 
-def _prepare_repositories_pool(allow_pypi_requests: bool) -> Pool:
+def _prepare_repositories_pool(allow_pypi_requests: bool, pip_repositories: Optional[List[PipRepository]] = None) -> Pool:
     """
     Prepare the pool of repositories to solve pip dependencies
 
@@ -373,6 +375,11 @@ def _prepare_repositories_pool(allow_pypi_requests: bool) -> Pool:
     factory = Factory()
     config = factory.create_config()
     repos = [
+        factory.create_legacy_repository(
+            {"name": f"repository-{index:04}", "url": pip_repository.url}, config
+        )
+        for index, pip_repository in enumerate(pip_repositories or [])
+    ] + [
         factory.create_legacy_repository(
             {"name": source[0], "url": source[1]["url"]}, config
         )

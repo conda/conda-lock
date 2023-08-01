@@ -5,11 +5,12 @@ import typing
 
 from typing import Dict, List, Optional, Union
 
-from pydantic import BaseModel, validator
+from pydantic import BaseModel, Field, validator
 from typing_extensions import Literal
 
 from conda_lock.models import StrictModel
 from conda_lock.models.channel import Channel
+from conda_lock.models.pip_repository import PipRepository
 from conda_lock.virtual_package import FakeRepoData
 
 
@@ -61,6 +62,7 @@ class LockSpecification(BaseModel):
     # TODO: Should we store the auth info in here?
     channels: List[Channel]
     sources: List[pathlib.Path]
+    pip_repositories: List[PipRepository] = Field(default_factory=list)
     virtual_package_repo: Optional[FakeRepoData] = None
     allow_pypi_requests: bool = True
 
@@ -84,6 +86,8 @@ class LockSpecification(BaseModel):
                 )
             ],
         }
+        if self.pip_repositories:
+            data["pip_repositories"] = [repo.json() for repo in self.pip_repositories]
         if self.virtual_package_repo is not None:
             vpr_data = self.virtual_package_repo.all_repodata
             data["virtual_package_hash"] = {
@@ -103,3 +107,11 @@ class LockSpecification(BaseModel):
             if e.url == "nodefaults":
                 raise ValueError("nodefaults channel is not allowed, ref #418")
         return typing.cast(List[Channel], v)
+
+    @validator("pip_repositories", pre=True)
+    def validate_pip_repositories(cls, value: List[Union[PipRepository, str]]) -> List[PipRepository]:
+        for index, repository in enumerate(value):
+            if isinstance(repository, str):
+                repository = PipRepository.from_string(repository)
+                value[index] = repository
+        return typing.cast(List[PipRepository], value)

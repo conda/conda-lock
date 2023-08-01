@@ -1,6 +1,6 @@
 import typing
 
-from conda_lock.models.channel import _detect_used_env_var, _env_var_normalize
+from conda_lock.models.package_source import _detect_used_env_var, _env_var_normalize
 
 
 if typing.TYPE_CHECKING:

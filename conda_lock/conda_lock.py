@@ -68,6 +68,7 @@ from conda_lock.lockfile.v2prelim.models import (
 from conda_lock.lookup import set_lookup_location
 from conda_lock.models.channel import Channel
 from conda_lock.models.lock_spec import LockSpecification
+from conda_lock.models.pip_repository import PipRepository
 from conda_lock.pypi_solver import solve_pypi
 from conda_lock.src_parser import make_lock_spec
 from conda_lock.virtual_package import (
@@ -686,6 +687,7 @@ def _solve_for_arch(
     spec: LockSpecification,
     platform: str,
     channels: List[Channel],
+    pip_repositories: List[PipRepository],
     update_spec: Optional[UpdateSpecification] = None,
     strip_auth: bool = False,
 ) -> List[LockedDependency]:
@@ -727,6 +729,7 @@ def _solve_for_arch(
             conda_locked={dep.name: dep for dep in conda_deps.values()},
             python_version=conda_deps["python"].version,
             platform=platform,
+            pip_repositories=pip_repositories,
             allow_pypi_requests=spec.allow_pypi_requests,
             strip_auth=strip_auth,
         )
@@ -789,6 +792,7 @@ def create_lockfile_from_spec(
             spec=spec,
             platform=platform,
             channels=[*spec.channels, virtual_package_channel],
+            pip_repositories=spec.pip_repositories,
             update_spec=update_spec,
             strip_auth=strip_auth,
         )

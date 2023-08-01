@@ -109,6 +109,8 @@ def parse_meta_yaml_file(
     except ValueError:
         pass
 
+    pip_repositories = get_in(["extra", "pip-repositories"], meta_yaml_data, [])
+
     # parse with selectors for each target platform
     dep_map = {
         platform: _parse_meta_yaml_file_for_platform(meta_yaml_file, platform)
@@ -118,6 +120,7 @@ def parse_meta_yaml_file(
     return LockSpecification(
         dependencies=dep_map,
         channels=channels,
+        pip_repositories=pip_repositories,
         sources=[meta_yaml_file],
     )
 
