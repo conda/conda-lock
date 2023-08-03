@@ -8,9 +8,12 @@ on:
   schedule:
   # At 5:28am UTC Monday and Thursday
   - cron: 28 5 * * MON,THU
+  
 
 jobs:
   conda-lock:
+    # Don't run scheduled job on forks. Ref: <https://github.com/orgs/community/discussions/26684#discussioncomment-3252843>
+    if: (github.event_name == 'schedule' && github.repository == 'conda/conda-lock') || (github.event_name != 'schedule')
     defaults:
       run:
         # Ensure the environment is activated
