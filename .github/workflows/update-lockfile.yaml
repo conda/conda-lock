@@ -8,7 +8,6 @@ on:
   schedule:
   # At 5:28am UTC Monday and Thursday
   - cron: 28 5 * * MON,THU
-  
 
 jobs:
   conda-lock:
