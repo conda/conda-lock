@@ -24,7 +24,6 @@ class FakePackage(BaseModel):
     """A minimal representation of the required metadata for a conda package"""
 
     class Config:
-        allow_mutation = False
         frozen = True
 
     name: str
