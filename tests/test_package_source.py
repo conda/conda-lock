@@ -1,5 +1,6 @@
 import typing
 
+from conda_lock.models.channel import Channel
 from conda_lock.models.package_source import _detect_used_env_var, _env_var_normalize
 
 
@@ -39,5 +40,6 @@ def test_url_auth_info(monkeypatch: "MonkeyPatch") -> None:
 
     assert x.env_var_url == y.env_var_url
 
-    replaced = y.conda_token_replaced_url()
+    channel = Channel.from_conda_url(y)
+    replaced = channel.conda_token_replaced_url()
     assert replaced == f"http://{user}:{passwd}@host/t/<TOKEN>/prefix/suffix"

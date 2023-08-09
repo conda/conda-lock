@@ -1,0 +1,9 @@
+channels:
+  - conda-forge
+pip-repositories:
+  - http://$PIP_USER:$PIP_PASSWORD@private-pypi.org/api/pypi/simple
+dependencies:
+  - python=3.11
+  - requests=2.26
+  - pip:
+    - fake-private-package==1.0.0
