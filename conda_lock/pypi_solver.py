@@ -2,8 +2,9 @@ import re
 import sys
 
 from pathlib import Path
+from posixpath import expandvars
 from typing import TYPE_CHECKING, Dict, List, Optional
-from urllib.parse import urldefrag, urlsplit, urlunsplit
+from urllib.parse import urldefrag, urlparse, urlsplit, urlunsplit
 
 from clikit.api.io.flags import VERY_VERBOSE
 from clikit.io import ConsoleIO, NullIO
@@ -189,6 +190,7 @@ def get_requirements(
     platform: str,
     pool: Pool,
     env: Env,
+    pip_repositories: Optional[List[PipRepository]] = None,
     strip_auth: bool = False,
 ) -> List[LockedDependency]:
     """Extract distributions from Poetry package plan, ignoring uninstalls
@@ -222,6 +224,7 @@ def get_requirements(
                     hashes[link.hash_name] = link.hash
                 hash = HashModel.parse_obj(hashes)
 
+            url = _normalize_url(url, pip_repositories=pip_repositories)
             requirements.append(
                 LockedDependency(
                     name=op.package.name,
@@ -336,7 +339,9 @@ def solve_pypi(
     with s.use_environment(env):
         result = s.solve(use_latest=to_update)
 
-    requirements = get_requirements(result, platform, pool, env, strip_auth=strip_auth)
+    requirements = get_requirements(
+        result, platform, pool, env, pip_repositories=pip_repositories, strip_auth=strip_auth
+    )
 
     # use PyPI names of conda packages to walking the dependency tree and propagate
     # categories from explicit to transitive dependencies
@@ -376,7 +381,7 @@ def _prepare_repositories_pool(allow_pypi_requests: bool, pip_repositories: Opti
     config = factory.create_config()
     repos = [
         factory.create_legacy_repository(
-            {"name": f"repository-{index:04}", "url": pip_repository.url}, config
+            {"name": f"repository-{index:04}", "url": pip_repository.env_replaced_url()}, config
         )
         for index, pip_repository in enumerate(pip_repositories or [])
     ] + [
@@ -388,6 +393,18 @@ def _prepare_repositories_pool(allow_pypi_requests: bool, pip_repositories: Opti
     if allow_pypi_requests:
         repos.append(PyPiRepository())
     return Pool(repositories=[*repos])
+
+
+def _normalize_url(url: str, pip_repositories: Optional[List[PipRepository]] = None) -> str:
+    if not pip_repositories:
+        return url
+    for pip_repository in pip_repositories:
+        specified_url = urlparse(pip_repository.url)
+        repository_host = specified_url.scheme + "://" + specified_url.netloc
+        repository_host_expanded = expandvars(repository_host)
+        if url.startswith(repository_host_expanded):
+            url = url.replace(repository_host_expanded, repository_host, 1)
+    return url
 
 
 def _strip_auth(url: str) -> str:
