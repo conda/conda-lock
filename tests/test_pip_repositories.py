@@ -78,7 +78,9 @@ def mock_private_pypi(private_package_tar: Path):
                 with open(file, "rb") as file_handler:
                     response.raw.write(file_handler.read())
                 response.raw.seek(0)
-            response.url = request.url
+
+            url = urlparse(request.url)
+            response.url = request.url.replace(url.netloc, url.hostname)
             response.reason = reason
             return response
 
