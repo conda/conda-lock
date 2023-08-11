@@ -1074,7 +1074,7 @@ def test_run_lock_blas_mkl(
     monkeypatch: "pytest.MonkeyPatch", blas_mkl_environment: Path, conda_exe: str
 ):
     monkeypatch.chdir(blas_mkl_environment.parent)
-    run_lock([blas_mkl_environment], conda_exe=conda_exe)
+    run_lock([blas_mkl_environment], conda_exe=conda_exe, platforms=["linux-64", "win-64", "osx-64"])
 
 
 @pytest.fixture
