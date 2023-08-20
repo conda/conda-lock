@@ -387,7 +387,8 @@ def make_lock_files(
 
         if platforms_to_lock:
             print(f"Locking dependencies for {platforms_to_lock}...", file=sys.stderr)
-            lock_content = lock_content | create_lockfile_from_spec(
+
+            new_lock_content = create_lockfile_from_spec(
                 conda=conda,
                 spec=lock_spec,
                 platforms=platforms_to_lock,
@@ -397,6 +398,21 @@ def make_lock_files(
                 metadata_yamls=metadata_yamls,
                 strip_auth=strip_auth,
             )
+
+            if not lock_content:
+                lock_content = new_lock_content
+            else:
+                # Persist packages from original lockfile for platforms not requested for lock
+                packages_not_to_lock = [
+                    dep
+                    for dep in lock_content.package
+                    if dep.platform not in platforms_to_lock
+                ]
+                filtered_lock_content = lock_content.copy(
+                    deep=True,
+                    update={"package": packages_not_to_lock},
+                )
+                lock_content = filtered_lock_content | new_lock_content
 
             if "lock" in kinds:
                 write_conda_lock_file(
