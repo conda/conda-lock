@@ -768,7 +768,7 @@ def create_lockfile_from_spec(
     *,
     conda: PathLike,
     spec: LockSpecification,
-    platforms: List[str] = [],
+    platforms: Optional[List[str]] = None,
     lockfile_path: pathlib.Path,
     update_spec: Optional[UpdateSpecification] = None,
     metadata_choices: AbstractSet[MetadataOption] = frozenset(),
@@ -778,6 +778,8 @@ def create_lockfile_from_spec(
     """
     Solve or update specification
     """
+    if platforms is None:
+        platforms = []
     assert spec.virtual_package_repo is not None
     virtual_package_channel = spec.virtual_package_repo.channel
 

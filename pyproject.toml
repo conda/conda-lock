@@ -173,6 +173,7 @@ line-length = 89
 select = [
     "A",  # flake8-builtins
     # "B",  # flake8-bugbear
+    "B006",  # Do not use mutable data structures for argument defaults
     "C4",  # flake8-comprehensions
     "C9",  # mccabe
     "E",  # pycodestyle errors
