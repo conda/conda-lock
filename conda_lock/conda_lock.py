@@ -241,7 +241,7 @@ def fn_to_dist_name(fn: str) -> str:
     return fn
 
 
-def make_lock_files(  # noqa: C901
+def make_lock_files(
     *,
     conda: PathLike,
     src_files: List[pathlib.Path],
@@ -943,10 +943,10 @@ def _render_lockfile_for_install(
     if platform not in lock_content.metadata.platforms:
         suggested_platforms_section = "platforms:\n- "
         suggested_platforms_section += "\n- ".join(
-            [platform] + lock_content.metadata.platforms
+            [platform, *lock_content.metadata.platforms]
         )
         suggested_platform_args = "--platform=" + " --platform=".join(
-            [platform] + lock_content.metadata.platforms
+            [platform, *lock_content.metadata.platforms]
         )
         raise PlatformValidationError(
             f"The lockfile {filename} does not contain a solution for the current "

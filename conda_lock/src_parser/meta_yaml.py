@@ -47,7 +47,7 @@ class UndefinedNeverFail(jinja2.Undefined):
     __mod__ = __rmod__ = __pos__ = __neg__ = __call__ = \
     __getitem__ = __lt__ = __le__ = __gt__ = __ge__ = \
     __complex__ = __pow__ = __rpow__ = \
-        lambda self, *args, **kwargs: self._return_undefined(self._undefined_name)  # noqa: E122
+        lambda self, *args, **kwargs: self._return_undefined(self._undefined_name)
     # fmt: on
 
     # Accessing an attribute of an Undefined variable
@@ -60,7 +60,7 @@ class UndefinedNeverFail(jinja2.Undefined):
 
     # Unlike the methods above, Python requires that these
     # few methods must always return the correct type
-    __str__ = __repr__ = lambda self: self._return_value(str())  # type: ignore  # noqa: E731
+    __str__ = __repr__ = lambda self: self._return_value(str())  # type: ignore
     __unicode__ = lambda self: self._return_value("")  # noqa: E731
     __int__ = lambda self: self._return_value(0)  # type: ignore  # noqa: E731
     __float__ = lambda self: self._return_value(0.0)  # type: ignore  # noqa: E731
