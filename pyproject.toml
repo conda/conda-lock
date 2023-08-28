@@ -108,16 +108,6 @@ exclude = [
     "tests",
 ]
 
-[tool.isort]
-atomic = true
-force_grid_wrap = 0
-include_trailing_comma = true
-lines_after_imports = 2
-lines_between_types = 1
-multi_line_output = 3
-use_parentheses = true
-known_first_party = "attr"
-
 [tool.pytest.ini_options]
 addopts = "-vrsx -n auto"
 flake8-max-line-length = 105
@@ -157,3 +147,44 @@ platforms = ["linux-64", "osx-64", "osx-arm64", "win-64", "osx-arm64", "linux-aa
 # This is necessary to pull in the lockfile/filelock dependency
 # since we don't handle the optional dependency.
 cachecontrol-with-filecache = ">=0.12.9"
+
+
+[tool.ruff]
+ignore = [
+    "E501",
+    "F401",
+    "F403",
+    # Disabled during migration to Ruff:
+    "A001",
+    "A002",
+    "A003",
+    "C401",
+    "C405",
+    "C408",
+    "C409",
+    "C413",
+    "C414",
+    "C416",
+    "RUF012",
+    "RUF015",
+]
+line-length = 89
+select = [
+    "A",  # flake8-builtins
+    # "B",  # flake8-bugbear
+    "C4",  # flake8-comprehensions
+    "C9",  # mccabe
+    "E",  # pycodestyle errors
+    "F",  # pyflakes
+    "I",  # isort
+    "RUF",  # ruff rules
+    "W",  # pycodestyle warnings
+]
+
+[tool.ruff.mccabe]
+max-complexity = 18
+
+[tool.ruff.isort]
+lines-after-imports = 2
+lines-between-types = 1
+known-first-party = ["attr"]
