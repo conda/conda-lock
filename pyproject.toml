@@ -150,6 +150,7 @@ cachecontrol-with-filecache = ">=0.12.9"
 
 
 [tool.ruff]
+target-version = "py38"
 ignore = [
     "E501",
     "F401",
