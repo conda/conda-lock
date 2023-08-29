@@ -1,3 +1,4 @@
+# isort: skip_file
 from collections import defaultdict
 from typing import ClassVar, Dict, List, Optional
 
@@ -7,12 +8,10 @@ from conda_lock.lockfile.v1.models import (
     GitMeta,
     HashModel,
     InputMeta,
-    LockMeta,
-    MetadataOption,
-    TimeMeta,
 )
 from conda_lock.lockfile.v1.models import LockedDependency as LockedDependencyV1
 from conda_lock.lockfile.v1.models import Lockfile as LockfileV1
+from conda_lock.lockfile.v1.models import LockMeta, MetadataOption, TimeMeta
 from conda_lock.models import StrictModel
 
 
