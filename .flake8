@@ -1,5 +1,10 @@
 [flake8]
+# NOTE: Can ruff replace flake8? See `tool.isort`, these two configs should be
+# kept in sync until we pick one.
 ignore = E203, E266, E501, W503, F403, F401
+per-file-ignores =
+  conda_lock/src_parser/meta_yaml.py:E122
+
 max-line-length = 89
-max-complexity = 18
+max-complexity = 19
 select = B,C,E,F,W,T4,B9
