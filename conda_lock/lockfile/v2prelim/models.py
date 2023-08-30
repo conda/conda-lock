@@ -1,6 +1,3 @@
-# isort: skip_file
-# TODO: Remove the isort skip comment above if/when isort is no longer used. This skip
-# exists because isort and ruff disagree about how to sort the imports in this file.
 from collections import defaultdict
 from typing import ClassVar, Dict, List, Optional
 
@@ -10,10 +7,12 @@ from conda_lock.lockfile.v1.models import (
     GitMeta,
     HashModel,
     InputMeta,
+    LockMeta,
+    MetadataOption,
+    TimeMeta,
 )
 from conda_lock.lockfile.v1.models import LockedDependency as LockedDependencyV1
 from conda_lock.lockfile.v1.models import Lockfile as LockfileV1
-from conda_lock.lockfile.v1.models import LockMeta, MetadataOption, TimeMeta
 from conda_lock.models import StrictModel
 
 

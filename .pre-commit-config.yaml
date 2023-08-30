@@ -24,18 +24,6 @@ repos:
   - id: ruff
     args: ["--fix"]
 
-# Ruff should catch (and mostly fix) everything that flake8 and isort do; if
-# either of these checks fails, can Ruff's config be updated to catch the same?
-- repo: https://github.com/pycqa/flake8
-  rev: 6.1.0
-  hooks:
-  - id: flake8
-- repo: https://github.com/pycqa/isort
-  rev: 5.12.0
-  hooks:
-  - id: isort
-    args: ["--profile", "black", "--filter-files"]
-
 - repo: https://github.com/pre-commit/mirrors-mypy
   rev: v1.5.1
   hooks:
