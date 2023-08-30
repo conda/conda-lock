@@ -476,7 +476,7 @@ def update_specs_for_arch(
             proc = subprocess.run(
                 [
                     str(arg)
-                    for arg in args + ["-p", prefix, "--json", "--dry-run", *to_update]
+                    for arg in [*args, "-p", prefix, "--json", "--dry-run", *to_update]
                 ],
                 env=conda_env_override(platform),
                 stdout=subprocess.PIPE,

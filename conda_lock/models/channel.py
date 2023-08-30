@@ -143,7 +143,7 @@ def _detect_used_env_var(
 
     if value.startswith("$"):
         return value.lstrip("$").strip("{}")
-    for suffix in preferred_env_var_suffix + [""]:
+    for suffix in [*preferred_env_var_suffix, ""]:
         candidates = {v: k for k, v in os.environ.items() if k.upper().endswith(suffix)}
         # try first with a simple match
         key = candidates.get(value)
