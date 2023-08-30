@@ -19,7 +19,7 @@ from conda_lock.src_parser.pyproject_toml import (
 from conda_lock.virtual_package import FakeRepoData
 
 
-DEFAULT_PLATFORMS = ["osx-64", "linux-64", "win-64"]
+DEFAULT_PLATFORMS = ["linux-64", "osx-arm64", "osx-64", "win-64"]
 
 
 logger = logging.getLogger(__name__)
