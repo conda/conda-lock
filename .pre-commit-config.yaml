@@ -22,7 +22,7 @@ repos:
   rev: v0.0.286
   hooks:
   - id: ruff
-    args: ["--fix"]
+    args: [--fix, --exit-non-zero-on-fix]
 
 # Ruff should catch (and mostly fix) everything that flake8 and isort do; if
 # either of these checks fails, can Ruff's config be updated to catch the same?
