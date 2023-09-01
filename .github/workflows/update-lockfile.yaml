@@ -11,6 +11,8 @@ on:
 
 jobs:
   conda-lock:
+    # Don't run scheduled job on forks. Ref: <https://github.com/orgs/community/discussions/26684#discussioncomment-3252843>
+    if: (github.event_name == 'schedule' && github.repository == 'conda/conda-lock') || (github.event_name != 'schedule')
     defaults:
       run:
         # Ensure the environment is activated

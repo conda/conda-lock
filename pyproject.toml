@@ -50,8 +50,6 @@ dependencies = [
     "crashtest >=0.3.0",
     # poetry:
     "html5lib >=1.0",
-    # poetry, poetry-core:
-    'importlib-metadata >=1.7.0; python_version <= "3.7"',
     # poetry:
     "keyring >=21.2.0",
     # poetry:
@@ -111,6 +109,8 @@ exclude = [
 ]
 
 [tool.isort]
+# NOTE: Can ruff replace isort? See `tool.ruff.isort`, these two configs should
+# be kept in sync until we pick one.
 atomic = true
 force_grid_wrap = 0
 include_trailing_comma = true
@@ -159,3 +159,48 @@ platforms = ["linux-64", "osx-64", "osx-arm64", "win-64", "osx-arm64", "linux-aa
 # This is necessary to pull in the lockfile/filelock dependency
 # since we don't handle the optional dependency.
 cachecontrol-with-filecache = ">=0.12.9"
+
+
+[tool.ruff]
+target-version = "py38"
+ignore = [
+    "E501",
+    "F401",
+    "F403",
+    # Disabled during migration to Ruff:
+    "A001",
+    "A002",
+    "A003",
+    "C401",
+    "C405",
+    "C408",
+    "C409",
+    "C413",
+    "C414",
+    "C416",
+    "RUF012",
+    "RUF015",
+]
+line-length = 89
+select = [
+    "A",  # flake8-builtins
+    # "B",  # flake8-bugbear
+    "B006",  # Do not use mutable data structures for argument defaults
+    "C4",  # flake8-comprehensions
+    "C9",  # mccabe
+    "E",  # pycodestyle errors
+    "F",  # pyflakes
+    "I",  # isort
+    "RUF",  # ruff rules
+    "W",  # pycodestyle warnings
+]
+
+[tool.ruff.mccabe]
+max-complexity = 18
+
+[tool.ruff.isort]
+# NOTE: Can ruff replace isort? See `tool.isort`, these two configs should be
+# kept in sync until we pick one.
+lines-after-imports = 2
+lines-between-types = 1
+known-first-party = ["attr"]

@@ -1,19 +1,12 @@
 black
 check-manifest
 doctr
-flake8
-flake8-builtins
-flake8-comprehensions
-flake8-mutable
 build
 freezegun
-isort
 mypy
 pre_commit
-pylint
 pytest
 pytest-cov
-pytest-flake8
 pytest-xdist
 pytest-timeout
 tomli; python_version<"3.11"
