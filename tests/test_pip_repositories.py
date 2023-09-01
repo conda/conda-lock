@@ -1,8 +1,9 @@
+import base64
 import os
 import tarfile
 from io import BytesIO
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Tuple
 from urllib.parse import urlparse
 
 import pytest
@@ -84,12 +85,23 @@ def mock_private_pypi(private_package_tar: Path):
             response.reason = reason
             return response
 
+        def _parse_auth(request: requests.Request) -> Tuple[str, str]:
+            url = urlparse(request.url)
+            if url.username:
+                return url.username, url.password
+            header = request.headers.get("Authorization")
+            if not header or not header.startswith("Basic"):
+                return "", ""
+            username, password = base64.b64decode(header.split()[-1]).decode("utf-8").split(":", 1)
+            return username, password
+
         @mocker._adapter.add_matcher
         def handle_request(request: requests.Request) -> requests.Response:
             url = urlparse(request.url)
             if url.hostname != "private-pypi.org":
                 return None
-            if url.username != _PRIVATE_REPO_USERNAME or url.password != _PRIVATE_REPO_PASSWORD:
+            username, password = _parse_auth(request)
+            if username != _PRIVATE_REPO_USERNAME or password != _PRIVATE_REPO_PASSWORD:
                 return _make_response(request, status=401, reason="Not authorized")
             path = url.path.rstrip("/")
             if path == "/api/pypi/simple":
