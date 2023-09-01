@@ -199,10 +199,18 @@ def get_requirements(
     """
     chooser = Chooser(pool, env=env)
     requirements: List[LockedDependency] = []
+
+    repositories_by_name = {
+        repository.name: repository
+        for repository in pip_repositories or []
+    }
+
     for op in result:
         if not isinstance(op, Uninstall) and not op.skipped:
             # Take direct references verbatim
             source: Optional[DependencySource] = None
+            source_repository = repositories_by_name.get(op.package.source_reference)
+
             if op.package.source_type == "url":
                 url, fragment = urldefrag(op.package.source_url)
                 hash_type, hash = fragment.split("=")
@@ -224,7 +232,9 @@ def get_requirements(
                     hashes[link.hash_name] = link.hash
                 hash = HashModel.parse_obj(hashes)
 
-            url = _normalize_url(url, pip_repositories=pip_repositories)
+            if source_repository:
+                url = source_repository.normalize_solver_url(url)
+
             requirements.append(
                 LockedDependency(
                     name=op.package.name,
@@ -381,7 +391,7 @@ def _prepare_repositories_pool(allow_pypi_requests: bool, pip_repositories: Opti
     config = factory.create_config()
     repos = [
         factory.create_legacy_repository(
-            {"name": f"repository-{index:04}", "url": pip_repository.env_replaced_url()}, config
+            {"name": pip_repository.name, "url": pip_repository.env_replaced_url()}, config
         )
         for index, pip_repository in enumerate(pip_repositories or [])
     ] + [
@@ -393,19 +403,6 @@ def _prepare_repositories_pool(allow_pypi_requests: bool, pip_repositories: Opti
     if allow_pypi_requests:
         repos.append(PyPiRepository())
     return Pool(repositories=[*repos])
-
-
-def _normalize_url(url: str, pip_repositories: Optional[List[PipRepository]] = None) -> str:
-    if not pip_repositories:
-        return url
-    for pip_repository in pip_repositories:
-        specified_url = urlparse(pip_repository.url)
-        repository_host = specified_url.scheme + "://" + specified_url.netloc
-        repository_host_expanded = expandvars(repository_host)
-        if url.startswith(repository_host_expanded):
-            url = url.replace(repository_host_expanded, repository_host, 1)
-    return url
-
 
 def _strip_auth(url: str) -> str:
     """Strip HTTP Basic authentication from a URL."""
