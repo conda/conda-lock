@@ -156,13 +156,38 @@ The default category is `main`.
 [environment.yml][envyaml], using a vendored copy of [Poetry's][poetry] dependency solver.
 
 ### private pip repositories
-Right now `conda-lock` only supports [legacy](https://warehouse.pypa.io/api-reference/legacy.html) pypi repos with basic auth. Most self-hosted repositories like Nexus, Artifactory etc. use this. To use this feature, add your private repo into Poetry's config _including_ the basic auth in the url:
+Right now `conda-lock` only supports [legacy](https://warehouse.pypa.io/api-reference/legacy.html) pypi repos with basic auth. Most self-hosted repositories like Nexus, Artifactory etc. use this. You can configure private pip repositories in a similar way to channels, for example:
 
-```bash
-poetry config repositories.foo https://username:password@foo.repo/simple/
+```yaml
+channels:
+  - conda-forge
+pip-repositories:
+  - http://$PIP_USER:$PIP_PASSWORD@private-pypi.org/api/pypi/simple
+dependencies:
+  - python=3.11
+  - requests=2.26
+  - pip:
+    - fake-private-package==1.0.0
 ```
 
-The private repo will be used in addition to `pypi.org`. For projects using `pyproject.toml`, it is possible to [disable `pypi.org` entirely](#disabling-pypiorg).
+See [the related docs for private channels](./docs/authenticated_channels.md#what_gets_stored) to understand the rules regarding environment variable substitution.
+
+Alternatively, you can use the `poetry` configuration file format to configure private PyPi repositories. The configuration file should be named `config.toml` and have the following format:
+
+```toml
+[repositories.example]
+url = "https://username:password@example.repo/simple"
+```
+
+The discoverable location of this file depends on the operating system:
+
+- **Linux**: `$XDG_CONFIG_HOME/pypoetry-conda-lock` or `~/.config/pypoetry-conda-lock`
+- **OSX**:  `~/Library/Application Support/pypoetry-conda-lock`
+- **Windows**: Check output of `python -c 'from conda_lock._vendor.poetry.locations import CONFIG_DIR;print(CONFIG_DIR)'`
+
+
+Private repositories will be used in addition to `pypi.org`. For projects using `pyproject.toml`, it is possible to [disable `pypi.org` entirely](#disabling-pypiorg).
+
 
 ### --dev-dependencies/--no-dev-dependencies
 
