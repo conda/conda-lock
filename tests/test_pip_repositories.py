@@ -1,6 +1,7 @@
 import base64
 import os
 import tarfile
+
 from io import BytesIO
 from pathlib import Path
 from typing import Optional, Tuple
@@ -34,7 +35,9 @@ _PRIVATE_REPO_PACKAGE = """<!DOCTYPE html>
 </html>
 """
 
-_PRIVATE_PACKAGE_SDIST_PATH = Path(__file__).parent / "test-pip-repositories" / "fake-private-package-1.0.0"
+_PRIVATE_PACKAGE_SDIST_PATH = (
+    Path(__file__).parent / "test-pip-repositories" / "fake-private-package-1.0.0"
+)
 
 
 @pytest.fixture(scope="module")
@@ -71,7 +74,7 @@ def mock_private_pypi(private_package_tar: Path):
             if not file:
                 response.encoding = "utf-8"
                 response._content = text.encode(encoding=response.encoding)
-                response._content_consumed = True
+                response._content_consumed = True  # type: ignore
             else:
                 assert not text
                 response.headers.setdefault("Content-Type", "application/octet-stream")
@@ -92,11 +95,13 @@ def mock_private_pypi(private_package_tar: Path):
             header = request.headers.get("Authorization")
             if not header or not header.startswith("Basic"):
                 return "", ""
-            username, password = base64.b64decode(header.split()[-1]).decode("utf-8").split(":", 1)
+            username, password = (
+                base64.b64decode(header.split()[-1]).decode("utf-8").split(":", 1)
+            )
             return username, password
 
         @mocker._adapter.add_matcher
-        def handle_request(request: requests.Request) -> requests.Response:
+        def handle_request(request: requests.Request) -> Optional[requests.Response]:
             url = urlparse(request.url)
             if url.hostname != "private-pypi.org":
                 return None
@@ -109,7 +114,9 @@ def mock_private_pypi(private_package_tar: Path):
             if path == "/api/pypi/simple/fake-private-package":
                 return _make_response(request, status=200, text=_PRIVATE_REPO_PACKAGE)
             if path == "/files/fake-private-package-1.0.0.tar.gz":
-                return _make_response(request, status=200, file=str(private_package_tar))
+                return _make_response(
+                    request, status=200, file=str(private_package_tar)
+                )
             return _make_response(request, status=404, reason="Not Found")
 
         yield
@@ -150,13 +157,16 @@ def test_it_uses_pip_repositories_with_env_var_substitution(
 
     # AND the package was sourced from the private repository
     assert package_url.hostname == "private-pypi.org", (
-        "Package was fetched from incorrect host. See full lock-file:\n" + lockfile_content
+        "Package was fetched from incorrect host. See full lock-file:\n"
+        + lockfile_content
     )
 
     # AND environment variables are occluded
     assert package_url.username == "$PIP_USER", (
-        "User environment variable was not respected, See full lock-file:\n" + lockfile_content
+        "User environment variable was not respected, See full lock-file:\n"
+        + lockfile_content
     )
     assert package_url.password == "$PIP_PASSWORD", (
-        "Password environment variable was not respected, See full lock-file:\n" + lockfile_content
+        "Password environment variable was not respected, See full lock-file:\n"
+        + lockfile_content
     )

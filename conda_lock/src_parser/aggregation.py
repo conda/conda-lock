@@ -42,7 +42,9 @@ def aggregate_lock_specs(
         raise ChannelAggregationError(*e.args)
 
     try:
-        pip_repositories = suffix_union(lock_spec.pip_repositories for lock_spec in lock_specs)
+        pip_repositories = suffix_union(
+            lock_spec.pip_repositories for lock_spec in lock_specs
+        )
     except ValueError as e:
         raise ChannelAggregationError(*e.args)
 

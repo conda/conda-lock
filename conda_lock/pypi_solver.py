@@ -201,8 +201,7 @@ def get_requirements(
     requirements: List[LockedDependency] = []
 
     repositories_by_name = {
-        repository.name: repository
-        for repository in pip_repositories or []
+        repository.name: repository for repository in pip_repositories or []
     }
 
     for op in result:
@@ -298,7 +297,9 @@ def solve_pypi(
     for dep in dependencies:
         dummy_package.add_dependency(dep)
 
-    pool = _prepare_repositories_pool(allow_pypi_requests, pip_repositories=pip_repositories)
+    pool = _prepare_repositories_pool(
+        allow_pypi_requests, pip_repositories=pip_repositories
+    )
 
     installed = Repository()
     locked = Repository()
@@ -350,7 +351,12 @@ def solve_pypi(
         result = s.solve(use_latest=to_update)
 
     requirements = get_requirements(
-        result, platform, pool, env, pip_repositories=pip_repositories, strip_auth=strip_auth
+        result,
+        platform,
+        pool,
+        env,
+        pip_repositories=pip_repositories,
+        strip_auth=strip_auth,
     )
 
     # use PyPI names of conda packages to walking the dependency tree and propagate
@@ -378,7 +384,9 @@ def solve_pypi(
     return {dep.name: dep for dep in requirements}
 
 
-def _prepare_repositories_pool(allow_pypi_requests: bool, pip_repositories: Optional[List[PipRepository]] = None) -> Pool:
+def _prepare_repositories_pool(
+    allow_pypi_requests: bool, pip_repositories: Optional[List[PipRepository]] = None
+) -> Pool:
     """
     Prepare the pool of repositories to solve pip dependencies
 
@@ -391,7 +399,8 @@ def _prepare_repositories_pool(allow_pypi_requests: bool, pip_repositories: Opti
     config = factory.create_config()
     repos = [
         factory.create_legacy_repository(
-            {"name": pip_repository.name, "url": pip_repository.env_replaced_url()}, config
+            {"name": pip_repository.name, "url": pip_repository.env_replaced_url()},
+            config,
         )
         for index, pip_repository in enumerate(pip_repositories or [])
     ] + [
@@ -403,6 +412,7 @@ def _prepare_repositories_pool(allow_pypi_requests: bool, pip_repositories: Opti
     if allow_pypi_requests:
         repos.append(PyPiRepository())
     return Pool(repositories=[*repos])
+
 
 def _strip_auth(url: str) -> str:
     """Strip HTTP Basic authentication from a URL."""

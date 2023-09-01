@@ -101,7 +101,10 @@ def make_lock_spec(
     )
 
     pip_repositories = (
-        [PipRepository.from_string(repo_override) for repo_override in pip_repository_overrides]
+        [
+            PipRepository.from_string(repo_override)
+            for repo_override in pip_repository_overrides
+        ]
         if pip_repository_overrides
         else aggregated_lock_spec.pip_repositories
     )

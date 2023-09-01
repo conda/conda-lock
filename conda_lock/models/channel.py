@@ -1,4 +1,5 @@
 import logging
+
 from posixpath import expandvars
 from urllib.parse import unquote, urlparse, urlunparse
 

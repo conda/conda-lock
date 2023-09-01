@@ -109,7 +109,9 @@ class LockSpecification(BaseModel):
         return typing.cast(List[Channel], v)
 
     @validator("pip_repositories", pre=True)
-    def validate_pip_repositories(cls, value: List[Union[PipRepository, str]]) -> List[PipRepository]:
+    def validate_pip_repositories(
+        cls, value: List[Union[PipRepository, str]]
+    ) -> List[PipRepository]:
         for index, repository in enumerate(value):
             if isinstance(repository, str):
                 repository = PipRepository.from_string(repository)

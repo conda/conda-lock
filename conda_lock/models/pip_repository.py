@@ -15,9 +15,7 @@ class PipRepository(PackageSource):
     def stripped_base_url(self) -> str:
         """The base URL of the pip repository, without any basic auth."""
         base_url = urlparse(self.base_url)
-        return urlunparse(
-            base_url._replace(netloc=base_url.netloc.split("@", 1)[-1])
-        )
+        return urlunparse(base_url._replace(netloc=base_url.netloc.split("@", 1)[-1]))
 
     @property
     def name(self) -> str:
