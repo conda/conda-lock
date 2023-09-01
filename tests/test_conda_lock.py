@@ -694,7 +694,10 @@ def test_parse_poetry_git(poetry_pyproject_toml_git: Path):
         for dep in res.dependencies["linux-64"]
     }
 
+    assert hasattr(specs["pydantic"], "vcs")
     assert specs["pydantic"].vcs == "git"
+
+    assert hasattr(specs["pydantic"], "rev")
     assert specs["pydantic"].rev == "v2.0b2"
 
 
