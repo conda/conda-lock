@@ -18,3 +18,4 @@ mkdocs-click
 mkdocs-include-markdown-plugin
 flaky
 docker
+requests-mock
