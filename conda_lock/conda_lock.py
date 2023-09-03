@@ -54,7 +54,11 @@ from conda_lock.invoke_conda import (
     determine_conda_executable,
     is_micromamba,
 )
-from conda_lock.lockfile import parse_conda_lock_file, write_conda_lock_file
+from conda_lock.lockfile import (
+    UnknownLockfileVersion,
+    parse_conda_lock_file,
+    write_conda_lock_file,
+)
 from conda_lock.lockfile.v2prelim.models import (
     GitMeta,
     InputMeta,
@@ -933,13 +937,14 @@ def _render_lockfile_for_install(
 
     """
 
-    if not filename.name.endswith(DEFAULT_LOCKFILE_NAME):
+    try:
+        lock_content = parse_conda_lock_file(pathlib.Path(filename))
+    except (yaml.YAMLError, UnknownLockfileVersion):
+        # This indicates a kind explicit lockfile, which is already rendered
         yield filename
         return
 
     from ensureconda.resolve import platform_subdir
-
-    lock_content = parse_conda_lock_file(pathlib.Path(filename))
 
     platform = platform_subdir()
     if platform not in lock_content.metadata.platforms:
