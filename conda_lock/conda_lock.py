@@ -250,7 +250,7 @@ def fn_to_dist_name(fn: str) -> str:
     return fn
 
 
-def make_lock_files(
+def make_lock_files(  # noqa: C901
     *,
     conda: PathLike,
     src_files: List[pathlib.Path],
