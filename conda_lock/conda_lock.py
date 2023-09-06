@@ -939,7 +939,7 @@ def _render_lockfile_for_install(
 
     try:
         lock_content = parse_conda_lock_file(pathlib.Path(filename))
-    except (yaml.YAMLError, UnknownLockfileVersion):
+    except yaml.YAMLError:
         # This indicates a kind explicit lockfile, which is already rendered
         yield filename
         return
