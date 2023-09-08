@@ -37,7 +37,8 @@ def filter_platform_selectors(
                 yield line
             else:
                 logger.warning(
-                    "filtered out line `%s` due to unmatchable selector", line
+                    f"filtered out line `{line}` on platform {platform} due to "
+                    f"non-matching selector `{cond}`"
                 )
         else:
             yield line
