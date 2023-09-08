@@ -17,6 +17,10 @@ from conda_lock.lookup import conda_name_to_pypi_name
 from conda_lock.models.lock_spec import Dependency
 
 
+class MissingLockfileVersion(ValueError):
+    pass
+
+
 class UnknownLockfileVersion(ValueError):
     pass
 
@@ -139,6 +143,8 @@ def parse_conda_lock_file(path: pathlib.Path) -> Lockfile:
     version = content.pop("version", None)
     if version == 1:
         return lockfile_v1_to_v2(LockfileV1.parse_obj(content))
+    elif version is None:
+        raise MissingLockfileVersion(f"{path} is missing a version")
     else:
         raise UnknownLockfileVersion(f"{path} has unknown version {version}")
 

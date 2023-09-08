@@ -143,6 +143,10 @@ _implicit_cuda_message = """
 """
 
 
+class UnknownLockfileKind(ValueError):
+    pass
+
+
 def _extract_platform(line: str) -> Optional[str]:
     search = PLATFORM_PATTERN.search(line)
     if search:
@@ -936,13 +940,12 @@ def _render_lockfile_for_install(
         Optional dependency groups to include in output
 
     """
-
-    try:
-        lock_content = parse_conda_lock_file(pathlib.Path(filename))
-    except (yaml.YAMLError, UnknownLockfileVersion):
-        # This indicates a kind explicit lockfile, which is already rendered
+    kind = _detect_lockfile_kind(pathlib.Path(filename))
+    if kind in ("explicit", "env"):
         yield filename
         return
+
+    lock_content = parse_conda_lock_file(pathlib.Path(filename))
 
     from ensureconda.resolve import platform_subdir
 
@@ -987,6 +990,25 @@ def _render_lockfile_for_install(
     )
     with temporary_file_with_contents("\n".join(content) + "\n") as path:
         yield path
+
+
+def _detect_lockfile_kind(path: pathlib.Path) -> TKindAll:
+    content = path.read_text(encoding="utf-8")
+    if "@EXPLICIT" in {line.strip() for line in content.splitlines()}:
+        return "explicit"
+    try:
+        lockfile = yaml.safe_load(content)
+        if {"channels", "dependencies"} <= set(lockfile):
+            return "env"
+        if "version" in lockfile:
+            # Version validation is handled by `lockfile.parse_conda_lock_file`
+            return "lock"
+        raise UnknownLockfileKind(f"Could not detect the kind of lockfile at {path}")
+    except yaml.YAMLError:
+        raise UnknownLockfileKind(
+            f"Could not detect the kind of lockfile at {path}. Note that explicit "
+            "lockfiles must contain the line '@EXPLICIT'."
+        )
 
 
 def run_lock(
