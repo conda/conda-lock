@@ -36,6 +36,7 @@ import click
 import yaml
 
 from ensureconda.api import ensureconda
+from ensureconda.resolve import platform_subdir
 from typing_extensions import Literal
 
 from conda_lock.click_helpers import OrderedGroup
@@ -946,8 +947,6 @@ def _render_lockfile_for_install(
         return
 
     lock_content = parse_conda_lock_file(pathlib.Path(filename))
-
-    from ensureconda.resolve import platform_subdir
 
     platform = platform_subdir()
     if platform not in lock_content.metadata.platforms:
