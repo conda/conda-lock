@@ -1,13 +1,21 @@
 # How to install dev environment
 
-First create the dev environment:
+* First install dev dependencies:
 
-```
-mamba env create -f environments/dev-environment.yaml
-```
+  ```
+  mamba env create -f environments/dev-environment.yaml
+  mamba activate conda-lock-dev
+  ```
 
-Then, add `conda-lock` and its dependencies (as specified in `pyproject.toml`):
+  or:
 
-```
-pip install -e .
-```
+  ```
+  pip install requirements-dev.txt
+  ```
+
+* Then, install `conda-lock` in editable mode. This will also install its runtime
+  dependencies as defined in `pyproject.toml`.
+
+  ```
+  pip install --editable .
+  ```
