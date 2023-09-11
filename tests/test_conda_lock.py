@@ -14,7 +14,7 @@ import uuid
 
 from glob import glob
 from pathlib import Path
-from typing import Any, ContextManager, Dict, List, Union
+from typing import Any, ContextManager, Dict, List, Tuple, Union
 from unittest.mock import MagicMock
 from urllib.parse import urldefrag, urlsplit
 
@@ -1088,6 +1088,36 @@ def update_environment(tmp_path: Path) -> Path:
     )
 
 
+@pytest.fixture
+def update_environment_filter_platform(tmp_path: Path) -> Tuple[Path, Path]:
+    test_dir = clone_test_dir("test-update-filter-platform", tmp_path)
+
+    return (
+        test_dir / "environment-preupdate.yml",
+        test_dir / "environment-postupdate.yml",
+    )
+
+
+@pytest.fixture
+def update_environment_dependency_removal(tmp_path: Path) -> Tuple[Path, Path]:
+    test_dir = clone_test_dir("test-dependency-removal", tmp_path)
+
+    return (
+        test_dir / "environment-preupdate.yml",
+        test_dir / "environment-postupdate.yml",
+    )
+
+
+@pytest.fixture
+def update_environment_move_pip_dependency(tmp_path: Path) -> Tuple[Path, Path]:
+    test_dir = clone_test_dir("test-move-pip-dependency", tmp_path)
+
+    return (
+        test_dir / "environment-preupdate.yml",
+        test_dir / "environment-postupdate.yml",
+    )
+
+
 @flaky
 @pytest.mark.timeout(120)
 def test_run_lock_with_update(
@@ -1130,6 +1160,74 @@ def test_run_lock_with_update(
     assert post_lock["pydantic"].version == "1.9.0"
     assert pre_lock["flask"].version.startswith("1.")
     assert post_lock["flask"].version == pre_lock["flask"].version
+
+
+@flaky
+@pytest.mark.timeout(120)
+def test_run_lock_with_update_filter_platform(
+    monkeypatch: "pytest.MonkeyPatch",
+    update_environment_filter_platform: Tuple[Path, Path],
+    conda_exe: str,
+):
+    """Test that when updating for one platform, other platforms are not updated."""
+    pre_env = update_environment_filter_platform[0]
+    post_env = update_environment_filter_platform[1]
+    environment_dir = pre_env.parent
+    monkeypatch.chdir(environment_dir)
+
+    run_lock([pre_env], conda_exe=conda_exe)
+    run_lock([post_env], conda_exe=conda_exe, update=["zlib"], platforms=["linux-64"])
+
+    post_lock = {
+        (p.name, p.platform): p
+        for p in parse_conda_lock_file(environment_dir / DEFAULT_LOCKFILE_NAME).package
+    }
+    assert post_lock[("zlib", "linux-64")].version == "1.2.13"
+    assert post_lock[("zlib", "osx-64")].version == "1.2.8"
+
+
+@flaky
+@pytest.mark.timeout(120)
+def test_remove_dependency(
+    monkeypatch: "pytest.MonkeyPatch",
+    update_environment_dependency_removal: Tuple[Path, Path],
+    conda_exe: str,
+):
+    pre_env = update_environment_dependency_removal[0]
+    post_env = update_environment_dependency_removal[1]
+    environment_dir = pre_env.parent
+    monkeypatch.chdir(environment_dir)
+
+    run_lock([pre_env], conda_exe=conda_exe)
+    run_lock([post_env], conda_exe=conda_exe)
+    post_lock = [
+        p.name
+        for p in parse_conda_lock_file(environment_dir / DEFAULT_LOCKFILE_NAME).package
+    ]
+
+    assert "xz" not in post_lock
+
+
+@flaky
+@pytest.mark.timeout(120)
+def test_move_dependency_from_pip_section(
+    monkeypatch: "pytest.MonkeyPatch",
+    update_environment_move_pip_dependency: Tuple[Path, Path],
+    conda_exe: str,
+):
+    pre_env = update_environment_move_pip_dependency[0]
+    post_env = update_environment_move_pip_dependency[1]
+    environment_dir = pre_env.parent
+    monkeypatch.chdir(environment_dir)
+
+    run_lock([pre_env], conda_exe=conda_exe)
+    run_lock([post_env], conda_exe=conda_exe)
+    post_lock = [
+        p.name
+        for p in parse_conda_lock_file(environment_dir / DEFAULT_LOCKFILE_NAME).package
+    ]
+
+    assert post_lock.count("six") == 1
 
 
 def test_run_lock_with_locked_environment_files(
