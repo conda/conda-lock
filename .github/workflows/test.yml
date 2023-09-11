@@ -31,18 +31,10 @@ jobs:
         uses: mamba-org/setup-micromamba@v1
         with:
           micromamba-version: ${{ env.MICROMAMBA_VERSION }}
-          environment-name: test-env
+          environment-file: environments/dev-environment.yaml
           init-shell: powershell
           create-args: >-
             python=3.11
-            mamba
-            pip
-            pytest-cov
-            pytest-xdist
-
-      - name: Install dev deps
-        run: |
-          python -m pip install -r requirements-dev.txt
 
       - name: install conda-lock
         run: |
@@ -78,23 +70,10 @@ jobs:
       - uses: mamba-org/setup-micromamba@v1
         with:
           micromamba-version: ${{ env.MICROMAMBA_VERSION }}
-          environment-name: test-env
+          environment-file: environments/dev-environment.yaml
           init-shell: bash
           create-args: >-
             python=${{ matrix.python-version }}
-            mamba
-            pip
-            pytest-cov
-            pytest-xdist
-
-      - name: Install dev deps
-        shell: bash -eo pipefail -l {0}
-        run: |
-          set -x
-          echo "${PATH}"
-          which pip
-          which python
-          python -m pip install -r requirements-dev.txt
 
       - name: install conda-lock
         shell: bash -eo pipefail -l {0}
