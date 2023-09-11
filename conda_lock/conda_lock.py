@@ -36,6 +36,7 @@ import click
 import yaml
 
 from ensureconda.api import ensureconda
+from ensureconda.resolve import platform_subdir
 from typing_extensions import Literal
 
 from conda_lock.click_helpers import OrderedGroup
@@ -54,7 +55,11 @@ from conda_lock.invoke_conda import (
     determine_conda_executable,
     is_micromamba,
 )
-from conda_lock.lockfile import parse_conda_lock_file, write_conda_lock_file
+from conda_lock.lockfile import (
+    UnknownLockfileVersion,
+    parse_conda_lock_file,
+    write_conda_lock_file,
+)
 from conda_lock.lockfile.v2prelim.models import (
     GitMeta,
     InputMeta,
@@ -137,6 +142,10 @@ _implicit_cuda_message = """
   to suppress this warning,
   or pass `--without-cuda` to explicitly exclude cuda packages.
 """
+
+
+class UnknownLockfileKind(ValueError):
+    pass
 
 
 def _extract_platform(line: str) -> Optional[str]:
@@ -241,7 +250,7 @@ def fn_to_dist_name(fn: str) -> str:
     return fn
 
 
-def make_lock_files(  # noqa: C901
+def make_lock_files(
     *,
     conda: PathLike,
     src_files: List[pathlib.Path],
@@ -768,7 +777,7 @@ def create_lockfile_from_spec(
     *,
     conda: PathLike,
     spec: LockSpecification,
-    platforms: List[str] = [],
+    platforms: Optional[List[str]] = None,
     lockfile_path: pathlib.Path,
     update_spec: Optional[UpdateSpecification] = None,
     metadata_choices: AbstractSet[MetadataOption] = frozenset(),
@@ -778,6 +787,8 @@ def create_lockfile_from_spec(
     """
     Solve or update specification
     """
+    if platforms is None:
+        platforms = []
     assert spec.virtual_package_repo is not None
     virtual_package_channel = spec.virtual_package_repo.channel
 
@@ -930,12 +941,10 @@ def _render_lockfile_for_install(
         Optional dependency groups to include in output
 
     """
-
-    if not filename.name.endswith(DEFAULT_LOCKFILE_NAME):
+    kind = _detect_lockfile_kind(pathlib.Path(filename))
+    if kind in ("explicit", "env"):
         yield filename
         return
-
-    from ensureconda.resolve import platform_subdir
 
     lock_content = parse_conda_lock_file(pathlib.Path(filename))
 
@@ -943,10 +952,10 @@ def _render_lockfile_for_install(
     if platform not in lock_content.metadata.platforms:
         suggested_platforms_section = "platforms:\n- "
         suggested_platforms_section += "\n- ".join(
-            [platform] + lock_content.metadata.platforms
+            [platform, *lock_content.metadata.platforms]
         )
         suggested_platform_args = "--platform=" + " --platform=".join(
-            [platform] + lock_content.metadata.platforms
+            [platform, *lock_content.metadata.platforms]
         )
         raise PlatformValidationError(
             f"The lockfile {filename} does not contain a solution for the current "
@@ -980,6 +989,25 @@ def _render_lockfile_for_install(
     )
     with temporary_file_with_contents("\n".join(content) + "\n") as path:
         yield path
+
+
+def _detect_lockfile_kind(path: pathlib.Path) -> TKindAll:
+    content = path.read_text(encoding="utf-8")
+    if "@EXPLICIT" in {line.strip() for line in content.splitlines()}:
+        return "explicit"
+    try:
+        lockfile = yaml.safe_load(content)
+        if {"channels", "dependencies"} <= set(lockfile):
+            return "env"
+        if "version" in lockfile:
+            # Version validation is handled by `lockfile.parse_conda_lock_file`
+            return "lock"
+        raise UnknownLockfileKind(f"Could not detect the kind of lockfile at {path}")
+    except yaml.YAMLError:
+        raise UnknownLockfileKind(
+            f"Could not detect the kind of lockfile at {path}. Note that explicit "
+            "lockfiles must contain the line '@EXPLICIT'."
+        )
 
 
 def run_lock(
