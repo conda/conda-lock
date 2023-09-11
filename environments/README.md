@@ -7,12 +7,6 @@
   mamba activate conda-lock-dev
   ```
 
-  or:
-
-  ```
-  pip install requirements-dev.txt
-  ```
-
 * Then, install `conda-lock` in editable mode. This will also install its runtime
   dependencies as defined in `pyproject.toml`.
 
