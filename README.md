@@ -75,9 +75,7 @@ and update operations. You can supply a different filename with e.g.
 conda-lock --lockfile superspecial.conda-lock.yml
 ```
 
-The extension `.conda-lock.yml` will be added if not present. Rendered
-environment files (env or explicit) must end with `.lock` and will be named as
-`"conda-{platform}.lock"` by default.
+Rendered `explicit` and `env` lockfiles will be named as `"conda-{platform}.lock"` and `"conda-{platform}.lock.yml` respectively by default.
 
 If you want to override that call conda-lock as follows.
 ```bash
@@ -89,7 +87,7 @@ conda-lock -k explicit --filename-template "specific-{platform}.conda.lock"
 Conda-lock will build a spec list from several files if requested.
 
 ```bash
-conda-lock -f base.yml -f specific.yml -p linux-64 --filename-template "specific-{platform}.lock"
+conda-lock -f base.yml -f specific.yml -p linux-64 -k explicit --filename-template "specific-{platform}.lock"
 ````
 
 In this case all dependencies are combined, and the ordered union of all `channels` is used as the final
