@@ -251,7 +251,7 @@ def fn_to_dist_name(fn: str) -> str:
     return fn
 
 
-def make_lock_files(
+def make_lock_files(  # noqa: C901
     *,
     conda: PathLike,
     src_files: List[pathlib.Path],
@@ -342,35 +342,35 @@ def make_lock_files(
             virtual_package_repo=virtual_package_repo,
             required_categories=required_categories if filter_categories else None,
         )
-        lock_content: Optional[Lockfile] = None
+        original_lock_content: Optional[Lockfile] = None
 
-        platforms_to_lock: List[str] = []
-        platforms_already_locked: List[str] = []
         if lockfile_path.exists():
             import yaml
 
             try:
-                lock_content = parse_conda_lock_file(lockfile_path)
+                original_lock_content = parse_conda_lock_file(lockfile_path)
             except (yaml.error.YAMLError, FileNotFoundError):
                 logger.warning(
                     "Failed to parse existing lock.  Regenerating from scratch"
                 )
-                lock_content = None
+                original_lock_content = None
         else:
-            lock_content = None
+            original_lock_content = None
 
-        if lock_content is not None:
-            platforms_already_locked = list(lock_content.metadata.platforms)
+        platforms_to_lock: List[str] = []
+        platforms_already_locked: List[str] = []
+        if original_lock_content is not None:
+            platforms_already_locked = list(original_lock_content.metadata.platforms)
             update_spec = UpdateSpecification(
-                locked=lock_content.package, update=update
+                locked=original_lock_content.package, update=update
             )
             for platform in lock_spec.platforms:
                 if (
                     update
-                    or platform not in lock_content.metadata.platforms
+                    or platform not in platforms_already_locked
                     or not check_input_hash
                     or lock_spec.content_hash_for_platform(platform)
-                    != lock_content.metadata.content_hash[platform]
+                    != original_lock_content.metadata.content_hash[platform]
                 ):
                     platforms_to_lock.append(platform)
                     if platform in platforms_already_locked:
@@ -386,9 +386,12 @@ def make_lock_files(
             )
         platforms_to_lock = sorted(set(platforms_to_lock))
 
-        if platforms_to_lock:
+        if not platforms_to_lock:
+            new_lock_content = original_lock_content
+        else:
             print(f"Locking dependencies for {platforms_to_lock}...", file=sys.stderr)
-            lock_content = lock_content | create_lockfile_from_spec(
+
+            fresh_lock_content = create_lockfile_from_spec(
                 conda=conda,
                 spec=lock_spec,
                 platforms=platforms_to_lock,
@@ -399,9 +402,24 @@ def make_lock_files(
                 strip_auth=strip_auth,
             )
 
+            if not original_lock_content:
+                new_lock_content = fresh_lock_content
+            else:
+                # Persist packages from original lockfile for platforms not requested for lock
+                packages_not_to_lock = [
+                    dep
+                    for dep in original_lock_content.package
+                    if dep.platform not in platforms_to_lock
+                ]
+                lock_content_to_persist = original_lock_content.copy(
+                    deep=True,
+                    update={"package": packages_not_to_lock},
+                )
+                new_lock_content = lock_content_to_persist | fresh_lock_content
+
             if "lock" in kinds:
                 write_conda_lock_file(
-                    lock_content,
+                    new_lock_content,
                     lockfile_path,
                     metadata_choices=metadata_choices,
                 )
@@ -411,7 +429,9 @@ def make_lock_files(
                     file=sys.stderr,
                 )
 
-        assert lock_content is not None
+        # After this point, we're working with `new_lock_content`, never
+        # `original_lock_content` or `fresh_lock_content`.
+        assert new_lock_content is not None
 
         # check for implicit inclusion of cudatoolkit
         # warn if it was pulled in, but not requested explicitly
@@ -423,13 +443,13 @@ def make_lock_files(
                 for pkg in itertools.chain(*lock_spec.dependencies.values())
             )
             if not cudatoolkit_requested:
-                for package in lock_content.package:
+                for package in new_lock_content.package:
                     if package.name == "cudatoolkit":
                         logger.warning(_implicit_cuda_message)
                         break
 
         do_render(
-            lock_content,
+            new_lock_content,
             kinds=[k for k in kinds if k != "lock"],
             include_dev_dependencies=include_dev_dependencies,
             filename_template=filename_template,
