@@ -163,6 +163,11 @@ def zlib_environment(tmp_path: Path):
 
 
 @pytest.fixture
+def zlib_dev_environment(tmp_path: Path):
+    return clone_test_dir("zlib", tmp_path).joinpath("environment.dev.yml")
+
+
+@pytest.fixture
 def input_hash_zlib_environment(tmp_path: Path):
     return clone_test_dir("test-input-hash-zlib", tmp_path).joinpath("environment.yml")
 
@@ -1578,6 +1583,14 @@ def _check_package_installed(package: str, prefix: str):
     return True
 
 
+def _check_package_not_installed(package: str, prefix: str):
+    import glob
+
+    files = list(glob.glob(f"{prefix}/conda-meta/{package}-*.json"))
+    assert len(files) == 0
+    return True
+
+
 def conda_supports_env(conda_exe: str):
     try:
         subprocess.check_call(
@@ -1688,6 +1701,133 @@ def test_install(
             package=package,
             prefix=str(prefix),
         ), f"Package {package} does not exist in {prefix} environment"
+
+
+@pytest.mark.parametrize("kind", ["explicit", "env"])
+@flaky
+def test_install_with_update(
+    request: "pytest.FixtureRequest",
+    kind: str,
+    tmp_path: Path,
+    conda_exe: str,
+    zlib_environment: Path,
+    zlib_dev_environment: Path,
+    monkeypatch: "pytest.MonkeyPatch",
+    capsys: "pytest.CaptureFixture[str]",
+):
+    # Test that we can lock, install without dev dependencies, then use the update flag to install the dev dependencies
+    if is_micromamba(conda_exe):
+        monkeypatch.setenv("CONDA_FLAGS", "-v")
+    if kind == "env" and not conda_supports_env(conda_exe):
+        pytest.skip(
+            f"Standalone conda @ '{conda_exe}' does not support materializing from environment files."
+        )
+
+    root_prefix = tmp_path / "root_prefix"
+    generated_lockfile_path = tmp_path / "generated_lockfiles"
+
+    root_prefix.mkdir(exist_ok=True)
+    generated_lockfile_path.mkdir(exist_ok=True)
+    monkeypatch.chdir(generated_lockfile_path)
+
+    package = "zlib"
+    dev_dependency = "pydantic"
+    platform = "linux-64"
+
+    lock_filename_template = (
+        request.node.name + "conda-{platform}-{dev-dependencies}.lock"
+    )
+    lock_filename = (
+        request.node.name
+        + "conda-linux-64-true.lock"
+        + (".yml" if kind == "env" else "")
+    )
+
+    with capsys.disabled():
+        runner = CliRunner(mix_stderr=False)
+        result = runner.invoke(
+            main,
+            [
+                "lock",
+                "--conda",
+                conda_exe,
+                "-p",
+                platform,
+                "-f",
+                str(zlib_environment),
+                "-f",
+                str(zlib_dev_environment),
+                "-k",
+                kind,
+                "--filename-template",
+                lock_filename_template,
+            ],
+            catch_exceptions=False,
+        )
+    print(result.stdout, file=sys.stdout)
+    print(result.stderr, file=sys.stderr)
+    assert result.exit_code == 0
+
+    prefix = root_prefix / "test_env"
+
+    def invoke_install(*extra_args: str) -> CliResult:
+        with capsys.disabled():
+            return runner.invoke(
+                main,
+                [
+                    "install",
+                    "--conda",
+                    conda_exe,
+                    "--prefix",
+                    str(prefix),
+                    *extra_args,
+                    lock_filename,
+                ],
+                catch_exceptions=False,
+            )
+
+    context: ContextManager
+    if sys.platform.lower().startswith("linux"):
+        context = contextlib.nullcontext()
+    else:
+        # since by default we do platform validation we would expect this to fail
+        context = pytest.raises(PlatformValidationError)
+
+    with context, install_lock():
+        result = invoke_install()
+    print(result.stdout, file=sys.stdout)
+    print(result.stderr, file=sys.stderr)
+    if Path(lock_filename).exists():
+        logging.debug(
+            "lockfile contents: \n\n=======\n%s\n\n==========",
+            Path(lock_filename).read_text(),
+        )
+
+    assert _check_package_installed(
+        package=package,
+        prefix=str(prefix),
+    ), f"Package {package} does not exist in {prefix} environment"
+
+    assert _check_package_not_installed(
+        package=dev_dependency,
+        prefix=str(prefix),
+    ), f"Package {dev_dependency} exists in {prefix} environment"
+
+    # Now try to install with the update and dev dependencies flag
+    with install_lock():
+        result = invoke_install("--update", "--dev")
+    print(result.stdout, file=sys.stdout)
+    print(result.stderr, file=sys.stderr)
+    if Path(lock_filename).exists():
+        logging.debug(
+            "lockfile contents: \n\n=======\n%s\n\n==========",
+            Path(lock_filename).read_text(),
+        )
+
+    assert _check_package_installed(
+        package=dev_dependency,
+        prefix=str(prefix),
+    ), f"Package {package} does not exist in {prefix} environment"
 
 
 @pytest.mark.parametrize(
