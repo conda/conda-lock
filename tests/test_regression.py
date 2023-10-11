@@ -47,7 +47,7 @@ def test_pr_436(
         dependencies:
         - python 3.11
         - pip:
-            - drjit 0.4.2
+            - drjit==0.4.2
         """
     )
     (tmp_path / "environment.yml").write_text(spec)
