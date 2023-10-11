@@ -56,7 +56,6 @@ from conda_lock.invoke_conda import (
     is_micromamba,
 )
 from conda_lock.lockfile import (
-    UnknownLockfileVersion,
     parse_conda_lock_file,
     write_conda_lock_file,
 )
