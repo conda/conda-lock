@@ -108,18 +108,6 @@ exclude = [
     "tests",
 ]
 
-[tool.isort]
-# NOTE: Can ruff replace isort? See `tool.ruff.isort`, these two configs should
-# be kept in sync until we pick one.
-atomic = true
-force_grid_wrap = 0
-include_trailing_comma = true
-lines_after_imports = 2
-lines_between_types = 1
-multi_line_output = 3
-use_parentheses = true
-known_first_party = "attr"
-
 [tool.pytest.ini_options]
 addopts = "-vrsx -n auto"
 flake8-max-line-length = 105
@@ -199,8 +187,6 @@ select = [
 max-complexity = 18
 
 [tool.ruff.isort]
-# NOTE: Can ruff replace isort? See `tool.isort`, these two configs should be
-# kept in sync until we pick one.
 lines-after-imports = 2
 lines-between-types = 1
 known-first-party = ["attr"]
