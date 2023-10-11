@@ -45,8 +45,9 @@ def test_pr_436(
         channels:
         - conda-forge
         dependencies:
+        - python 3.11
         - pip:
-            - drjit
+            - drjit 0.4.2
         """
     )
     (tmp_path / "environment.yml").write_text(spec)
