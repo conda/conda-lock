@@ -359,6 +359,7 @@ the following sections to the `pyproject.toml`
 [tool.conda-lock.dependencies]
 sqlite = ">=3.34"
 ```
+
 #### pip dependencies
 
 If a dependency refers directly to a URL rather than a package name and version,
@@ -386,13 +387,14 @@ A dependency will also be treated as a `pip` dependency if explicitly marked wit
 [tool.conda-lock.dependencies]
 ampel-ztf = {source = "pypi"}
 ```
+
 ##### Defaulting non-conda dependency sources to PyPI
 
 Alternatively, the above behavior is defaulted for all dependencies defined outside of `[tool.conda-lock.dependencies]`, i.e.:
 - Default to `pip` dependencies for `[tool.poetry.dependencies]`, `[project.dependencies]`, etc.
 - Default to `conda` dependencies for `[tool.conda-lock.dependencies]`
 
-by explicitly providing  `default-non-conda-source = "pip"` in `[tool.conda-lock]` section, e.g.:
+by explicitly providing  `default-non-conda-source = "pip"` in the `[tool.conda-lock]` section, e.g.:
 ```toml
 [tool.conda-lock]
 default-non-conda-source = "pip"
@@ -401,6 +403,14 @@ default-non-conda-source = "pip"
 In all cases, the dependencies of `pip`-installable packages will also be
 installed with `pip`, unless they were already requested by a `conda`
 dependency.
+
+#### Lock only conda-lock dependencies
+
+To lock only dependencies specified under `[tool.conda-lock]` (i.e. skipping all dependencies specified elsewhere), explicitly provide `skip-non-conda-lock = true` in the `[tool.conda-lock]` section, e.g.:
+```toml
+[tool.conda-lock]
+skip-non-conda-lock = true
+```
 
 #### Disabling pypi.org
 

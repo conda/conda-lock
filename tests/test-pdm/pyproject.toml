@@ -23,4 +23,4 @@ channels = [
 
 [tool.conda-lock.dependencies]
 certifi = ">=2019.11.28"
-sqlite = "<3.34"
+sqlite = ">=3.34"
