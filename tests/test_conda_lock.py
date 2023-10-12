@@ -658,6 +658,8 @@ def test_parse_poetry(poetry_pyproject_toml: Path):
         for dep in res.dependencies["linux-64"]
     }
 
+    assert specs["python"].manager == "conda"
+    assert specs["python"].version == ">=3.7,<4.0"
     assert specs["requests"].version == ">=2.13.0,<3.0.0"
     assert specs["toml"].version == ">=0.10"
     assert specs["sqlite"].version == "<3.34"
@@ -678,6 +680,8 @@ def test_parse_poetry_default_pip(poetry_pyproject_toml_default_pip: Path):
         for dep in res.dependencies["linux-64"]
     }
 
+    assert specs["python"].manager == "conda"
+    assert specs["python"].version == ">=3.7,<4.0"
     assert specs["sqlite"].manager == "conda"
     assert specs["certifi"].manager == "conda"
     assert specs["requests"].manager == "pip"
