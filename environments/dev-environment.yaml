@@ -4,13 +4,14 @@ channels:
 - conda-forge
 - nodefaults
 dependencies:
+- mamba
 - black
 - check-manifest
 - doctr
 - filelock
 - python-build
 - freezegun
-- isort
+- ruff
 - mypy
 - pre-commit
 - pytest
