@@ -11,7 +11,7 @@ dependencies:
 - filelock
 - python-build
 - freezegun
-- isort
+- ruff
 - mypy
 - pre-commit
 - pytest
