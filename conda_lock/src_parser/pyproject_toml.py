@@ -227,6 +227,11 @@ def parse_poetry_pyproject_toml(
             extras: List[Any] = []
             in_extra: bool = False
 
+            # Poetry spec includes Python version in "tool.poetry.dependencies"
+            # Cannot be managed by pip
+            if depname == "python":
+                manager = "conda"
+
             # Extras can only be defined in `tool.poetry.dependencies`
             if default_category == "main":
                 in_extra = category != "main"
