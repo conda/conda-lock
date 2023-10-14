@@ -72,8 +72,8 @@ from conda_lock.lockfile.v2prelim.models import (
 )
 from conda_lock.lookup import set_lookup_location
 from conda_lock.models.channel import Channel
-from conda_lock.models.pip_repository import PipRepository
 from conda_lock.models.lock_spec import LockSpecification
+from conda_lock.models.pip_repository import PipRepository
 from conda_lock.pypi_solver import solve_pypi
 from conda_lock.src_parser import make_lock_spec
 from conda_lock.virtual_package import (

@@ -5,8 +5,8 @@ from typing import AbstractSet, List, Optional, Sequence
 
 from conda_lock.common import ordered_union
 from conda_lock.models.channel import Channel
-from conda_lock.models.pip_repository import PipRepository
 from conda_lock.models.lock_spec import Dependency, LockSpecification
+from conda_lock.models.pip_repository import PipRepository
 from conda_lock.src_parser.aggregation import aggregate_lock_specs
 from conda_lock.src_parser.environment_yaml import (
     parse_environment_file,

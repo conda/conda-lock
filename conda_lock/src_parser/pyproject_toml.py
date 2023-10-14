@@ -358,7 +358,6 @@ def specification_with_dependencies(
         ["tool", "conda-lock", "pip-repositories"], toml_contents, []
     )
 
-
     return LockSpecification(
         dependencies={platform: dependencies for platform in platforms},
         channels=channels,

@@ -356,7 +356,7 @@ def solve_pypi(
         pool,
         env,
         pip_repositories=pip_repositories,
-        strip_auth=strip_auth
+        strip_auth=strip_auth,
     )
 
     # use PyPI names of conda packages to walking the dependency tree and propagate

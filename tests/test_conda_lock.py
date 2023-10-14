@@ -59,7 +59,7 @@ from conda_lock.lockfile.v2prelim.models import (
     MetadataOption,
 )
 from conda_lock.models.channel import Channel
-from conda_lock.models.lock_spec import VCSDependency, VersionedDependency
+from conda_lock.models.lock_spec import Dependency, VCSDependency, VersionedDependency
 from conda_lock.pypi_solver import _strip_auth, parse_pip_requirement, solve_pypi
 from conda_lock.src_parser import (
     DEFAULT_PLATFORMS,
@@ -694,10 +694,10 @@ def test_parse_poetry_git(poetry_pyproject_toml_git: Path):
     res = parse_pyproject_toml(poetry_pyproject_toml_git, ["linux-64"])
 
     specs = {
-        dep.name: typing.cast(VersionedDependency, dep)
-        for dep in res.dependencies["linux-64"]
+        dep.name: typing.cast(Dependency, dep) for dep in res.dependencies["linux-64"]
     }
 
+    assert isinstance(specs["pydantic"], VCSDependency)
     assert specs["pydantic"].vcs == "git"
     assert specs["pydantic"].rev == "v2.0b2"
 
