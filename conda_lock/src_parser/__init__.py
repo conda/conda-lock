@@ -5,6 +5,7 @@ from typing import AbstractSet, List, Optional, Sequence
 
 from conda_lock.common import ordered_union
 from conda_lock.models.channel import Channel
+from conda_lock.models.pip_repository import PipRepository
 from conda_lock.models.lock_spec import Dependency, LockSpecification
 from conda_lock.src_parser.aggregation import aggregate_lock_specs
 from conda_lock.src_parser.environment_yaml import (
@@ -76,6 +77,7 @@ def make_lock_spec(
     src_files: List[pathlib.Path],
     virtual_package_repo: FakeRepoData,
     channel_overrides: Optional[Sequence[str]] = None,
+    pip_repository_overrides: Optional[Sequence[str]] = None,
     platform_overrides: Optional[Sequence[str]] = None,
     required_categories: Optional[AbstractSet[str]] = None,
 ) -> LockSpecification:
@@ -98,6 +100,15 @@ def make_lock_spec(
         else aggregated_lock_spec.channels
     )
 
+    pip_repositories = (
+        [
+            PipRepository.from_string(repo_override)
+            for repo_override in pip_repository_overrides
+        ]
+        if pip_repository_overrides
+        else aggregated_lock_spec.pip_repositories
+    )
+
     if required_categories is None:
         dependencies = aggregated_lock_spec.dependencies
     else:
@@ -118,6 +129,7 @@ def make_lock_spec(
     return LockSpecification(
         dependencies=dependencies,
         channels=channels,
+        pip_repositories=pip_repositories,
         sources=aggregated_lock_spec.sources,
         virtual_package_repo=virtual_package_repo,
         allow_pypi_requests=aggregated_lock_spec.allow_pypi_requests,

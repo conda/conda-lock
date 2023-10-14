@@ -41,10 +41,18 @@ def aggregate_lock_specs(
     except ValueError as e:
         raise ChannelAggregationError(*e.args)
 
+    try:
+        pip_repositories = suffix_union(
+            lock_spec.pip_repositories for lock_spec in lock_specs
+        )
+    except ValueError as e:
+        raise ChannelAggregationError(*e.args)
+
     return LockSpecification(
         dependencies=dependencies,
         # Ensure channel are correctly ordered
         channels=channels,
+        pip_repositories=pip_repositories,
         # uniquify metadata, preserving order
         sources=ordered_union(lock_spec.sources for lock_spec in lock_specs),
         allow_pypi_requests=all(
