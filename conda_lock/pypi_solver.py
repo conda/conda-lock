@@ -2,8 +2,9 @@ import re
 import sys
 
 from pathlib import Path
+from posixpath import expandvars
 from typing import TYPE_CHECKING, Dict, List, Optional
-from urllib.parse import urldefrag, urlsplit, urlunsplit
+from urllib.parse import urldefrag, urlparse, urlsplit, urlunsplit
 
 from clikit.api.io.flags import VERY_VERBOSE
 from clikit.io import ConsoleIO, NullIO
@@ -32,6 +33,7 @@ from conda_lock.lockfile.v2prelim.models import (
 )
 from conda_lock.lookup import conda_name_to_pypi_name
 from conda_lock.models import lock_spec
+from conda_lock.models.pip_repository import PipRepository
 
 
 if TYPE_CHECKING:
@@ -188,6 +190,7 @@ def get_requirements(
     platform: str,
     pool: Pool,
     env: Env,
+    pip_repositories: Optional[List[PipRepository]] = None,
     strip_auth: bool = False,
 ) -> List[LockedDependency]:
     """Extract distributions from Poetry package plan, ignoring uninstalls
@@ -196,10 +199,17 @@ def get_requirements(
     """
     chooser = Chooser(pool, env=env)
     requirements: List[LockedDependency] = []
+
+    repositories_by_name = {
+        repository.name: repository for repository in pip_repositories or []
+    }
+
     for op in result:
         if not isinstance(op, Uninstall) and not op.skipped:
             # Take direct references verbatim
             source: Optional[DependencySource] = None
+            source_repository = repositories_by_name.get(op.package.source_reference)
+
             if op.package.source_type == "url":
                 url, fragment = urldefrag(op.package.source_url)
                 hash_type, hash = fragment.split("=")
@@ -220,6 +230,9 @@ def get_requirements(
                 if link.hash_name is not None and link.hash is not None:
                     hashes[link.hash_name] = link.hash
                 hash = HashModel.parse_obj(hashes)
+
+            if source_repository:
+                url = source_repository.normalize_solver_url(url)
 
             requirements.append(
                 LockedDependency(
@@ -245,6 +258,7 @@ def solve_pypi(
     conda_locked: Dict[str, LockedDependency],
     python_version: str,
     platform: str,
+    pip_repositories: Optional[List[PipRepository]] = None,
     allow_pypi_requests: bool = True,
     verbose: bool = False,
     strip_auth: bool = False,
@@ -283,7 +297,9 @@ def solve_pypi(
     for dep in dependencies:
         dummy_package.add_dependency(dep)
 
-    pool = _prepare_repositories_pool(allow_pypi_requests)
+    pool = _prepare_repositories_pool(
+        allow_pypi_requests, pip_repositories=pip_repositories
+    )
 
     installed = Repository()
     locked = Repository()
@@ -334,7 +350,14 @@ def solve_pypi(
     with s.use_environment(env):
         result = s.solve(use_latest=to_update)
 
-    requirements = get_requirements(result, platform, pool, env, strip_auth=strip_auth)
+    requirements = get_requirements(
+        result,
+        platform,
+        pool,
+        env,
+        pip_repositories=pip_repositories,
+        strip_auth=strip_auth
+    )
 
     # use PyPI names of conda packages to walking the dependency tree and propagate
     # categories from explicit to transitive dependencies
@@ -361,7 +384,9 @@ def solve_pypi(
     return {dep.name: dep for dep in requirements}
 
 
-def _prepare_repositories_pool(allow_pypi_requests: bool) -> Pool:
+def _prepare_repositories_pool(
+    allow_pypi_requests: bool, pip_repositories: Optional[List[PipRepository]] = None
+) -> Pool:
     """
     Prepare the pool of repositories to solve pip dependencies
 
@@ -373,6 +398,12 @@ def _prepare_repositories_pool(allow_pypi_requests: bool) -> Pool:
     factory = Factory()
     config = factory.create_config()
     repos = [
+        factory.create_legacy_repository(
+            {"name": pip_repository.name, "url": expandvars(pip_repository.url)},
+            config,
+        )
+        for pip_repository in pip_repositories or []
+    ] + [
         factory.create_legacy_repository(
             {"name": source[0], "url": source[1]["url"]}, config
         )
