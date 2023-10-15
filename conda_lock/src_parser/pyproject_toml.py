@@ -553,6 +553,17 @@ def parse_pyproject_toml(
     with pyproject_toml.open("rb") as fp:
         contents = toml_load(fp)
     build_system = get_in(["build-system", "build-backend"], contents)
+
+    if get_in(
+        ["tool", "conda-lock", "skip-non-conda-lock"],
+        contents,
+        False,
+    ):
+        dependencies: List[Dependency] = []
+        return specification_with_dependencies(
+            pyproject_toml, platforms, contents, dependencies
+        )
+
     if "dependencies" in get_in(["project", "dynamic"], contents, []):
         # In this case, the dependencies are not declaratively defined in the
         # pyproject.toml, so we can't parse them. Instead they are provided dynamically
