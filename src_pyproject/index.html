@@ -369,6 +369,13 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#lock-only-conda-lock-dependencies" class="md-nav__link">
+    Lock only conda-lock dependencies
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#extras" class="md-nav__link">
     Extras
   </a>
@@ -673,6 +680,13 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#lock-only-conda-lock-dependencies" class="md-nav__link">
+    Lock only conda-lock dependencies
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#extras" class="md-nav__link">
     Extras
   </a>
@@ -836,6 +850,11 @@ be treated as a <code>pip</code> dependency, e.g.:</p>
 <p>In all cases, the dependencies of <code>pip</code>-installable packages will also be
 installed with <code>pip</code>, unless they were already requested by a <code>conda</code>
 dependency.</p>
+<h3 id="lock-only-conda-lock-dependencies">Lock only conda-lock dependencies</h3>
+<p>To lock only dependencies specified under <code>[tool.conda-lock]</code> (i.e. skipping all dependencies specified elsewhere), explicitly provide <code>skip-non-conda-lock = true</code> in <code>[tool.conda-lock]</code> section, e.g.:
+<div class="highlight"><pre><span></span><code><span class="k">[tool.conda-lock]</span>
+<span class="n">skip-non-conda-lock</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">true</span>
+</code></pre></div></p>
 <h3 id="extras">Extras</h3>
 <p>If your pyproject.toml file contains optional dependencies/extras these can be referred to by using the <code>--extras</code> flag</p>
 <div class="tabbed-set tabbed-alternate" data-tabs="2:2"><input checked="checked" id="__tabbed_2_1" name="__tabbed_2" type="radio" /><input id="__tabbed_2_2" name="__tabbed_2" type="radio" /><div class="tabbed-labels"><label for="__tabbed_2_1">poetry</label><label for="__tabbed_2_2">pep621 (flit, pdm)</label></div>
