@@ -683,7 +683,7 @@ def test_parse_poetry(poetry_pyproject_toml: Path):
     assert specs["python"].version == ">=3.7,<4.0"
     assert specs["requests"].version == ">=2.13.0,<3.0.0"
     assert specs["toml"].version == ">=0.10"
-    assert specs["sqlite"].version == "<3.34"
+    assert specs["sqlite"].version == ">=3.34"
     assert specs["certifi"].version == ">=2019.11.28"
     assert specs["pytest"].version == ">=5.1.0,<5.2.0"
     assert specs["pytest"].category == "dev"

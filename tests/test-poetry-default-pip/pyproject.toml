@@ -27,5 +27,5 @@ channels = [
 default-non-conda-source = "pip"
 
 [tool.conda-lock.dependencies]
-sqlite = "<3.34"
+sqlite = ">=3.34"
 certifi = ">=2019.11.28"
