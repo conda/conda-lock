@@ -19,10 +19,6 @@ from typing import (
 )
 
 
-if typing.TYPE_CHECKING:
-    # Not in the release version of typeshed yet
-    from _typeshed import SupportsRichComparisonT  # type: ignore
-
 T = TypeVar("T")
 
 
@@ -77,40 +73,6 @@ def read_json(filepath: Union[str, pathlib.Path]) -> Dict:
 
 def ordered_union(collections: Iterable[Iterable[T]]) -> List[T]:
     return list({k: k for k in chain.from_iterable(collections)}.values())
-
-
-def suffix_union(
-    collections: Iterable[Sequence["SupportsRichComparisonT"]],
-) -> List["SupportsRichComparisonT"]:
-    """Generates the union of sequence ensuring that they have a common suffix.
-
-    This is used to unify channels.
-
-    >>> suffix_union([[1], [2, 1], [3, 2, 1], [2, 1], [1]])
-    [3, 2, 1]
-
-    >>> suffix_union([[1], [2, 1], [4, 1]])
-    Traceback (most recent call last)
-        ...
-    RuntimeError: [4, 1] is not a subset of [2, 1]
-
-    """
-    from genericpath import commonprefix
-
-    result: List["SupportsRichComparisonT"] = []
-    for seq in collections:
-        if seq:
-            rev_priority = list(reversed(seq))
-            prefix = commonprefix([result, rev_priority])  # type: ignore
-            if len(result) == 0:
-                result = rev_priority
-            elif prefix[: len(rev_priority)] != result[: len(rev_priority)]:
-                raise ValueError(
-                    f"{list(reversed(rev_priority))} is not a ordered subset of {list(reversed(result))}"
-                )
-            elif len(rev_priority) > len(result):
-                result = rev_priority
-    return list(reversed(result))
 
 
 def relative_path(source: pathlib.Path, target: pathlib.Path) -> str:

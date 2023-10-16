@@ -1,6 +1,9 @@
 import typing
 
-from conda_lock.models.channel import _detect_used_env_var, _env_var_normalize
+import pytest
+
+from conda_lock.models.channel import Channel, _detect_used_env_var, _env_var_normalize
+from conda_lock.src_parser.aggregation import unify_package_sources
 
 
 if typing.TYPE_CHECKING:
@@ -41,3 +44,45 @@ def test_url_auth_info(monkeypatch: "MonkeyPatch") -> None:
 
     replaced = y.conda_token_replaced_url()
     assert replaced == f"http://{user}:{passwd}@host/t/<TOKEN>/prefix/suffix"
+
+
+@pytest.mark.parametrize(
+    "collections,expected",
+    [
+        (
+            [
+                ["three", "two", "one"],
+                ["two", "one"],
+            ],
+            ["three", "two", "one"],
+        ),
+        (
+            [
+                ["three", "two", "one"],
+                ["two", "one"],
+                [],
+            ],
+            ["three", "two", "one"],
+        ),
+        (
+            [
+                ["three", "two", "one"],
+                ["three", "one", "two"],
+            ],
+            ValueError,
+        ),
+    ],
+)
+def test_unify_package_sources(
+    collections: typing.List[str],
+    expected: typing.Union[typing.List[str], typing.Type[Exception]],
+):
+    channel_collections = [
+        [Channel.from_string(name) for name in collection] for collection in collections
+    ]
+    if isinstance(expected, list):
+        result = unify_package_sources(channel_collections)
+        assert [channel.url for channel in result] == expected
+    else:
+        with pytest.raises(expected):
+            unify_package_sources(channel_collections)
