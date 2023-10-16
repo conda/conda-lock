@@ -79,9 +79,7 @@ def ordered_union(collections: Iterable[Iterable[T]]) -> List[T]:
     return list({k: k for k in chain.from_iterable(collections)}.values())
 
 
-def suffix_union(
-    collections: Iterable[Sequence["SupportsRichComparisonT"]],
-) -> List["SupportsRichComparisonT"]:
+def suffix_union(collections: Iterable[Sequence]) -> List:
     """Generates the union of sequence ensuring that they have a common suffix.
 
     This is used to unify channels.
@@ -92,25 +90,31 @@ def suffix_union(
     >>> suffix_union([[1], [2, 1], [4, 1]])
     Traceback (most recent call last)
         ...
-    RuntimeError: [4, 1] is not a subset of [2, 1]
+    RuntimeError: [4, 1] is not an ordered subset of [2, 1]
 
     """
-    from genericpath import commonprefix
+    return list(reversed(prefix_union([list(reversed(s)) for s in collections])))
 
-    result: List["SupportsRichComparisonT"] = []
+
+def prefix_union(collections: Iterable[Sequence]) -> List:
+    """Generates the union of sequence ensuring that they have a common prefix.
+
+    >>> prefix_union([[1], [1, 2], [1, 2, 3], [1, 2], [1]])
+    [1, 2, 3]
+
+    >>> prefix_union([[1], [1, 2], [1, 4]])
+    Traceback (most recent call last)
+        ...
+    RuntimeError: [1, 4] is not an ordered subset of [1, 2]
+    """
+    result: List = []
     for seq in collections:
-        if seq:
-            rev_priority = list(reversed(seq))
-            prefix = commonprefix([result, rev_priority])  # type: ignore
-            if len(result) == 0:
-                result = rev_priority
-            elif prefix[: len(rev_priority)] != result[: len(rev_priority)]:
-                raise ValueError(
-                    f"{list(reversed(rev_priority))} is not a ordered subset of {list(reversed(result))}"
-                )
-            elif len(rev_priority) > len(result):
-                result = rev_priority
-    return list(reversed(result))
+        for i, item in enumerate(seq):
+            if i >= len(result):
+                result.append(item)
+            elif result[i] != item:
+                raise RuntimeError(f"{seq} is not an ordered subset of {result}")
+    return result
 
 
 def relative_path(source: pathlib.Path, target: pathlib.Path) -> str:
