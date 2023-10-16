@@ -82,6 +82,6 @@ def unify_package_sources(collections: List[List[Channel]]) -> List[Channel]:
         return []
     result = max(collections, key=len)
     for collection in collections:
-        if collection != result[-len(collection) :]:
+        if collection and collection != result[-len(collection) :]:
             raise ValueError(f"{collection} is not an ordered subset of {result}")
     return result
