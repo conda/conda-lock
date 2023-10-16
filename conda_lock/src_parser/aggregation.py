@@ -3,8 +3,9 @@ import logging
 from itertools import chain
 from typing import Dict, List, Tuple
 
-from conda_lock.common import ordered_union, suffix_union
+from conda_lock.common import ordered_union
 from conda_lock.errors import ChannelAggregationError
+from conda_lock.models.channel import Channel
 from conda_lock.models.lock_spec import Dependency, LockSpecification
 
 
@@ -37,7 +38,9 @@ def aggregate_lock_specs(
         dependencies[platform] = list(unique_deps.values())
 
     try:
-        channels = suffix_union(lock_spec.channels for lock_spec in lock_specs)
+        channels = unify_package_sources(
+            [lock_spec.channels for lock_spec in lock_specs]
+        )
     except ValueError as e:
         raise ChannelAggregationError(*e.args)
 
@@ -51,3 +54,34 @@ def aggregate_lock_specs(
             lock_spec.allow_pypi_requests for lock_spec in lock_specs
         ),
     )
+
+
+def unify_package_sources(collections: List[List[Channel]]) -> List[Channel]:
+    """Unify the package sources from multiple lock specs.
+
+    To be able to merge the lock specs, the package sources must be compatible between
+    them. This means that between any two lock specs, the package sources must be
+    identical or one must be an extension of the other.
+
+    This allows us to use a superset of all of the package source lists in the
+    aggregated lock spec.
+
+    The following is allowed:
+
+    > unify_package_sources([[channel_two, channel_one], [channel_one]])
+    [channel_two, channel_one]
+
+    Whilst the following will fail:
+
+    > unify_package_sources([[channel_two, channel_one], [channel_three, channel_one]])
+
+    In the failing example, it is not possible to predictably decide which channel
+    to search first, `channel_two` or `channel_three`, so we error in this case.
+    """
+    if not collections:
+        return []
+    result = max(collections, key=len)
+    for collection in collections:
+        if collection != result[-len(collection) :]:
+            raise ValueError(f"{collection} is not an ordered subset of {result}")
+    return result
