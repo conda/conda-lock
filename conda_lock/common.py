@@ -90,7 +90,7 @@ def suffix_union(collections: Iterable[Sequence]) -> List:
     >>> suffix_union([[1], [2, 1], [4, 1]])
     Traceback (most recent call last)
         ...
-    RuntimeError: [4, 1] is not an ordered subset of [2, 1]
+    ValueError: [4, 1] is not an ordered subset of [2, 1]
 
     """
     return list(reversed(prefix_union([list(reversed(s)) for s in collections])))
@@ -105,7 +105,7 @@ def prefix_union(collections: Iterable[Sequence]) -> List:
     >>> prefix_union([[1], [1, 2], [1, 4]])
     Traceback (most recent call last)
         ...
-    RuntimeError: [1, 4] is not an ordered subset of [1, 2]
+    ValueError: [1, 4] is not an ordered subset of [1, 2]
     """
     result: List = []
     for seq in collections:
@@ -113,7 +113,7 @@ def prefix_union(collections: Iterable[Sequence]) -> List:
             if i >= len(result):
                 result.append(item)
             elif result[i] != item:
-                raise RuntimeError(f"{seq} is not an ordered subset of {result}")
+                raise ValueError(f"{seq} is not an ordered subset of {result}")
     return result
 
 
