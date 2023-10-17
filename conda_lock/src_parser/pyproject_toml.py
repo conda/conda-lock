@@ -354,9 +354,14 @@ def specification_with_dependencies(
     except ValueError:
         pass
 
+    pip_repositories = get_in(
+        ["tool", "conda-lock", "pip-repositories"], toml_contents, []
+    )
+
     return LockSpecification(
         dependencies={platform: dependencies for platform in platforms},
         channels=channels,
+        pip_repositories=pip_repositories,
         sources=[path],
         allow_pypi_requests=get_in(
             ["tool", "conda-lock", "allow-pypi-requests"], toml_contents, True

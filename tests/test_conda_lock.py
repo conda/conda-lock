@@ -59,7 +59,8 @@ from conda_lock.lockfile.v2prelim.models import (
     MetadataOption,
 )
 from conda_lock.models.channel import Channel
-from conda_lock.models.lock_spec import VCSDependency, VersionedDependency
+from conda_lock.models.lock_spec import Dependency, VCSDependency, VersionedDependency
+from conda_lock.models.pip_repository import PipRepository
 from conda_lock.pypi_solver import _strip_auth, parse_pip_requirement, solve_pypi
 from conda_lock.src_parser import (
     DEFAULT_PLATFORMS,
@@ -734,10 +735,10 @@ def test_parse_poetry_git(poetry_pyproject_toml_git: Path):
     res = parse_pyproject_toml(poetry_pyproject_toml_git, ["linux-64"])
 
     specs = {
-        dep.name: typing.cast(VersionedDependency, dep)
-        for dep in res.dependencies["linux-64"]
+        dep.name: typing.cast(Dependency, dep) for dep in res.dependencies["linux-64"]
     }
 
+    assert isinstance(specs["pydantic"], VCSDependency)
     assert specs["pydantic"].vcs == "git"
     assert specs["pydantic"].rev == "v2.0b2"
 
@@ -1646,6 +1647,33 @@ def test_aggregate_lock_specs_invalid_channels():
         agg_spec = aggregate_lock_specs(
             [base_spec, add_conda_forge, add_pytorch], platforms=[]
         )
+
+
+def test_aggregate_lock_specs_invalid_pip_repos():
+    """Ensure that aggregating specs from mismatched pip repo orderings raises an error."""
+    repo_a = PipRepository.from_string("http://private-pypi-a.org/api/pypi/simple")
+    repo_b = PipRepository.from_string("http://private-pypi-b.org/api/pypi/simple")
+    base_spec = LockSpecification(
+        channels=[],
+        dependencies={},
+        pip_repositories=[],
+        sources=[],
+    )
+
+    spec_a_b = base_spec.copy(update={"pip_repositories": [repo_a, repo_b]})
+    agg_spec = aggregate_lock_specs([base_spec, spec_a_b, spec_a_b], platforms=[])
+    assert agg_spec.pip_repositories == spec_a_b.pip_repositories
+
+    # swap the order of the two repositories, which is an error
+    spec_b_a = base_spec.copy(update={"pip_repositories": [repo_b, repo_a]})
+    with pytest.raises(ChannelAggregationError):
+        agg_spec = aggregate_lock_specs([base_spec, spec_a_b, spec_b_a], platforms=[])
+
+    # We can combine ["a"] with ["b", "a"], but not with ["a", "b"].
+    spec_a = base_spec.copy(update={"pip_repositories": [repo_a]})
+    aggregate_lock_specs([base_spec, spec_a, spec_b_a], platforms=[])
+    with pytest.raises(ChannelAggregationError):
+        aggregate_lock_specs([base_spec, spec_a, spec_a_b], platforms=[])
 
 
 def _check_package_installed(package: str, prefix: str):

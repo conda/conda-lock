@@ -1,12 +1,13 @@
 import logging
 
 from itertools import chain
-from typing import Dict, List, Tuple
+from typing import Dict, List, Tuple, TypeVar
 
 from conda_lock.common import ordered_union
 from conda_lock.errors import ChannelAggregationError
 from conda_lock.models.channel import Channel
 from conda_lock.models.lock_spec import Dependency, LockSpecification
+from conda_lock.models.pip_repository import PipRepository
 
 
 logger = logging.getLogger(__name__)
@@ -44,10 +45,20 @@ def aggregate_lock_specs(
     except ValueError as e:
         raise ChannelAggregationError(*e.args)
 
+    try:
+        # For discussion see
+        # <https://github.com/conda/conda-lock/pull/529#issuecomment-1766060611>
+        pip_repositories = unify_package_sources(
+            [lock_spec.pip_repositories for lock_spec in lock_specs]
+        )
+    except ValueError as e:
+        raise ChannelAggregationError(*e.args)
+
     return LockSpecification(
         dependencies=dependencies,
         # Ensure channel are correctly ordered
         channels=channels,
+        pip_repositories=pip_repositories,
         # uniquify metadata, preserving order
         sources=ordered_union(lock_spec.sources for lock_spec in lock_specs),
         allow_pypi_requests=all(
@@ -56,7 +67,12 @@ def aggregate_lock_specs(
     )
 
 
-def unify_package_sources(collections: List[List[Channel]]) -> List[Channel]:
+PackageSource = TypeVar("PackageSource", Channel, PipRepository)
+
+
+def unify_package_sources(
+    collections: List[List[PackageSource]],
+) -> List[PackageSource]:
     """Unify the package sources from multiple lock specs.
 
     To be able to merge the lock specs, the package sources must be compatible between
