@@ -46,6 +46,8 @@ def aggregate_lock_specs(
         raise ChannelAggregationError(*e.args)
 
     try:
+        # For discussion see
+        # <https://github.com/conda/conda-lock/pull/529#issuecomment-1766060611>
         pip_repositories = unify_package_sources(
             [lock_spec.pip_repositories for lock_spec in lock_specs]
         )
