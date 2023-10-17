@@ -9,9 +9,6 @@ class PipRepository(BaseModel):
 
     url: str
 
-    def __lt__(self, other: "PipRepository") -> bool:
-        return tuple(self.dict().values()) < tuple(other.dict().values())
-
     @classmethod
     def from_string(cls, url: str) -> "PipRepository":
         return PipRepository(url=url)
