@@ -120,6 +120,8 @@ def parse_environment_file(
     except ValueError:
         pass
 
+    pip_repositories: List[str] = env_yaml_data.get("pip-repositories", [])
+
     # These extension fields are nonstandard
     category: str = env_yaml_data.get("category") or "main"
 
@@ -132,5 +134,6 @@ def parse_environment_file(
     return LockSpecification(
         dependencies=dep_map,
         channels=channels,  # type: ignore
+        pip_repositories=pip_repositories,  # type: ignore
         sources=[environment_file],
     )

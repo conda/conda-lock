@@ -95,9 +95,6 @@ class Channel(ZeroValRepr, BaseModel):
     url: str
     used_env_vars: FrozenSet[str] = Field(default=frozenset())
 
-    def __lt__(self, other: "Channel") -> bool:
-        return tuple(self.dict().values()) < tuple(other.dict().values())
-
     @classmethod
     def from_string(cls, value: str) -> "Channel":
         if "://" in value:

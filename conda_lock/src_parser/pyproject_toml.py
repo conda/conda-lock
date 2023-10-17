@@ -227,6 +227,11 @@ def parse_poetry_pyproject_toml(
             extras: List[Any] = []
             in_extra: bool = False
 
+            # Poetry spec includes Python version in "tool.poetry.dependencies"
+            # Cannot be managed by pip
+            if depname == "python":
+                manager = "conda"
+
             # Extras can only be defined in `tool.poetry.dependencies`
             if default_category == "main":
                 in_extra = category != "main"
@@ -349,9 +354,14 @@ def specification_with_dependencies(
     except ValueError:
         pass
 
+    pip_repositories = get_in(
+        ["tool", "conda-lock", "pip-repositories"], toml_contents, []
+    )
+
     return LockSpecification(
         dependencies={platform: dependencies for platform in platforms},
         channels=channels,
+        pip_repositories=pip_repositories,
         sources=[path],
         allow_pypi_requests=get_in(
             ["tool", "conda-lock", "allow-pypi-requests"], toml_contents, True
@@ -548,6 +558,17 @@ def parse_pyproject_toml(
     with pyproject_toml.open("rb") as fp:
         contents = toml_load(fp)
     build_system = get_in(["build-system", "build-backend"], contents)
+
+    if get_in(
+        ["tool", "conda-lock", "skip-non-conda-lock"],
+        contents,
+        False,
+    ):
+        dependencies: List[Dependency] = []
+        return specification_with_dependencies(
+            pyproject_toml, platforms, contents, dependencies
+        )
+
     if "dependencies" in get_in(["project", "dynamic"], contents, []):
         # In this case, the dependencies are not declaratively defined in the
         # pyproject.toml, so we can't parse them. Instead they are provided dynamically

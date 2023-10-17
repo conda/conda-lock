@@ -89,6 +89,14 @@ In all cases, the dependencies of `pip`-installable packages will also be
 installed with `pip`, unless they were already requested by a `conda`
 dependency.
 
+### Lock only conda-lock dependencies
+
+To lock only dependencies specified under `[tool.conda-lock]` (i.e. skipping all dependencies specified elsewhere), explicitly provide `skip-non-conda-lock = true` in `[tool.conda-lock]` section, e.g.:
+```toml
+[tool.conda-lock]
+skip-non-conda-lock = true
+```
+
 ### Extras
 
 If your pyproject.toml file contains optional dependencies/extras these can be referred to by using the `--extras` flag

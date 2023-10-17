@@ -21,11 +21,12 @@ requires = ["poetry>=0.12"]
 build-backend = "poetry.masonry.api"
 
 [tool.conda-lock]
-allow-pypi-requests = true
 channels = [
     'defaults'
 ]
+skip-non-conda-lock = true
 
 [tool.conda-lock.dependencies]
-sqlite = ">=3.34"
-certifi = ">=2019.11.28"
+python = "3.11"
+sqlite = "*"
+certifi = "*"

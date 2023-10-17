@@ -59,7 +59,8 @@ from conda_lock.lockfile.v2prelim.models import (
     MetadataOption,
 )
 from conda_lock.models.channel import Channel
-from conda_lock.models.lock_spec import VCSDependency, VersionedDependency
+from conda_lock.models.lock_spec import Dependency, VCSDependency, VersionedDependency
+from conda_lock.models.pip_repository import PipRepository
 from conda_lock.pypi_solver import _strip_auth, parse_pip_requirement, solve_pypi
 from conda_lock.src_parser import (
     DEFAULT_PLATFORMS,
@@ -192,6 +193,13 @@ def poetry_pyproject_toml_default_pip(tmp_path: Path):
 
 
 @pytest.fixture
+def poetry_pyproject_toml_skip_non_conda_lock(tmp_path: Path):
+    return clone_test_dir("test-poetry-skip-non-conda-lock", tmp_path).joinpath(
+        "pyproject.toml"
+    )
+
+
+@pytest.fixture
 def poetry_pyproject_toml_git(tmp_path: Path):
     return clone_test_dir("test-poetry-git", tmp_path).joinpath("pyproject.toml")
 
@@ -241,8 +249,22 @@ def flit_pyproject_toml_default_pip(tmp_path: Path):
 
 
 @pytest.fixture
+def flit_pyproject_toml_skip_non_conda_lock(tmp_path: Path):
+    return clone_test_dir("test-flit-skip-non-conda-lock", tmp_path).joinpath(
+        "pyproject.toml"
+    )
+
+
+@pytest.fixture
 def pdm_pyproject_toml_default_pip(tmp_path: Path):
     return clone_test_dir("test-pdm-default-pip", tmp_path).joinpath("pyproject.toml")
+
+
+@pytest.fixture
+def pdm_pyproject_toml_skip_non_conda_lock(tmp_path: Path):
+    return clone_test_dir("test-pdm-skip-non-conda-lock", tmp_path).joinpath(
+        "pyproject.toml"
+    )
 
 
 @pytest.fixture
@@ -658,9 +680,11 @@ def test_parse_poetry(poetry_pyproject_toml: Path):
         for dep in res.dependencies["linux-64"]
     }
 
+    assert specs["python"].manager == "conda"
+    assert specs["python"].version == ">=3.7,<4.0"
     assert specs["requests"].version == ">=2.13.0,<3.0.0"
     assert specs["toml"].version == ">=0.10"
-    assert specs["sqlite"].version == "<3.34"
+    assert specs["sqlite"].version == ">=3.34"
     assert specs["certifi"].version == ">=2019.11.28"
     assert specs["pytest"].version == ">=5.1.0,<5.2.0"
     assert specs["pytest"].category == "dev"
@@ -678,6 +702,8 @@ def test_parse_poetry_default_pip(poetry_pyproject_toml_default_pip: Path):
         for dep in res.dependencies["linux-64"]
     }
 
+    assert specs["python"].manager == "conda"
+    assert specs["python"].version == ">=3.7,<4.0"
     assert specs["sqlite"].manager == "conda"
     assert specs["certifi"].manager == "conda"
     assert specs["requests"].manager == "pip"
@@ -686,14 +712,33 @@ def test_parse_poetry_default_pip(poetry_pyproject_toml_default_pip: Path):
     assert specs["tomlkit"].manager == "pip"
 
 
-def test_parse_poetry_git(poetry_pyproject_toml_git: Path):
-    res = parse_pyproject_toml(poetry_pyproject_toml_git, ["linux-64"])
+def test_parse_poetry_skip_non_conda_lock(
+    poetry_pyproject_toml_skip_non_conda_lock: Path,
+):
+    res = parse_pyproject_toml(poetry_pyproject_toml_skip_non_conda_lock, ["linux-64"])
 
     specs = {
         dep.name: typing.cast(VersionedDependency, dep)
         for dep in res.dependencies["linux-64"]
     }
 
+    assert specs["python"].manager == "conda"
+    assert specs["sqlite"].manager == "conda"
+    assert specs["certifi"].manager == "conda"
+    assert "requests" not in specs
+    assert "toml" not in specs
+    assert "tomlkit" not in specs
+    assert "pytest" not in specs
+
+
+def test_parse_poetry_git(poetry_pyproject_toml_git: Path):
+    res = parse_pyproject_toml(poetry_pyproject_toml_git, ["linux-64"])
+
+    specs = {
+        dep.name: typing.cast(Dependency, dep) for dep in res.dependencies["linux-64"]
+    }
+
+    assert isinstance(specs["pydantic"], VCSDependency)
     assert specs["pydantic"].vcs == "git"
     assert specs["pydantic"].rev == "v2.0b2"
 
@@ -786,7 +831,7 @@ def test_parse_flit(flit_pyproject_toml: Path):
 
     assert specs["requests"].version == ">=2.13.0"
     assert specs["toml"].version == ">=0.10"
-    assert specs["sqlite"].version == "<3.34"
+    assert specs["sqlite"].version == ">=3.34"
     assert specs["certifi"].version == ">=2019.11.28"
     assert specs["pytest"].version == ">=5.1.0"
     assert specs["pytest"].category == "dev"
@@ -812,6 +857,25 @@ def test_parse_flit_default_pip(flit_pyproject_toml_default_pip: Path):
     assert specs["tomlkit"].manager == "pip"
 
 
+def test_parse_flit_skip_non_conda_lock(
+    flit_pyproject_toml_skip_non_conda_lock: Path,
+):
+    res = parse_pyproject_toml(flit_pyproject_toml_skip_non_conda_lock, ["linux-64"])
+
+    specs = {
+        dep.name: typing.cast(VersionedDependency, dep)
+        for dep in res.dependencies["linux-64"]
+    }
+
+    assert specs["python"].manager == "conda"
+    assert specs["sqlite"].manager == "conda"
+    assert specs["certifi"].manager == "conda"
+    assert "requests" not in specs
+    assert "toml" not in specs
+    assert "tomlkit" not in specs
+    assert "pytest" not in specs
+
+
 def test_parse_pdm(pdm_pyproject_toml: Path):
     res = parse_pyproject_toml(pdm_pyproject_toml, ["linux-64"])
 
@@ -824,7 +888,7 @@ def test_parse_pdm(pdm_pyproject_toml: Path):
     assert specs["requests"].version == ">=2.13.0"
     assert specs["toml"].version == ">=0.10"
     # conda-lock exclusives
-    assert specs["sqlite"].version == "<3.34"
+    assert specs["sqlite"].version == ">=3.34"
     assert specs["certifi"].version == ">=2019.11.28"
     # PEP 621 optional dependencies (show up in package metadata)
     assert specs["click"].version == ">=7.0"
@@ -851,6 +915,26 @@ def test_parse_pdm_default_pip(pdm_pyproject_toml_default_pip: Path):
     assert specs["pytest"].manager == "pip"
     assert specs["tomlkit"].manager == "pip"
     assert specs["click"].manager == "pip"
+
+
+def test_parse_pdm_skip_non_conda_lock(
+    pdm_pyproject_toml_skip_non_conda_lock: Path,
+):
+    res = parse_pyproject_toml(pdm_pyproject_toml_skip_non_conda_lock, ["linux-64"])
+
+    specs = {
+        dep.name: typing.cast(VersionedDependency, dep)
+        for dep in res.dependencies["linux-64"]
+    }
+
+    assert specs["python"].manager == "conda"
+    assert specs["sqlite"].manager == "conda"
+    assert specs["certifi"].manager == "conda"
+    assert "requests" not in specs
+    assert "toml" not in specs
+    assert "tomlkit" not in specs
+    assert "pytest" not in specs
+    assert "click" not in specs
 
 
 def test_parse_pyproject_channel_toml(pyproject_channel_toml: Path):
@@ -1563,6 +1647,33 @@ def test_aggregate_lock_specs_invalid_channels():
         agg_spec = aggregate_lock_specs(
             [base_spec, add_conda_forge, add_pytorch], platforms=[]
         )
+
+
+def test_aggregate_lock_specs_invalid_pip_repos():
+    """Ensure that aggregating specs from mismatched pip repo orderings raises an error."""
+    repo_a = PipRepository.from_string("http://private-pypi-a.org/api/pypi/simple")
+    repo_b = PipRepository.from_string("http://private-pypi-b.org/api/pypi/simple")
+    base_spec = LockSpecification(
+        channels=[],
+        dependencies={},
+        pip_repositories=[],
+        sources=[],
+    )
+
+    spec_a_b = base_spec.copy(update={"pip_repositories": [repo_a, repo_b]})
+    agg_spec = aggregate_lock_specs([base_spec, spec_a_b, spec_a_b], platforms=[])
+    assert agg_spec.pip_repositories == spec_a_b.pip_repositories
+
+    # swap the order of the two repositories, which is an error
+    spec_b_a = base_spec.copy(update={"pip_repositories": [repo_b, repo_a]})
+    with pytest.raises(ChannelAggregationError):
+        agg_spec = aggregate_lock_specs([base_spec, spec_a_b, spec_b_a], platforms=[])
+
+    # We can combine ["a"] with ["b", "a"], but not with ["a", "b"].
+    spec_a = base_spec.copy(update={"pip_repositories": [repo_a]})
+    aggregate_lock_specs([base_spec, spec_a, spec_b_a], platforms=[])
+    with pytest.raises(ChannelAggregationError):
+        aggregate_lock_specs([base_spec, spec_a, spec_a_b], platforms=[])
 
 
 def _check_package_installed(package: str, prefix: str):

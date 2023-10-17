@@ -5,6 +5,7 @@ description = ""
 authors = ["conda-lock"]
 
 [tool.poetry.dependencies]
+python = "^3.7"
 requests = "^2.13.0"
 toml = ">=0.10"
 tomlkit = { version = ">=0.7.0,<1.0.0", optional = true }
@@ -25,5 +26,5 @@ channels = [
 ]
 
 [tool.conda-lock.dependencies]
-sqlite = "<3.34"
+sqlite = ">=3.34"
 certifi = ">=2019.11.28"

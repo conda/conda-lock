@@ -5,6 +5,7 @@ description = ""
 authors = ["conda-lock"]
 
 [tool.poetry.dependencies]
+python = "^3.7"
 toml = ""
 # Checking `optional = true` but not in extra
 tomlkit = { version = "", optional = true }

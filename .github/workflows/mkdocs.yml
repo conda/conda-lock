@@ -4,9 +4,18 @@ on:
     branches:
       - main
 
+# Default to bash in login mode; key to activating conda environment
+# https://github.com/mamba-org/provision-with-micromamba#IMPORTANT
+defaults:
+  run:
+    shell: "bash -l {0}"
+
 permissions:
   contents: write
   pages: write
+
+env:
+  MICROMAMBA_VERSION: 'latest'
 
 jobs:
   build:
@@ -19,19 +28,15 @@ jobs:
           submodules: "recursive"
           fetch-depth: 0       # Fetch all history for .GitInfo and .Lastmod
 
-      - name: Setup Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.9'
-          architecture: 'x64'
       - name: Install dependencies
-        run: |
-          python3 -m pip install --upgrade pip            # install pip
-          python3 -m pip install -r requirements-dev.txt  # install dev deps
+        uses: "mamba-org/setup-micromamba@v1"
+        with:
+          micromamba-version: "${{ env.MICROMAMBA_VERSION }}"
+          environment-file: "environments/dev-environment.yaml"
+          cache-environment: true
 
       - name: Install conda-lock
-        run: |
-          python3 -m pip install .
+        run: "pip install ."
 
       - name: Build site
         run: mkdocs build

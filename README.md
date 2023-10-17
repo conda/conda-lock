@@ -153,15 +153,36 @@ The default category is `main`.
 `conda-lock` can also lock the `dependencies.pip` section of
 [environment.yml][envyaml], using a vendored copy of [Poetry's][poetry] dependency solver.
 
-### private pip repositories
-Right now `conda-lock` only supports [legacy](https://warehouse.pypa.io/api-reference/legacy.html) pypi repos with basic auth. Most self-hosted repositories like Nexus, Artifactory etc. use this. To use this feature, add your private repo into Poetry's config _including_ the basic auth in the url:
 
-```bash
-poetry config repositories.foo https://username:password@foo.repo/simple/
+### private pip repositories
+
+Right now `conda-lock` only supports [legacy](https://warehouse.pypa.io/api-reference/legacy.html) pypi repos with basic auth. Most self-hosted repositories like Nexus, Artifactory etc. use this. You can configure private pip repositories in a similar way to channels, for example:
+
+```yaml
+channels:
+  - conda-forge
+pip-repositories:
+  - http://$PIP_USER:$PIP_PASSWORD@private-pypi.org/api/pypi/simple
+dependencies:
+  - python=3.11
+  - requests=2.26
+  - pip:
+    - fake-private-package==1.0.0
 ```
 
-The private repo will be used in addition to `pypi.org`. For projects using `pyproject.toml`, it is possible to [disable `pypi.org` entirely](#disabling-pypiorg).
+See [the related docs for private channels](./docs/authenticated_channels.md#what_gets_stored) to understand the rules regarding environment variable substitution.
 
+Alternatively, you can use the `poetry` configuration file format to configure private PyPi repositories. The configuration file should be named `config.toml` and have the following format:
+
+```toml
+[repositories.example]
+url = "https://username:password@example.repo/simple"
+```
+
+The location of this file can be determined with `python -c 'from conda_lock._vendor.poetry.locations import CONFIG_DIR; print(CONFIG_DIR)'`
+
+
+Private repositories will be used in addition to `pypi.org`. For projects using `pyproject.toml`, it is possible to [disable `pypi.org` entirely](#disabling-pypiorg).
 ### --dev-dependencies/--no-dev-dependencies
 
 By default conda-lock will include dev dependencies in the specification of the lock (if the files that the lock
@@ -359,6 +380,7 @@ the following sections to the `pyproject.toml`
 [tool.conda-lock.dependencies]
 sqlite = ">=3.34"
 ```
+
 #### pip dependencies
 
 If a dependency refers directly to a URL rather than a package name and version,
@@ -386,13 +408,14 @@ A dependency will also be treated as a `pip` dependency if explicitly marked wit
 [tool.conda-lock.dependencies]
 ampel-ztf = {source = "pypi"}
 ```
+
 ##### Defaulting non-conda dependency sources to PyPI
 
 Alternatively, the above behavior is defaulted for all dependencies defined outside of `[tool.conda-lock.dependencies]`, i.e.:
 - Default to `pip` dependencies for `[tool.poetry.dependencies]`, `[project.dependencies]`, etc.
 - Default to `conda` dependencies for `[tool.conda-lock.dependencies]`
 
-by explicitly providing  `default-non-conda-source = "pip"` in `[tool.conda-lock]` section, e.g.:
+by explicitly providing  `default-non-conda-source = "pip"` in the `[tool.conda-lock]` section, e.g.:
 ```toml
 [tool.conda-lock]
 default-non-conda-source = "pip"
@@ -401,6 +424,14 @@ default-non-conda-source = "pip"
 In all cases, the dependencies of `pip`-installable packages will also be
 installed with `pip`, unless they were already requested by a `conda`
 dependency.
+
+#### Lock only conda-lock dependencies
+
+To lock only dependencies specified under `[tool.conda-lock]` (i.e. skipping all dependencies specified elsewhere), explicitly provide `skip-non-conda-lock = true` in the `[tool.conda-lock]` section, e.g.:
+```toml
+[tool.conda-lock]
+skip-non-conda-lock = true
+```
 
 #### Disabling pypi.org
 

@@ -6,6 +6,7 @@ authors = ["conda-lock"]
 requires = [
     "requests >=2.13.0",
     "toml >=0.10",
+    "tomlkit >=0.7",
     ]
 requires-python = ">=3.7"
 
@@ -22,8 +23,9 @@ build-backend = "flit_core.buildapi"
 channels = [
     'defaults'
 ]
+skip-non-conda-lock = true
 
 [tool.conda-lock.dependencies]
+python = ">=3.7"
 sqlite = ">=3.34"
 certifi = ">=2019.11.28"
-toml = {source = "pypi"}
