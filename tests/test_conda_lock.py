@@ -1654,6 +1654,7 @@ def test_aggregate_lock_specs_invalid_pip_repos():
     repo_a = PipRepository.from_string("http://private-pypi-a.org/api/pypi/simple")
     repo_b = PipRepository.from_string("http://private-pypi-b.org/api/pypi/simple")
     base_spec = LockSpecification(
+        channels=[],
         dependencies={},
         pip_repositories=[],
         sources=[],
