@@ -1173,13 +1173,16 @@ def update_environment(tmp_path: Path) -> Path:
 
 
 @pytest.fixture
-def update_environment_filter_platform(tmp_path: Path) -> Tuple[Path, Path]:
+def update_environment_filter_platform(tmp_path: Path) -> Tuple[Path, Path, Path]:
     test_dir = clone_test_dir("test-update-filter-platform", tmp_path)
-
-    return (
+    files = (
+        test_dir / "conda-lock.yml",
         test_dir / "environment-preupdate.yml",
         test_dir / "environment-postupdate.yml",
     )
+    for file in files:
+        assert file.exists()
+    return files
 
 
 @pytest.fixture
@@ -1250,22 +1253,36 @@ def test_run_lock_with_update(
 @pytest.mark.timeout(120)
 def test_run_lock_with_update_filter_platform(
     monkeypatch: "pytest.MonkeyPatch",
-    update_environment_filter_platform: Tuple[Path, Path],
+    update_environment_filter_platform: Tuple[Path, Path, Path],
     conda_exe: str,
 ):
     """Test that when updating for one platform, other platforms are not updated."""
-    pre_env = update_environment_filter_platform[0]
-    post_env = update_environment_filter_platform[1]
-    environment_dir = pre_env.parent
+    lockfile_path, pre_env, post_env = update_environment_filter_platform
+    environment_dir = lockfile_path.parent
     monkeypatch.chdir(environment_dir)
 
-    run_lock([pre_env], conda_exe=conda_exe)
-    run_lock([post_env], conda_exe=conda_exe, update=["zlib"], platforms=["linux-64"])
+    # # We have pre-generated the lockfile for the pre_env file to save time.
+    # # Run 'conda-lock -f environment-preupdate.yml' or
+    # run_lock([pre_env], lockfile_path=lockfile_path, conda_exe=conda_exe)
 
-    post_lock = {
-        (p.name, p.platform): p
-        for p in parse_conda_lock_file(environment_dir / DEFAULT_LOCKFILE_NAME).package
+    pre_lock = {
+        (p.name, p.platform): p for p in parse_conda_lock_file(lockfile_path).package
     }
+    # The pre_env file has zlib 1.2.8 for all platforms.
+    assert pre_lock[("zlib", "linux-64")].version == "1.2.8"
+    assert pre_lock[("zlib", "osx-64")].version == "1.2.8"
+
+    run_lock(
+        [post_env],
+        lockfile_path=lockfile_path,
+        conda_exe=conda_exe,
+        update=["zlib"],
+        platforms=["linux-64"],
+    )
+    post_lock = {
+        (p.name, p.platform): p for p in parse_conda_lock_file(lockfile_path).package
+    }
+    # The post_env file updates zlib to 1.2.13, but we only ran the update for linux-64.
     assert post_lock[("zlib", "linux-64")].version == "1.2.13"
     assert post_lock[("zlib", "osx-64")].version == "1.2.8"
 
