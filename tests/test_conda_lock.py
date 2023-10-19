@@ -1382,6 +1382,20 @@ def test_run_lock_relative_source_path(
     assert [p.resolve() for p in src_files] == [environment.resolve()]
 
 
+@pytest.fixture
+def test_git_package_environment(tmp_path: Path):
+    return clone_test_dir("test-git-package", tmp_path).joinpath("environment.yml")
+
+
+def test_git_gh_408(
+    monkeypatch: pytest.MonkeyPatch, test_git_package_environment: Path, conda_exe: str
+):
+    monkeypatch.chdir(test_git_package_environment.parent)
+    if is_micromamba(conda_exe):
+        monkeypatch.setenv("CONDA_FLAGS", "-v")
+    run_lock([test_git_package_environment], conda_exe=conda_exe)
+
+
 def test_run_lock_with_pip(
     monkeypatch: "pytest.MonkeyPatch", pip_environment: Path, conda_exe: str
 ):

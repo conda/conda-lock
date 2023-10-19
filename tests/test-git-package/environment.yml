@@ -1,0 +1,6 @@
+channels:
+- conda-forge
+dependencies:
+- git
+platforms:
+- osx-64
