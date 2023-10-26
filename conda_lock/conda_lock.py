@@ -1474,7 +1474,7 @@ def install(
     install_func = partial(
         do_conda_install, conda=_conda_exe, prefix=prefix, name=name, copy=copy
     )
-    if validate_platform and not lock_file.name.endswith(DEFAULT_LOCKFILE_NAME):
+    if validate_platform and _detect_lockfile_kind(lock_file) != "lock":
         lockfile_contents = read_file(lock_file)
         try:
             do_validate_platform(lockfile_contents)
