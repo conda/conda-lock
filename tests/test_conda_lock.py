@@ -5,13 +5,13 @@ import logging
 import os
 import pathlib
 import platform
+import re
 import shutil
 import subprocess
 import sys
 import tempfile
 import typing
 import uuid
-import re
 
 from glob import glob
 from pathlib import Path
@@ -305,6 +305,7 @@ def lightgbm_environment(tmp_path: Path):
     return clone_test_dir("test-pip-finds-recent-manylinux-wheels", tmp_path).joinpath(
         "environment.yml"
     )
+
 
 @pytest.fixture
 def multi_source_env(tmp_path: Path):
@@ -2302,16 +2303,19 @@ def test_cli_version(capsys: "pytest.CaptureFixture[str]"):
     assert version_without_dev in result.stdout
 
 
-def test_pip_finds_recent_manylinux_wheels(monkeypatch: "pytest.MonkeyPatch", lightgbm_environment: Path, conda_exe: str):
+def test_pip_finds_recent_manylinux_wheels(
+    monkeypatch: "pytest.MonkeyPatch", lightgbm_environment: Path, conda_exe: str
+):
     monkeypatch.chdir(lightgbm_environment.parent)
     run_lock([lightgbm_environment], conda_exe=conda_exe, platforms=["linux-64"])
-    lockfile = parse_conda_lock_file(lightgbm_environment.parent / DEFAULT_LOCKFILE_NAME)
+    lockfile = parse_conda_lock_file(
+        lightgbm_environment.parent / DEFAULT_LOCKFILE_NAME
+    )
 
-    lightgbm_dep, = [p for p in lockfile.package if p.name == 'lightgbm']
-    manylinux_pattern =  r'manylinux_(\d+)_(\d+).+\.whl'
+    (lightgbm_dep,) = [p for p in lockfile.package if p.name == "lightgbm"]
+    manylinux_pattern = r"manylinux_(\d+)_(\d+).+\.whl"
     manylinux_match = re.search(manylinux_pattern, lightgbm_dep.url)
     assert manylinux_match, "No match found for manylinux version in {lightgbm_dep.url}"
 
     manylinux_version = [int(each) for each in manylinux_match.groups()]
     assert manylinux_version > [2, 17]
-
