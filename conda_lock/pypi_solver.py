@@ -40,8 +40,10 @@ if TYPE_CHECKING:
     from packaging.tags import Tag
 
 
-# NB: in principle these depend on the glibc in the conda env
-MANYLINUX_TAGS = ["1", "2010", "2014", "_2_17"]
+# NB: in principle these depend on the glibc on the machine creating the conda env.
+# We use tags supported by manylinux Docker images, which are likely the most common
+# in practice, see https://github.com/pypa/manylinux/blob/main/README.rst#docker-images.
+MANYLINUX_TAGS = ["1", "2010", "2014", "_2_17", "_2_24", "_2_28"]
 # This needs to be updated periodically as new macOS versions are released.
 MACOS_VERSION = (13, 4)
 

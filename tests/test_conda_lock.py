@@ -5,6 +5,7 @@ import logging
 import os
 import pathlib
 import platform
+import re
 import shutil
 import subprocess
 import sys
@@ -296,6 +297,13 @@ def pip_conda_name_confusion(tmp_path: Path):
     """Path to an environment.yaml that has a hardcoded channel in one of the dependencies"""
     return clone_test_dir("test-pip-conda-name-confusion", tmp_path).joinpath(
         "environment.yaml"
+    )
+
+
+@pytest.fixture
+def lightgbm_environment(tmp_path: Path):
+    return clone_test_dir("test-pip-finds-recent-manylinux-wheels", tmp_path).joinpath(
+        "environment.yml"
     )
 
 
@@ -2293,3 +2301,31 @@ def test_cli_version(capsys: "pytest.CaptureFixture[str]"):
     # the part before, in this case just "0.11.3".
     version_without_dev = __version__.split(".dev")[0]
     assert version_without_dev in result.stdout
+
+
+def test_pip_finds_recent_manylinux_wheels(
+    monkeypatch: "pytest.MonkeyPatch", lightgbm_environment: Path, conda_exe: str
+):
+    """Ensure that we find a manylinux wheel with glibc > 2.17 for lightgbm.
+
+    See https://github.com/conda/conda-lock/issues/517 for more context.
+
+    If not found, installation would trigger a build of lightgbm from source.
+    If this test fails, it likely means that MANYLINUX_TAGS in
+    `conda_lock/pypi_solver.py` is out of date.
+    """
+    monkeypatch.chdir(lightgbm_environment.parent)
+    run_lock([lightgbm_environment], conda_exe=conda_exe, platforms=["linux-64"])
+    lockfile = parse_conda_lock_file(
+        lightgbm_environment.parent / DEFAULT_LOCKFILE_NAME
+    )
+
+    (lightgbm_dep,) = [p for p in lockfile.package if p.name == "lightgbm"]
+    manylinux_pattern = r"manylinux_(\d+)_(\d+).+\.whl"
+    manylinux_match = re.search(manylinux_pattern, lightgbm_dep.url)
+    assert manylinux_match, "No match found for manylinux version in {lightgbm_dep.url}"
+
+    manylinux_version = [int(each) for each in manylinux_match.groups()]
+    # Make sure the manylinux wheel was built with glibc > 2.17 as a
+    # non-regression test for #517
+    assert manylinux_version > [2, 17]
