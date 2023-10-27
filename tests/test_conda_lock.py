@@ -2306,6 +2306,12 @@ def test_cli_version(capsys: "pytest.CaptureFixture[str]"):
 def test_pip_finds_recent_manylinux_wheels(
     monkeypatch: "pytest.MonkeyPatch", lightgbm_environment: Path, conda_exe: str
 ):
+    """Ensure that we find a pre-built manylinux wheel for lightgbm.
+
+    If not, installation would trigger a build of lightgbm from source. If this test
+    fails, it likely means that MANYLINUX_TAGS in `conda_lock/pypi_solver.py` is out of
+    date.
+    """
     monkeypatch.chdir(lightgbm_environment.parent)
     run_lock([lightgbm_environment], conda_exe=conda_exe, platforms=["linux-64"])
     lockfile = parse_conda_lock_file(
