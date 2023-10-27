@@ -2306,11 +2306,13 @@ def test_cli_version(capsys: "pytest.CaptureFixture[str]"):
 def test_pip_finds_recent_manylinux_wheels(
     monkeypatch: "pytest.MonkeyPatch", lightgbm_environment: Path, conda_exe: str
 ):
-    """Ensure that we find a pre-built manylinux wheel for lightgbm.
+    """Ensure that we find a manylinux wheel with glibc > 2.17 for lightgbm.
 
-    If not, installation would trigger a build of lightgbm from source. If this test
-    fails, it likely means that MANYLINUX_TAGS in `conda_lock/pypi_solver.py` is out of
-    date.
+    See https://github.com/conda/conda-lock/issues/517 for more context.
+
+    If not found, installation would trigger a build of lightgbm from source.
+    If this test fails, it likely means that MANYLINUX_TAGS in
+    `conda_lock/pypi_solver.py` is out of date.
     """
     monkeypatch.chdir(lightgbm_environment.parent)
     run_lock([lightgbm_environment], conda_exe=conda_exe, platforms=["linux-64"])
@@ -2324,4 +2326,6 @@ def test_pip_finds_recent_manylinux_wheels(
     assert manylinux_match, "No match found for manylinux version in {lightgbm_dep.url}"
 
     manylinux_version = [int(each) for each in manylinux_match.groups()]
+    # Make sure the manylinux wheel was built with glibc > 2.17 as a
+    # non-regression test for #517
     assert manylinux_version > [2, 17]
