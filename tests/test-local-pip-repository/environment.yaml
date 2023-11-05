@@ -1,0 +1,10 @@
+channels:
+  - conda-forge
+pip-repositories:
+  - file://$PYPI_FILE_URL/
+dependencies:
+  - python=3.11
+  - pip:
+    - fake-private-package==1.0.0
+    - six
+
