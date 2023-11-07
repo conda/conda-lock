@@ -1738,8 +1738,7 @@ def conda_supports_env(conda_exe: str):
     return True
 
 
-@pytest.mark.parametrize("kind", ["explicit", "env"])
-@flaky
+@pytest.mark.parametrize("kind", ["explicit", "env", "lock"])
 def test_install(
     request: "pytest.FixtureRequest",
     kind: str,
@@ -1769,52 +1768,37 @@ def test_install(
     lock_filename_template = (
         request.node.name + "conda-{platform}-{dev-dependencies}.lock"
     )
-    lock_filename = (
-        request.node.name
-        + "conda-linux-64-true.lock"
-        + (".yml" if kind == "env" else "")
-    )
+    if kind == "env":
+        lock_filename = request.node.name + "conda-linux-64-true.lock.yml"
+    elif kind == "explicit":
+        lock_filename = request.node.name + "conda-linux-64-true.lock"
+    elif kind == "lock":
+        lock_filename = "conda-lock.yml"
+    else:
+        raise ValueError(f"Unknown kind: {kind}")
+
+    lock_args = [
+        "lock",
+        "--conda",
+        conda_exe,
+        "-p",
+        platform,
+        "-f",
+        str(zlib_environment),
+        "-k",
+        kind,
+        "--filename-template",
+        lock_filename_template,
+    ]
 
     with capsys.disabled():
         runner = CliRunner(mix_stderr=False)
-        result = runner.invoke(
-            main,
-            [
-                "lock",
-                "--conda",
-                conda_exe,
-                "-p",
-                platform,
-                "-f",
-                str(zlib_environment),
-                "-k",
-                kind,
-                "--filename-template",
-                lock_filename_template,
-            ],
-            catch_exceptions=False,
-        )
+        result = runner.invoke(main, lock_args, catch_exceptions=False)
     print(result.stdout, file=sys.stdout)
     print(result.stderr, file=sys.stderr)
     assert result.exit_code == 0
 
     prefix = root_prefix / "test_env"
-
-    def invoke_install(*extra_args: str) -> CliResult:
-        with capsys.disabled():
-            return runner.invoke(
-                main,
-                [
-                    "install",
-                    "--conda",
-                    conda_exe,
-                    "--prefix",
-                    str(prefix),
-                    *extra_args,
-                    lock_filename,
-                ],
-                catch_exceptions=False,
-            )
 
     context: ContextManager
     if sys.platform.lower().startswith("linux"):
@@ -1823,8 +1807,17 @@ def test_install(
         # since by default we do platform validation we would expect this to fail
         context = pytest.raises(PlatformValidationError)
 
+    install_args = [
+        "install",
+        "--conda",
+        conda_exe,
+        "--prefix",
+        str(prefix),
+        lock_filename,
+    ]
     with context, install_lock():
-        result = invoke_install()
+        with capsys.disabled():
+            result = runner.invoke(main, install_args, catch_exceptions=False)
     print(result.stdout, file=sys.stdout)
     print(result.stderr, file=sys.stderr)
     if Path(lock_filename).exists():
