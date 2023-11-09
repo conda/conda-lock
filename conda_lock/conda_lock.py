@@ -198,12 +198,13 @@ def do_validate_platform(lockfile: str) -> None:
         )
 
 
-def do_conda_install(
+def do_conda_create_or_update(
     conda: PathLike,
     prefix: "str | None",
     name: "str | None",
     file: pathlib.Path,
     copy: bool,
+    update: bool,
 ) -> None:
     _conda = partial(_invoke_conda, conda, prefix, name, check_call=True)
 
@@ -219,23 +220,37 @@ def do_conda_install(
     else:
         pip_requirements = []
 
-    env_prefix = ["env"] if kind == "env" and not is_micromamba(conda) else []
+    env_prefix = (
+        ["env"] if (kind == "env" or update) and not is_micromamba(conda) else []
+    )
     copy_arg = ["--copy"] if kind != "env" and copy else []
     yes_arg = ["--yes"] if kind != "env" else []
+    prune_arg = ["--prune"] if update else []
 
     _conda(
         [
             *env_prefix,
-            "create",
+            "update" if update else "create",
             *copy_arg,
             "--file",
             str(file),
             *yes_arg,
+            *prune_arg,
         ],
     )
 
     if not pip_requirements:
         return
+
+    if update:
+        logger.warning(
+            (
+                "If you have have removed any pip dependencies from your lockfile, "
+                "they will not be removed from your environment. To remove them, "
+                "run `conda-lock install` to create a completely fresh conda environment. \n\n"
+                "You can safely ignore this message if your lockfile is unchanged since you created it."
+            )
+        )
 
     with temporary_file_with_contents("\n".join(pip_requirements)) as requirements_path:
         _conda(["run"], ["pip", "install", "--no-deps", "-r", str(requirements_path)])
@@ -1400,6 +1415,7 @@ def lock(
     default=False,
     help="don't attempt to use or install micromamba.",
 )
+@click.option("--update", default=False, help="Update environment if available.")
 @click.option(
     "--copy",
     is_flag=True,
@@ -1458,6 +1474,7 @@ def install(
     validate_platform: bool,
     log_level: TLogLevel,
     dev: bool,
+    update: bool,
     extras: List[str],
 ) -> None:
     # bail out if we do not encounter the lockfile
@@ -1473,7 +1490,12 @@ def install(
     )
     _conda_exe = determine_conda_executable(conda, mamba=mamba, micromamba=micromamba)
     install_func = partial(
-        do_conda_install, conda=_conda_exe, prefix=prefix, name=name, copy=copy
+        do_conda_create_or_update,
+        conda=_conda_exe,
+        prefix=prefix,
+        name=name,
+        copy=copy,
+        update=update,
     )
     if validate_platform and _detect_lockfile_kind(lock_file) != "lock":
         lockfile_contents = read_file(lock_file)
