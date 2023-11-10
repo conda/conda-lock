@@ -1625,22 +1625,123 @@ def test_aggregate_lock_specs():
     assert actual.content_hash() == expected.content_hash()
 
 
-def test_aggregate_lock_specs_override_version():
-    base_spec = LockSpecification(
-        dependencies={"linux-64": [_make_spec("package", "=1.0")]},
+def test_aggregate_lock_specs_combine_version():
+    first_spec = LockSpecification(
+        dependencies={"linux-64": [_make_spec("package", ">1.0")]},
         channels=[Channel.from_string("conda-forge")],
         sources=[Path("base.yml")],
     )
 
-    override_spec = LockSpecification(
-        dependencies={"linux-64": [_make_spec("package", "=2.0")]},
+    second_spec = LockSpecification(
+        dependencies={"linux-64": [_make_spec("package", "<2.0")]},
         channels=[Channel.from_string("internal"), Channel.from_string("conda-forge")],
-        sources=[Path("override.yml")],
+        sources=[Path("additional.yml")],
     )
 
-    agg_spec = aggregate_lock_specs([base_spec, override_spec], platforms=["linux-64"])
+    result_spec = LockSpecification(
+        dependencies={"linux-64": [_make_spec("package", "<2.0,>1.0")]},
+        channels=[Channel.from_string("internal"), Channel.from_string("conda-forge")],
+        sources=[Path("result.yml")],
+    )
 
-    assert agg_spec.dependencies == override_spec.dependencies
+    agg_spec = aggregate_lock_specs([first_spec, second_spec], platforms=["linux-64"])
+
+    assert agg_spec.dependencies == result_spec.dependencies
+
+
+def test_aggregate_lock_specs_combine_build():
+    first_spec = LockSpecification(
+        dependencies={
+            "linux-64": [
+                VersionedDependency(name="openblas", version="*", build="openmp*"),
+                VersionedDependency(
+                    name="_openmp_mutex", version="4.5", build="*_llvm"
+                ),
+            ]
+        },
+        channels=[Channel.from_string("conda-forge")],
+        sources=[Path("base.yml")],
+    )
+
+    second_spec = LockSpecification(
+        dependencies={
+            "linux-64": [
+                VersionedDependency(
+                    name="openblas", version="0.3.20", build="openmp_h53a8fd6_1"
+                ),
+                VersionedDependency(
+                    name="_openmp_mutex", version="4.5", build="2_kmp_llvm"
+                ),
+            ]
+        },
+        channels=[Channel.from_string("internal"), Channel.from_string("conda-forge")],
+        sources=[Path("second.yml")],
+    )
+
+    third_spec = LockSpecification(
+        dependencies={
+            "linux-64": [
+                VersionedDependency(
+                    name="openblas", version="*", build="openmp_h53a8fd6_1"
+                ),
+                VersionedDependency(
+                    name="_openmp_mutex", version="4.5", build="*_kmp_llvm"
+                ),
+            ]
+        },
+        channels=[Channel.from_string("internal"), Channel.from_string("conda-forge")],
+        sources=[Path("third.yml")],
+    )
+
+    result_spec = LockSpecification(
+        dependencies={
+            "linux-64": [
+                VersionedDependency(
+                    name="openblas", version="0.3.20", build="openmp_h53a8fd6_1"
+                ),
+                VersionedDependency(
+                    name="_openmp_mutex", version="4.5", build="2_kmp_llvm"
+                ),
+            ]
+        },
+        channels=[Channel.from_string("internal"), Channel.from_string("conda-forge")],
+        sources=[Path("result.yml")],
+    )
+
+    agg_spec = aggregate_lock_specs(
+        [first_spec, second_spec, third_spec], platforms=["linux-64"]
+    )
+
+    assert agg_spec.dependencies == result_spec.dependencies
+
+
+def test_aggregate_lock_specs_combine_build_incompatible():
+    first_spec = LockSpecification(
+        dependencies={
+            "linux-64": [
+                VersionedDependency(
+                    name="openblas", version="0.3.20", build="openmp_h53a8fd6_2"
+                ),
+            ]
+        },
+        channels=[Channel.from_string("conda-forge")],
+        sources=[Path("base.yml")],
+    )
+
+    second_spec = LockSpecification(
+        dependencies={
+            "linux-64": [
+                VersionedDependency(
+                    name="openblas", version="0.3.20", build="openmp_h53a8fd6_1"
+                ),
+            ]
+        },
+        channels=[Channel.from_string("internal"), Channel.from_string("conda-forge")],
+        sources=[Path("second.yml")],
+    )
+
+    with pytest.raises(ValueError):
+        aggregate_lock_specs([first_spec, second_spec], platforms=["linux-64"])
 
 
 def test_aggregate_lock_specs_invalid_channels():

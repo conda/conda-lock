@@ -34,7 +34,11 @@ def aggregate_lock_specs(
             lock_spec.dependencies.get(platform, []) for lock_spec in lock_specs
         ):
             key = (dep.manager, dep.name)
-            unique_deps[key] = dep
+            if unique_deps.get(key) is not None and type(unique_deps[key]) != type(dep):
+                raise ValueError(
+                    f"Unsupported use of different dependency types for same package:\n{dep}\n{unique_deps[key]}"
+                )
+            unique_deps[key] = dep.merge(unique_deps.get(key))  # type: ignore
 
         dependencies[platform] = list(unique_deps.values())
 
