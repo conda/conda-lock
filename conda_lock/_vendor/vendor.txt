@@ -5,3 +5,6 @@ poetry-core==1.0.8
 
 # install conda from github
 git+https://github.com/conda/conda.git@22.9.0
+
+# For resolution of file:// URLs
+git+https://github.com/dashea/requests-file@675c7a6849bd5b2c271b503a3f51ea65599b34ec
