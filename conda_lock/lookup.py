@@ -1,25 +1,42 @@
-from collections import ChainMap
+import logging
+
 from contextlib import suppress
 from functools import cached_property
-from typing import Dict, Mapping, Optional, Union, cast
+from typing import ClassVar, Dict, Optional, Union, cast
 
 import requests
 import yaml
 
 from packaging.utils import NormalizedName, canonicalize_name
-from typing_extensions import NotRequired, TypedDict
+from typing_extensions import TypedDict
+
+
+DEFAULT_MAPPING_URL = "https://raw.githubusercontent.com/regro/cf-graph-countyfair/master/mappings/pypi/grayskull_pypi_mapping.yaml"
 
 
 class MappingEntry(TypedDict):
     conda_name: str
-    # legacy field, generally not used by anything anymore
-    conda_forge: NotRequired[str]
     pypi_name: NormalizedName
 
 
 class _LookupLoader:
-    _mapping_url: str = "https://raw.githubusercontent.com/regro/cf-graph-countyfair/master/mappings/pypi/grayskull_pypi_mapping.yaml"
-    _local_mappings: Optional[Dict[NormalizedName, MappingEntry]] = None
+    """Object used to map PyPI package names to conda names."""
+
+    _SINGLETON: ClassVar[Optional["_LookupLoader"]] = None
+
+    @classmethod
+    def instance(cls) -> "_LookupLoader":
+        if cls._SINGLETON is None:
+            cls._SINGLETON = cls()
+        return cls._SINGLETON
+
+    def __init__(
+        self,
+        pypi_lookup_overrides: Optional[Dict[NormalizedName, MappingEntry]] = None,
+        mapping_url: str = DEFAULT_MAPPING_URL,
+    ) -> None:
+        self._mapping_url = mapping_url
+        self._local_mappings = pypi_lookup_overrides
 
     @property
     def mapping_url(self) -> str:
@@ -30,6 +47,8 @@ class _LookupLoader:
         # these will raise AttributeError if they haven't been cached yet.
         with suppress(AttributeError):
             del self.remote_mappings
+        with suppress(AttributeError):
+            del self.pypi_lookup
         with suppress(AttributeError):
             del self.conda_lookup
         self._mapping_url = value
@@ -53,13 +72,13 @@ class _LookupLoader:
         return self._local_mappings or {}
 
     @local_mappings.setter
-    def local_mappings(self, mappings: Mapping[str, Union[str, MappingEntry]]) -> None:
+    def local_mappings(self, mappings: Dict[str, Union[str, MappingEntry]]) -> None:
         """Value should be a mapping from pypi name to conda name or a mapping entry."""
         lookup: Dict[NormalizedName, MappingEntry] = {}
         # normalize to Dict[NormalizedName, MappingEntry]
         for k, v in mappings.items():
             key = canonicalize_name(k)
-            if isinstance(v, Mapping):
+            if isinstance(v, dict):
                 if "conda_name" not in v or "pypi_name" not in v:
                     raise ValueError(
                         "MappingEntries must have both a 'conda_name' and 'pypi_name'"
@@ -69,56 +88,40 @@ class _LookupLoader:
             elif isinstance(v, str):
                 entry = {"conda_name": v, "pypi_name": key}
             else:
-                raise TypeError(
-                    "Each entry in the mapping must be a string or a mapping"
-                )
+                raise TypeError("Each entry in the mapping must be a string or a dict")
             lookup[key] = entry
         self._local_mappings = lookup
 
-    @property
-    def pypi_lookup(self) -> Mapping[NormalizedName, MappingEntry]:
-        """ChainMap of PyPI to conda name mappings.
+    @cached_property
+    def pypi_lookup(self) -> Dict[NormalizedName, MappingEntry]:
+        """Dict of PyPI to conda name mappings.
 
         Local mappings take precedence over remote mappings fetched from `_mapping_url`.
         """
-        return ChainMap(self.local_mappings, self.remote_mappings)
+        return {**self.remote_mappings, **self.local_mappings}
 
     @cached_property
     def conda_lookup(self) -> Dict[str, MappingEntry]:
         return {record["conda_name"]: record for record in self.pypi_lookup.values()}
 
 
-LOOKUP_OBJECT = _LookupLoader()
-
-
-def get_forward_lookup() -> Mapping[NormalizedName, MappingEntry]:
-    global LOOKUP_OBJECT
-    return LOOKUP_OBJECT.pypi_lookup
-
-
-def get_lookup() -> Dict[str, MappingEntry]:
-    """
-    Reverse grayskull name mapping to map conda names onto PyPI
-    """
-    global LOOKUP_OBJECT
-    return LOOKUP_OBJECT.conda_lookup
-
-
 def set_lookup_location(lookup_url: str) -> None:
-    global LOOKUP_OBJECT
-    LOOKUP_OBJECT.mapping_url = lookup_url
+    """Set the location of the pypi lookup
+
+    Used by the `lock` cli command to override the DEFAULT_MAPPING_URL for the lookup.
+    """
+    _LookupLoader.instance().mapping_url = lookup_url
 
 
-def set_pypi_lookup_overrides(mappings: Mapping[str, Union[str, MappingEntry]]) -> None:
+def set_pypi_lookup_overrides(mappings: Dict[str, Union[str, MappingEntry]]) -> None:
     """Set overrides to the pypi lookup"""
-    global LOOKUP_OBJECT
     # type ignore because the setter will normalize the types
-    LOOKUP_OBJECT.local_mappings = mappings  # type: ignore [assignment]
+    _LookupLoader.instance().local_mappings = mappings  # type: ignore [assignment]
 
 
 def conda_name_to_pypi_name(name: str) -> NormalizedName:
     """return the pypi name for a conda package"""
-    lookup = get_lookup()
+    lookup = _LookupLoader.instance().conda_lookup
     cname = canonicalize_name(name)
     return lookup.get(cname, {"pypi_name": cname})["pypi_name"]
 
@@ -126,4 +129,8 @@ def conda_name_to_pypi_name(name: str) -> NormalizedName:
 def pypi_name_to_conda_name(name: str) -> str:
     """return the conda name for a pypi package"""
     cname = canonicalize_name(name)
-    return get_forward_lookup().get(cname, {"conda_name": cname})["conda_name"]
+    forward_lookup = _LookupLoader.instance().pypi_lookup
+    if cname not in forward_lookup:
+        logging.warning(f"Could not find conda name for {cname!r}. Assuming identity.")
+        return cname
+    return forward_lookup[cname]["conda_name"]
