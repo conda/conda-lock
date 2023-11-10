@@ -12,10 +12,11 @@ import sys
 import tempfile
 import typing
 import uuid
+import warnings
 
 from glob import glob
 from pathlib import Path
-from typing import Any, ContextManager, Dict, List, Tuple, Union
+from typing import Any, ContextManager, Dict, List, Literal, Tuple, Union
 from unittest.mock import MagicMock
 from urllib.parse import urldefrag, urlsplit
 
@@ -40,7 +41,9 @@ from conda_lock.conda_lock import (
     create_lockfile_from_spec,
     default_virtual_package_repodata,
     determine_conda_executable,
+    do_render,
     extract_input_hash,
+    install,
     main,
     make_lock_spec,
     run_lock,
@@ -1831,6 +1834,67 @@ def test_install(
             package=package,
             prefix=str(prefix),
         ), f"Package {package} does not exist in {prefix} environment"
+
+
+@pytest.fixture
+def install_with_pip_deps_lockfile(tmp_path: Path):
+    return clone_test_dir("test-install-with-pip-deps", tmp_path).joinpath(
+        "conda-lock.yml"
+    )
+
+
+PIP_WITH_EXPLICIT_LOCKFILE_WARNING = """installation of pip dependencies from exp"""
+
+
+def test_install_with_pip_deps(
+    tmp_path: Path,
+    conda_exe: str,
+    install_with_pip_deps_lockfile: Path,
+    monkeypatch: "pytest.MonkeyPatch",
+    caplog,
+):
+    root_prefix = tmp_path / "root_prefix"
+
+    root_prefix.mkdir(exist_ok=True)
+
+    package = "requests"
+    prefix = root_prefix / "test_env"
+
+    context: ContextManager
+    if sys.platform.lower().startswith("linux"):
+        context = contextlib.nullcontext()
+    else:
+        # since by default we do platform validation we would expect this to fail
+        context = pytest.raises(PlatformValidationError)
+
+    with context, install_lock():
+        install(
+            conda=str(conda_exe),
+            prefix=str(prefix),
+            lock_file=install_with_pip_deps_lockfile,
+        )
+        assert PIP_WITH_EXPLICIT_LOCKFILE_WARNING not in caplog.text
+
+        conda_metas = list(glob(f"{prefix}/conda-meta/{package}-*.json"))
+        assert len(conda_metas) == 0, "pip package should not be installed by conda"
+
+    if sys.platform.lower().startswith("linux"):
+        python = prefix / "bin" / "python"
+        subprocess.check_call([str(python), "-c", "import requests"])
+
+
+@pytest.mark.parametrize("kind", ["explicit", "env"])
+def test_warn_on_explicit_lock_with_pip_deps(
+    kind: Literal["explicit", "env"],
+    install_with_pip_deps_lockfile: Path,
+    caplog,
+):
+    lock_content = parse_conda_lock_file(install_with_pip_deps_lockfile)
+    do_render(lock_content, kinds=[kind])
+    if kind == "explicit":
+        assert PIP_WITH_EXPLICIT_LOCKFILE_WARNING in caplog.text
+    else:
+        assert PIP_WITH_EXPLICIT_LOCKFILE_WARNING not in caplog.text
 
 
 @pytest.mark.parametrize(
