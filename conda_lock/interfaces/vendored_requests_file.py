@@ -1,4 +1,4 @@
-from conda_lock._vendor.requests_file import FileAdapter
+from conda_lock._vendor.requests_file import FileAdapter  # type: ignore
 
 
 __all__ = [
