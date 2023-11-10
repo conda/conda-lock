@@ -3,8 +3,9 @@ channels:
 pip-repositories:
   - file://$PYPI_FILE_URL/
 dependencies:
-  - python=3.11
+  - python
   - pip:
     - fake-private-package==1.0.0
     - six
-
+platforms:
+  - linux-64

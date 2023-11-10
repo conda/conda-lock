@@ -1,8 +1,4 @@
-import base64
-import os
-import re
 import shutil
-import tarfile
 
 from pathlib import Path
 from urllib.parse import urlparse
@@ -12,10 +8,12 @@ import pytest
 from conda_lock.conda_lock import DEFAULT_LOCKFILE_NAME, run_lock
 from conda_lock.lockfile import parse_conda_lock_file
 from tests.test_conda_lock import clone_test_dir
-from tests.test_pip_repositories import private_package_tar
+
+# This is a fixture, so we need to import it:
+from tests.test_pip_repositories import private_package_tar  # pyright: ignore
 
 
-_PRIVATE_REPO_ROOT = """<!DOCTYPE html>
+_PRIVATE_REPO_ROOT_INDEX = """<!DOCTYPE html>
 <html>
   <body>
     <a href="fake-private-package/index.html">fake-private-package</a>
@@ -23,7 +21,7 @@ _PRIVATE_REPO_ROOT = """<!DOCTYPE html>
 </html>
 """
 
-_PRIVATE_REPO_PACKAGE = """<!DOCTYPE html>
+_PRIVATE_REPO_PACKAGE_INDEX = """<!DOCTYPE html>
 <html>
   <body>
     <a href="file://$PYPI_FILE_URL/fake-private-package/fake-private-package-1.0.0.tar.gz">fake-private-package-1.0.0.tar.gz</a>
@@ -31,13 +29,18 @@ _PRIVATE_REPO_PACKAGE = """<!DOCTYPE html>
 </html>
 """
 
-_PRIVATE_PACKAGE_SDIST_PATH = (
-    Path(__file__).parent / "test-pip-repositories" / "fake-private-package-1.0.0"
-)
 
-
-@pytest.fixture(autouse=True)
-def create_local_private_pypi(private_package_tar: Path, tmp_path: Path):  # noqa: F811
+@pytest.fixture
+def local_private_pypi(private_package_tar: Path, tmp_path: Path):  # noqa: F811
+    """
+    Create a local package index with the following directory structure:
+    tmp_path
+    └── repo
+        ├── fake-private-package
+        │   ├── fake-private-package-1.0.0.tar.gz
+        │   └── index.html
+        └── index.html
+    """
     repo_dir = tmp_path / "repo"
     pkg_dir = repo_dir / "fake-private-package"
     pkg_dir.mkdir(parents=True, exist_ok=True)
@@ -45,42 +48,44 @@ def create_local_private_pypi(private_package_tar: Path, tmp_path: Path):  # noq
     tar_path = pkg_dir / private_package_tar.name
     shutil.copy(private_package_tar, tar_path)
 
-    with open(repo_dir / "index.html", "w") as repo_file:
-        repo_file.write(_PRIVATE_REPO_ROOT)
-    _repo_package_html = _PRIVATE_REPO_PACKAGE.replace("$PYPI_FILE_URL", str(repo_dir))
-    with open(pkg_dir / "index.html", "w") as pkg_file:
-        pkg_file.write(_repo_package_html)
-    yield
+    with open(repo_dir / "index.html", "w") as repo_index:
+        repo_index.write(_PRIVATE_REPO_ROOT_INDEX)
+
+    _repo_package_index_html = _PRIVATE_REPO_PACKAGE_INDEX.replace(
+        "$PYPI_FILE_URL", str(repo_dir)
+    )
+    with open(pkg_dir / "index.html", "w") as pkg_index:
+        pkg_index.write(_repo_package_index_html)
+    return repo_dir
 
 
-def use_local_file_url_in_environment_yaml(environment_file: Path, repo_dir: Path):
-    with environment_file.open("r+") as env_fp:
-        templated_env_yml = env_fp.read()
-        env_yml = templated_env_yml.replace("$PYPI_FILE_URL", str(repo_dir))
-        env_fp.seek(0)
-        env_fp.write(env_yml)
-        env_fp.truncate()
+@pytest.fixture
+def local_pip_repository_environment_file(
+    local_private_pypi: Path, tmp_path: Path
+) -> Path:
+    environment_file = (
+        clone_test_dir("test-local-pip-repository", tmp_path) / "environment.yaml"
+    )
+    templated_env_yml = environment_file.read_text()
+    env_yml = templated_env_yml.replace("$PYPI_FILE_URL", str(local_private_pypi))
+    environment_file.write_text(env_yml)
+    return environment_file
 
 
 def test_it_installs_packages_from_private_pip_repository_on_local_disk(
     monkeypatch: "pytest.MonkeyPatch",
     conda_exe: str,
     tmp_path: Path,
+    local_pip_repository_environment_file: Path,
 ):
-    # GIVEN an environment.yaml with custom pip repositories
-    directory = clone_test_dir("test-local-pip-repository", tmp_path)
-    monkeypatch.chdir(directory)
-    repo_dir = tmp_path / "repo"
-    environment_file = directory / "environment.yaml"
-    assert environment_file.exists(), list(directory.iterdir())
-    use_local_file_url_in_environment_yaml(environment_file, repo_dir)
-
     # WHEN I create the lockfile
-    run_lock([directory / "environment.yaml"], conda_exe=conda_exe)
+    monkeypatch.chdir(tmp_path)
+    environment_file = local_pip_repository_environment_file
+    run_lock([environment_file], conda_exe=conda_exe)
 
     # THEN the lockfile is generated correctly
-    lockfile_path = directory / DEFAULT_LOCKFILE_NAME
-    assert lockfile_path.exists(), list(directory.iterdir())
+    lockfile_path = tmp_path / DEFAULT_LOCKFILE_NAME
+    assert lockfile_path.exists(), list(tmp_path.iterdir())
     lockfile = parse_conda_lock_file(lockfile_path)
     lockfile_content = lockfile_path.read_text(encoding="utf-8")
     packages = {package.name: package for package in lockfile.package}
