@@ -30,7 +30,10 @@ from packaging.utils import canonicalize_name as canonicalize_pypi_name
 from typing_extensions import Literal
 
 from conda_lock.common import get_in
-from conda_lock.lookup import get_forward_lookup as get_lookup
+from conda_lock.lookup import (
+    get_forward_lookup as get_lookup,
+    set_pypi_lookup_overrides,
+)
 from conda_lock.models.lock_spec import (
     Dependency,
     LockSpecification,
@@ -558,6 +561,10 @@ def parse_pyproject_toml(
     with pyproject_toml.open("rb") as fp:
         contents = toml_load(fp)
     build_system = get_in(["build-system", "build-backend"], contents)
+
+    pypi_map = get_in(["tool", "conda-lock", "pypi-to-conda-name"], contents, False)
+    if pypi_map:
+        set_pypi_lookup_overrides(pypi_map)
 
     if get_in(
         ["tool", "conda-lock", "skip-non-conda-lock"],
