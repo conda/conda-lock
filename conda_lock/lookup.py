@@ -1,19 +1,19 @@
 from collections import ChainMap
 from contextlib import suppress
 from functools import cached_property
-from typing import Dict, Mapping, Optional, Union
+from typing import Dict, Mapping, Optional, Union, cast
 
 import requests
 import yaml
 
 from packaging.utils import NormalizedName, canonicalize_name
-from typing_extensions import TypedDict
+from typing_extensions import NotRequired, TypedDict
 
 
 class MappingEntry(TypedDict):
     conda_name: str
     # legacy field, generally not used by anything anymore
-    conda_forge: str
+    conda_forge: NotRequired[str]
     pypi_name: NormalizedName
 
 
@@ -64,8 +64,8 @@ class _LookupLoader:
                     raise ValueError(
                         "MappingEntries must have both a 'conda_name' and 'pypi_name'"
                     )
-                entry = dict(v)
-                entry["pypi_name"] = canonicalize_name(entry["pypi_name"])
+                entry = cast("MappingEntry", dict(v))
+                entry["pypi_name"] = canonicalize_name(str(entry["pypi_name"]))
             elif isinstance(v, str):
                 entry = {"conda_name": v, "pypi_name": key}
             else:
@@ -78,7 +78,7 @@ class _LookupLoader:
     @property
     def pypi_lookup(self) -> Mapping[NormalizedName, MappingEntry]:
         """ChainMap of PyPI to conda name mappings.
-        
+
         Local mappings take precedence over remote mappings fetched from `_mapping_url`.
         """
         return ChainMap(self.local_mappings, self.remote_mappings)
@@ -91,7 +91,7 @@ class _LookupLoader:
 LOOKUP_OBJECT = _LookupLoader()
 
 
-def get_forward_lookup() -> Dict[NormalizedName, MappingEntry]:
+def get_forward_lookup() -> Mapping[NormalizedName, MappingEntry]:
     global LOOKUP_OBJECT
     return LOOKUP_OBJECT.pypi_lookup
 
@@ -112,7 +112,8 @@ def set_lookup_location(lookup_url: str) -> None:
 def set_pypi_lookup_overrides(mappings: Mapping[str, Union[str, MappingEntry]]) -> None:
     """Set overrides to the pypi lookup"""
     global LOOKUP_OBJECT
-    LOOKUP_OBJECT.local_mappings = mappings
+    # type ignore because the setter will normalize the types
+    LOOKUP_OBJECT.local_mappings = mappings  # type: ignore [assignment]
 
 
 def conda_name_to_pypi_name(name: str) -> NormalizedName:
