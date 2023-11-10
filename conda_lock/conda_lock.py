@@ -1387,23 +1387,33 @@ def lock(
         )
 
 
+DEFAULT_INSTALL_OPT_MAMBA = HAVE_MAMBA
+DEFAULT_INSTALL_OPT_MICROMAMBA = False
+DEFAULT_INSTALL_OPT_COPY = False
+DEFAULT_INSTALL_OPT_VALIDATE_PLATFORM = True
+DEFAULT_INSTALL_OPT_LOG_LEVEL = "INFO"
+DEFAULT_INSTALL_OPT_DEV = True
+DEFAULT_INSTALL_OPT_LOCK_FILE = pathlib.Path(DEFAULT_LOCKFILE_NAME)
+
+
 @main.command("install")
 @click.option(
     "--conda", default=None, help="path (or name) of the conda/mamba executable to use."
 )
 @click.option(
     "--mamba/--no-mamba",
-    default=HAVE_MAMBA,
+    default=DEFAULT_INSTALL_OPT_MAMBA,
     help="don't attempt to use or install mamba.",
 )
 @click.option(
     "--micromamba/--no-micromamba",
-    default=False,
+    default=DEFAULT_INSTALL_OPT_MICROMAMBA,
     help="don't attempt to use or install micromamba.",
 )
 @click.option(
     "--copy",
     is_flag=True,
+    default=DEFAULT_INSTALL_OPT_COPY,
     help=(
         "Install using `--copy` to prevent links. "
         "This is useful for building containers"
@@ -1419,19 +1429,19 @@ def lock(
 @click.option("--auth-file", help="Path to the authentication file.", default="")
 @click.option(
     "--validate-platform/--no-validate-platform",
-    default=True,
+    default=DEFAULT_INSTALL_OPT_VALIDATE_PLATFORM,
     help="Whether the platform compatibility between your lockfile and the host system should be validated.",
 )
 @click.option(
     "--log-level",
     help="Log level.",
-    default="INFO",
+    default=DEFAULT_INSTALL_OPT_LOG_LEVEL,
     type=click.Choice(["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]),
 )
 @click.option(
     "--dev/--no-dev",
     is_flag=True,
-    default=True,
+    default=DEFAULT_INSTALL_OPT_DEV,
     help="install dev dependencies from the lockfile (where applicable)",
 )
 @click.option(
@@ -1441,11 +1451,9 @@ def lock(
     default=[],
     help="include extra dependencies from the lockfile (where applicable)",
 )
-@click.argument(
-    "lock-file", default=pathlib.Path(DEFAULT_LOCKFILE_NAME), type=click.Path()
-)
+@click.argument("lock-file", default=DEFAULT_INSTALL_OPT_LOCK_FILE, type=click.Path())
 @click.pass_context
-def install(
+def click_install(
     ctx: click.Context,
     conda: Optional[str],
     mamba: bool,
@@ -1469,6 +1477,38 @@ def install(
 
     """Perform a conda install"""
     logging.basicConfig(level=log_level)
+    install(
+        conda=conda,
+        mamba=mamba,
+        micromamba=micromamba,
+        copy=copy,
+        prefix=prefix,
+        name=name,
+        lock_file=lock_file,
+        auth=auth,
+        auth_file=auth_file,
+        validate_platform=validate_platform,
+        dev=dev,
+        extras=extras,
+    )
+
+
+def install(
+    conda: Optional[str] = None,
+    mamba: bool = DEFAULT_INSTALL_OPT_MAMBA,
+    micromamba: bool = DEFAULT_INSTALL_OPT_MICROMAMBA,
+    copy: bool = DEFAULT_INSTALL_OPT_COPY,
+    prefix: Optional[str] = None,
+    name: Optional[str] = None,
+    lock_file: pathlib.Path = DEFAULT_INSTALL_OPT_LOCK_FILE,
+    auth: Optional[str] = None,
+    auth_file: Optional[PathLike] = None,
+    validate_platform: bool = DEFAULT_INSTALL_OPT_VALIDATE_PLATFORM,
+    dev: bool = DEFAULT_INSTALL_OPT_DEV,
+    extras: Optional[List[str]] = None,
+) -> None:
+    if extras is None:
+        extras = []
     _auth = (
         yaml.safe_load(auth) if auth else read_json(auth_file) if auth_file else None
     )
