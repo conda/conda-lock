@@ -48,8 +48,6 @@ class _LookupLoader:
         with suppress(AttributeError):
             del self.remote_mappings
         with suppress(AttributeError):
-            del self.pypi_lookup
-        with suppress(AttributeError):
             del self.conda_lookup
         self._mapping_url = value
 
@@ -92,7 +90,7 @@ class _LookupLoader:
             lookup[key] = entry
         self._local_mappings = lookup
 
-    @cached_property
+    @property
     def pypi_lookup(self) -> Dict[NormalizedName, MappingEntry]:
         """Dict of PyPI to conda name mappings.
 
