@@ -324,6 +324,13 @@ def include_dev_dependencies(request: Any) -> bool:
     return request.param
 
 
+@pytest.fixture
+def pep621_pyproject_toml_pypi_override(tmp_path: Path):
+    return clone_test_dir("test-pep621-pypi-override", tmp_path).joinpath(
+        "pyproject.toml"
+    )
+
+
 JSON_FIELDS: Dict[str, str] = {"json_unique_field": "test1", "common_field": "test2"}
 
 YAML_FIELDS: Dict[str, str] = {"yaml_unique_field": "test3", "common_field": "test4"}
@@ -986,6 +993,16 @@ def test_parse_poetry_invalid_optionals(pyproject_optional_toml: Path):
         )
         in messages
     )
+
+
+def test_parse_pyproject_pypi_overrides(pep621_pyproject_toml_pypi_override: Path):
+    res = parse_pyproject_toml(pep621_pyproject_toml_pypi_override, ["linux-64"])
+
+    specs = {dep.name for dep in res.dependencies["linux-64"]}
+
+    # in the pyproject.toml, the package "resolved-name' is provided as an
+    # override for the package "some-name-i-want-to-override".
+    assert "resolved-name" in specs
 
 
 def test_run_lock(
