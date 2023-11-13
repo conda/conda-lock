@@ -1,0 +1,9 @@
+channels:
+- conda-forge
+dependencies:
+- idna
+- pip:
+  - requests
+platforms:
+- linux-64
+- linux-aarch64

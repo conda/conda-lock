@@ -12,10 +12,11 @@ import sys
 import tempfile
 import typing
 import uuid
+import warnings
 
 from glob import glob
 from pathlib import Path
-from typing import Any, ContextManager, Dict, List, Tuple, Union
+from typing import Any, ContextManager, Dict, List, Literal, Tuple, Union
 from unittest.mock import MagicMock
 from urllib.parse import urldefrag, urlsplit
 
@@ -40,7 +41,9 @@ from conda_lock.conda_lock import (
     create_lockfile_from_spec,
     default_virtual_package_repodata,
     determine_conda_executable,
+    do_render,
     extract_input_hash,
+    install,
     main,
     make_lock_spec,
     run_lock,
@@ -1738,8 +1741,7 @@ def conda_supports_env(conda_exe: str):
     return True
 
 
-@pytest.mark.parametrize("kind", ["explicit", "env"])
-@flaky
+@pytest.mark.parametrize("kind", ["explicit", "env", "lock"])
 def test_install(
     request: "pytest.FixtureRequest",
     kind: str,
@@ -1769,52 +1771,37 @@ def test_install(
     lock_filename_template = (
         request.node.name + "conda-{platform}-{dev-dependencies}.lock"
     )
-    lock_filename = (
-        request.node.name
-        + "conda-linux-64-true.lock"
-        + (".yml" if kind == "env" else "")
-    )
+    if kind == "env":
+        lock_filename = request.node.name + "conda-linux-64-true.lock.yml"
+    elif kind == "explicit":
+        lock_filename = request.node.name + "conda-linux-64-true.lock"
+    elif kind == "lock":
+        lock_filename = "conda-lock.yml"
+    else:
+        raise ValueError(f"Unknown kind: {kind}")
+
+    lock_args = [
+        "lock",
+        "--conda",
+        conda_exe,
+        "-p",
+        platform,
+        "-f",
+        str(zlib_environment),
+        "-k",
+        kind,
+        "--filename-template",
+        lock_filename_template,
+    ]
 
     with capsys.disabled():
         runner = CliRunner(mix_stderr=False)
-        result = runner.invoke(
-            main,
-            [
-                "lock",
-                "--conda",
-                conda_exe,
-                "-p",
-                platform,
-                "-f",
-                str(zlib_environment),
-                "-k",
-                kind,
-                "--filename-template",
-                lock_filename_template,
-            ],
-            catch_exceptions=False,
-        )
+        result = runner.invoke(main, lock_args, catch_exceptions=False)
     print(result.stdout, file=sys.stdout)
     print(result.stderr, file=sys.stderr)
     assert result.exit_code == 0
 
     prefix = root_prefix / "test_env"
-
-    def invoke_install(*extra_args: str) -> CliResult:
-        with capsys.disabled():
-            return runner.invoke(
-                main,
-                [
-                    "install",
-                    "--conda",
-                    conda_exe,
-                    "--prefix",
-                    str(prefix),
-                    *extra_args,
-                    lock_filename,
-                ],
-                catch_exceptions=False,
-            )
 
     context: ContextManager
     if sys.platform.lower().startswith("linux"):
@@ -1823,8 +1810,17 @@ def test_install(
         # since by default we do platform validation we would expect this to fail
         context = pytest.raises(PlatformValidationError)
 
+    install_args = [
+        "install",
+        "--conda",
+        conda_exe,
+        "--prefix",
+        str(prefix),
+        lock_filename,
+    ]
     with context, install_lock():
-        result = invoke_install()
+        with capsys.disabled():
+            result = runner.invoke(main, install_args, catch_exceptions=False)
     print(result.stdout, file=sys.stdout)
     print(result.stderr, file=sys.stderr)
     if Path(lock_filename).exists():
@@ -1838,6 +1834,67 @@ def test_install(
             package=package,
             prefix=str(prefix),
         ), f"Package {package} does not exist in {prefix} environment"
+
+
+@pytest.fixture
+def install_with_pip_deps_lockfile(tmp_path: Path):
+    return clone_test_dir("test-install-with-pip-deps", tmp_path).joinpath(
+        "conda-lock.yml"
+    )
+
+
+PIP_WITH_EXPLICIT_LOCKFILE_WARNING = """installation of pip dependencies from exp"""
+
+
+def test_install_with_pip_deps(
+    tmp_path: Path,
+    conda_exe: str,
+    install_with_pip_deps_lockfile: Path,
+    monkeypatch: "pytest.MonkeyPatch",
+    caplog,
+):
+    root_prefix = tmp_path / "root_prefix"
+
+    root_prefix.mkdir(exist_ok=True)
+
+    package = "requests"
+    prefix = root_prefix / "test_env"
+
+    context: ContextManager
+    if sys.platform.lower().startswith("linux"):
+        context = contextlib.nullcontext()
+    else:
+        # since by default we do platform validation we would expect this to fail
+        context = pytest.raises(PlatformValidationError)
+
+    with context, install_lock():
+        install(
+            conda=str(conda_exe),
+            prefix=str(prefix),
+            lock_file=install_with_pip_deps_lockfile,
+        )
+        assert PIP_WITH_EXPLICIT_LOCKFILE_WARNING not in caplog.text
+
+        conda_metas = list(glob(f"{prefix}/conda-meta/{package}-*.json"))
+        assert len(conda_metas) == 0, "pip package should not be installed by conda"
+
+    if sys.platform.lower().startswith("linux"):
+        python = prefix / "bin" / "python"
+        subprocess.check_call([str(python), "-c", "import requests"])
+
+
+@pytest.mark.parametrize("kind", ["explicit", "env"])
+def test_warn_on_explicit_lock_with_pip_deps(
+    kind: Literal["explicit", "env"],
+    install_with_pip_deps_lockfile: Path,
+    caplog,
+):
+    lock_content = parse_conda_lock_file(install_with_pip_deps_lockfile)
+    do_render(lock_content, kinds=[kind])
+    if kind == "explicit":
+        assert PIP_WITH_EXPLICIT_LOCKFILE_WARNING in caplog.text
+    else:
+        assert PIP_WITH_EXPLICIT_LOCKFILE_WARNING not in caplog.text
 
 
 @pytest.mark.parametrize(
