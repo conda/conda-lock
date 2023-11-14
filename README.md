@@ -334,7 +334,7 @@ platforms = [
 #### PyPI name mapping
 
 If you would like to supplement or override the pypi-to-conda name mappings provided by
-[pypi-mapping][mapping], you can do so by adding a `pypi-to-conda-name`:
+[pypi-mapping][mapping], you can do so by adding a `pypi-to-conda-name` section:
 
 ```toml
 # pyproject.toml
