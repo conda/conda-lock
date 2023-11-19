@@ -25,13 +25,9 @@ class _LookupLoader:
     _mapping_url: str
     _local_mappings: Optional[Dict[NormalizedName, MappingEntry]]
 
-    def __init__(
-        self,
-        pypi_lookup_overrides: Optional[Dict[NormalizedName, MappingEntry]] = None,
-        mapping_url: str = DEFAULT_MAPPING_URL,
-    ) -> None:
-        self._mapping_url = mapping_url
-        self._local_mappings = pypi_lookup_overrides
+    def __init__(self) -> None:
+        self._mapping_url = DEFAULT_MAPPING_URL
+        self._local_mappings = None
 
     @property
     def mapping_url(self) -> str:
