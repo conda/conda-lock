@@ -22,30 +22,17 @@ class MappingEntry(TypedDict):
 class _LookupLoader:
     """Object used to map PyPI package names to conda names."""
 
-    _mapping_url: str
+    mapping_url: str
     _local_mappings: Optional[Dict[NormalizedName, MappingEntry]]
 
     def __init__(self) -> None:
-        self._mapping_url = DEFAULT_MAPPING_URL
+        self.mapping_url = DEFAULT_MAPPING_URL
         self._local_mappings = None
-
-    @property
-    def mapping_url(self) -> str:
-        return self._mapping_url
-
-    @mapping_url.setter
-    def mapping_url(self, value: str) -> None:
-        # these will raise AttributeError if they haven't been cached yet.
-        with suppress(AttributeError):
-            del self.remote_mappings
-        with suppress(AttributeError):
-            del self.conda_lookup
-        self._mapping_url = value
 
     @cached_property
     def remote_mappings(self) -> Dict[NormalizedName, MappingEntry]:
-        """PyPI to conda name mapping fetched from `_mapping_url`"""
-        res = requests.get(self._mapping_url)
+        """PyPI to conda name mapping fetched from `mapping_url`"""
+        res = requests.get(self.mapping_url)
         res.raise_for_status()
         lookup = yaml.safe_load(res.content)
         # lowercase and kebabcase the pypi names
@@ -85,7 +72,7 @@ class _LookupLoader:
     def pypi_lookup(self) -> Dict[NormalizedName, MappingEntry]:
         """Dict of PyPI to conda name mappings.
 
-        Local mappings take precedence over remote mappings fetched from `_mapping_url`.
+        Local mappings take precedence over remote mappings fetched from `mapping_url`.
         """
         return {**self.remote_mappings, **self.local_mappings}
 
@@ -102,6 +89,11 @@ def set_lookup_location(lookup_url: str) -> None:
 
     Used by the `lock` cli command to override the DEFAULT_MAPPING_URL for the lookup.
     """
+    # these will raise AttributeError if they haven't been cached yet.
+    with suppress(AttributeError):
+        del _lookup_loader.remote_mappings
+    with suppress(AttributeError):
+        del _lookup_loader.conda_lookup
     _lookup_loader.mapping_url = lookup_url
 
 
