@@ -2,7 +2,7 @@ import logging
 
 from contextlib import suppress
 from functools import cached_property
-from typing import Dict, Optional, Union, cast
+from typing import Dict, Union, cast
 
 import requests
 import yaml
@@ -23,11 +23,11 @@ class _LookupLoader:
     """Object used to map PyPI package names to conda names."""
 
     mapping_url: str
-    _local_mappings: Optional[Dict[NormalizedName, MappingEntry]]
+    local_mappings: Dict[NormalizedName, MappingEntry]
 
     def __init__(self) -> None:
         self.mapping_url = DEFAULT_MAPPING_URL
-        self._local_mappings = None
+        self.local_mappings = {}
 
     @cached_property
     def remote_mappings(self) -> Dict[NormalizedName, MappingEntry]:
@@ -41,32 +41,6 @@ class _LookupLoader:
         for v in lookup.values():
             v["pypi_name"] = canonicalize_name(v["pypi_name"])
         return lookup
-
-    @property
-    def local_mappings(self) -> Dict[NormalizedName, MappingEntry]:
-        """PyPI to conda name mappings set by the user."""
-        return self._local_mappings or {}
-
-    @local_mappings.setter
-    def local_mappings(self, mappings: Dict[str, Union[str, MappingEntry]]) -> None:
-        """Value should be a mapping from pypi name to conda name or a mapping entry."""
-        lookup: Dict[NormalizedName, MappingEntry] = {}
-        # normalize to Dict[NormalizedName, MappingEntry]
-        for k, v in mappings.items():
-            key = canonicalize_name(k)
-            if isinstance(v, dict):
-                if "conda_name" not in v or "pypi_name" not in v:
-                    raise ValueError(
-                        "MappingEntries must have both a 'conda_name' and 'pypi_name'"
-                    )
-                entry = cast("MappingEntry", dict(v))
-                entry["pypi_name"] = canonicalize_name(str(entry["pypi_name"]))
-            elif isinstance(v, str):
-                entry = {"conda_name": v, "pypi_name": key}
-            else:
-                raise TypeError("Each entry in the mapping must be a string or a dict")
-            lookup[key] = entry
-        self._local_mappings = lookup
 
     @property
     def pypi_lookup(self) -> Dict[NormalizedName, MappingEntry]:
@@ -99,8 +73,23 @@ def set_lookup_location(lookup_url: str) -> None:
 
 def set_pypi_lookup_overrides(mappings: Dict[str, Union[str, MappingEntry]]) -> None:
     """Set overrides to the pypi lookup"""
-    # type ignore because the setter will normalize the types
-    _lookup_loader.local_mappings = mappings  # type: ignore [assignment]
+    lookup: Dict[NormalizedName, MappingEntry] = {}
+    # normalize to Dict[NormalizedName, MappingEntry]
+    for k, v in mappings.items():
+        key = canonicalize_name(k)
+        if isinstance(v, dict):
+            if "conda_name" not in v or "pypi_name" not in v:
+                raise ValueError(
+                    "MappingEntries must have both a 'conda_name' and 'pypi_name'"
+                )
+            entry = cast("MappingEntry", dict(v))
+            entry["pypi_name"] = canonicalize_name(str(entry["pypi_name"]))
+        elif isinstance(v, str):
+            entry = {"conda_name": v, "pypi_name": key}
+        else:
+            raise TypeError("Each entry in the mapping must be a string or a dict")
+        lookup[key] = entry
+    _lookup_loader.local_mappings = lookup
 
 
 def conda_name_to_pypi_name(name: str) -> NormalizedName:
