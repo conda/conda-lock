@@ -2,7 +2,7 @@ import logging
 
 from contextlib import suppress
 from functools import cached_property
-from typing import ClassVar, Dict, Optional, Union, cast
+from typing import Dict, Union, cast
 
 import requests
 import yaml
@@ -22,39 +22,17 @@ class MappingEntry(TypedDict):
 class _LookupLoader:
     """Object used to map PyPI package names to conda names."""
 
-    _SINGLETON: ClassVar[Optional["_LookupLoader"]] = None
+    mapping_url: str
+    local_mappings: Dict[NormalizedName, MappingEntry]
 
-    @classmethod
-    def instance(cls) -> "_LookupLoader":
-        if cls._SINGLETON is None:
-            cls._SINGLETON = cls()
-        return cls._SINGLETON
-
-    def __init__(
-        self,
-        pypi_lookup_overrides: Optional[Dict[NormalizedName, MappingEntry]] = None,
-        mapping_url: str = DEFAULT_MAPPING_URL,
-    ) -> None:
-        self._mapping_url = mapping_url
-        self._local_mappings = pypi_lookup_overrides
-
-    @property
-    def mapping_url(self) -> str:
-        return self._mapping_url
-
-    @mapping_url.setter
-    def mapping_url(self, value: str) -> None:
-        # these will raise AttributeError if they haven't been cached yet.
-        with suppress(AttributeError):
-            del self.remote_mappings
-        with suppress(AttributeError):
-            del self.conda_lookup
-        self._mapping_url = value
+    def __init__(self) -> None:
+        self.mapping_url = DEFAULT_MAPPING_URL
+        self.local_mappings = {}
 
     @cached_property
     def remote_mappings(self) -> Dict[NormalizedName, MappingEntry]:
-        """PyPI to conda name mapping fetched from `_mapping_url`"""
-        res = requests.get(self._mapping_url)
+        """PyPI to conda name mapping fetched from `mapping_url`"""
+        res = requests.get(self.mapping_url)
         res.raise_for_status()
         lookup = yaml.safe_load(res.content)
         # lowercase and kebabcase the pypi names
@@ -65,36 +43,10 @@ class _LookupLoader:
         return lookup
 
     @property
-    def local_mappings(self) -> Dict[NormalizedName, MappingEntry]:
-        """PyPI to conda name mappings set by the user."""
-        return self._local_mappings or {}
-
-    @local_mappings.setter
-    def local_mappings(self, mappings: Dict[str, Union[str, MappingEntry]]) -> None:
-        """Value should be a mapping from pypi name to conda name or a mapping entry."""
-        lookup: Dict[NormalizedName, MappingEntry] = {}
-        # normalize to Dict[NormalizedName, MappingEntry]
-        for k, v in mappings.items():
-            key = canonicalize_name(k)
-            if isinstance(v, dict):
-                if "conda_name" not in v or "pypi_name" not in v:
-                    raise ValueError(
-                        "MappingEntries must have both a 'conda_name' and 'pypi_name'"
-                    )
-                entry = cast("MappingEntry", dict(v))
-                entry["pypi_name"] = canonicalize_name(str(entry["pypi_name"]))
-            elif isinstance(v, str):
-                entry = {"conda_name": v, "pypi_name": key}
-            else:
-                raise TypeError("Each entry in the mapping must be a string or a dict")
-            lookup[key] = entry
-        self._local_mappings = lookup
-
-    @property
     def pypi_lookup(self) -> Dict[NormalizedName, MappingEntry]:
         """Dict of PyPI to conda name mappings.
 
-        Local mappings take precedence over remote mappings fetched from `_mapping_url`.
+        Local mappings take precedence over remote mappings fetched from `mapping_url`.
         """
         return {**self.remote_mappings, **self.local_mappings}
 
@@ -103,23 +55,46 @@ class _LookupLoader:
         return {record["conda_name"]: record for record in self.pypi_lookup.values()}
 
 
+_lookup_loader = _LookupLoader()
+
+
 def set_lookup_location(lookup_url: str) -> None:
     """Set the location of the pypi lookup
 
     Used by the `lock` cli command to override the DEFAULT_MAPPING_URL for the lookup.
     """
-    _LookupLoader.instance().mapping_url = lookup_url
+    # these will raise AttributeError if they haven't been cached yet.
+    with suppress(AttributeError):
+        del _lookup_loader.remote_mappings
+    with suppress(AttributeError):
+        del _lookup_loader.conda_lookup
+    _lookup_loader.mapping_url = lookup_url
 
 
 def set_pypi_lookup_overrides(mappings: Dict[str, Union[str, MappingEntry]]) -> None:
     """Set overrides to the pypi lookup"""
-    # type ignore because the setter will normalize the types
-    _LookupLoader.instance().local_mappings = mappings  # type: ignore [assignment]
+    lookup: Dict[NormalizedName, MappingEntry] = {}
+    # normalize to Dict[NormalizedName, MappingEntry]
+    for k, v in mappings.items():
+        key = canonicalize_name(k)
+        if isinstance(v, dict):
+            if "conda_name" not in v or "pypi_name" not in v:
+                raise ValueError(
+                    "MappingEntries must have both a 'conda_name' and 'pypi_name'"
+                )
+            entry = cast("MappingEntry", dict(v))
+            entry["pypi_name"] = canonicalize_name(str(entry["pypi_name"]))
+        elif isinstance(v, str):
+            entry = {"conda_name": v, "pypi_name": key}
+        else:
+            raise TypeError("Each entry in the mapping must be a string or a dict")
+        lookup[key] = entry
+    _lookup_loader.local_mappings = lookup
 
 
 def conda_name_to_pypi_name(name: str) -> NormalizedName:
     """return the pypi name for a conda package"""
-    lookup = _LookupLoader.instance().conda_lookup
+    lookup = _lookup_loader.conda_lookup
     cname = canonicalize_name(name)
     return lookup.get(cname, {"pypi_name": cname})["pypi_name"]
 
@@ -127,7 +102,7 @@ def conda_name_to_pypi_name(name: str) -> NormalizedName:
 def pypi_name_to_conda_name(name: str) -> str:
     """return the conda name for a pypi package"""
     cname = canonicalize_name(name)
-    forward_lookup = _LookupLoader.instance().pypi_lookup
+    forward_lookup = _lookup_loader.pypi_lookup
     if cname not in forward_lookup:
         logging.warning(f"Could not find conda name for {cname!r}. Assuming identity.")
         return cname
