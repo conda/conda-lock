@@ -14,7 +14,7 @@ import uuid
 
 from glob import glob
 from pathlib import Path
-from typing import Any, ContextManager, Dict, List, Tuple, Union
+from typing import Any, ContextManager, Dict, List, Set, Tuple, Union
 from unittest.mock import MagicMock
 from urllib.parse import urldefrag, urlsplit
 
@@ -1000,7 +1000,7 @@ def test_explicit_toposorted() -> None:
         kind="explicit",
         platform="linux-64",
         include_dev_dependencies=False,
-        extras=[],
+        extras=set(),
     )
 
     # Packages are listed by URL, but we want to check by name.
@@ -1012,7 +1012,7 @@ def test_explicit_toposorted() -> None:
 
     # We do a simulated installation run, and keep track of the packages
     # that have been installed so far in installed_names
-    installed_names = set()
+    installed_names: Set[str] = set()
 
     # Simulate installing each package in the order it appears in the lockfile.
     # Verify that each package is installed after all of its dependencies.
