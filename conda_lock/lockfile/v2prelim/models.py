@@ -73,6 +73,9 @@ class Lockfile(StrictModel):
     def toposort_inplace(self) -> None:
         self.package = self._toposort(self.package)
 
+    def alphasort_inplace(self) -> None:
+        self.package.sort(key=lambda d: d.key())
+
     @staticmethod
     def _toposort(
         package: List[LockedDependency], update: bool = False
