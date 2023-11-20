@@ -5,16 +5,18 @@ import logging
 import os
 import pathlib
 import platform
+import re
 import shutil
 import subprocess
 import sys
 import tempfile
 import typing
 import uuid
+import warnings
 
 from glob import glob
 from pathlib import Path
-from typing import Any, ContextManager, Dict, List, Set, Tuple, Union
+from typing import Any, ContextManager, Dict, List, Literal, Set, Tuple, Union
 from unittest.mock import MagicMock
 from urllib.parse import urldefrag, urlsplit
 
@@ -39,7 +41,9 @@ from conda_lock.conda_lock import (
     create_lockfile_from_spec,
     default_virtual_package_repodata,
     determine_conda_executable,
+    do_render,
     extract_input_hash,
+    install,
     main,
     make_lock_spec,
     render_lockfile_for_platform,
@@ -297,6 +301,13 @@ def pip_conda_name_confusion(tmp_path: Path):
     """Path to an environment.yaml that has a hardcoded channel in one of the dependencies"""
     return clone_test_dir("test-pip-conda-name-confusion", tmp_path).joinpath(
         "environment.yaml"
+    )
+
+
+@pytest.fixture
+def lightgbm_environment(tmp_path: Path):
+    return clone_test_dir("test-pip-finds-recent-manylinux-wheels", tmp_path).joinpath(
+        "environment.yml"
     )
 
 
@@ -1787,8 +1798,7 @@ def conda_supports_env(conda_exe: str):
     return True
 
 
-@pytest.mark.parametrize("kind", ["explicit", "env"])
-@flaky
+@pytest.mark.parametrize("kind", ["explicit", "env", "lock"])
 def test_install(
     request: "pytest.FixtureRequest",
     kind: str,
@@ -1818,52 +1828,37 @@ def test_install(
     lock_filename_template = (
         request.node.name + "conda-{platform}-{dev-dependencies}.lock"
     )
-    lock_filename = (
-        request.node.name
-        + "conda-linux-64-true.lock"
-        + (".yml" if kind == "env" else "")
-    )
+    if kind == "env":
+        lock_filename = request.node.name + "conda-linux-64-true.lock.yml"
+    elif kind == "explicit":
+        lock_filename = request.node.name + "conda-linux-64-true.lock"
+    elif kind == "lock":
+        lock_filename = "conda-lock.yml"
+    else:
+        raise ValueError(f"Unknown kind: {kind}")
+
+    lock_args = [
+        "lock",
+        "--conda",
+        conda_exe,
+        "-p",
+        platform,
+        "-f",
+        str(zlib_environment),
+        "-k",
+        kind,
+        "--filename-template",
+        lock_filename_template,
+    ]
 
     with capsys.disabled():
         runner = CliRunner(mix_stderr=False)
-        result = runner.invoke(
-            main,
-            [
-                "lock",
-                "--conda",
-                conda_exe,
-                "-p",
-                platform,
-                "-f",
-                str(zlib_environment),
-                "-k",
-                kind,
-                "--filename-template",
-                lock_filename_template,
-            ],
-            catch_exceptions=False,
-        )
+        result = runner.invoke(main, lock_args, catch_exceptions=False)
     print(result.stdout, file=sys.stdout)
     print(result.stderr, file=sys.stderr)
     assert result.exit_code == 0
 
     prefix = root_prefix / "test_env"
-
-    def invoke_install(*extra_args: str) -> CliResult:
-        with capsys.disabled():
-            return runner.invoke(
-                main,
-                [
-                    "install",
-                    "--conda",
-                    conda_exe,
-                    "--prefix",
-                    str(prefix),
-                    *extra_args,
-                    lock_filename,
-                ],
-                catch_exceptions=False,
-            )
 
     context: ContextManager
     if sys.platform.lower().startswith("linux"):
@@ -1872,8 +1867,17 @@ def test_install(
         # since by default we do platform validation we would expect this to fail
         context = pytest.raises(PlatformValidationError)
 
+    install_args = [
+        "install",
+        "--conda",
+        conda_exe,
+        "--prefix",
+        str(prefix),
+        lock_filename,
+    ]
     with context, install_lock():
-        result = invoke_install()
+        with capsys.disabled():
+            result = runner.invoke(main, install_args, catch_exceptions=False)
     print(result.stdout, file=sys.stdout)
     print(result.stderr, file=sys.stderr)
     if Path(lock_filename).exists():
@@ -1887,6 +1891,67 @@ def test_install(
             package=package,
             prefix=str(prefix),
         ), f"Package {package} does not exist in {prefix} environment"
+
+
+@pytest.fixture
+def install_with_pip_deps_lockfile(tmp_path: Path):
+    return clone_test_dir("test-install-with-pip-deps", tmp_path).joinpath(
+        "conda-lock.yml"
+    )
+
+
+PIP_WITH_EXPLICIT_LOCKFILE_WARNING = """installation of pip dependencies from exp"""
+
+
+def test_install_with_pip_deps(
+    tmp_path: Path,
+    conda_exe: str,
+    install_with_pip_deps_lockfile: Path,
+    monkeypatch: "pytest.MonkeyPatch",
+    caplog,
+):
+    root_prefix = tmp_path / "root_prefix"
+
+    root_prefix.mkdir(exist_ok=True)
+
+    package = "requests"
+    prefix = root_prefix / "test_env"
+
+    context: ContextManager
+    if sys.platform.lower().startswith("linux"):
+        context = contextlib.nullcontext()
+    else:
+        # since by default we do platform validation we would expect this to fail
+        context = pytest.raises(PlatformValidationError)
+
+    with context, install_lock():
+        install(
+            conda=str(conda_exe),
+            prefix=str(prefix),
+            lock_file=install_with_pip_deps_lockfile,
+        )
+        assert PIP_WITH_EXPLICIT_LOCKFILE_WARNING not in caplog.text
+
+        conda_metas = list(glob(f"{prefix}/conda-meta/{package}-*.json"))
+        assert len(conda_metas) == 0, "pip package should not be installed by conda"
+
+    if sys.platform.lower().startswith("linux"):
+        python = prefix / "bin" / "python"
+        subprocess.check_call([str(python), "-c", "import requests"])
+
+
+@pytest.mark.parametrize("kind", ["explicit", "env"])
+def test_warn_on_explicit_lock_with_pip_deps(
+    kind: Literal["explicit", "env"],
+    install_with_pip_deps_lockfile: Path,
+    caplog,
+):
+    lock_content = parse_conda_lock_file(install_with_pip_deps_lockfile)
+    do_render(lock_content, kinds=[kind])
+    if kind == "explicit":
+        assert PIP_WITH_EXPLICIT_LOCKFILE_WARNING in caplog.text
+    else:
+        assert PIP_WITH_EXPLICIT_LOCKFILE_WARNING not in caplog.text
 
 
 @pytest.mark.parametrize(
@@ -2350,3 +2415,31 @@ def test_cli_version(capsys: "pytest.CaptureFixture[str]"):
     # the part before, in this case just "0.11.3".
     version_without_dev = __version__.split(".dev")[0]
     assert version_without_dev in result.stdout
+
+
+def test_pip_finds_recent_manylinux_wheels(
+    monkeypatch: "pytest.MonkeyPatch", lightgbm_environment: Path, conda_exe: str
+):
+    """Ensure that we find a manylinux wheel with glibc > 2.17 for lightgbm.
+
+    See https://github.com/conda/conda-lock/issues/517 for more context.
+
+    If not found, installation would trigger a build of lightgbm from source.
+    If this test fails, it likely means that MANYLINUX_TAGS in
+    `conda_lock/pypi_solver.py` is out of date.
+    """
+    monkeypatch.chdir(lightgbm_environment.parent)
+    run_lock([lightgbm_environment], conda_exe=conda_exe, platforms=["linux-64"])
+    lockfile = parse_conda_lock_file(
+        lightgbm_environment.parent / DEFAULT_LOCKFILE_NAME
+    )
+
+    (lightgbm_dep,) = [p for p in lockfile.package if p.name == "lightgbm"]
+    manylinux_pattern = r"manylinux_(\d+)_(\d+).+\.whl"
+    manylinux_match = re.search(manylinux_pattern, lightgbm_dep.url)
+    assert manylinux_match, "No match found for manylinux version in {lightgbm_dep.url}"
+
+    manylinux_version = [int(each) for each in manylinux_match.groups()]
+    # Make sure the manylinux wheel was built with glibc > 2.17 as a
+    # non-regression test for #517
+    assert manylinux_version > [2, 17]
