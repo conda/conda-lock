@@ -19,7 +19,7 @@ repos:
     language_version: python3
 
 - repo: https://github.com/astral-sh/ruff-pre-commit
-  rev: v0.1.5
+  rev: v0.1.6
   hooks:
   - id: ruff
     args: [--fix, --exit-non-zero-on-fix]
