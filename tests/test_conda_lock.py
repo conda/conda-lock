@@ -42,6 +42,7 @@ from conda_lock.conda_lock import (
     extract_input_hash,
     main,
     make_lock_spec,
+    render_lockfile_for_platform,
     run_lock,
 )
 from conda_lock.conda_solver import extract_json_object, fake_conda_environment
@@ -978,6 +979,62 @@ def test_parse_poetry_invalid_optionals(pyproject_optional_toml: Path):
         )
         in messages
     )
+
+
+def test_explicit_toposorted() -> None:
+    """Verify that explicit lockfiles are topologically sorted.
+
+    We write unified lockfiles in alphabetical order. This is okay because we store
+    the dependency information in the lockfile, so we have the necessary information
+    to perform topological sorting. However, explicit lockfiles do not store dependency
+    information, and thus need to be written in topological order.
+
+    Verifying topological ordering is very easy: we just need to make sure that each
+    package is written after all of its dependencies.
+    """
+    lockfile = parse_conda_lock_file(TEST_DIR / "test-toposort" / "conda-lock.yml")
+
+    # These are the individual lines as they appear in an explicit lockfile file
+    lines = render_lockfile_for_platform(
+        lockfile=lockfile,
+        kind="explicit",
+        platform="linux-64",
+        include_dev_dependencies=False,
+        extras=[],
+    )
+
+    # Packages are listed by URL, but we want to check by name.
+    url_to_name = {package.url: package.name for package in lockfile.package}
+    # For each package name we need the names of its dependencies
+    name_to_deps = {
+        package.name: set(package.dependencies.keys()) for package in lockfile.package
+    }
+
+    # We do a simulated installation run, and keep track of the packages
+    # that have been installed so far in installed_names
+    installed_names = set()
+
+    # Simulate installing each package in the order it appears in the lockfile.
+    # Verify that each package is installed after all of its dependencies.
+    for n, line in enumerate(lines):
+        if not line or line.startswith("#") or line.startswith("@EXPLICIT"):
+            continue
+        # Line should have the format url#hash
+        url = line.split("#")[0]
+        name = url_to_name[url]
+        deps = name_to_deps[name]
+
+        # Verify that all dependencies have been simulated-installed
+        for dep in deps:
+            if dep.startswith("__"):
+                # This is a virtual package, so we don't need to check it
+                continue
+            assert (
+                dep in installed_names
+            ), f"{n=}, {line=}, {name=}, {dep=}, {installed_names=}"
+
+        # Simulate installing the package
+        installed_names.add(name)
 
 
 def test_run_lock(
