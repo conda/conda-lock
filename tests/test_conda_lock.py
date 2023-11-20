@@ -1003,7 +1003,9 @@ def test_explicit_toposorted() -> None:
     Verifying topological ordering is very easy: we just need to make sure that each
     package is written after all of its dependencies.
     """
-    lockfile = parse_conda_lock_file(TEST_DIR / "test-toposort" / "conda-lock.yml")
+    lockfile = parse_conda_lock_file(
+        TEST_DIR / "test-explicit-toposorted" / "conda-lock.yml"
+    )
 
     # These are the individual lines as they appear in an explicit lockfile file
     lines = render_lockfile_for_platform(
