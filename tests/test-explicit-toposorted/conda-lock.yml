@@ -13,7 +13,7 @@
 version: 1
 metadata:
   content_hash:
-    linux-64: cdf8d679a7bf335690de731d1e9ba558ca2144f51a11bfed31db5c6c991705de
+    linux-64: 96cc0137803b712837f3563fae218f7e525b1e2a8abadd6fc201d0bd04f0147f
   channels:
   - url: conda-forge
     used_env_vars: []
@@ -22,16 +22,6 @@ metadata:
   sources:
   - environment.yml
 package:
-- name: __glibc
-  version: '2.17'
-  manager: conda
-  platform: linux-64
-  dependencies: {}
-  url: file:///tmp/tmp1z4ph5xs/linux-64/__glibc-2.17-0.tar.bz2
-  hash:
-    md5: ''
-  category: main
-  optional: false
 - name: _libgcc_mutex
   version: '0.1'
   manager: conda
@@ -86,15 +76,15 @@ package:
   category: main
   optional: false
 - name: c-ares
-  version: 1.21.0
+  version: 1.22.1
   manager: conda
   platform: linux-64
   dependencies:
     libgcc-ng: '>=12'
-  url: https://conda.anaconda.org/conda-forge/linux-64/c-ares-1.21.0-hd590300_0.conda
+  url: https://conda.anaconda.org/conda-forge/linux-64/c-ares-1.22.1-hd590300_0.conda
   hash:
-    md5: c06fa0440048270817b9e3142cc661bf
-    sha256: dfe0e81d5462fced79fd0f99edeec94c9b27268cb04238638180981af2f889f1
+    md5: 8430bd266c7b2cfbda403f7585d5ee86
+    sha256: d41cf87938ba66de538b91afed3ece9b4cf5ed082a7d1c1add46b70f482f34b9
   category: main
   optional: false
 - name: ca-certificates
@@ -291,15 +281,15 @@ package:
     libgcc-ng: '>=12'
     libgdal: 3.8.0
     libstdcxx-ng: '>=12'
-    libxml2: '>=2.11.5,<2.12.0a0'
+    libxml2: '>=2.11.6,<2.12.0a0'
     numpy: '>=1.26.0,<2.0a0'
     openssl: '>=3.1.4,<4.0a0'
     python: '>=3.12,<3.13.0a0'
     python_abi: 3.12.*
-  url: https://conda.anaconda.org/conda-forge/linux-64/gdal-3.8.0-py312ha5e4baf_4.conda
+  url: https://conda.anaconda.org/conda-forge/linux-64/gdal-3.8.0-py312ha5e4baf_5.conda
   hash:
-    md5: d6ae95a57c5030a804dab2849dda40e0
-    sha256: fbac0c4cf600d473ecce09443043e33aab64bdaaf12b27597031a87954364e14
+    md5: 48b731db2bf840f7acf58ce807b21b03
+    sha256: 60cc6e8dc158efc8b3fbe5a91ec575efbddecfb39eaf628bf227a6001a267b16
   category: main
   optional: false
 - name: geos
@@ -717,7 +707,7 @@ package:
     libtiff: '>=4.6.0,<4.7.0a0'
     libuuid: '>=2.38.1,<3.0a0'
     libwebp-base: '>=1.3.2,<2.0a0'
-    libxml2: '>=2.11.5,<2.12.0a0'
+    libxml2: '>=2.11.6,<2.12.0a0'
     libzlib: '>=1.2.13,<1.3.0a0'
     lz4-c: '>=1.9.3,<1.10.0a0'
     openjpeg: '>=2.5.0,<3.0a0'
@@ -730,10 +720,10 @@ package:
     xerces-c: '>=3.2.4,<3.3.0a0'
     xz: '>=5.2.6,<6.0a0'
     zstd: '>=1.5.5,<1.6.0a0'
-  url: https://conda.anaconda.org/conda-forge/linux-64/libgdal-3.8.0-h12dd931_4.conda
+  url: https://conda.anaconda.org/conda-forge/linux-64/libgdal-3.8.0-h12dd931_5.conda
   hash:
-    md5: 6c55ed78178c9f6b49a5f69d2b39e1f4
-    sha256: fb22df87932dae21ee78abfd09d1b1ff75e9649f69ebd58284e0e07ea938b717
+    md5: 4122ae0934ffd785a9c35143d79f07d8
+    sha256: de5fb44c09b86f9ccd4c84156f0b89aca67f06d7bfdf577b80ab16eb864f8d04
   category: main
   optional: false
 - name: libgfortran-ng

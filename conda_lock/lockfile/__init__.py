@@ -160,6 +160,7 @@ def write_conda_lock_file(
     include_help_text: bool = True,
 ) -> None:
     content.alphasort_inplace()
+    content.filter_virtual_packages_inplace()
     with path.open("w") as f:
         if include_help_text:
             categories = set(p.category for p in content.package)
