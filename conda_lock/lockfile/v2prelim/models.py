@@ -76,6 +76,13 @@ class Lockfile(StrictModel):
     def alphasort_inplace(self) -> None:
         self.package.sort(key=lambda d: d.key())
 
+    def filter_virtual_packages_inplace(self) -> None:
+        self.package = [
+            p
+            for p in self.package
+            if not (p.manager == "conda" and p.name.startswith("__"))
+        ]
+
     @staticmethod
     def _toposort(
         package: List[LockedDependency], update: bool = False
