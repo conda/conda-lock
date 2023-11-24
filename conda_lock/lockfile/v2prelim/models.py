@@ -118,10 +118,6 @@ class Lockfile(StrictModel):
                         continue
                     if dep.manager != manager:
                         continue
-                    # skip virtual packages
-                    if dep.manager == "conda" and dep.name.startswith("__"):
-                        continue
-
                     final_package.append(dep)
 
         return final_package

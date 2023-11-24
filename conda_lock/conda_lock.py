@@ -609,6 +609,7 @@ def render_lockfile_for_platform(  # noqa: C901
 
     # ensure consistent ordering of generated file
     lockfile.toposort_inplace()
+    lockfile.filter_virtual_packages_inplace()
 
     for p in lockfile.package:
         if p.platform == platform and p.category in categories:
