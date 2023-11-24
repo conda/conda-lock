@@ -84,9 +84,7 @@ class Lockfile(StrictModel):
         ]
 
     @staticmethod
-    def _toposort(
-        package: List[LockedDependency], update: bool = False
-    ) -> List[LockedDependency]:
+    def _toposort(package: List[LockedDependency]) -> List[LockedDependency]:
         platforms = {d.platform for d in package}
 
         # Resort the conda packages topologically
