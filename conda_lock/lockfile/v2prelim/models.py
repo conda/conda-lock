@@ -39,10 +39,7 @@ class Lockfile(StrictModel):
     package: List[LockedDependency]
     metadata: LockMeta
 
-    def __or__(self, other: "Lockfile") -> "Lockfile":
-        return other.__ror__(self)
-
-    def __ror__(self, other: "Optional[Lockfile]") -> "Lockfile":
+    def merge(self, other: "Optional[Lockfile]") -> "Lockfile":
         """
         merge self into other
         """

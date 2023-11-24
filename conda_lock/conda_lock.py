@@ -414,7 +414,7 @@ def make_lock_files(  # noqa: C901
                     deep=True,
                     update={"package": packages_not_to_lock},
                 )
-                new_lock_content = lock_content_to_persist | fresh_lock_content
+                new_lock_content = lock_content_to_persist.merge(fresh_lock_content)
 
             if "lock" in kinds:
                 write_conda_lock_file(
