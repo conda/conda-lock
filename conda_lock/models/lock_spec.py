@@ -53,26 +53,34 @@ class VersionedDependency(_BaseDependency):
     conda_channel: Optional[str] = None
 
     @staticmethod
-    def _merge_matchspecs(
-        matchspec1: Optional[str],
-        matchspec2: Optional[str],
-        combine_constraints: bool = True,
+    def _merge_versions(
+        version1: str,
+        version2: str,
+    ) -> str:
+        if version1 == version2:
+            return version1
+        if version1 == "" or version1 == "*":
+            return version2
+        if version2 == "" or version2 == "*":
+            return version1
+        return f"{version1},{version2}"
+
+    @staticmethod
+    def _merge_builds(
+        build1: Optional[str],
+        build2: Optional[str],
     ) -> Optional[str]:
-        if matchspec1 == matchspec2:
-            return matchspec1
-        if matchspec1 is None or matchspec1 == "":
-            return matchspec2
-        if matchspec2 is None or matchspec2 == "":
-            return matchspec1
-        if fnmatchcase(matchspec1, matchspec2):
-            return matchspec1
-        if fnmatchcase(matchspec2, matchspec1):
-            return matchspec2
-        if not combine_constraints:
-            raise ValueError(
-                f"Found incompatible constraint {matchspec1}, {matchspec2}"
-            )
-        return f"{matchspec1},{matchspec2}"
+        if build1 == build2:
+            return build1
+        if build1 is None or build1 == "":
+            return build2
+        if build2 is None or build2 == "":
+            return build1
+        if fnmatchcase(build1, build2):
+            return build1
+        if fnmatchcase(build2, build1):
+            return build2
+        raise ValueError(f"Found incompatible constraint {build1}, {build2}")
 
     def merge(self, other: Optional[VersionedDependency]) -> VersionedDependency:
         if other is None:
@@ -88,9 +96,7 @@ class VersionedDependency(_BaseDependency):
             )
         merged_base = self._merge_base(other)
         try:
-            build = self._merge_matchspecs(
-                self.build, other.build, combine_constraints=False
-            )
+            build = self._merge_builds(self.build, other.build)
         except ValueError as exc:
             raise ValueError(
                 f"Unsupported usage of two incompatible builds for same dependency {self}, {other}"
@@ -101,7 +107,7 @@ class VersionedDependency(_BaseDependency):
             manager=merged_base.manager,
             category=merged_base.category,
             extras=merged_base.extras,
-            version=self._merge_matchspecs(self.version, other.version),  # type: ignore
+            version=self._merge_versions(self.version, other.version),
             build=build,
             conda_channel=self.conda_channel or other.conda_channel,
         )
