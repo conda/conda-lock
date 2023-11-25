@@ -31,18 +31,14 @@ class _BaseDependency(StrictModel):
     def _merge_base(self, other: _BaseDependency) -> _BaseDependency:
         if other is None:
             return self
-        if (
-            self.name != other.name
-            or self.manager != other.manager
-            or self.category != other.category
-        ):
+        if self.name != other.name or self.manager != other.manager:
             raise ValueError(
                 "Cannot merge incompatible dependencies: {self} != {other}"
             )
         return _BaseDependency(
             name=self.name,
             manager=self.manager,
-            category=self.category,
+            category=self.category,  # TODO: Merge categories
             extras=list(set(self.extras + other.extras)),
         )
 
