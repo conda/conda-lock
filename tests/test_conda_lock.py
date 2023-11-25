@@ -1715,6 +1715,33 @@ def test_aggregate_lock_specs_combine_build():
     assert agg_spec.dependencies == result_spec.dependencies
 
 
+def test_merging_matchspec_parts():
+    assert VersionedDependency._merge_versions("4.5", "*") == "4.5"
+    assert VersionedDependency._merge_versions("*", "4.5") == "4.5"
+    assert VersionedDependency._merge_versions("", "4.5") == "4.5"
+    assert VersionedDependency._merge_versions("4.5", "") == "4.5"
+    assert VersionedDependency._merge_versions("", "") == ""
+    assert VersionedDependency._merge_versions("*", "*") == "*"
+    assert VersionedDependency._merge_versions("*", "") == ""
+    assert VersionedDependency._merge_versions("", "*") == "*"
+
+    assert VersionedDependency._merge_builds("", "") == ""
+    assert VersionedDependency._merge_builds("*", "*") == "*"
+    assert VersionedDependency._merge_builds(None, None) is None
+
+    assert VersionedDependency._merge_builds("", "2_kmp_llvm") == "2_kmp_llvm"
+    assert VersionedDependency._merge_builds("*", "2_kmp_llvm") == "2_kmp_llvm"
+    assert VersionedDependency._merge_builds("*_llvm", "2_kmp_llvm") == "2_kmp_llvm"
+    assert VersionedDependency._merge_builds("*_llvm", "*_kmp_llvm") == "*_kmp_llvm"
+    assert VersionedDependency._merge_builds(None, "2_kmp_llvm") == "2_kmp_llvm"
+
+    assert VersionedDependency._merge_builds("2_kmp_llvm", "") == "2_kmp_llvm"
+    assert VersionedDependency._merge_builds("2_kmp_llvm", "*") == "2_kmp_llvm"
+    assert VersionedDependency._merge_builds("2_kmp_llvm", "*_llvm") == "2_kmp_llvm"
+    assert VersionedDependency._merge_builds("*_kmp_llvm", "*_llvm") == "*_kmp_llvm"
+    assert VersionedDependency._merge_builds("2_kmp_llvm", None) == "2_kmp_llvm"
+
+
 def test_aggregate_lock_specs_combine_build_incompatible():
     first_spec = LockSpecification(
         dependencies={
