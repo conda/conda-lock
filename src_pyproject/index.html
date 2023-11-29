@@ -785,26 +785,26 @@ is no lookup for the package it assumes that the PyPI name, and the conda name a
 <div class="tabbed-content">
 <div class="tabbed-block">
 <div class="highlight"><span class="filename">pyproject.toml</span><pre><span></span><code><span class="k">[tool.poetry.dependencies]</span>
-<span class="n">requests</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">&quot;^2.13.0&quot;</span>
-<span class="n">toml</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">&quot;&gt;=0.10&quot;</span>
+<span class="n">requests</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;^2.13.0&quot;</span>
+<span class="n">toml</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;&gt;=0.10&quot;</span>
 
 <span class="k">[tool.poetry.dev-dependencies]</span>
-<span class="n">pytest</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">&quot;&gt;=5.1.0&quot;</span>
+<span class="n">pytest</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;&gt;=5.1.0&quot;</span>
 
 <span class="k">[build-system]</span>
-<span class="n">requires</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s">&quot;poetry&gt;=0.12&quot;</span><span class="p">]</span>
-<span class="n">build-backend</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">&quot;poetry.masonry.api&quot;</span>
+<span class="n">requires</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;poetry&gt;=0.12&quot;</span><span class="p">]</span>
+<span class="n">build-backend</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;poetry.masonry.api&quot;</span>
 </code></pre></div>
 </div>
 <div class="tabbed-block">
 <div class="highlight"><span class="filename">pyproject.toml</span><pre><span></span><code><span class="k">[project]</span>
 <span class="n">dependencies</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span>
-<span class="w">    </span><span class="s">&quot;requests ^2.13.0&quot;</span><span class="p">,</span>
-<span class="w">    </span><span class="s">&quot;toml &gt;=0.10&quot;</span><span class="p">,</span>
+<span class="w">    </span><span class="s2">&quot;requests ^2.13.0&quot;</span><span class="p">,</span>
+<span class="w">    </span><span class="s2">&quot;toml &gt;=0.10&quot;</span><span class="p">,</span>
 <span class="p">]</span>
 <span class="k">[project.optional-dependencies]</span>
 <span class="n">test</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span>
-<span class="w">    </span><span class="s">&quot;pytest &gt;=5.1.0&quot;</span><span class="p">,</span>
+<span class="w">    </span><span class="s2">&quot;pytest &gt;=5.1.0&quot;</span><span class="p">,</span>
 <span class="p">]</span>
 </code></pre></div>
 </div>
@@ -828,20 +828,20 @@ This behavior is experimental and may change in the future.</p>
 <p>If a dependency refers directly to a URL rather than a package name and version,
 <code>conda-lock</code> will assume it is pip-installable, e.g.:</p>
 <div class="highlight"><span class="filename">pyproject.toml</span><pre><span></span><code><span class="k">[tool.poetry.dependencies]</span>
-<span class="n">python</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">&quot;3.9&quot;</span>
-<span class="n">pymage</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span><span class="n">url</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">&quot;https://github.com/MickaelRigault/pymage/archive/v1.0.tar.gz#sha256=11e99c4ea06b76ca7fb5b42d1d35d64139a4fa6f7f163a2f0f9cc3ea0b3c55eb&quot;</span><span class="p">}</span>
+<span class="n">python</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;3.9&quot;</span>
+<span class="n">pymage</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span><span class="n">url</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s2">&quot;https://github.com/MickaelRigault/pymage/archive/v1.0.tar.gz#sha256=11e99c4ea06b76ca7fb5b42d1d35d64139a4fa6f7f163a2f0f9cc3ea0b3c55eb&quot;</span><span class="p">}</span>
 </code></pre></div>
 <p>Similarly, if a dependency is explicitly marked with <code>source = "pypi"</code>, it will
 be treated as a <code>pip</code> dependency, e.g.:</p>
 <div class="highlight"><span class="filename">pyproject.toml</span><pre><span></span><code><span class="k">[tool.poetry.dependencies]</span>
-<span class="n">python</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">&quot;3.9&quot;</span>
-<span class="n">ampel-ztf</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span><span class="n">version</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">&quot;^0.8.0-alpha.2&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">source</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">&quot;pypi&quot;</span><span class="p">}</span>
+<span class="n">python</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;3.9&quot;</span>
+<span class="n">ampel-ztf</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span><span class="n">version</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s2">&quot;^0.8.0-alpha.2&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">source</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s2">&quot;pypi&quot;</span><span class="p">}</span>
 </code></pre></div>
 <p>Alternatively, explicitly providing  <code>default-non-conda-source = "pip"</code> in the <code>[tool.conda-lock]</code> section will treat all non-conda dependencies -- all dependencies defined outside of <code>[tool.conda-lock.dependencies]</code> -- as <code>pip</code> dependencies, i.e.:
 - Default to <code>pip</code> dependencies for <code>[tool.poetry.dependencies]</code>, <code>[project.dependencies]</code>, etc.
 - Default to <code>conda</code> dependencies for <code>[tool.conda-lock.dependencies]</code>
 <div class="highlight"><pre><span></span><code><span class="k">[tool.conda-lock]</span>
-<span class="n">default-non-conda-source</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">&quot;pip&quot;</span>
+<span class="n">default-non-conda-source</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;pip&quot;</span>
 </code></pre></div></p>
 <p>In all cases, the dependencies of <code>pip</code>-installable packages will also be
 installed with <code>pip</code>, unless they were already requested by a <code>conda</code>
@@ -857,13 +857,13 @@ dependency.</p>
 <div class="tabbed-content">
 <div class="tabbed-block">
 <div class="highlight"><span class="filename">pyproject.toml</span><pre><span></span><code><span class="k">[tool.poetry.dependencies]</span>
-<span class="n">mandatory</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">&quot;^1.0&quot;</span>
-<span class="n">psycopg2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">version</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">&quot;^2.7&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">optional</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">true</span><span class="w"> </span><span class="p">}</span>
-<span class="n">mysqlclient</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">version</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">&quot;^1.3&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">optional</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">true</span><span class="w"> </span><span class="p">}</span>
+<span class="n">mandatory</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;^1.0&quot;</span>
+<span class="n">psycopg2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">version</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s2">&quot;^2.7&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">optional</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="kc">true</span><span class="w"> </span><span class="p">}</span>
+<span class="n">mysqlclient</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">version</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s2">&quot;^1.3&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">optional</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="kc">true</span><span class="w"> </span><span class="p">}</span>
 
 <span class="k">[tool.poetry.extras]</span>
-<span class="n">mysql</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s">&quot;mysqlclient&quot;</span><span class="p">]</span>
-<span class="n">pgsql</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s">&quot;psycopg2&quot;</span><span class="p">]</span>
+<span class="n">mysql</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;mysqlclient&quot;</span><span class="p">]</span>
+<span class="n">pgsql</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;psycopg2&quot;</span><span class="p">]</span>
 </code></pre></div>
 </div>
 <div class="tabbed-block">
@@ -871,12 +871,12 @@ dependency.</p>
 
 <span class="k">[project]</span>
 <span class="n">dependencies</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span>
-<span class="w">    </span><span class="s">&quot;mandatory ^1.0&quot;</span><span class="p">,</span>
+<span class="w">    </span><span class="s2">&quot;mandatory ^1.0&quot;</span><span class="p">,</span>
 <span class="p">]</span>
 
 <span class="k">[project.optional-dependencies]</span>
-<span class="n">mysql</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s">&quot;mysqlclient ^1.3&quot;</span><span class="p">]</span>
-<span class="n">pgsql</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s">&quot;psycopg2 ^2.7&quot;</span><span class="p">]</span>
+<span class="n">mysql</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;mysqlclient ^1.3&quot;</span><span class="p">]</span>
+<span class="n">pgsql</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;psycopg2 ^2.7&quot;</span><span class="p">]</span>
 </code></pre></div>
 </div>
 </div>
@@ -898,7 +898,7 @@ to happen at the solve stage use the flag <code>--filter-extras</code></p>
 <p>conda-lock can map <a href="https://python-poetry.org/docs/master/managing-dependencies/#dependency-groups">dependency groups</a> to
 categories similar to how extras are handled.</p>
 <div class="highlight"><span class="filename">pyproject.toml</span><pre><span></span><code><span class="k">[tool.poetry.group.docs.dependencies]</span>
-<span class="n">mkdocs</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">&quot;*&quot;</span>
+<span class="n">mkdocs</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;*&quot;</span>
 </code></pre></div>
 <div class="admonition note">
 <p>By default <em>ALL</em> dependency groups are included.  Depdency groups that have the same name as an extra are fused.
@@ -912,14 +912,14 @@ toml file.  All extensions live in the <code>tool.conda-lock</code> section.</p>
 <h3 id="channels">Channels</h3>
 <div class="highlight"><span class="filename">pyproject.toml</span><pre><span></span><code><span class="k">[tool.conda-lock]</span>
 <span class="n">channels</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span>
-<span class="w">    </span><span class="s">&#39;conda-forge&#39;</span><span class="p">,</span><span class="w"> </span><span class="s">&#39;defaults&#39;</span>
+<span class="w">    </span><span class="s1">&#39;conda-forge&#39;</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;defaults&#39;</span>
 <span class="p">]</span>
 </code></pre></div>
 <h3 id="platforms">Platforms</h3>
 <p>Like in <a href="/src_environment_yml#platform-specification">environment.yml</a>, you can specify default platforms to target:</p>
 <div class="highlight"><span class="filename">pyproject.toml</span><pre><span></span><code><span class="k">[tool.conda-lock]</span>
 <span class="n">platforms</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span>
-<span class="w">    </span><span class="s">&#39;osx-arm64&#39;</span><span class="p">,</span><span class="w"> </span><span class="s">&#39;linux-64&#39;</span>
+<span class="w">    </span><span class="s1">&#39;osx-arm64&#39;</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;linux-64&#39;</span>
 <span class="p">]</span>
 </code></pre></div>
 <h3 id="extra-conda-dependencies">Extra conda dependencies</h3>
@@ -927,14 +927,14 @@ toml file.  All extensions live in the <code>tool.conda-lock</code> section.</p>
 to specify some non-python dependencies as well this can be accomplished by adding
 the following sections to the <code>pyproject.toml</code></p>
 <div class="highlight"><span class="filename">pyproject.toml</span><pre><span></span><code><span class="k">[tool.conda-lock.dependencies]</span>
-<span class="n">sqlite</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">&quot;&gt;=3.34&quot;</span>
+<span class="n">sqlite</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;&gt;=3.34&quot;</span>
 </code></pre></div>
 <h3 id="force-pypi-dependencies">Force pypi dependencies</h3>
 <p>While it is with poetry, it is not possible to indicate a package's source in a <code>pyproject.toml</code> which follows PEP621.</p>
 <p>In that case, it is possible to force resolving a dependency as a pip dependency by indicating it in the same <code>pyproject.toml</code> section.</p>
 <p>This is useful in particular for packages that are not present on conda channels.</p>
 <div class="highlight"><span class="filename">pyproject.toml</span><pre><span></span><code><span class="k">[tool.conda-lock.dependencies]</span>
-<span class="n">numpy</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span><span class="n">source</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">&quot;pypi&quot;</span><span class="p">}</span>
+<span class="n">numpy</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span><span class="n">source</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s2">&quot;pypi&quot;</span><span class="p">}</span>
 </code></pre></div>
 
 

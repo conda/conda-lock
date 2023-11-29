@@ -620,20 +620,20 @@ The default lockfile format explicitly supports pip dependencies.</p>
 <p>If a dependency refers directly to a URL rather than a package name and version,
 <code>conda-lock</code> will assume it is pip-installable, e.g.:</p>
 <div class="highlight"><span class="filename">pyproject.toml</span><pre><span></span><code><span class="k">[tool.poetry.dependencies]</span>
-<span class="n">python</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">&quot;3.9&quot;</span>
-<span class="n">pymage</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span><span class="n">url</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">&quot;https://github.com/MickaelRigault/pymage/archive/v1.0.tar.gz#sha256=11e99c4ea06b76ca7fb5b42d1d35d64139a4fa6f7f163a2f0f9cc3ea0b3c55eb&quot;</span><span class="p">}</span>
+<span class="n">python</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;3.9&quot;</span>
+<span class="n">pymage</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span><span class="n">url</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s2">&quot;https://github.com/MickaelRigault/pymage/archive/v1.0.tar.gz#sha256=11e99c4ea06b76ca7fb5b42d1d35d64139a4fa6f7f163a2f0f9cc3ea0b3c55eb&quot;</span><span class="p">}</span>
 </code></pre></div>
 <p>Similarly, if a dependency is explicitly marked with <code>source = "pypi"</code>, it will
 be treated as a <code>pip</code> dependency, e.g.:</p>
 <div class="highlight"><span class="filename">pyproject.toml</span><pre><span></span><code><span class="k">[tool.poetry.dependencies]</span>
-<span class="n">python</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">&quot;3.9&quot;</span>
-<span class="n">ampel-ztf</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span><span class="n">version</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">&quot;^0.8.0-alpha.2&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">source</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">&quot;pypi&quot;</span><span class="p">}</span>
+<span class="n">python</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;3.9&quot;</span>
+<span class="n">ampel-ztf</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span><span class="n">version</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s2">&quot;^0.8.0-alpha.2&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">source</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s2">&quot;pypi&quot;</span><span class="p">}</span>
 </code></pre></div>
 <p>Alternatively, explicitly providing  <code>default-non-conda-source = "pip"</code> in the <code>[tool.conda-lock]</code> section will treat all non-conda dependencies -- all dependencies defined outside of <code>[tool.conda-lock.dependencies]</code> -- as <code>pip</code> dependencies, i.e.:
 - Default to <code>pip</code> dependencies for <code>[tool.poetry.dependencies]</code>, <code>[project.dependencies]</code>, etc.
 - Default to <code>conda</code> dependencies for <code>[tool.conda-lock.dependencies]</code>
 <div class="highlight"><pre><span></span><code><span class="k">[tool.conda-lock]</span>
-<span class="n">default-non-conda-source</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">&quot;pip&quot;</span>
+<span class="n">default-non-conda-source</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;pip&quot;</span>
 </code></pre></div></p>
 <p>In all cases, the dependencies of <code>pip</code>-installable packages will also be
 installed with <code>pip</code>, unless they were already requested by a <code>conda</code>
