@@ -2451,44 +2451,12 @@ def test_parse_environment_file_with_pip_and_platform_selector():
     env_file = TEST_DIR / "test-pip-with-platform-selector" / "environment.yml"
     spec = parse_environment_file(env_file, platforms=["linux-64", "osx-arm64"])
     assert spec.platforms == ["linux-64", "osx-arm64"]
-
+    defaults = {"category": "main", "extras": [], "build": None, "conda_channel": None}
     assert spec.dependencies["osx-arm64"] == [
-        VersionedDependency(
-            name="tomli",
-            manager="conda",
-            category="main",
-            extras=[],
-            version="",
-            build=None,
-            conda_channel=None,
-        )
+        VersionedDependency(name="tomli", manager="conda", version="", **defaults)
     ]
     assert spec.dependencies["linux-64"] == [
-        VersionedDependency(
-            name="tomli",
-            manager="conda",
-            category="main",
-            extras=[],
-            version="",
-            build=None,
-            conda_channel=None,
-        ),
-        VersionedDependency(
-            name="psutil",
-            manager="pip",
-            category="main",
-            extras=[],
-            version="*",
-            build=None,
-            conda_channel=None,
-        ),
-        VersionedDependency(
-            name="pip",
-            manager="conda",
-            category="main",
-            extras=[],
-            version="*",
-            build=None,
-            conda_channel=None,
-        ),
+        VersionedDependency(name="tomli", manager="conda", version="", **defaults),
+        VersionedDependency(name="psutil", manager="pip", version="*", **defaults),
+        VersionedDependency(name="pip", manager="conda", version="*", **defaults),
     ]
