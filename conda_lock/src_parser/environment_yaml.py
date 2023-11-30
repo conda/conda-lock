@@ -1,17 +1,14 @@
 import pathlib
 import re
-import sys
-
+import tempfile
 from typing import List, Tuple
 
 import yaml
 
 from conda_lock.models.lock_spec import Dependency, LockSpecification
 from conda_lock.src_parser.conda_common import conda_spec_to_versioned_dep
+from conda_lock.src_parser.requirements_txt import parse_requirements_txt, parse_one_requirement
 from conda_lock.src_parser.selectors import filter_platform_selectors
-
-from .pyproject_toml import parse_python_requirement
-
 
 _whitespace = re.compile(r"\s+")
 _conda_package_pattern = re.compile(r"^(?P<name>[A-Za-z0-9_-]+)\s?(?P<version>.*)?$")
@@ -29,6 +26,7 @@ def _parse_environment_file_for_platform(
     content: str,
     category: str,
     platform: str,
+    source_path: pathlib.Path,
 ) -> List[Dependency]:
     """
     Parse dependencies from a conda environment specification for an
@@ -55,28 +53,18 @@ def _parse_environment_file_for_platform(
 
     for mapping_spec in mapping_specs:
         if "pip" in mapping_spec:
-            for spec in mapping_spec["pip"]:
-                if re.match(r"^-e .*$", spec):
-                    print(
-                        (
-                            f"Warning: editable pip dep '{spec}' will not be included in the lock file. "
-                            "You will need to install it separately."
-                        ),
-                        file=sys.stderr,
-                    )
-                    continue
+            # Generate the temporary requirements file
+            yaml_dir = source_path.parent
+            with tempfile.NamedTemporaryFile(dir=yaml_dir, suffix="requirements.txt", mode='w', encoding='utf-8') as requirements:
+                requirements.writelines(mapping_spec["pip"])
+                requirements.write("\n")  # Trailing newline
+                requirements.file.close()
 
-                dependencies.append(
-                    parse_python_requirement(
-                        spec,
-                        manager="pip",
-                        category=category,
-                        normalize_name=False,
-                    )
-                )
+                dependencies.extend(parse_requirements_txt(requirements.name, category))
 
             # ensure pip is in target env
-            dependencies.append(parse_python_requirement("pip", manager="conda"))
+            if 'pip' not in {d.name for d in dependencies}:
+                dependencies.append(parse_one_requirement("pip", category))
 
     return dependencies
 
@@ -127,7 +115,7 @@ def parse_environment_file(
 
     # Parse with selectors for each target platform
     dep_map = {
-        platform: _parse_environment_file_for_platform(content, category, platform)
+        platform: _parse_environment_file_for_platform(content, category, platform, environment_file)
         for platform in platforms
     }
 
