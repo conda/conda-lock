@@ -2448,6 +2448,7 @@ def test_pip_finds_recent_manylinux_wheels(
 
 
 def test_parse_environment_file_with_pip_and_platform_selector():
+    """See https://github.com/conda/conda-lock/pull/564 for the context."""
     env_file = TEST_DIR / "test-pip-with-platform-selector" / "environment.yml"
     spec = parse_environment_file(env_file, platforms=["linux-64", "osx-arm64"])
     assert spec.platforms == ["linux-64", "osx-arm64"]
