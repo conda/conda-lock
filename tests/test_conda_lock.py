@@ -2445,3 +2445,50 @@ def test_pip_finds_recent_manylinux_wheels(
     # Make sure the manylinux wheel was built with glibc > 2.17 as a
     # non-regression test for #517
     assert manylinux_version > [2, 17]
+
+
+def test_parse_environment_file_with_pip_and_platform_selector():
+    env_file = TEST_DIR / "test-pip-with-platform-selector" / "environment.yml"
+    spec = parse_environment_file(env_file, platforms=["linux-64", "osx-arm64"])
+    assert spec.platforms == ["linux-64", "osx-arm64"]
+
+    assert spec.dependencies["osx-arm64"] == [
+        VersionedDependency(
+            name="tomli",
+            manager="conda",
+            category="main",
+            extras=[],
+            version="",
+            build=None,
+            conda_channel=None,
+        )
+    ]
+    assert spec.dependencies["linux-64"] == [
+        VersionedDependency(
+            name="tomli",
+            manager="conda",
+            category="main",
+            extras=[],
+            version="",
+            build=None,
+            conda_channel=None,
+        ),
+        VersionedDependency(
+            name="psutil",
+            manager="pip",
+            category="main",
+            extras=[],
+            version="*",
+            build=None,
+            conda_channel=None,
+        ),
+        VersionedDependency(
+            name="pip",
+            manager="conda",
+            category="main",
+            extras=[],
+            version="*",
+            build=None,
+            conda_channel=None,
+        ),
+    ]
