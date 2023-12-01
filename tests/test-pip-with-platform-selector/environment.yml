@@ -1,0 +1,10 @@
+name: test-pip-with-platform-selector
+channels:
+  - conda-forge
+dependencies:
+  - tomli
+  - pip:
+    - psutil  # [linux64]
+platforms:
+  - linux-64
+  - osx-arm64

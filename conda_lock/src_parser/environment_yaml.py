@@ -54,29 +54,32 @@ def _parse_environment_file_for_platform(
         dependencies.append(conda_spec_to_versioned_dep(spec, category))
 
     for mapping_spec in mapping_specs:
-        if "pip" in mapping_spec:
-            for spec in mapping_spec["pip"]:
-                if re.match(r"^-e .*$", spec):
-                    print(
-                        (
-                            f"Warning: editable pip dep '{spec}' will not be included in the lock file. "
-                            "You will need to install it separately."
-                        ),
-                        file=sys.stderr,
-                    )
-                    continue
-
-                dependencies.append(
-                    parse_python_requirement(
-                        spec,
-                        manager="pip",
-                        category=category,
-                        normalize_name=False,
-                    )
+        pip = mapping_spec.get("pip")
+        if pip is None:
+            # might not be present OR might be None due to platform selector
+            continue
+        for spec in pip:
+            if re.match(r"^-e .*$", spec):
+                print(
+                    (
+                        f"Warning: editable pip dep '{spec}' will not be included in the lock file. "
+                        "You will need to install it separately."
+                    ),
+                    file=sys.stderr,
                 )
+                continue
 
-            # ensure pip is in target env
-            dependencies.append(parse_python_requirement("pip", manager="conda"))
+            dependencies.append(
+                parse_python_requirement(
+                    spec,
+                    manager="pip",
+                    category=category,
+                    normalize_name=False,
+                )
+            )
+
+        # ensure pip is in target env
+        dependencies.append(parse_python_requirement("pip", manager="conda"))
 
     return dependencies
 
