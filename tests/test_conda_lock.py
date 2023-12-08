@@ -2447,6 +2447,30 @@ def test_pip_finds_recent_manylinux_wheels(
     assert manylinux_version > [2, 17]
 
 
+def test_manylinux_tags():
+    from packaging.version import Version
+    MANYLINUX_TAGS = pypi_solver.MANYLINUX_TAGS
+
+    # The irregular tags should come at the beginning:
+    assert MANYLINUX_TAGS[:4] == ["1", "2010", "2014", "_2_17"]
+    # All other tags should start with "_"
+    assert all(tag.startswith("_") for tag in MANYLINUX_TAGS[3:])
+
+    # Now check that the remaining tags parse to versions in increasing order
+    versions = [Version(tag[1:].replace("_", ".")) for tag in MANYLINUX_TAGS[3:]]
+    assert versions[0] == Version("2.17")
+    assert versions == sorted(versions)
+
+    # Verify that the default repodata uses the highest glibc version
+    default_repodata = default_virtual_package_repodata()
+    glibc_versions_in_default_repodata: Set[Version] = {
+        Version(package.version) for package in default_repodata.packages_by_subdir
+        if package.name=="__glibc"
+    }
+    max_glibc_version_from_manylinux_tags = versions[-1]
+    assert glibc_versions_in_default_repodata == {max_glibc_version_from_manylinux_tags}
+
+
 def test_pip_respects_glibc_version(
     tmp_path: Path, conda_exe: str, monkeypatch: "pytest.MonkeyPatch"
 ):

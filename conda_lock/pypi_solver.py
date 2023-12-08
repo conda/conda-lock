@@ -71,7 +71,8 @@ class PlatformEnv(Env):
             # as provided by __glibc if present
             self._platforms = []
             if platform_virtual_packages:
-                # By default, look for all tags in MANYLINUX_TAGS
+                # Get the glibc_version from virtual packages, falling back to
+                # the last of MANYLINUX_TAGS when absent
                 glibc_version = MANYLINUX_TAGS[-1]
                 for p in platform_virtual_packages.values():
                     if p["name"] == "__glibc":
