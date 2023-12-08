@@ -2447,6 +2447,41 @@ def test_pip_finds_recent_manylinux_wheels(
     assert manylinux_version > [2, 17]
 
 
+def test_pip_respects_glibc_version(
+    tmp_path: Path, conda_exe: str, monkeypatch: "pytest.MonkeyPatch"
+):
+    """Ensure that we find a manylinux wheel that respects an older glibc constraint.
+
+    This is somewhat the opposite of test_pip_finds_recent_manylinux_wheels
+    """
+
+    env_file = clone_test_dir("test-pip-respects-glibc-version", tmp_path).joinpath(
+        "environment.yml"
+    )
+    monkeypatch.chdir(env_file.parent)
+    run_lock(
+        [env_file],
+        conda_exe=str(conda_exe),
+        platforms=["linux-64"],
+        virtual_package_spec=env_file.parent / "virtual-packages.yml",
+    )
+
+    lockfile = parse_conda_lock_file(env_file.parent / DEFAULT_LOCKFILE_NAME)
+
+    (cryptography_dep,) = [p for p in lockfile.package if p.name == "cryptography"]
+    manylinux_pattern = r"manylinux_(\d+)_(\d+).+\.whl"
+    # Should return the first match so higher version first.
+    manylinux_match = re.search(manylinux_pattern, cryptography_dep.url)
+    assert (
+        manylinux_match
+    ), "No match found for manylinux version in {cryptography_dep.url}"
+
+    manylinux_version = [int(each) for each in manylinux_match.groups()]
+    # Make sure the manylinux wheel was built with glibc <= 2.17
+    # since that is what the virtual package spec requires
+    assert manylinux_version <= [2, 17]
+
+
 def test_parse_environment_file_with_pip_and_platform_selector():
     """See https://github.com/conda/conda-lock/pull/564 for the context."""
     env_file = TEST_DIR / "test-pip-with-platform-selector" / "environment.yml"

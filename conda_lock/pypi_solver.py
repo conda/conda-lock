@@ -43,6 +43,8 @@ if TYPE_CHECKING:
 # NB: in principle these depend on the glibc on the machine creating the conda env.
 # We use tags supported by manylinux Docker images, which are likely the most common
 # in practice, see https://github.com/pypa/manylinux/blob/main/README.rst#docker-images.
+
+# NOTE: Keep the max in sync with the default value used in virtual_packages.py
 MANYLINUX_TAGS = ["1", "2010", "2014", "_2_17", "_2_24", "_2_28"]
 # This needs to be updated periodically as new macOS versions are released.
 MACOS_VERSION = (13, 4)
@@ -53,16 +55,43 @@ class PlatformEnv(Env):
     Fake poetry Env to match PyPI distributions to the target conda environment
     """
 
-    def __init__(self, python_version: str, platform: str):
+    def __init__(
+        self,
+        python_version: str,
+        platform: str,
+        platform_virtual_packages: Optional[Dict[str, dict]] = None,
+    ):
         super().__init__(path=Path(sys.prefix))
         system, arch = platform.split("-")
         if arch == "64":
             arch = "x86_64"
 
         if system == "linux":
-            self._platforms = [
-                f"manylinux{tag}_{arch}" for tag in reversed(MANYLINUX_TAGS)
-            ]
+            # We use MANYLINUX_TAGS but only go up to the latest supported version
+            # as provided by __glibc if present
+            self._platforms = []
+            if platform_virtual_packages:
+                # By default, look for all tags in MANYLINUX_TAGS
+                glibc_version = MANYLINUX_TAGS[-1]
+                for p in platform_virtual_packages.values():
+                    if p["name"] == "__glibc":
+                        glibc_version = p["version"]
+                glibc_version_splits = glibc_version.split(".")
+                for tag in MANYLINUX_TAGS:
+                    if tag[0] == "_":
+                        # Compare to see if glibc_version is greater than this version
+                        if tag[1:].split("_") > glibc_version_splits:
+                            break
+                    self._platforms.append(f"manylinux{tag}_{arch}")
+                    if tag == glibc_version:  # Catches 1 and 2010 case
+                        # We go no further than the maximum specific GLIBC version
+                        break
+                # Latest tag is most preferred so list first
+                self._platforms.reverse()
+            else:
+                self._platforms = [
+                    f"manylinux{tag}_{arch}" for tag in reversed(MANYLINUX_TAGS)
+                ]
             self._platforms.append(f"linux_{arch}")
         elif system == "osx":
             self._platforms = list(mac_platforms(MACOS_VERSION, arch))
@@ -265,6 +294,7 @@ def solve_pypi(
     conda_locked: Dict[str, LockedDependency],
     python_version: str,
     platform: str,
+    platform_virtual_packages: Optional[Dict[str, dict]] = None,
     pip_repositories: Optional[List[PipRepository]] = None,
     allow_pypi_requests: bool = True,
     verbose: bool = False,
@@ -289,6 +319,8 @@ def solve_pypi(
         Version of Python in conda_locked
     platform :
         Target platform
+    platform_virtual_packages :
+        Virtual packages for the target platform
     allow_pypi_requests :
         Add pypi.org to the list of repositories (pip packages only)
     verbose :
@@ -352,7 +384,7 @@ def solve_pypi(
     to_update = list(
         {spec.name for spec in pip_locked.values()}.intersection(use_latest)
     )
-    env = PlatformEnv(python_version, platform)
+    env = PlatformEnv(python_version, platform, platform_virtual_packages)
     # find platform-specific solution (e.g. dependencies conditioned on markers)
     with s.use_environment(env):
         result = s.solve(use_latest=to_update)

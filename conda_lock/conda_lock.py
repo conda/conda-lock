@@ -762,6 +762,11 @@ def _solve_for_arch(
             conda_locked={dep.name: dep for dep in conda_deps.values()},
             python_version=conda_deps["python"].version,
             platform=platform,
+            platform_virtual_packages=spec.virtual_package_repo.all_repodata.get(
+                platform, {"packages": None}
+            )["packages"]
+            if spec.virtual_package_repo
+            else None,
             pip_repositories=pip_repositories,
             allow_pypi_requests=spec.allow_pypi_requests,
             strip_auth=strip_auth,
