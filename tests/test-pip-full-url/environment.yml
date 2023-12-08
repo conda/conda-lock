@@ -1,0 +1,8 @@
+# environment.yml
+channels:
+  - conda-forge
+
+dependencies:
+  - pip
+  - pip:
+    - requests @ https://github.com/psf/requests/releases/download/v2.31.0/requests-2.31.0-py3-none-any.whl
