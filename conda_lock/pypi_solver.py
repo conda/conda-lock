@@ -215,10 +215,12 @@ def get_requirements(
             if op.package.source_type == "url":
                 url, fragment = urldefrag(op.package.source_url)
                 hash_splits = fragment.split("=")
-                if len(hash_splits) == 2:
+                if fragment == "":
+                    hash = HashModel()
+                elif len(hash_splits) == 2:
                     hash = HashModel(**{hash_splits[0]: hash_splits[1]})
                 else:
-                    hash = HashModel()
+                    raise ValueError(f"Don't know what to do with {fragment}")
                 source = DependencySource(type="url", url=op.package.source_url)
             elif op.package.source_type == "git":
                 url = f"{op.package.source_type}+{op.package.source_url}@{op.package.source_resolved_reference}"
