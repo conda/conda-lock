@@ -77,11 +77,11 @@ class PlatformEnv(Env):
                 for p in platform_virtual_packages.values():
                     if p["name"] == "__glibc":
                         glibc_version = p["version"]
-                glibc_version_splits = glibc_version.split(".")
+                glibc_version_splits = list(map(int, glibc_version.split(".")))
                 for tag in MANYLINUX_TAGS:
                     if tag[0] == "_":
                         # Compare to see if glibc_version is greater than this version
-                        if tag[1:].split("_") > glibc_version_splits:
+                        if list(map(int, tag[1:].split("_"))) > glibc_version_splits:
                             break
                     self._platforms.append(f"manylinux{tag}_{arch}")
                     if tag == glibc_version:  # Catches 1 and 2010 case

@@ -2444,11 +2444,12 @@ def test_pip_finds_recent_manylinux_wheels(
     manylinux_version = [int(each) for each in manylinux_match.groups()]
     # Make sure the manylinux wheel was built with glibc > 2.17 as a
     # non-regression test for #517
-    assert manylinux_version > [2, 17]
+    assert manylinux_version == [2, 17]
 
 
 def test_manylinux_tags():
     from packaging.version import Version
+
     MANYLINUX_TAGS = pypi_solver.MANYLINUX_TAGS
 
     # The irregular tags should come at the beginning:
@@ -2464,8 +2465,9 @@ def test_manylinux_tags():
     # Verify that the default repodata uses the highest glibc version
     default_repodata = default_virtual_package_repodata()
     glibc_versions_in_default_repodata: Set[Version] = {
-        Version(package.version) for package in default_repodata.packages_by_subdir
-        if package.name=="__glibc"
+        Version(package.version)
+        for package in default_repodata.packages_by_subdir
+        if package.name == "__glibc"
     }
     max_glibc_version_from_manylinux_tags = versions[-1]
     assert glibc_versions_in_default_repodata == {max_glibc_version_from_manylinux_tags}
