@@ -1,0 +1,13 @@
+diff --git b/conda_lock/_vendor/requests_file.py a/conda_lock/_vendor/requests_file.py
+index d9bf5b8..e850ed0 100644
+--- b/conda_lock/_vendor/requests_file.py
++++ a/conda_lock/_vendor/requests_file.py
+@@ -82,6 +82,8 @@ class FileAdapter(BaseAdapter):
+             if path_drive and not os.path.splitdrive(path):
+                 path = os.sep + os.path.join(path_drive, *path_parts)
+ 
++            if os.path.isdir(path):
++                path = os.path.join(path, "index.html")
+             # Use io.open since we need to add a release_conn method, and
+             # methods can't be added to file objects in python 2.
+             resp.raw = io.open(path, "rb")

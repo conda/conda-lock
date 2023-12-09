@@ -4,7 +4,9 @@ import sys
 from pathlib import Path
 from posixpath import expandvars
 from typing import TYPE_CHECKING, Dict, List, Optional
-from urllib.parse import urldefrag, urlparse, urlsplit, urlunsplit
+from urllib.parse import urldefrag, urlsplit, urlunsplit
+
+import requests
 
 from clikit.api.io.flags import VERY_VERBOSE
 from clikit.io import ConsoleIO, NullIO
@@ -12,8 +14,10 @@ from packaging.tags import compatible_tags, cpython_tags, mac_platforms
 
 from conda_lock.interfaces.vendored_poetry import (
     Chooser,
+    Config,
     Env,
     Factory,
+    LegacyRepository,
     PoetryDependency,
     PoetryPackage,
     PoetryProjectPackage,
@@ -24,7 +28,10 @@ from conda_lock.interfaces.vendored_poetry import (
     PyPiRepository,
     Repository,
     Uninstall,
+    get_cert,
+    get_client_cert,
 )
+from conda_lock.interfaces.vendored_requests_file import FileAdapter
 from conda_lock.lockfile import apply_categories
 from conda_lock.lockfile.v2prelim.models import (
     DependencySource,
@@ -391,6 +398,28 @@ def solve_pypi(
     return {dep.name: dep for dep in requirements}
 
 
+class CondaLockLegacyRepository(LegacyRepository):
+    @property
+    def session(self) -> requests.Session:
+        _session = super().session
+        _session.mount("file://", FileAdapter())
+        return _session
+
+
+def create_legacy_repository(
+    source: Dict[str, str], auth_config: Config
+) -> LegacyRepository:
+    name = source["name"]
+    url = source["url"]
+    return CondaLockLegacyRepository(
+        name,
+        url,
+        config=auth_config,
+        cert=get_cert(auth_config, name),
+        client_cert=get_client_cert(auth_config, name),
+    )
+
+
 def _prepare_repositories_pool(
     allow_pypi_requests: bool, pip_repositories: Optional[List[PipRepository]] = None
 ) -> Pool:
@@ -404,13 +433,13 @@ def _prepare_repositories_pool(
     """
     factory = Factory()
     config = factory.create_config()
-    repos = [
-        factory.create_legacy_repository(
-            {"name": pip_repository.name, "url": expandvars(pip_repository.url)},
-            config,
-        )
-        for pip_repository in pip_repositories or []
-    ] + [
+
+    legacy_repos = []
+    for pip_repository in pip_repositories or []:
+        repo_cfg = {"name": pip_repository.name, "url": expandvars(pip_repository.url)}
+        legacy_repo = create_legacy_repository(repo_cfg, config)
+        legacy_repos.append(legacy_repo)
+    repos = legacy_repos + [
         factory.create_legacy_repository(
             {"name": source[0], "url": source[1]["url"]}, config
         )
