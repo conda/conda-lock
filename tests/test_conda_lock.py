@@ -2460,3 +2460,37 @@ def test_parse_environment_file_with_pip_and_platform_selector():
         VersionedDependency(name="psutil", manager="pip", version="*"),
         VersionedDependency(name="pip", manager="conda", version="*"),
     ]
+
+
+def test_pip_full_whl_url(
+    tmp_path: Path, conda_exe: str, monkeypatch: "pytest.MonkeyPatch"
+):
+    """Ensure that we can specify full wheel URL in the environment file."""
+
+    env_file = clone_test_dir("test-pip-full-url", tmp_path).joinpath("environment.yml")
+    monkeypatch.chdir(env_file.parent)
+    run_lock(
+        [env_file],
+        conda_exe=str(conda_exe),
+        platforms=["linux-64"],
+    )
+
+    lockfile = parse_conda_lock_file(env_file.parent / DEFAULT_LOCKFILE_NAME)
+
+    (requests_dep,) = [p for p in lockfile.package if p.name == "requests"]
+    (typing_extensions_dep,) = [
+        p for p in lockfile.package if p.name == "typing-extensions"
+    ]
+    assert (
+        requests_dep.url
+        == "https://github.com/psf/requests/releases/download/v2.31.0/requests-2.31.0-py3-none-any.whl"
+    )
+    assert requests_dep.hash.sha256 is None
+    assert (
+        typing_extensions_dep.url
+        == "https://files.pythonhosted.org/packages/24/21/7d397a4b7934ff4028987914ac1044d3b7d52712f30e2ac7a2ae5bc86dd0/typing_extensions-4.8.0-py3-none-any.whl"
+    )
+    assert (
+        typing_extensions_dep.hash.sha256
+        == "8f92fc8806f9a6b641eaa5318da32b44d401efaac0f6678c9bc448ba3605faa0"
+    )
