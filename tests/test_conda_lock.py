@@ -2444,7 +2444,7 @@ def test_pip_finds_recent_manylinux_wheels(
     manylinux_version = [int(each) for each in manylinux_match.groups()]
     # Make sure the manylinux wheel was built with glibc > 2.17 as a
     # non-regression test for #517
-    assert manylinux_version == [2, 17]
+    assert manylinux_version > [2, 17]
 
 
 def test_manylinux_tags():
@@ -2505,7 +2505,7 @@ def test_pip_respects_glibc_version(
     manylinux_version = [int(each) for each in manylinux_match.groups()]
     # Make sure the manylinux wheel was built with glibc <= 2.17
     # since that is what the virtual package spec requires
-    assert manylinux_version <= [2, 17]
+    assert manylinux_version == [2, 17]
 
 
 def test_parse_environment_file_with_pip_and_platform_selector():
