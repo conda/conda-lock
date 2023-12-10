@@ -39,10 +39,7 @@ class Lockfile(StrictModel):
     package: List[LockedDependency]
     metadata: LockMeta
 
-    def __or__(self, other: "Lockfile") -> "Lockfile":
-        return other.__ror__(self)
-
-    def __ror__(self, other: "Optional[Lockfile]") -> "Lockfile":
+    def merge(self, other: "Optional[Lockfile]") -> "Lockfile":
         """
         merge self into other
         """
@@ -84,9 +81,7 @@ class Lockfile(StrictModel):
         ]
 
     @staticmethod
-    def _toposort(
-        package: List[LockedDependency], update: bool = False
-    ) -> List[LockedDependency]:
+    def _toposort(package: List[LockedDependency]) -> List[LockedDependency]:
         platforms = {d.platform for d in package}
 
         # Resort the conda packages topologically
@@ -120,10 +115,6 @@ class Lockfile(StrictModel):
                         continue
                     if dep.manager != manager:
                         continue
-                    # skip virtual packages
-                    if dep.manager == "conda" and dep.name.startswith("__"):
-                        continue
-
                     final_package.append(dep)
 
         return final_package

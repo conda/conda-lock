@@ -414,7 +414,7 @@ def make_lock_files(  # noqa: C901
                     deep=True,
                     update={"package": packages_not_to_lock},
                 )
-                new_lock_content = lock_content_to_persist | fresh_lock_content
+                new_lock_content = lock_content_to_persist.merge(fresh_lock_content)
 
             if "lock" in kinds:
                 write_conda_lock_file(
@@ -609,6 +609,7 @@ def render_lockfile_for_platform(  # noqa: C901
 
     # ensure consistent ordering of generated file
     lockfile.toposort_inplace()
+    lockfile.filter_virtual_packages_inplace()
 
     for p in lockfile.package:
         if p.platform == platform and p.category in categories:
