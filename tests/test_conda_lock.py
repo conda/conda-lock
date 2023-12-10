@@ -66,7 +66,13 @@ from conda_lock.lockfile.v2prelim.models import (
 from conda_lock.models.channel import Channel
 from conda_lock.models.lock_spec import Dependency, VCSDependency, VersionedDependency
 from conda_lock.models.pip_repository import PipRepository
-from conda_lock.pypi_solver import _strip_auth, parse_pip_requirement, solve_pypi
+from conda_lock.pypi_solver import (
+    MANYLINUX_TAGS,
+    PlatformEnv,
+    _strip_auth,
+    parse_pip_requirement,
+    solve_pypi,
+)
 from conda_lock.src_parser import (
     DEFAULT_PLATFORMS,
     LockSpecification,
@@ -2506,6 +2512,78 @@ def test_pip_respects_glibc_version(
     # Make sure the manylinux wheel was built with glibc <= 2.17
     # since that is what the virtual package spec requires
     assert manylinux_version == [2, 17]
+
+
+def test_platformenv_linux_platforms():
+    """Check that PlatformEnv correctly handles Linux platforms for wheels"""
+    # This is the default and maximal list of platforms that we expect
+    all_expected_platforms = [
+        f"manylinux{glibc_ver}_x86_64" for glibc_ver in reversed(MANYLINUX_TAGS)
+    ] + ["linux_x86_64"]
+
+    # Check that we get the default platforms when no virtual packages are specified
+    e = PlatformEnv("3.12", "linux-64")
+    assert e._platforms == all_expected_platforms
+
+    # Check that we get the default platforms when the virtual packages are empty
+    e = PlatformEnv("3.12", "linux-64", platform_virtual_packages={})
+    assert e._platforms == all_expected_platforms
+
+    # Check that we get the default platforms when the virtual packages are nonempty
+    # but don't include __glibc
+    platform_virtual_packages = {"x.bz2": {"name": "not_glibc"}}
+    e = PlatformEnv(
+        "3.12", "linux-64", platform_virtual_packages=platform_virtual_packages
+    )
+    assert e._platforms == all_expected_platforms
+
+    # Check that we get the expected platforms when using the default repodata.
+    # (This should include the glibc corresponding to the latest manylinux tag.)
+    default_repodata = default_virtual_package_repodata()
+    platform_virtual_packages = default_repodata.all_repodata["linux-64"]["packages"]
+    e = PlatformEnv(
+        "3.12", "linux-64", platform_virtual_packages=platform_virtual_packages
+    )
+    assert e._platforms == all_expected_platforms
+
+    # Check that we get the expected platforms after removing glibc from the
+    # default repodata.
+    platform_virtual_packages = {
+        filename: record
+        for filename, record in platform_virtual_packages.items()
+        if record["name"] != "__glibc"
+    }
+    e = PlatformEnv(
+        "3.12", "linux-64", platform_virtual_packages=platform_virtual_packages
+    )
+    assert e._platforms == all_expected_platforms
+
+    # Check that we get a restricted list of platforms when specifying a
+    # lower glibc version.
+    restricted_platforms = [
+        "manylinux_2_17_x86_64",
+        "manylinux2014_x86_64",
+        "manylinux2010_x86_64",
+        "manylinux1_x86_64",
+        "linux_x86_64",
+    ]
+    platform_virtual_packages["__glibc-2.17-0.tar.bz2"] = dict(
+        name="__glibc", version="2.17"
+    )
+    e = PlatformEnv(
+        "3.12", "linux-64", platform_virtual_packages=platform_virtual_packages
+    )
+    assert e._platforms == restricted_platforms
+
+    # Check that a warning is raised when there are multiple glibc versions
+    platform_virtual_packages["__glibc-2.28-0.tar.bz2"] = dict(
+        name="__glibc", version="2.28"
+    )
+    with pytest.warns(UserWarning):
+        e = PlatformEnv(
+            "3.12", "linux-64", platform_virtual_packages=platform_virtual_packages
+        )
+    assert e._platforms == restricted_platforms
 
 
 def test_parse_environment_file_with_pip_and_platform_selector():
