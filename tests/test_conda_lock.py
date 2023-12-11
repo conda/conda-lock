@@ -66,7 +66,13 @@ from conda_lock.lockfile.v2prelim.models import (
 from conda_lock.models.channel import Channel
 from conda_lock.models.lock_spec import Dependency, VCSDependency, VersionedDependency
 from conda_lock.models.pip_repository import PipRepository
-from conda_lock.pypi_solver import _strip_auth, parse_pip_requirement, solve_pypi
+from conda_lock.pypi_solver import (
+    MANYLINUX_TAGS,
+    PlatformEnv,
+    _strip_auth,
+    parse_pip_requirement,
+    solve_pypi,
+)
 from conda_lock.src_parser import (
     DEFAULT_PLATFORMS,
     LockSpecification,
@@ -2230,9 +2236,9 @@ def test_default_virtual_package_input_hash_stability():
     vpr = default_virtual_package_repodata()
 
     expected = {
-        "linux-64": "dbd71bccc4b3be81038e44b1f14891ccec40a6d70a43cfe02295fc77a2ea9eb5",
-        "linux-aarch64": "023611fb84c00fb5aaeddde1e0ac62e6ae007aecf6f69ccb5dbfc3cd6d945436",
-        "linux-ppc64le": "8533a7bd0e950f7b085eeef7686d2c4895e84b8ffdbfba6d62863072ac41090c",
+        "linux-64": "a949aac83da089258ce729fcd54dc0a3a1724ea325d67680d7a6d7cc9c0f1d1b",
+        "linux-aarch64": "f68603a3a28dbb03d20a25e1dacda3c42b6acc8a93bd31e13c4956115820cfa6",
+        "linux-ppc64le": "ababb6bc556ac8c9e27a499bf9b83b5757f6ded385caa0c3d7bf3f360dfe358d",
         "osx-64": "b7eebe4be0654740f67e3023f2ede298f390119ef225f50ad7e7288ea22d5c93",
         "osx-arm64": "cc82018d1b1809b9aebacacc5ed05ee6a4318b3eba039607d2a6957571f8bf2b",
         "win-64": "44239e9f0175404e62e4a80bb8f4be72e38c536280d6d5e484e52fa04b45c9f6",
@@ -2445,6 +2451,139 @@ def test_pip_finds_recent_manylinux_wheels(
     # Make sure the manylinux wheel was built with glibc > 2.17 as a
     # non-regression test for #517
     assert manylinux_version > [2, 17]
+
+
+def test_manylinux_tags():
+    from packaging.version import Version
+
+    MANYLINUX_TAGS = pypi_solver.MANYLINUX_TAGS
+
+    # The irregular tags should come at the beginning:
+    assert MANYLINUX_TAGS[:4] == ["1", "2010", "2014", "_2_17"]
+    # All other tags should start with "_"
+    assert all(tag.startswith("_") for tag in MANYLINUX_TAGS[3:])
+
+    # Now check that the remaining tags parse to versions in increasing order
+    versions = [Version(tag[1:].replace("_", ".")) for tag in MANYLINUX_TAGS[3:]]
+    assert versions[0] == Version("2.17")
+    assert versions == sorted(versions)
+
+    # Verify that the default repodata uses the highest glibc version
+    default_repodata = default_virtual_package_repodata()
+    glibc_versions_in_default_repodata: Set[Version] = {
+        Version(package.version)
+        for package in default_repodata.packages_by_subdir
+        if package.name == "__glibc"
+    }
+    max_glibc_version_from_manylinux_tags = versions[-1]
+    assert glibc_versions_in_default_repodata == {max_glibc_version_from_manylinux_tags}
+
+
+def test_pip_respects_glibc_version(
+    tmp_path: Path, conda_exe: str, monkeypatch: "pytest.MonkeyPatch"
+):
+    """Ensure that we find a manylinux wheel that respects an older glibc constraint.
+
+    This is somewhat the opposite of test_pip_finds_recent_manylinux_wheels
+    """
+
+    env_file = clone_test_dir("test-pip-respects-glibc-version", tmp_path).joinpath(
+        "environment.yml"
+    )
+    monkeypatch.chdir(env_file.parent)
+    run_lock(
+        [env_file],
+        conda_exe=str(conda_exe),
+        platforms=["linux-64"],
+        virtual_package_spec=env_file.parent / "virtual-packages.yml",
+    )
+
+    lockfile = parse_conda_lock_file(env_file.parent / DEFAULT_LOCKFILE_NAME)
+
+    (cryptography_dep,) = [p for p in lockfile.package if p.name == "cryptography"]
+    manylinux_pattern = r"manylinux_(\d+)_(\d+).+\.whl"
+    # Should return the first match so higher version first.
+    manylinux_match = re.search(manylinux_pattern, cryptography_dep.url)
+    assert (
+        manylinux_match
+    ), "No match found for manylinux version in {cryptography_dep.url}"
+
+    manylinux_version = [int(each) for each in manylinux_match.groups()]
+    # Make sure the manylinux wheel was built with glibc <= 2.17
+    # since that is what the virtual package spec requires
+    assert manylinux_version == [2, 17]
+
+
+def test_platformenv_linux_platforms():
+    """Check that PlatformEnv correctly handles Linux platforms for wheels"""
+    # This is the default and maximal list of platforms that we expect
+    all_expected_platforms = [
+        f"manylinux{glibc_ver}_x86_64" for glibc_ver in reversed(MANYLINUX_TAGS)
+    ] + ["linux_x86_64"]
+
+    # Check that we get the default platforms when no virtual packages are specified
+    e = PlatformEnv("3.12", "linux-64")
+    assert e._platforms == all_expected_platforms
+
+    # Check that we get the default platforms when the virtual packages are empty
+    e = PlatformEnv("3.12", "linux-64", platform_virtual_packages={})
+    assert e._platforms == all_expected_platforms
+
+    # Check that we get the default platforms when the virtual packages are nonempty
+    # but don't include __glibc
+    platform_virtual_packages = {"x.bz2": {"name": "not_glibc"}}
+    e = PlatformEnv(
+        "3.12", "linux-64", platform_virtual_packages=platform_virtual_packages
+    )
+    assert e._platforms == all_expected_platforms
+
+    # Check that we get the expected platforms when using the default repodata.
+    # (This should include the glibc corresponding to the latest manylinux tag.)
+    default_repodata = default_virtual_package_repodata()
+    platform_virtual_packages = default_repodata.all_repodata["linux-64"]["packages"]
+    e = PlatformEnv(
+        "3.12", "linux-64", platform_virtual_packages=platform_virtual_packages
+    )
+    assert e._platforms == all_expected_platforms
+
+    # Check that we get the expected platforms after removing glibc from the
+    # default repodata.
+    platform_virtual_packages = {
+        filename: record
+        for filename, record in platform_virtual_packages.items()
+        if record["name"] != "__glibc"
+    }
+    e = PlatformEnv(
+        "3.12", "linux-64", platform_virtual_packages=platform_virtual_packages
+    )
+    assert e._platforms == all_expected_platforms
+
+    # Check that we get a restricted list of platforms when specifying a
+    # lower glibc version.
+    restricted_platforms = [
+        "manylinux_2_17_x86_64",
+        "manylinux2014_x86_64",
+        "manylinux2010_x86_64",
+        "manylinux1_x86_64",
+        "linux_x86_64",
+    ]
+    platform_virtual_packages["__glibc-2.17-0.tar.bz2"] = dict(
+        name="__glibc", version="2.17"
+    )
+    e = PlatformEnv(
+        "3.12", "linux-64", platform_virtual_packages=platform_virtual_packages
+    )
+    assert e._platforms == restricted_platforms
+
+    # Check that a warning is raised when there are multiple glibc versions
+    platform_virtual_packages["__glibc-2.28-0.tar.bz2"] = dict(
+        name="__glibc", version="2.28"
+    )
+    with pytest.warns(UserWarning):
+        e = PlatformEnv(
+            "3.12", "linux-64", platform_virtual_packages=platform_virtual_packages
+        )
+    assert e._platforms == restricted_platforms
 
 
 def test_parse_environment_file_with_pip_and_platform_selector():

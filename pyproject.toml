@@ -109,7 +109,7 @@ exclude = [
 ]
 
 [tool.pytest.ini_options]
-addopts = "-vrsx -n auto"
+addopts = "--doctest-modules -vrsx -n auto"
 flake8-max-line-length = 105
 flake8-ignore = ["docs/* ALL", "conda_lock/_version.py ALL"]
 filterwarnings = "ignore::DeprecationWarning"
