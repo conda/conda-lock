@@ -44,9 +44,9 @@ if TYPE_CHECKING:
 # NB: in principle these depend on the glibc on the machine creating the conda env.
 # We use tags supported by manylinux Docker images, which are likely the most common
 # in practice, see https://github.com/pypa/manylinux/blob/main/README.rst#docker-images.
-
 # NOTE: Keep the max in sync with the default value used in virtual_packages.py
 MANYLINUX_TAGS = ["1", "2010", "2014", "_2_17", "_2_24", "_2_28"]
+
 # This needs to be updated periodically as new macOS versions are released.
 MACOS_VERSION = (13, 4)
 
@@ -74,6 +74,8 @@ class PlatformEnv(Env):
             arch = "x86_64"
 
         if system == "linux":
+            # Summary of the manylinux tag story:
+            # <https://github.com/conda/conda-lock/pull/566#discussion_r1421745745>
             compatible_manylinux_tags = _compute_compatible_manylinux_tags(
                 platform_virtual_packages=platform_virtual_packages
             )
