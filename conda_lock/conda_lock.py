@@ -608,7 +608,11 @@ def render_lockfile_for_platform(  # noqa: C901
     pip_deps: List[LockedDependency] = []
 
     # ensure consistent ordering of generated file
-    lockfile.toposort_inplace()
+    # topographic for explicit files and alphabetical otherwise (see gh #554)
+    if kind == "explicit":
+        lockfile.toposort_inplace()
+    else:
+        lockfile.alphasort_inplace()
     lockfile.filter_virtual_packages_inplace()
 
     for p in lockfile.package:
