@@ -672,7 +672,7 @@ def render_lockfile_for_platform(  # noqa: C901
             [
                 "  - pip:",
                 *(
-                    f"    - {format_pip_requirement(dep, platform, direct=False)}"
+                    f"      - {format_pip_requirement(dep, platform, direct=False)}"
                     for dep in pip_deps
                 ),
             ]
