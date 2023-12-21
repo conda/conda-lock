@@ -1,3 +1,4 @@
+import functools
 import pathlib
 
 from collections import defaultdict
@@ -131,7 +132,7 @@ def apply_categories(
         if not isinstance(targets, list):
             targets = [targets]
         for target in targets:
-            target.category = source.category
+            target.categories = {source.category}
 
 
 def parse_conda_lock_file(path: pathlib.Path) -> Lockfile:
@@ -163,7 +164,9 @@ def write_conda_lock_file(
     content.filter_virtual_packages_inplace()
     with path.open("w") as f:
         if include_help_text:
-            categories = set(p.category for p in content.package)
+            categories: Set[str] = functools.reduce(
+                set.union, (set(p.categories) for p in content.package), set()
+            )
 
             def write_section(text: str) -> None:
                 lines = dedent(text).split("\n")

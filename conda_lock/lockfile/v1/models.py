@@ -54,7 +54,6 @@ class BaseLockedDependency(StrictModel):
     dependencies: Dict[str, str] = {}
     url: str
     hash: HashModel
-    category: str = "main"
     source: Optional[DependencySource] = None
     build: Optional[str] = None
 
@@ -69,6 +68,7 @@ class BaseLockedDependency(StrictModel):
 
 
 class LockedDependency(BaseLockedDependency):
+    category: str = "main"
     optional: bool
 
 
