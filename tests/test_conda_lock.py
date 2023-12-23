@@ -33,6 +33,7 @@ from conda_lock.conda_lock import (
     _add_auth_to_line,
     _add_auth_to_lockfile,
     _extract_domain,
+    _solve_for_arch,
     _strip_auth_from_line,
     _strip_auth_from_lockfile,
     create_lockfile_from_spec,
@@ -606,6 +607,7 @@ def test_choose_wheel() -> None:
         platform="linux-64",
     )
     assert len(solution) == 1
+    assert solution["fastavro"].categories == {"main"}
     assert solution["fastavro"].hash == HashModel(
         sha256="a111a384a786b7f1fd6a8a8307da07ccf4d4c425084e2d61bae33ecfb60de405"
     )
@@ -1818,6 +1820,61 @@ def test_aggregate_lock_specs_invalid_pip_repos():
     aggregate_lock_specs([base_spec, spec_a, spec_b_a], platforms=[])
     with pytest.raises(ChannelAggregationError):
         aggregate_lock_specs([base_spec, spec_a, spec_a_b], platforms=[])
+
+
+def test_solve_arch_multiple_categories():
+    _conda_exe = determine_conda_executable(None, mamba=False, micromamba=False)
+    channels = [Channel.from_string("conda-forge")]
+
+    with tempfile.NamedTemporaryFile(dir=".") as tf:
+        spec = LockSpecification(
+            dependencies={
+                "linux-64": [
+                    VersionedDependency(
+                        name="python",
+                        version="=3.10.9",
+                        manager="conda",
+                        category="main",
+                        extras=[],
+                    ),
+                    VersionedDependency(
+                        name="pandas",
+                        version="=1.5.3",
+                        manager="conda",
+                        category="test",
+                        extras=[],
+                    ),
+                    VersionedDependency(
+                        name="pyarrow",
+                        version="=9.0.0",
+                        manager="conda",
+                        category="dev",
+                        extras=[],
+                    ),
+                ],
+            },
+            channels=channels,
+            # NB: this file must exist for relative path resolution to work
+            # in create_lockfile_from_spec
+            sources=[Path(tf.name)],
+        )
+
+        vpr = default_virtual_package_repodata()
+        with vpr:
+            locked_deps = _solve_for_arch(
+                conda=_conda_exe,
+                spec=spec,
+                platform="linux-64",
+                channels=channels,
+                pip_repositories=[],
+                virtual_package_repo=vpr,
+            )
+        python_deps = [dep for dep in locked_deps if dep.name == "python"]
+        assert len(python_deps) == 1
+        assert python_deps[0].categories == {"main"}
+        numpy_deps = [dep for dep in locked_deps if dep.name == "numpy"]
+        assert len(numpy_deps) == 1
+        assert numpy_deps[0].categories == {"test", "dev"}
 
 
 def _check_package_installed(package: str, prefix: str):

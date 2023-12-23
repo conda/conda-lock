@@ -2,7 +2,17 @@ import pathlib
 
 from collections import defaultdict
 from textwrap import dedent
-from typing import Collection, Dict, List, Mapping, Optional, Sequence, Set, Union
+from typing import (
+    Collection,
+    DefaultDict,
+    Dict,
+    List,
+    Mapping,
+    Optional,
+    Sequence,
+    Set,
+    Union,
+)
 
 import yaml
 
@@ -36,6 +46,23 @@ def _seperator_munge_get(
             return d[key.replace("-", "_")]
         except KeyError:
             return d[key.replace("_", "-")]
+
+
+def _truncate_main_category(
+    planned: Mapping[str, Union[List[LockedDependency], LockedDependency]],
+) -> None:
+    """
+    Given the package dependencies with their respective categories
+    for any package that is in the main category, remove all other associated categories
+    """
+    # Packages in the main category are always installed
+    # so other categories are not necessary
+    for targets in planned.values():
+        if not isinstance(targets, list):
+            targets = [targets]
+        for target in targets:
+            if "main" in target.categories:
+                target.categories = {"main"}
 
 
 def apply_categories(
@@ -111,27 +138,31 @@ def apply_categories(
 
         by_category[request.category].append(request.name)
 
-    # now, map each package to its root request preferring the ones earlier in the
-    # list
+    # now, map each package to every root request that requires it
     categories = [*categories, *(k for k in by_category if k not in categories)]
-    root_requests = {}
+    root_requests: DefaultDict[str, List[str]] = defaultdict(list)
     for category in categories:
         for root in by_category.get(category, []):
             for transitive_dep in dependents[root]:
-                if transitive_dep not in root_requests:
-                    root_requests[transitive_dep] = root
+                root_requests[transitive_dep].append(root)
     # include root requests themselves
     for name in requested:
-        root_requests[name] = name
+        root_requests[name].append(name)
 
-    for dep, root in root_requests.items():
-        source = requested[root]
+    for dep, roots in root_requests.items():
         # try a conda target first
         targets = _seperator_munge_get(planned, dep)
         if not isinstance(targets, list):
             targets = [targets]
-        for target in targets:
-            target.categories = {source.category}
+
+        for root in roots:
+            source = requested[root]
+            for target in targets:
+                target.categories.add(source.category)
+
+    # For any dep that is part of the 'main' category
+    # we should remove all other categories
+    _truncate_main_category(planned)
 
 
 def parse_conda_lock_file(path: pathlib.Path) -> Lockfile:

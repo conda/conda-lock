@@ -18,7 +18,7 @@ from conda_lock.models import StrictModel
 
 
 class LockedDependency(BaseLockedDependency):
-    categories: Set[str] = {"main"}
+    categories: Set[str] = set()
 
     def to_v1(self) -> List[LockedDependencyV1]:
         """Convert a v2 dependency into a list of v1 dependencies.
