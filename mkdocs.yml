@@ -14,6 +14,7 @@ theme:
   icon:
     repo: fontawesome/brands/github
 plugins:
+  - search
   - include-markdown
 markdown_extensions:
   - admonition
