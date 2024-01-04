@@ -1964,7 +1964,6 @@ def test_install_with_pip_deps(
     tmp_path: Path,
     conda_exe: str,
     install_with_pip_deps_lockfile: Path,
-    monkeypatch: "pytest.MonkeyPatch",
     caplog,
 ):
     root_prefix = tmp_path / "root_prefix"
@@ -1995,6 +1994,55 @@ def test_install_with_pip_deps(
     if sys.platform.lower().startswith("linux"):
         python = prefix / "bin" / "python"
         subprocess.check_call([str(python), "-c", "import requests"])
+
+
+@pytest.fixture
+def install_multiple_categories_lockfile(tmp_path: Path):
+    return clone_test_dir("test-multiple-categories", tmp_path).joinpath(
+        "conda-lock.yml"
+    )
+
+
+@pytest.mark.parametrize("categories", [[], ["dev"], ["test"], ["dev", "test"]])
+def test_install_multiple_subcategories(
+    tmp_path: Path,
+    conda_exe: str,
+    install_multiple_categories_lockfile: Path,
+    categories: List[str],
+):
+    root_prefix = tmp_path / "root_prefix"
+    root_prefix.mkdir(exist_ok=True)
+    prefix = root_prefix / "test_env"
+
+    context: ContextManager
+    if sys.platform.lower().startswith("linux"):
+        context = contextlib.nullcontext()
+    else:
+        # since by default we do platform validation we would expect this to fail
+        context = pytest.raises(PlatformValidationError)
+
+    with context, install_lock():
+        install(
+            conda=str(conda_exe),
+            prefix=str(prefix),
+            lock_file=install_multiple_categories_lockfile,
+            extras=categories,
+        )
+
+    if sys.platform.lower().startswith("linux"):
+        packages_to_check = ["python"]
+        if "dev" in categories or "test" in categories:
+            packages_to_check += ["numpy", "pandas"]
+        if "dev" in categories:
+            packages_to_check.append("astropy")
+        if "test" in categories:
+            packages_to_check.append("pyspark")
+
+        for package in packages_to_check:
+            assert _check_package_installed(
+                package=package,
+                prefix=str(prefix),
+            ), f"Package {package} does not exist in {prefix} environment"
 
 
 @pytest.mark.parametrize("kind", ["explicit", "env"])
