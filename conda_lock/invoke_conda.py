@@ -8,7 +8,7 @@ import subprocess
 import tempfile
 
 from distutils.version import LooseVersion
-from typing import IO, Dict, Iterator, List, Optional, Sequence, Union
+from typing import Dict, Iterator, List, Optional, Sequence, Union
 
 from ensureconda.api import determine_micromamba_version, ensureconda
 
@@ -62,14 +62,14 @@ def determine_conda_executable(
     raise RuntimeError("Could not find conda (or compatible) executable")
 
 
-def _invoke_conda(
+def invoke_conda(
     conda: PathLike,
     prefix: "str | None",
     name: "str | None",
     command_args: Sequence[PathLike],
     post_args: Sequence[PathLike] = [],
     check_call: bool = False,
-) -> subprocess.Popen:
+) -> subprocess.CompletedProcess:
     """
     Invoke external conda executable
 
@@ -93,11 +93,9 @@ def _invoke_conda(
         raise ValueError("Provide either prefix, or name, but not both.")
     common_args = []
     if prefix:
-        common_args.append("--prefix")
-        common_args.append(prefix)
+        common_args.extend(["--prefix", prefix])
     elif name:
-        common_args.append("--name")
-        common_args.append(name)
+        common_args.extend(["--name", name])
     else:
         raise ValueError("Neither prefix, nor name provided.")
     conda_flags = os.environ.get("CONDA_FLAGS")
@@ -106,41 +104,35 @@ def _invoke_conda(
 
     cmd = [str(arg) for arg in [conda, *command_args, *common_args, *post_args]]
 
-    with subprocess.Popen(
+    result = subprocess.run(
         cmd,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
-        bufsize=1,
-        universal_newlines=True,
+        text=True,
         encoding="utf-8",
-    ) as p:
-        stdout = []
-        if p.stdout:
-            for line in _process_stdout(p.stdout):
-                logging.info(line)
-                stdout.append(line)
-        stderr = []
-        if p.stderr:
-            for line in p.stderr:
-                stderr.append(line)
-                logging.error(line.rstrip())
+        check=False,
+    )
+    stdout_lines = _process_stdout(result.stdout.splitlines())
+    for line in stdout_lines:
+        logging.info(line)
 
-    if check_call and p.returncode != 0:
+    stderr_lines = result.stderr.splitlines()
+    for line in stderr_lines:
+        logging.error(line)
+
+    if check_call and result.returncode != 0:
         raise subprocess.CalledProcessError(
-            p.returncode,
-            [str(conda), *command_args, *common_args, *post_args],
-            output="\n".join(stdout),
-            stderr="\n".join(stderr),
+            result.returncode, cmd, output=result.stdout, stderr=result.stderr
         )
 
-    return p
+    return result
 
 
-def _process_stdout(stdout: IO[str]) -> Iterator[str]:
+def _process_stdout(lines: Sequence[str]) -> Iterator[str]:
     cache = set()
     extracting_packages = False
     leading_empty = True
-    for logline in stdout:
+    for logline in lines:
         logline = logline.rstrip()
         if logline:
             leading_empty = False

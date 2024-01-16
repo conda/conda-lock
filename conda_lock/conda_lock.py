@@ -51,8 +51,8 @@ from conda_lock.conda_solver import solve_conda
 from conda_lock.errors import MissingEnvVarError, PlatformValidationError
 from conda_lock.invoke_conda import (
     PathLike,
-    _invoke_conda,
     determine_conda_executable,
+    invoke_conda,
     is_micromamba,
 )
 from conda_lock.lockfile import (
@@ -204,7 +204,7 @@ def do_conda_install(
     file: pathlib.Path,
     copy: bool,
 ) -> None:
-    _conda = partial(_invoke_conda, conda, prefix, name, check_call=True)
+    _conda = partial(invoke_conda, conda, prefix, name, check_call=True)
 
     kind = "env" if file.name.endswith(".yml") else "explicit"
 
