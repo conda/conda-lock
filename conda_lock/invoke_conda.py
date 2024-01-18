@@ -6,6 +6,7 @@ import shlex
 import shutil
 import subprocess
 import tempfile
+import threading
 
 from distutils.version import LooseVersion
 from typing import IO, Dict, Iterator, List, Optional, Sequence, Union
@@ -116,14 +117,22 @@ def _invoke_conda(
     ) as p:
         stdout = []
         if p.stdout:
-            for line in _process_stdout(p.stdout):
-                logging.info(line)
-                stdout.append(line)
+
+            def read_stdout() -> None:
+                assert p.stdout is not None
+                for line in _process_stdout(p.stdout):
+                    logging.info(line)
+                    stdout.append(line)
+
+            stdout_thread = threading.Thread(target=read_stdout)
+            stdout_thread.start()
         stderr = []
         if p.stderr:
             for line in p.stderr:
                 stderr.append(line)
                 logging.error(line.rstrip())
+        if p.stdout:
+            stdout_thread.join()
 
     if check_call and p.returncode != 0:
         raise subprocess.CalledProcessError(
