@@ -175,6 +175,20 @@ def zlib_environment(tmp_path: Path):
 
 
 @pytest.fixture
+def tzcode_environment(tmp_path: Path):
+    contents = """
+    channels:
+        - conda-forge
+        - nodefaults
+    dependencies:
+        - tzcode
+    """
+    env = tmp_path / "environment.yml"
+    env.write_text(contents)
+    return env
+
+
+@pytest.fixture
 def input_hash_zlib_environment(tmp_path: Path):
     return clone_test_dir("test-input-hash-zlib", tmp_path).joinpath("environment.yml")
 
@@ -1812,7 +1826,9 @@ def test_install(
     kind: str,
     tmp_path: Path,
     conda_exe: str,
-    zlib_environment: Path,
+    # We choose tzcode since it depends on glibc on linux-64, and this induces a
+    # virtual package, and we test to make sure it's filtered out from the lockfile.
+    tzcode_environment: Path,
     monkeypatch: "pytest.MonkeyPatch",
     capsys: "pytest.CaptureFixture[str]",
 ):
@@ -1830,7 +1846,7 @@ def test_install(
     generated_lockfile_path.mkdir(exist_ok=True)
     monkeypatch.chdir(generated_lockfile_path)
 
-    package = "zlib"
+    package = "tzcode"
     platform = "linux-64"
 
     lock_filename_template = (
@@ -1852,7 +1868,7 @@ def test_install(
         "-p",
         platform,
         "-f",
-        str(zlib_environment),
+        str(tzcode_environment),
         "-k",
         kind,
         "--filename-template",
@@ -1865,6 +1881,17 @@ def test_install(
     print(result.stdout, file=sys.stdout)
     print(result.stderr, file=sys.stderr)
     assert result.exit_code == 0
+
+    lockfile_content = Path(lock_filename).read_text()
+    if kind == "lock":
+        might_contain_virtual_package = "name: __" in lockfile_content
+    else:
+        might_contain_virtual_package = "__" in lockfile_content
+    assert not might_contain_virtual_package, (
+        f"Lockfile may contain a virtual package (e.g. __glibc). "
+        f"These should never appear in the lockfile. "
+        f"{lockfile_content}"
+    )
 
     prefix = root_prefix / "test_env"
 
