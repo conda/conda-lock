@@ -131,7 +131,8 @@ def _invoke_conda(
             for line in p.stderr:
                 stderr.append(line)
                 logging.error(line.rstrip())
-        stdout_thread.join()
+        if p.stdout:
+            stdout_thread.join()
 
     if check_call and p.returncode != 0:
         raise subprocess.CalledProcessError(
