@@ -131,7 +131,7 @@ def apply_categories(
         if not isinstance(targets, list):
             targets = [targets]
         for target in targets:
-            target.category = source.category
+            target.categories = {source.category}
 
 
 def parse_conda_lock_file(path: pathlib.Path) -> Lockfile:
@@ -163,7 +163,9 @@ def write_conda_lock_file(
     content.filter_virtual_packages_inplace()
     with path.open("w") as f:
         if include_help_text:
-            categories: Set[str] = set().union(*({p.category} for p in content.package))
+            categories: Set[str] = {
+                category for p in content.package for category in p.categories
+            }
 
             def write_section(text: str) -> None:
                 lines = dedent(text).split("\n")

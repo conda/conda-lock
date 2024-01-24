@@ -18,7 +18,7 @@ from conda_lock.models import StrictModel
 
 
 class LockedDependency(BaseLockedDependency):
-    category: str = "main"
+    categories: Set[str] = {"main"}
 
     def to_v1(self) -> List[LockedDependencyV1]:
         """Convert a v2 dependency into a list of v1 dependencies.
@@ -41,7 +41,7 @@ class LockedDependency(BaseLockedDependency):
                 build=self.build,
                 optional=category != "main",
             )
-            for category in sorted({self.category})
+            for category in sorted(self.categories)
         ]
         return package_entries_per_category
 
@@ -174,9 +174,6 @@ def _locked_dependency_v1_to_v2(
     # Each entry should correspond to a distinct category
     assert len(categories) == len(package_entries_per_category)
 
-    # Until we allow multiple categories in v2 we need this workaround
-    single_category = package_entries_per_category[0].category
-
     return LockedDependency(
         name=package_entries_per_category[0].name,
         version=package_entries_per_category[0].version,
@@ -185,7 +182,7 @@ def _locked_dependency_v1_to_v2(
         dependencies=package_entries_per_category[0].dependencies,
         url=package_entries_per_category[0].url,
         hash=package_entries_per_category[0].hash,
-        category=single_category,
+        categories=categories,
         source=package_entries_per_category[0].source,
         build=package_entries_per_category[0].build,
     )
