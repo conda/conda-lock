@@ -12,7 +12,6 @@ import sys
 import tempfile
 import typing
 import uuid
-import warnings
 
 from glob import glob
 from pathlib import Path
@@ -385,10 +384,10 @@ def test_lock_poetry_ibis(
     )
     lockfile = parse_conda_lock_file(pyproject.parent / DEFAULT_LOCKFILE_NAME)
 
-    all_categories = set()
+    all_categories: Set[str] = set()
 
     for pkg in lockfile.package:
-        all_categories.add(pkg.category)
+        all_categories.update(pkg.categories)
 
     for desired_category in extra_categories:
         assert (
