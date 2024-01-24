@@ -24,8 +24,6 @@ class _LookupLoader:
 
     @mapping_url.setter
     def mapping_url(self, value: str) -> None:
-        del self.pypi_lookup
-        del self.conda_lookup
         self._mapping_url = value
 
     @cached_property
