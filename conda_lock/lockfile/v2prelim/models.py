@@ -19,20 +19,30 @@ from conda_lock.models import StrictModel
 class LockedDependency(BaseLockedDependency):
     category: str = "main"
 
-    def to_v1(self) -> LockedDependencyV1:
-        return LockedDependencyV1(
-            name=self.name,
-            version=self.version,
-            manager=self.manager,
-            platform=self.platform,
-            dependencies=self.dependencies,
-            url=self.url,
-            hash=self.hash,
-            category=self.category,
-            source=self.source,
-            build=self.build,
-            optional=self.category != "main",
-        )
+    def to_v1(self) -> List[LockedDependencyV1]:
+        """Convert a v2 dependency into a list of v1 dependencies.
+
+        In case a v2 dependency might contain multiple categories, but a v1 dependency
+        can only contain a single category, we represent multiple categories as a list
+        of v1 dependencies that are identical except for the `category` field. The
+        `category` field runs over all categories."""
+        package_entries_per_category = [
+            LockedDependencyV1(
+                name=self.name,
+                version=self.version,
+                manager=self.manager,
+                platform=self.platform,
+                dependencies=self.dependencies,
+                url=self.url,
+                hash=self.hash,
+                category=category,
+                source=self.source,
+                build=self.build,
+                optional=category != "main",
+            )
+            for category in sorted({self.category})
+        ]
+        return package_entries_per_category
 
 
 class Lockfile(StrictModel):
@@ -129,8 +139,15 @@ class Lockfile(StrictModel):
         return final_package
 
     def to_v1(self) -> LockfileV1:
+        # Each v2 package gives a list of v1 packages.
+        # Flatten these into a single list of v1 packages.
+        v1_packages = [
+            package_entry_per_category
+            for p in self.package
+            for package_entry_per_category in p.to_v1()
+        ]
         return LockfileV1(
-            package=[p.to_v1() for p in self.package],
+            package=v1_packages,
             metadata=self.metadata,
         )
 
