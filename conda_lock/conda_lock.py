@@ -602,7 +602,7 @@ def render_lockfile_for_platform(  # noqa: C901
         f"# input_hash: {lockfile.metadata.content_hash.get(platform)}\n",
     ]
 
-    categories = {
+    categories_to_install: Set[str] = {
         "main",
         *(extras or []),
         *(["dev"] if include_dev_dependencies else []),
@@ -620,7 +620,7 @@ def render_lockfile_for_platform(  # noqa: C901
     lockfile.filter_virtual_packages_inplace()
 
     for p in lockfile.package:
-        if p.platform == platform and p.category in categories:
+        if p.platform == platform and p.category in categories_to_install:
             if p.manager == "pip":
                 pip_deps.append(p)
             elif p.manager == "conda":
