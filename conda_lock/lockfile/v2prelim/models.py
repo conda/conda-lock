@@ -17,6 +17,8 @@ from conda_lock.models import StrictModel
 
 
 class LockedDependency(BaseLockedDependency):
+    category: str = "main"
+
     def to_v1(self) -> LockedDependencyV1:
         return LockedDependencyV1(
             name=self.name,
