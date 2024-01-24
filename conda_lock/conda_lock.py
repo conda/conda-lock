@@ -620,7 +620,7 @@ def render_lockfile_for_platform(  # noqa: C901
     lockfile.filter_virtual_packages_inplace()
 
     for p in lockfile.package:
-        if p.platform == platform and p.category in categories_to_install:
+        if p.platform == platform and len({p.category} & categories_to_install) > 0:
             if p.manager == "pip":
                 pip_deps.append(p)
             elif p.manager == "conda":
