@@ -80,6 +80,7 @@ def make_lock_spec(
     pip_repository_overrides: Optional[Sequence[str]] = None,
     platform_overrides: Optional[Sequence[str]] = None,
     required_categories: Optional[AbstractSet[str]] = None,
+    allow_pypi_requests_overrides: Optional[bool] = None,
 ) -> LockSpecification:
     """Generate the lockfile specs from a set of input src_files.  If required_categories is set filter out specs that do not match those"""
     platforms = (
@@ -87,7 +88,6 @@ def make_lock_spec(
         if platform_overrides
         else _parse_platforms_from_srcs(src_files)
     ) or DEFAULT_PLATFORMS
-
     lock_specs = _parse_source_files(src_files, platforms)
 
     aggregated_lock_spec = aggregate_lock_specs(lock_specs, platforms)
@@ -99,7 +99,6 @@ def make_lock_spec(
         if channel_overrides
         else aggregated_lock_spec.channels
     )
-
     pip_repositories = (
         [
             PipRepository.from_string(repo_override)
@@ -108,7 +107,6 @@ def make_lock_spec(
         if pip_repository_overrides
         else aggregated_lock_spec.pip_repositories
     )
-
     if required_categories is None:
         dependencies = aggregated_lock_spec.dependencies
     else:
@@ -125,12 +123,15 @@ def make_lock_spec(
             ]
             for platform, dependencies in aggregated_lock_spec.dependencies.items()
         }
-
+    if allow_pypi_requests_overrides is None:
+        allow_pypi_requests = aggregated_lock_spec.allow_pypi_requests
+    else:
+        allow_pypi_requests = allow_pypi_requests_overrides and aggregated_lock_spec.allow_pypi_requests
     return LockSpecification(
         dependencies=dependencies,
         channels=channels,
         pip_repositories=pip_repositories,
         sources=aggregated_lock_spec.sources,
         virtual_package_repo=virtual_package_repo,
-        allow_pypi_requests=aggregated_lock_spec.allow_pypi_requests,
+        allow_pypi_requests=allow_pypi_requests,
     )
