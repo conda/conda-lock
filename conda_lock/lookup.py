@@ -24,7 +24,17 @@ class _LookupLoader:
 
     @mapping_url.setter
     def mapping_url(self, value: str) -> None:
-        self._mapping_url = value
+        if self._mapping_url != value:
+            self._mapping_url = value
+            # Invalidate cache
+            try:
+                del self.pypi_lookup
+            except AttributeError:
+                pass
+            try:
+                del self.conda_lookup
+            except AttributeError:
+                pass
 
     @cached_property
     def pypi_lookup(self) -> Dict[NormalizedName, MappingEntry]:
