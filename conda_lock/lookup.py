@@ -16,7 +16,9 @@ class MappingEntry(TypedDict):
 
 
 class _LookupLoader:
-    _mapping_url: str = "https://raw.githubusercontent.com/regro/cf-graph-countyfair/master/mappings/pypi/grayskull_pypi_mapping.yaml"
+    _mapping_url: str = (
+        "https://raw.githubusercontent.com/regro/cf-graph-countyfair/master/mappings/pypi/grayskull_pypi_mapping.yaml"
+    )
 
     @property
     def mapping_url(self) -> str:
