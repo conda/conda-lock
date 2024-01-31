@@ -36,7 +36,7 @@ jobs:
             --lockfile=environments/conda-lock.yml
 
     - name: Open a pull request
-      uses: peter-evans/create-pull-request@v5
+      uses: peter-evans/create-pull-request@v6
       with:
         # # The default GITHUB_TOKEN doesn't allow other workflows to trigger.
         # # Thus if there are tests to be run, they won't be run. For more info,
