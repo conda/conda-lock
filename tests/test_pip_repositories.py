@@ -35,23 +35,17 @@ _PRIVATE_REPO_PACKAGE = """<!DOCTYPE html>
 </html>
 """
 
-_PRIVATE_PACKAGE_SDIST_PATH = (
-    Path(__file__).parent / "test-pip-repositories" / "fake-private-package-1.0.0"
-)
 
-
-@pytest.fixture(scope="module")
-def private_package_tar():
-    tar_path = _PRIVATE_PACKAGE_SDIST_PATH.parent / "fake-private-package-1.0.0.tar.gz"
+@pytest.fixture
+def private_package_tar(tmp_path: Path):
+    sdist_path = (
+        clone_test_dir("test-pip-repositories", tmp_path) / "fake-private-package-1.0.0"
+    )
+    assert sdist_path.exists()
+    tar_path = sdist_path / "fake-private-package-1.0.0.tar.gz"
     with tarfile.open(tar_path, "w:gz") as tar:
-        tar.add(
-            _PRIVATE_PACKAGE_SDIST_PATH,
-            arcname=os.path.basename(_PRIVATE_PACKAGE_SDIST_PATH),
-        )
-    try:
-        yield tar_path
-    finally:
-        os.remove(tar_path)
+        tar.add(sdist_path, arcname=os.path.basename(sdist_path))
+    return tar_path
 
 
 @pytest.fixture(
