@@ -36,6 +36,10 @@ mamba install --channel=conda-forge --name=base conda-lock
 
 The first two options are recommended since they install conda-lock into an isolated environment. (Otherwise there is a risk of dependency conflicts.)
 
+## Contributing
+
+If you would like to contribute to conda-lock, please refer to the [Contributing Guide](CONTRIBUTING.md) for instructions on how to set up your development environment.
+
 ## Basic usage
 
 ```bash
@@ -78,6 +82,7 @@ conda-lock --lockfile superspecial.conda-lock.yml
 Rendered `explicit` and `env` lockfiles will be named as `"conda-{platform}.lock"` and `"conda-{platform}.lock.yml` respectively by default.
 
 If you want to override that call conda-lock as follows.
+
 ```bash
 conda-lock -k explicit --filename-template "specific-{platform}.conda.lock"
 ```
@@ -153,7 +158,6 @@ The default category is `main`.
 `conda-lock` can also lock the `dependencies.pip` section of
 [environment.yml][envyaml], using a vendored copy of [Poetry's][poetry] dependency solver.
 
-
 ### private pip repositories
 
 Right now `conda-lock` only supports [legacy](https://warehouse.pypa.io/api-reference/legacy.html) pypi repos with basic auth. Most self-hosted repositories like Nexus, Artifactory etc. use this. You can configure private pip repositories in a similar way to channels, for example:
@@ -181,8 +185,8 @@ url = "https://username:password@example.repo/simple"
 
 The location of this file can be determined with `python -c 'from conda_lock._vendor.poetry.locations import CONFIG_DIR; print(CONFIG_DIR)'`
 
-
 Private repositories will be used in addition to `pypi.org`. For projects using `pyproject.toml`, it is possible to [disable `pypi.org` entirely](#disabling-pypiorg).
+
 ### --dev-dependencies/--no-dev-dependencies
 
 By default conda-lock will include dev dependencies in the specification of the lock (if the files that the lock
@@ -191,6 +195,7 @@ is being built from support them).  This can be disabled easily
 ```bash
 conda-lock --no-dev-dependencies -f ./recipe/meta.yaml
 ```
+
 ### --check-input-hash
 
 Under some situation you may want to run conda lock in some kind of automated way (eg as a precommit) and want to not
@@ -206,7 +211,7 @@ When the input_hash of the input files, channels match those present in a given 
 
 By default `conda-lock` will leave basic auth credentials for private conda channels in the lock file. If you wish to strip authentication from the file, provide the `--strip-auth` argument.
 
-```
+```shell
 conda-lock --strip-auth -f environment.yml
 ```
 
@@ -351,7 +356,7 @@ pgsql = ["psycopg2"]
 
 These can be referened as follows
 
-```
+```shell
 conda-lock --extra mysql --extra pgsql -f pyproject.toml
 ```
 
@@ -412,10 +417,12 @@ ampel-ztf = {source = "pypi"}
 ##### Defaulting non-conda dependency sources to PyPI
 
 Alternatively, the above behavior is defaulted for all dependencies defined outside of `[tool.conda-lock.dependencies]`, i.e.:
+
 - Default to `pip` dependencies for `[tool.poetry.dependencies]`, `[project.dependencies]`, etc.
 - Default to `conda` dependencies for `[tool.conda-lock.dependencies]`
 
 by explicitly providing  `default-non-conda-source = "pip"` in the `[tool.conda-lock]` section, e.g.:
+
 ```toml
 [tool.conda-lock]
 default-non-conda-source = "pip"
@@ -428,6 +435,7 @@ dependency.
 #### Lock only conda-lock dependencies
 
 To lock only dependencies specified under `[tool.conda-lock]` (i.e. skipping all dependencies specified elsewhere), explicitly provide `skip-non-conda-lock = true` in the `[tool.conda-lock]` section, e.g.:
+
 ```toml
 [tool.conda-lock]
 skip-non-conda-lock = true
@@ -436,6 +444,7 @@ skip-non-conda-lock = true
 #### Disabling pypi.org
 
 When using private pip repos, it is possible to disable `pypi.org` entirely. This can be useful when using `conda-lock` behind a network proxy that does not allow access to `pypi.org`.
+
 ```toml
 [tool.conda-lock]
 allow-pypi-requests = false
@@ -447,7 +456,8 @@ In order to use conda-lock in a docker-style context you want to add the lockfil
 docker container.  In order to refresh the lock file just run `conda-lock` again.
 
 Given a file tree like
-```
+
+```text
   Dockerfile
   environment.yaml
 * conda-linux-64.lock
