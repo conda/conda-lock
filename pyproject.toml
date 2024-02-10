@@ -115,6 +115,8 @@ addopts = [
     "--verbose",
     "--doctest-modules",
     "--numprocesses=auto",
+    "--ignore-glob=**/vendor_poetry/**",
+    "--ignore-glob=**/_vendor/**"
 ]
 flake8-max-line-length = 105
 flake8-ignore = ["docs/* ALL", "conda_lock/_version.py ALL"]
