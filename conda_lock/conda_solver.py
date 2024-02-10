@@ -17,6 +17,9 @@ import yaml
 from typing_extensions import TypedDict
 
 from conda_lock.interfaces.vendored_conda import MatchSpec
+from conda_lock.interfaces.vendored_poetry import (
+    CalledProcessError as PoetryCalledProcessError,
+)
 from conda_lock.invoke_conda import (
     PathLike,
     _get_conda_flags,
@@ -367,7 +370,7 @@ def solve_specs_for_arch(
 
     try:
         proc.check_returncode()
-    except subprocess.CalledProcessError:
+    except (subprocess.CalledProcessError, PoetryCalledProcessError):
         try:
             err_json = json.loads(proc.stdout)
             try:
@@ -486,7 +489,7 @@ def update_specs_for_arch(
 
             try:
                 proc.check_returncode()
-            except subprocess.CalledProcessError as exc:
+            except (subprocess.CalledProcessError, PoetryCalledProcessError) as exc:
                 err_json = json.loads(proc.stdout)
                 raise RuntimeError(
                     f"Could not lock the environment for platform {platform}: {err_json.get('message')}"
