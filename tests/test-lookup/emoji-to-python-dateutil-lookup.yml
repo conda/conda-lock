@@ -1,0 +1,8 @@
+# Trick conda-lock into thinking that the emoji Conda package provides
+# python-dateutil as a pip dependency
+
+python-dateutil:
+  conda_name: emoji
+  import_name: emoji
+  mapping_source: conda-lock-test-suite
+  pypi_name: python-dateutil
