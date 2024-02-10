@@ -54,9 +54,13 @@ def private_package_tar():
         os.remove(tar_path)
 
 
-@pytest.fixture(autouse=True)
-def mock_private_pypi(private_package_tar: Path):
+@pytest.fixture(
+    autouse=True,
+    params=["response_url_without_credentials", "response_url_with_credentials"],
+)
+def mock_private_pypi(private_package_tar: Path, request: pytest.FixtureRequest):
     with requests_mock.Mocker(real_http=True) as mocker:
+        fixture_request = request
 
         def _make_response(
             request: requests.Request,
@@ -84,7 +88,10 @@ def mock_private_pypi(private_package_tar: Path):
                 response.raw.seek(0)
 
             url = urlparse(request.url)
-            response.url = request.url.replace(url.netloc, url.hostname)
+            if fixture_request.param == "response_url_with_credentials":
+                response.url = request.url
+            else:
+                response.url = request.url.replace(url.netloc, url.hostname)
             response.reason = reason
             return response
 
