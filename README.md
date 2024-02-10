@@ -36,6 +36,10 @@ mamba install --channel=conda-forge --name=base conda-lock
 
 The first two options are recommended since they install conda-lock into an isolated environment. (Otherwise there is a risk of dependency conflicts.)
 
+## Contributing
+
+If you would like to contribute to conda-lock, please refer to the [Contributing Guide](CONTRIBUTING.md) for instructions on how to set up your development environment.
+
 ## Basic usage
 
 ```bash

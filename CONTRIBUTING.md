@@ -1,15 +1,35 @@
+# Contributing
 
-## Developing
+Thanks for helping to improve conda-lock! We appreciate your time and effort.
 
-1. Ensure that Conda, Mamba, and Micromamba are installed. Install [mambaforge](https://github.com/conda-forge/miniforge#mambaforge) if you're otherwise not sure which Conda distribution to pick.
-2. `micromamba create --name=conda-lock-dev --category=main --category=dev --file=environments/conda-lock.yml`
-3. `conda activate conda-lock-dev`
-4. `pip install --no-deps --editable .`
+## How to install a dev environment
 
-Run the tests to ensure that everything is running correctly. Due to the nature of this project, it hits remote webservers regularly so some tests occasionally fail. This is a normal part of conda-lock development. If you're not sure if your env is borked or the remote webserver is just being flaky, run the tests again. If you're still not sure you can open an issue about.
+Of course, we use conda-lock to manage our development environment.
 
-5. `pytest`
+1. Get [micromamba](https://mamba.readthedocs.io/en/latest/installation/micromamba-installation.html)
 
-Whilst not strictly necessary; the CI run using github actions will run pre-commit in order to reduce development friction you may want to install the pre-commit hooks:
+2. Install and activate the `conda-lock-dev` environment:
 
-6. `pre-commit install`
+   ```shell
+   micromamba env create --name=conda-lock-dev --category=main --category=dev --file=environments/conda-lock.yml
+   micromamba activate conda-lock-dev
+   ```
+
+3. Install `conda-lock` in editable mode. This will also install its runtime
+   dependencies as defined in `pyproject.toml`.
+
+   ```shell
+   pip install --no-deps --editable .
+   ```
+
+4. Check to ensure that your Python environment is consistent.
+
+   ```shell
+   pip check
+   ```
+
+5. Finally, while not strictly necessary, it's recommended to install pre-commit to reduce development friction.
+
+   ```shell
+   pre-commit install
+   ```

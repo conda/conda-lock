@@ -1,3 +1,7 @@
+# Here we specify the development dependencies.
+
+# The main project dependencies are specified independently in pyproject.toml.
+
 name: conda-lock-dev
 category: dev
 channels:
