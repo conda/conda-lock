@@ -359,6 +359,8 @@ def get_requirements(
             # https://github.com/conda/conda-lock/blob/ac31f5ddf2951ed4819295238ccf062fb2beb33c/conda_lock/_vendor/poetry/installation/executor.py#L557
             else:
                 link = chooser.choose_for(op.package)
+                parsed_url = urlsplit(link.url)
+                link.url = link.url.replace(parsed_url.netloc, str(parsed_url.hostname))
                 url = link.url_without_fragment
                 hashes: Dict[str, str] = {}
                 if link.hash_name is not None and link.hash is not None:
