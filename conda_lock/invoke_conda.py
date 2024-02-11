@@ -116,6 +116,11 @@ def _invoke_conda(
         encoding="utf-8",
     ) as p:
         stdout = []
+        # Using a thread so that both stdout and stderr can be consumed concurrently.
+        # This avoids a potential deadlock when the child conda process is trying to
+        # write to stderr (blocked, because the I/O is line-buffered) and conda-lock
+        # is still trying to read from stdout.
+        stdout_thread = None
         if p.stdout:
 
             def read_stdout() -> None:
@@ -131,7 +136,7 @@ def _invoke_conda(
             for line in p.stderr:
                 stderr.append(line)
                 logging.error(line.rstrip())
-        if p.stdout:
+        if stdout_thread:
             stdout_thread.join()
 
     if check_call and p.returncode != 0:
