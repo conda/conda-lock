@@ -8,5 +8,5 @@ __all__ = ["main"]
 
 try:
     __version__ = distribution("conda_lock").version
-except Exception:
+except Exception:  # noqa: BLE001
     __version__ = "unknown"
