@@ -442,9 +442,9 @@ def parse_python_requirement(
             vcs="git",
             rev=rev,
         )
-    elif parsed_req.url:  # type: ignore[attr-defined]
+    elif parsed_req.url:
         assert conda_version in {"", "*", None}
-        url, frag = urldefrag(parsed_req.url)  # type: ignore[attr-defined]
+        url, frag = urldefrag(parsed_req.url)
         return URLDependency(
             name=conda_dep_name,
             manager=manager,

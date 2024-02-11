@@ -770,9 +770,7 @@ def test_parse_poetry_skip_non_conda_lock(
 def test_parse_poetry_git(poetry_pyproject_toml_git: Path):
     res = parse_pyproject_toml(poetry_pyproject_toml_git, ["linux-64"])
 
-    specs = {
-        dep.name: typing.cast(Dependency, dep) for dep in res.dependencies["linux-64"]
-    }
+    specs = {dep.name: dep for dep in res.dependencies["linux-64"]}
 
     assert isinstance(specs["pydantic"], VCSDependency)
     assert specs["pydantic"].vcs == "git"
@@ -1167,11 +1165,12 @@ def test_run_lock_with_git_metadata(
         monkeypatch.setenv("CONDA_FLAGS", "-v")
 
     import git
+    import git.exc
 
     try:
-        repo = git.Repo(search_parent_directories=True)  # type: ignore
-    except git.exc.InvalidGitRepositoryError:  # type: ignore
-        repo = git.Repo.init()  # type: ignore
+        repo = git.Repo(search_parent_directories=True)
+    except git.exc.InvalidGitRepositoryError:
+        repo = git.Repo.init()
         repo.index.add([git_metadata_zlib_environment])
         repo.index.commit(
             "temporary commit for running via github actions without failure"
@@ -1661,7 +1660,7 @@ def test_run_with_channel_inversion(
     lockfile = parse_conda_lock_file(channel_inversion.parent / DEFAULT_LOCKFILE_NAME)
     for package in lockfile.package:
         if package.name == "cuda-python":
-            ms = MatchSpec(package.url)  # type: ignore
+            ms = MatchSpec(package.url)  # pyright: ignore
             assert ms.get("channel") == "conda-forge"
             break
     else:

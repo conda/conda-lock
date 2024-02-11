@@ -479,7 +479,7 @@ def solve_pypi(
         installed=installed,
         locked=locked,
         # ConsoleIO type is expected, but NullIO may be given:
-        io=io,  # type: ignore
+        io=io,  # pyright: ignore
     )
     to_update = list(
         {spec.name for spec in pip_locked.values()}.intersection(use_latest)

@@ -13,7 +13,7 @@ def conda_spec_to_versioned_dep(spec: str, category: str) -> VersionedDependency
     """
 
     try:
-        ms = MatchSpec(spec)  # type: ignore # This is done in the metaclass for the matchspec
+        ms = MatchSpec(spec)  # pyright: ignore # This is done in the metaclass for the matchspec
     except Exception as e:
         raise RuntimeError(f"Failed to turn `{spec}` into a MatchSpec") from e
 
@@ -24,7 +24,7 @@ def conda_spec_to_versioned_dep(spec: str, category: str) -> VersionedDependency
         channel_str = None
     return VersionedDependency(
         name=ms.name,
-        version=ms.get("version", ""),
+        version=ms.get("version") or "",
         manager="conda",
         category=category,
         extras=[],
