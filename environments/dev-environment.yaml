@@ -33,3 +33,9 @@ dependencies:
 - gitpython
 - pip
 - requests-mock
+- types-filelock
+- types-requests
+- types-toml
+- types-PyYAML
+- types-freezegun
+- types-setuptools

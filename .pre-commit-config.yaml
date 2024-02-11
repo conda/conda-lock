@@ -32,4 +32,6 @@ repos:
       - types-freezegun
       - types-setuptools
       - pydantic
+      - types-pygments
+      - types-colorama
     exclude: ^(tests/test-local-pip/setup.py$|tests/test_conda_lock.py)
