@@ -195,6 +195,10 @@ select = [
     "I",  # isort
     "RUF",  # ruff rules
     "W",  # pycodestyle warnings
+    "UP",  # pyupgrade
+    "TID", # flake8-tidy-imports
+    "A",  # flake8-builtins
+    "BLE",  # flake8-blind-except
 ]
 
 [tool.ruff.lint.mccabe]
