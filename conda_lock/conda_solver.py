@@ -353,7 +353,7 @@ def solve_specs_for_arch(
             args.extend(["--channel", "msys2"])
     args.extend(specs)
     logger.info("%s using specs %s", platform, specs)
-    proc = subprocess.run(
+    proc = subprocess.run(  # noqa: UP022  # Poetry monkeypatch breaks capture_output
         [str(arg) for arg in args],
         env=conda_env_override(platform),
         stdout=subprocess.PIPE,
@@ -476,7 +476,7 @@ def update_specs_for_arch(
                     "update" if is_micromamba(conda) else "install",
                     *_get_conda_flags(channels=channels, platform=platform),
                 ]
-            proc = subprocess.run(
+            proc = subprocess.run(  # noqa: UP022  # Poetry monkeypatch breaks capture_output
                 [
                     str(arg)
                     for arg in [*args, "-p", prefix, "--json", "--dry-run", *to_update]

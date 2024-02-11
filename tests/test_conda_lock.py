@@ -122,12 +122,7 @@ def clone_test_dir(name: Union[str, List[str]], tmp_path: Path) -> Path:
     test_dir = TEST_DIR.joinpath(*name)
     assert test_dir.exists()
     assert test_dir.is_dir()
-    if sys.version_info >= (3, 8):
-        shutil.copytree(test_dir, tmp_path, dirs_exist_ok=True)
-    else:
-        from distutils.dir_util import copy_tree
-
-        copy_tree(str(test_dir), str(tmp_path))
+    shutil.copytree(test_dir, tmp_path, dirs_exist_ok=True)
     return tmp_path
 
 
@@ -1434,11 +1429,7 @@ def test_run_lock_with_locked_environment_files(
     make_lock_files = MagicMock()
     monkeypatch.setattr("conda_lock.conda_lock.make_lock_files", make_lock_files)
     run_lock(DEFAULT_FILES, conda_exe=conda_exe, update=["pydantic"])
-    if sys.version_info < (3, 8):
-        # backwards compat
-        src_files = make_lock_files.call_args_list[0][1]["src_files"]
-    else:
-        src_files = make_lock_files.call_args.kwargs["src_files"]
+    src_files = make_lock_files.call_args.kwargs["src_files"]
 
     assert [p.resolve() for p in src_files] == [
         Path(update_environment.parent / "environment-preupdate.yml")
@@ -1467,11 +1458,7 @@ def test_run_lock_relative_source_path(
     run_lock(
         DEFAULT_FILES, lockfile_path=lockfile, conda_exe=conda_exe, update=["pydantic"]
     )
-    if sys.version_info < (3, 8):
-        # backwards compat
-        src_files = make_lock_files.call_args_list[0][1]["src_files"]
-    else:
-        src_files = make_lock_files.call_args.kwargs["src_files"]
+    src_files = make_lock_files.call_args.kwargs["src_files"]
     assert [p.resolve() for p in src_files] == [environment.resolve()]
 
 
@@ -2074,7 +2061,7 @@ def test__extract_domain(line: str, stripped: str):
 
 
 def _read_file(filepath: "str | Path") -> str:
-    with open(filepath, mode="r") as file_pointer:
+    with open(filepath) as file_pointer:
         return file_pointer.read()
 
 
@@ -2556,7 +2543,7 @@ def test_pip_finds_recent_manylinux_wheels(
         lightgbm_environment.parent / DEFAULT_LOCKFILE_NAME
     )
 
-    (lightgbm_dep,) = [p for p in lockfile.package if p.name == "lightgbm"]
+    (lightgbm_dep,) = (p for p in lockfile.package if p.name == "lightgbm")
     manylinux_pattern = r"manylinux_(\d+)_(\d+).+\.whl"
     manylinux_match = re.search(manylinux_pattern, lightgbm_dep.url)
     assert manylinux_match, "No match found for manylinux version in {lightgbm_dep.url}"
@@ -2614,7 +2601,7 @@ def test_pip_respects_glibc_version(
 
     lockfile = parse_conda_lock_file(env_file.parent / DEFAULT_LOCKFILE_NAME)
 
-    (cryptography_dep,) = [p for p in lockfile.package if p.name == "cryptography"]
+    (cryptography_dep,) = (p for p in lockfile.package if p.name == "cryptography")
     manylinux_pattern = r"manylinux_(\d+)_(\d+).+\.whl"
     # Should return the first match so higher version first.
     manylinux_match = re.search(manylinux_pattern, cryptography_dep.url)
@@ -2730,10 +2717,10 @@ def test_pip_full_whl_url(
 
     lockfile = parse_conda_lock_file(env_file.parent / DEFAULT_LOCKFILE_NAME)
 
-    (requests_dep,) = [p for p in lockfile.package if p.name == "requests"]
-    (typing_extensions_dep,) = [
+    (requests_dep,) = (p for p in lockfile.package if p.name == "requests")
+    (typing_extensions_dep,) = (
         p for p in lockfile.package if p.name == "typing-extensions"
-    ]
+    )
     assert (
         requests_dep.url
         == "https://github.com/psf/requests/releases/download/v2.31.0/requests-2.31.0-py3-none-any.whl"
