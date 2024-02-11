@@ -63,7 +63,7 @@ def apply_categories(
     by_category = defaultdict(list)
 
     def extract_planned_items(
-        planned_items: Union[List[LockedDependency], LockedDependency]
+        planned_items: Union[List[LockedDependency], LockedDependency],
     ) -> List[LockedDependency]:
         if not isinstance(planned_items, list):
             return [planned_items]

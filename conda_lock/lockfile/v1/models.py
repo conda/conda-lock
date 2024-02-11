@@ -134,7 +134,8 @@ class GitMeta(StrictModel):
                 most_recent_datetime: Optional[datetime.datetime] = None
                 for src_file in src_files:
                     relative_src_file_path = relative_path(
-                        pathlib.Path(repo.working_tree_dir), src_file  # type: ignore
+                        pathlib.Path(repo.working_tree_dir),  # type: ignore
+                        src_file,
                     )
                     commit = list(
                         repo.iter_commits(paths=relative_src_file_path, max_count=1)

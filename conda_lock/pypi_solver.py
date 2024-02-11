@@ -129,7 +129,7 @@ class PlatformEnv(Env):
 
 
 def _extract_glibc_version_from_virtual_packages(
-    platform_virtual_packages: Dict[str, dict]
+    platform_virtual_packages: Dict[str, dict],
 ) -> Optional[Version]:
     """Get the glibc version from the "package" repodata of a chosen platform.
 
@@ -189,7 +189,7 @@ def _glibc_version_from_manylinux_tag(tag: str) -> Version:
 
 
 def _compute_compatible_manylinux_tags(
-    platform_virtual_packages: Optional[Dict[str, dict]]
+    platform_virtual_packages: Optional[Dict[str, dict]],
 ) -> List[str]:
     """Determine the manylinux tags that are compatible with the given platform.
 
