@@ -160,6 +160,7 @@ cachecontrol-with-filecache = ">=0.12.9"
 [tool.ruff]
 target-version = "py38"
 line-length = 88
+extend-exclude = ["conda_lock/_vendor"]
 
 [tool.ruff.lint]
 ignore = [
