@@ -1,6 +1,6 @@
 [project]
 name = "conda-lock-test-pdm"
-authors = ["conda-lock"]
+authors = [{ name = "conda-lock", email = "conda-lock@conda-lock" }]
 description = ""
 requires-python = ">=3.7"
 dependencies = [

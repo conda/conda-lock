@@ -1341,7 +1341,7 @@ def lock(
     metadata_yamls = [pathlib.Path(path) for path in metadata_yamls]
 
     # bail out if we do not encounter the default file if no files were passed
-    if ctx.get_parameter_source("files") == click.core.ParameterSource.DEFAULT:
+    if ctx.get_parameter_source("files") == click.core.ParameterSource.DEFAULT:  # type: ignore
         candidates = list(files)
         candidates += [f.with_name(f.name.replace(".yml", ".yaml")) for f in candidates]
         for f in candidates:

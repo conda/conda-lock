@@ -26,12 +26,7 @@ def clone_test_dir(name: Union[str, List[str]], tmp_path: Path) -> Path:
     test_dir = TEST_DIR.joinpath(*name)
     assert test_dir.exists()
     assert test_dir.is_dir()
-    if sys.version_info >= (3, 8):
-        shutil.copytree(test_dir, tmp_path, dirs_exist_ok=True)
-    else:
-        from distutils.dir_util import copy_tree
-
-        copy_tree(str(test_dir), str(tmp_path))
+    shutil.copytree(test_dir, tmp_path, dirs_exist_ok=True)
     return tmp_path
 
 

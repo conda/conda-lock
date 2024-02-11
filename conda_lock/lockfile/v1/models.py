@@ -121,6 +121,7 @@ class GitMeta(StrictModel):
     ) -> "GitMeta | None":
         try:
             import git
+            import git.exc
         except ImportError:
             return None
 
@@ -129,12 +130,13 @@ class GitMeta(StrictModel):
         git_user_email: "str | None" = None
 
         try:
-            repo = git.Repo(search_parent_directories=True)  # type: ignore
+            repo = git.Repo(search_parent_directories=True)
             if MetadataOption.GitSha in metadata_choices:
                 most_recent_datetime: Optional[datetime.datetime] = None
                 for src_file in src_files:
                     relative_src_file_path = relative_path(
-                        pathlib.Path(repo.working_tree_dir), src_file  # type: ignore
+                        pathlib.Path(repo.working_tree_dir),  # type: ignore
+                        src_file,
                     )
                     commit = list(
                         repo.iter_commits(paths=relative_src_file_path, max_count=1)
@@ -157,7 +159,7 @@ class GitMeta(StrictModel):
                 git_user_name = repo.config_reader().get_value("user", "name", None)  # type: ignore
             if MetadataOption.GitUserEmail in metadata_choices:
                 git_user_email = repo.config_reader().get_value("user", "email", None)  # type: ignore
-        except git.exc.InvalidGitRepositoryError:  # type: ignore
+        except git.exc.InvalidGitRepositoryError:
             pass
 
         if any([git_sha, git_user_name, git_user_email]):
@@ -282,13 +284,13 @@ class LockMeta(StrictModel):
 
     @validator("channels", pre=True, always=True)
     def ensure_channels(cls, v: List[Union[str, Channel]]) -> List[Channel]:
-        res = []
+        res: List[Channel] = []
         for e in v:
             if isinstance(e, str):
                 res.append(Channel.from_string(e))
             else:
                 res.append(e)
-        return typing.cast(List[Channel], res)
+        return res
 
 
 class Lockfile(StrictModel):

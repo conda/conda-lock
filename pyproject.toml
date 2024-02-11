@@ -144,7 +144,10 @@ drop = [
 substitute = [
     # simple substitution patch to fix conda.exports
     { match = 'conda\.base\.context', replace = 'conda_lock.vendor.conda.base.context' },
-    { match = '"pypoetry"', replace = '"pypoetry-conda-lock"' }
+    { match = '"pypoetry"', replace = '"pypoetry-conda-lock"' },
+    # Patch a syntax warning in conda_lock/_vendor/conda/_vendor/appdirs.py:82
+    # (invalid escape sequence '\D')
+    { match = '  """Return full path to the user-shared data dir', replace = '  r"""Return full path to the user-shared data dir' },
 ]
 
 [tool.conda-lock]
@@ -159,6 +162,10 @@ cachecontrol-with-filecache = ">=0.12.9"
 
 [tool.ruff]
 target-version = "py38"
+line-length = 88
+extend-exclude = ["conda_lock/_vendor"]
+
+[tool.ruff.lint]
 ignore = [
     "E501",
     "F401",
@@ -177,7 +184,6 @@ ignore = [
     "RUF012",
     "RUF015",
 ]
-line-length = 89
 select = [
     "A",  # flake8-builtins
     # "B",  # flake8-bugbear
@@ -189,12 +195,15 @@ select = [
     "I",  # isort
     "RUF",  # ruff rules
     "W",  # pycodestyle warnings
+    "UP",  # pyupgrade
+    "TID", # flake8-tidy-imports
+    "A",  # flake8-builtins
+    "BLE",  # flake8-blind-except
 ]
 
-[tool.ruff.mccabe]
+[tool.ruff.lint.mccabe]
 max-complexity = 18
 
-[tool.ruff.isort]
+[tool.ruff.lint.isort]
 lines-after-imports = 2
 lines-between-types = 1
-known-first-party = ["attr"]
