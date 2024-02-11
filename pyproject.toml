@@ -177,7 +177,7 @@ ignore = [
     "RUF012",
     "RUF015",
 ]
-line-length = 89
+line-length = 88
 select = [
     "A",  # flake8-builtins
     # "B",  # flake8-bugbear
