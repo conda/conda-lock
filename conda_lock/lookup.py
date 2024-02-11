@@ -1,4 +1,5 @@
 from functools import cached_property
+from pathlib import Path
 from typing import Dict
 
 import requests
@@ -26,15 +27,32 @@ class _LookupLoader:
 
     @mapping_url.setter
     def mapping_url(self, value: str) -> None:
-        del self.pypi_lookup
-        del self.conda_lookup
-        self._mapping_url = value
+        if self._mapping_url != value:
+            self._mapping_url = value
+            # Invalidate cache
+            try:
+                del self.pypi_lookup
+            except AttributeError:
+                pass
+            try:
+                del self.conda_lookup
+            except AttributeError:
+                pass
 
     @cached_property
     def pypi_lookup(self) -> Dict[NormalizedName, MappingEntry]:
-        res = requests.get(self._mapping_url)
-        res.raise_for_status()
-        lookup = yaml.safe_load(res.content)
+        url = self.mapping_url
+        if url.startswith("http://") or url.startswith("https://"):
+            res = requests.get(self._mapping_url)
+            res.raise_for_status()
+            content = res.content
+        else:
+            if url.startswith("file://"):
+                path = url[len("file://") :]
+            else:
+                path = url
+            content = Path(path).read_bytes()
+        lookup = yaml.safe_load(content)
         # lowercase and kebabcase the pypi names
         assert lookup is not None
         lookup = {canonicalize_name(k): v for k, v in lookup.items()}

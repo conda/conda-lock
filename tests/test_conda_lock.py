@@ -66,6 +66,7 @@ from conda_lock.lockfile.v2prelim.models import (
     LockedDependency,
     MetadataOption,
 )
+from conda_lock.lookup import _LookupLoader
 from conda_lock.models.channel import Channel
 from conda_lock.models.lock_spec import Dependency, VCSDependency, VersionedDependency
 from conda_lock.models.pip_repository import PipRepository
@@ -2423,6 +2424,90 @@ def test_private_lock(
     monkeypatch.delenv("QUETZ_API_KEY")
     with pytest.raises(MissingEnvVarError):
         run_install()
+
+
+def test_lookup_sources():
+    # Test that the lookup can be read from a file:// URL
+    lookup = (
+        Path(__file__).parent / "test-lookup" / "emoji-to-python-dateutil-lookup.yml"
+    )
+    url = f"file://{lookup.absolute()}"
+    LOOKUP_OBJECT = _LookupLoader()
+    LOOKUP_OBJECT.mapping_url = url
+    assert LOOKUP_OBJECT.conda_lookup["emoji"]["pypi_name"] == "python-dateutil"
+
+    # Test that the lookup can be read from a straight filename
+    url = str(lookup.absolute())
+    LOOKUP_OBJECT = _LookupLoader()
+    LOOKUP_OBJECT.mapping_url = url
+    assert LOOKUP_OBJECT.conda_lookup["emoji"]["pypi_name"] == "python-dateutil"
+
+    # Test that the default remote lookup contains expected nontrivial mappings
+    LOOKUP_OBJECT = _LookupLoader()
+    assert LOOKUP_OBJECT.conda_lookup["python-build"]["pypi_name"] == "build"
+
+
+@pytest.fixture
+def lookup_environment(tmp_path: Path):
+    return clone_test_dir("test-lookup", tmp_path).joinpath("environment.yml")
+
+
+@pytest.mark.parametrize(
+    "lookup_source", ["emoji-to-python-dateutil-lookup.yml", "empty-lookup.yml"]
+)
+def test_lookup(
+    lookup_environment: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    lookup_source: str,
+):
+    """We test that the lookup table is being used to convert conda package names into
+    pypi package names. We verify this by comparing the results from using two
+    different lookup tables.
+
+    The pip solver runs after the conda solver. The pip solver needs to know which
+    packages are already installed by conda. The lookup table is used to convert conda
+    package names into pypi package names.
+
+    We test two cases:
+    1. The lookup table is empty. In this case, the conda package names are converted
+    directly into pypi package names. As long as there are no discrepancies between
+    conda and pypi package names, this gives expected results.
+    2. The lookup table maps emoji to python-dateutil. Arrow is installed as a pip
+    package and has python-dateutil as a dependency. Due to this lookup table, the
+    pip solver should believe that the dependency is already satisfied and not add it.
+    """
+    cwd = lookup_environment.parent
+    monkeypatch.chdir(cwd)
+    lookup_filename = str((cwd / lookup_source).absolute())
+    with capsys.disabled():
+        from click.testing import CliRunner, Result
+
+        runner = CliRunner(mix_stderr=False)
+        result: Result = runner.invoke(
+            main,
+            ["lock", "--pypi_to_conda_lookup_file", lookup_filename],
+            catch_exceptions=False,
+        )
+        assert result.exit_code == 0
+
+    lockfile = cwd / DEFAULT_LOCKFILE_NAME
+    assert lockfile.is_file()
+    lockfile_content = parse_conda_lock_file(lockfile)
+    installed_packages = {p.name for p in lockfile_content.package}
+    assert "emoji" in installed_packages
+    assert "arrow" in installed_packages
+    assert "types-python-dateutil" in installed_packages
+    if lookup_source == "empty-lookup.yml":
+        # If the lookup table is empty, then conda package names are converted
+        # directly into pypi package names. Arrow depends on python-dateutil, so
+        # it should be installed.
+        assert "python-dateutil" in installed_packages
+    else:
+        # The nonempty lookup table maps emoji to python-dateutil. Thus the pip
+        # solver should believe that the dependency is already satisfied and not
+        # add it as a pip dependency.
+        assert "python-dateutil" not in installed_packages
 
 
 def test_extract_json_object():
