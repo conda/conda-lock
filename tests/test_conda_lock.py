@@ -20,7 +20,6 @@ from typing import Any, ContextManager, Dict, List, Literal, Set, Tuple, Union
 from unittest.mock import MagicMock
 from urllib.parse import urldefrag, urlsplit
 
-import filelock
 import pytest
 import yaml
 
@@ -129,12 +128,6 @@ def clone_test_dir(name: Union[str, List[str]], tmp_path: Path) -> Path:
 
         copy_tree(str(test_dir), str(tmp_path))
     return tmp_path
-
-
-@contextlib.contextmanager
-def install_lock():
-    with filelock.FileLock(str(TESTS_DIR.joinpath("install.lock"))):
-        yield
 
 
 @pytest.fixture
@@ -1835,6 +1828,7 @@ def test_install(
     tzcode_environment: Path,
     monkeypatch: "pytest.MonkeyPatch",
     capsys: "pytest.CaptureFixture[str]",
+    install_lock,
 ):
     if is_micromamba(conda_exe):
         monkeypatch.setenv("CONDA_FLAGS", "-v")
@@ -1914,7 +1908,7 @@ def test_install(
         str(prefix),
         lock_filename,
     ]
-    with context, install_lock():
+    with context:
         with capsys.disabled():
             result = runner.invoke(main, install_args, catch_exceptions=False)
     print(result.stdout, file=sys.stdout)
@@ -1948,6 +1942,7 @@ def test_install_with_pip_deps(
     install_with_pip_deps_lockfile: Path,
     monkeypatch: "pytest.MonkeyPatch",
     caplog,
+    install_lock,
 ):
     root_prefix = tmp_path / "root_prefix"
 
@@ -1963,7 +1958,7 @@ def test_install_with_pip_deps(
         # since by default we do platform validation we would expect this to fail
         context = pytest.raises(PlatformValidationError)
 
-    with context, install_lock():
+    with context:
         install(
             conda=str(conda_exe),
             prefix=str(prefix),
@@ -2359,6 +2354,7 @@ def test_private_lock(
     capsys: "pytest.CaptureFixture[str]",
     conda_exe: str,
     placeholder,
+    install_lock,
 ):
     if is_micromamba(conda_exe):
         res = subprocess.run(
@@ -2401,19 +2397,18 @@ def test_private_lock(
             env_name = uuid.uuid4().hex
             env_prefix = tmp_path / env_name
 
-            with install_lock():
-                result: Result = runner.invoke(
-                    main,
-                    [
-                        "install",
-                        "--conda",
-                        conda_exe,
-                        "--prefix",
-                        str(env_prefix),
-                        str(tmp_path / "conda-lock.yml"),
-                    ],
-                    catch_exceptions=False,
-                )
+            result: Result = runner.invoke(
+                main,
+                [
+                    "install",
+                    "--conda",
+                    conda_exe,
+                    "--prefix",
+                    str(env_prefix),
+                    str(tmp_path / "conda-lock.yml"),
+                ],
+                catch_exceptions=False,
+            )
 
         print(result.stdout, file=sys.stdout)
         print(result.stderr, file=sys.stderr)
