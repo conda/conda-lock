@@ -144,7 +144,10 @@ drop = [
 substitute = [
     # simple substitution patch to fix conda.exports
     { match = 'conda\.base\.context', replace = 'conda_lock.vendor.conda.base.context' },
-    { match = '"pypoetry"', replace = '"pypoetry-conda-lock"' }
+    { match = '"pypoetry"', replace = '"pypoetry-conda-lock"' },
+    # Patch a syntax warning in conda_lock/_vendor/conda/_vendor/appdirs.py:82
+    # (invalid escape sequence '\D')
+    { match = '  """Return full path to the user-shared data dir', replace = '  r"""Return full path to the user-shared data dir' },
 ]
 
 [tool.conda-lock]
