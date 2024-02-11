@@ -32,6 +32,7 @@ dependencies:
 - ruff
 - tomli
 - twine
+- types-click
 - types-filelock
 - types-requests
 - types-toml
@@ -39,3 +40,5 @@ dependencies:
 - types-freezegun
 - types-setuptools
 - wheel
+- pip:
+  - types-click-default-group
