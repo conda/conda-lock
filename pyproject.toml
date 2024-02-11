@@ -159,6 +159,9 @@ cachecontrol-with-filecache = ">=0.12.9"
 
 [tool.ruff]
 target-version = "py38"
+line-length = 88
+
+[tool.ruff.lint]
 ignore = [
     "E501",
     "F401",
@@ -177,7 +180,6 @@ ignore = [
     "RUF012",
     "RUF015",
 ]
-line-length = 88
 select = [
     "A",  # flake8-builtins
     # "B",  # flake8-bugbear
@@ -191,10 +193,10 @@ select = [
     "W",  # pycodestyle warnings
 ]
 
-[tool.ruff.mccabe]
+[tool.ruff.lint.mccabe]
 max-complexity = 18
 
-[tool.ruff.isort]
+[tool.ruff.lint.isort]
 lines-after-imports = 2
 lines-between-types = 1
 known-first-party = ["attr"]
