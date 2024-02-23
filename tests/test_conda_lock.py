@@ -20,7 +20,6 @@ from typing import Any, ContextManager, Dict, List, Literal, Set, Tuple, Union
 from unittest.mock import MagicMock
 from urllib.parse import urldefrag, urlsplit
 
-import filelock
 import pytest
 import yaml
 
@@ -103,7 +102,7 @@ if typing.TYPE_CHECKING:
     from tests.conftest import QuetzServerInfo
 
 
-TEST_DIR = Path(__file__).parent
+TESTS_DIR = Path(__file__).parent
 
 
 @pytest.fixture(autouse=True)
@@ -119,17 +118,11 @@ def reset_global_conda_pkgs_dir():
 def clone_test_dir(name: Union[str, List[str]], tmp_path: Path) -> Path:
     if isinstance(name, str):
         name = [name]
-    test_dir = TEST_DIR.joinpath(*name)
+    test_dir = TESTS_DIR.joinpath(*name)
     assert test_dir.exists()
     assert test_dir.is_dir()
     shutil.copytree(test_dir, tmp_path, dirs_exist_ok=True)
     return tmp_path
-
-
-@contextlib.contextmanager
-def install_lock():
-    with filelock.FileLock(str(TEST_DIR.joinpath("install.lock"))):
-        yield
 
 
 @pytest.fixture
@@ -1021,7 +1014,7 @@ def test_explicit_toposorted() -> None:
     package is written after all of its dependencies.
     """
     lockfile = parse_conda_lock_file(
-        TEST_DIR / "test-explicit-toposorted" / "conda-lock.yml"
+        TESTS_DIR / "test-explicit-toposorted" / "conda-lock.yml"
     )
 
     # These are the individual lines as they appear in an explicit lockfile file
@@ -1118,7 +1111,7 @@ def test_run_lock_with_input_metadata(
 def test_run_lock_with_time_metadata(
     monkeypatch: "pytest.MonkeyPatch", zlib_environment: Path, conda_exe: str
 ):
-    TIME_DIR = TEST_DIR / "test-time-metadata"
+    TIME_DIR = TESTS_DIR / "test-time-metadata"
 
     TIME_DIR.mkdir(exist_ok=True)
     monkeypatch.chdir(TIME_DIR)
@@ -1821,6 +1814,7 @@ def test_install(
     tzcode_environment: Path,
     monkeypatch: "pytest.MonkeyPatch",
     capsys: "pytest.CaptureFixture[str]",
+    install_lock,
 ):
     if is_micromamba(conda_exe):
         monkeypatch.setenv("CONDA_FLAGS", "-v")
@@ -1900,7 +1894,7 @@ def test_install(
         str(prefix),
         lock_filename,
     ]
-    with context, install_lock():
+    with context:
         with capsys.disabled():
             result = runner.invoke(main, install_args, catch_exceptions=False)
     print(result.stdout, file=sys.stdout)
@@ -1934,6 +1928,7 @@ def test_install_with_pip_deps(
     install_with_pip_deps_lockfile: Path,
     monkeypatch: "pytest.MonkeyPatch",
     caplog,
+    install_lock,
 ):
     root_prefix = tmp_path / "root_prefix"
 
@@ -1949,7 +1944,7 @@ def test_install_with_pip_deps(
         # since by default we do platform validation we would expect this to fail
         context = pytest.raises(PlatformValidationError)
 
-    with context, install_lock():
+    with context:
         install(
             conda=str(conda_exe),
             prefix=str(prefix),
@@ -2148,8 +2143,8 @@ def auth_():
     "stripped_lockfile,lockfile_with_auth",
     tuple(
         (
-            _read_file(TEST_DIR / "test-stripped-lockfile" / f"{filename}.lock"),
-            _read_file(TEST_DIR / "test-lockfile-with-auth" / f"{filename}.lock"),
+            _read_file(TESTS_DIR / "test-stripped-lockfile" / f"{filename}.lock"),
+            _read_file(TESTS_DIR / "test-lockfile-with-auth" / f"{filename}.lock"),
         )
         for filename in ("test",)
     ),
@@ -2167,7 +2162,7 @@ def test_virtual_packages(
     kind: str,
     capsys: "pytest.CaptureFixture[str]",
 ):
-    test_dir = TEST_DIR.joinpath("test-cuda")
+    test_dir = TESTS_DIR.joinpath("test-cuda")
     monkeypatch.chdir(test_dir)
 
     if is_micromamba(conda_exe):
@@ -2233,7 +2228,7 @@ def test_virtual_packages(
 def test_virtual_package_input_hash_stability():
     from conda_lock.virtual_package import virtual_package_repo_from_specification
 
-    test_dir = TEST_DIR.joinpath("test-cuda")
+    test_dir = TESTS_DIR.joinpath("test-cuda")
     vspec = test_dir / "virtual-packages-old-glibc.yaml"
 
     vpr = virtual_package_repo_from_specification(vspec)
@@ -2345,6 +2340,7 @@ def test_private_lock(
     capsys: "pytest.CaptureFixture[str]",
     conda_exe: str,
     placeholder,
+    install_lock,
 ):
     if is_micromamba(conda_exe):
         res = subprocess.run(
@@ -2387,19 +2383,18 @@ def test_private_lock(
             env_name = uuid.uuid4().hex
             env_prefix = tmp_path / env_name
 
-            with install_lock():
-                result: Result = runner.invoke(
-                    main,
-                    [
-                        "install",
-                        "--conda",
-                        conda_exe,
-                        "--prefix",
-                        str(env_prefix),
-                        str(tmp_path / "conda-lock.yml"),
-                    ],
-                    catch_exceptions=False,
-                )
+            result: Result = runner.invoke(
+                main,
+                [
+                    "install",
+                    "--conda",
+                    conda_exe,
+                    "--prefix",
+                    str(env_prefix),
+                    str(tmp_path / "conda-lock.yml"),
+                ],
+                catch_exceptions=False,
+            )
 
         print(result.stdout, file=sys.stdout)
         print(result.stderr, file=sys.stderr)
@@ -2689,7 +2684,7 @@ def test_platformenv_linux_platforms():
 
 def test_parse_environment_file_with_pip_and_platform_selector():
     """See https://github.com/conda/conda-lock/pull/564 for the context."""
-    env_file = TEST_DIR / "test-pip-with-platform-selector" / "environment.yml"
+    env_file = TESTS_DIR / "test-pip-with-platform-selector" / "environment.yml"
     spec = parse_environment_file(env_file, platforms=["linux-64", "osx-arm64"])
     assert spec.platforms == ["linux-64", "osx-arm64"]
     assert spec.dependencies["osx-arm64"] == [

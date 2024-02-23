@@ -4,9 +4,11 @@ import platform
 import re
 import typing
 
+from pathlib import Path
 from typing import Any, Iterable, NamedTuple, NoReturn
 
 import docker
+import filelock
 import pytest
 import requests
 
@@ -14,6 +16,9 @@ from docker.models.containers import Container
 from ensureconda.resolve import platform_subdir
 
 from conda_lock.invoke_conda import PathLike, _ensureconda
+
+
+TESTS_DIR = Path(__file__).parent
 
 
 @pytest.fixture(
@@ -167,3 +172,10 @@ def test_quetz(quetz_server: QuetzServerInfo) -> None:
     assert (
         channel["mirror_channel_url"] == "https://conda-static.anaconda.org/conda-forge"
     )
+
+
+@pytest.fixture()
+def install_lock():
+    """Limit concurrent install operations."""
+    with filelock.FileLock(str(TESTS_DIR.joinpath("install.lock"))):
+        yield
