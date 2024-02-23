@@ -3,6 +3,7 @@ import logging
 from contextlib import suppress
 from functools import cached_property
 from typing import Dict, Union, cast
+from pathlib import Path
 
 import requests
 import yaml

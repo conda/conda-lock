@@ -22,6 +22,7 @@ classifiers = [
     "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
 ]
 dynamic = ["version"]
 license-files = { paths = ["LICENSE"] }
@@ -29,11 +30,12 @@ dependencies = [
     # conda-lock dependencies
     "click >=8.0",
     "click-default-group",
-    "ensureconda >=1.3",
+    "ensureconda >=1.4.4",
     "gitpython >=3.1.30",
     "jinja2",
     "pydantic >=1.10",
     "pyyaml >= 5.1",
+    "setuptools",
     'tomli; python_version<"3.11"',
     "typing-extensions",
     # conda dependencies
@@ -109,7 +111,14 @@ exclude = [
 ]
 
 [tool.pytest.ini_options]
-addopts = "-vrsx -n auto"
+addopts = [
+    "-rsx",
+    "--verbose",
+    "--doctest-modules",
+    "--numprocesses=auto",
+    "--ignore-glob=**/vendor_poetry/**",
+    "--ignore-glob=**/_vendor/**"
+]
 flake8-max-line-length = 105
 flake8-ignore = ["docs/* ALL", "conda_lock/_version.py ALL"]
 filterwarnings = "ignore::DeprecationWarning"
@@ -136,7 +145,10 @@ drop = [
 substitute = [
     # simple substitution patch to fix conda.exports
     { match = 'conda\.base\.context', replace = 'conda_lock.vendor.conda.base.context' },
-    { match = '"pypoetry"', replace = '"pypoetry-conda-lock"' }
+    { match = '"pypoetry"', replace = '"pypoetry-conda-lock"' },
+    # Patch a syntax warning in conda_lock/_vendor/conda/_vendor/appdirs.py:82
+    # (invalid escape sequence '\D')
+    { match = '  """Return full path to the user-shared data dir', replace = '  r"""Return full path to the user-shared data dir' },
 ]
 
 [tool.conda-lock]
@@ -151,6 +163,10 @@ cachecontrol-with-filecache = ">=0.12.9"
 
 [tool.ruff]
 target-version = "py38"
+line-length = 88
+extend-exclude = ["conda_lock/_vendor"]
+
+[tool.ruff.lint]
 ignore = [
     "E501",
     "F401",
@@ -169,7 +185,6 @@ ignore = [
     "RUF012",
     "RUF015",
 ]
-line-length = 89
 select = [
     "A",  # flake8-builtins
     # "B",  # flake8-bugbear
@@ -181,12 +196,15 @@ select = [
     "I",  # isort
     "RUF",  # ruff rules
     "W",  # pycodestyle warnings
+    "UP",  # pyupgrade
+    "TID", # flake8-tidy-imports
+    "A",  # flake8-builtins
+    "BLE",  # flake8-blind-except
 ]
 
-[tool.ruff.mccabe]
+[tool.ruff.lint.mccabe]
 max-complexity = 18
 
-[tool.ruff.isort]
+[tool.ruff.lint.isort]
 lines-after-imports = 2
 lines-between-types = 1
-known-first-party = ["attr"]

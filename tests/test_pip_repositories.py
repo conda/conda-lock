@@ -35,28 +35,26 @@ _PRIVATE_REPO_PACKAGE = """<!DOCTYPE html>
 </html>
 """
 
-_PRIVATE_PACKAGE_SDIST_PATH = (
-    Path(__file__).parent / "test-pip-repositories" / "fake-private-package-1.0.0"
-)
 
-
-@pytest.fixture(scope="module")
-def private_package_tar():
-    tar_path = _PRIVATE_PACKAGE_SDIST_PATH.parent / "fake-private-package-1.0.0.tar.gz"
+@pytest.fixture
+def private_package_tar(tmp_path: Path):
+    sdist_path = (
+        clone_test_dir("test-pip-repositories", tmp_path) / "fake-private-package-1.0.0"
+    )
+    assert sdist_path.exists()
+    tar_path = sdist_path / "fake-private-package-1.0.0.tar.gz"
     with tarfile.open(tar_path, "w:gz") as tar:
-        tar.add(
-            _PRIVATE_PACKAGE_SDIST_PATH,
-            arcname=os.path.basename(_PRIVATE_PACKAGE_SDIST_PATH),
-        )
-    try:
-        yield tar_path
-    finally:
-        os.remove(tar_path)
+        tar.add(sdist_path, arcname=os.path.basename(sdist_path))
+    return tar_path
 
 
-@pytest.fixture(autouse=True)
-def mock_private_pypi(private_package_tar: Path):
+@pytest.fixture(
+    autouse=True,
+    params=["response_url_without_credentials", "response_url_with_credentials"],
+)
+def mock_private_pypi(private_package_tar: Path, request: pytest.FixtureRequest):
     with requests_mock.Mocker(real_http=True) as mocker:
+        fixture_request = request
 
         def _make_response(
             request: requests.Request,
@@ -84,7 +82,10 @@ def mock_private_pypi(private_package_tar: Path):
                 response.raw.seek(0)
 
             url = urlparse(request.url)
-            response.url = request.url.replace(url.netloc, url.hostname)
+            if fixture_request.param == "response_url_with_credentials":
+                response.url = request.url
+            else:
+                response.url = request.url.replace(url.netloc, url.hostname)
             response.reason = reason
             return response
 

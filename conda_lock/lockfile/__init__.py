@@ -63,7 +63,7 @@ def apply_categories(
     by_category = defaultdict(list)
 
     def extract_planned_items(
-        planned_items: Union[List[LockedDependency], LockedDependency]
+        planned_items: Union[List[LockedDependency], LockedDependency],
     ) -> List[LockedDependency]:
         if not isinstance(planned_items, list):
             return [planned_items]
@@ -142,11 +142,15 @@ def parse_conda_lock_file(path: pathlib.Path) -> Lockfile:
         content = yaml.safe_load(f)
     version = content.pop("version", None)
     if version == 1:
-        return lockfile_v1_to_v2(LockfileV1.parse_obj(content))
+        lockfile = lockfile_v1_to_v2(LockfileV1.parse_obj(content))
+    elif version == 2:
+        lockfile = Lockfile.parse_obj(content)
     elif version is None:
         raise MissingLockfileVersion(f"{path} is missing a version")
     else:
         raise UnknownLockfileVersion(f"{path} has unknown version {version}")
+    lockfile.toposort_inplace()
+    return lockfile
 
 
 def write_conda_lock_file(
@@ -155,7 +159,8 @@ def write_conda_lock_file(
     metadata_choices: Optional[Collection[MetadataOption]],
     include_help_text: bool = True,
 ) -> None:
-    content.toposort_inplace()
+    content.alphasort_inplace()
+    content.filter_virtual_packages_inplace()
     with path.open("w") as f:
         if include_help_text:
             categories = set(p.category for p in content.package)

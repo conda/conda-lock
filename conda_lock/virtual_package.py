@@ -207,7 +207,8 @@ def default_virtual_package_repodata(cuda_version: str = "11.4") -> FakeRepoData
     )
     repodata.add_package(archspec_ppc64le, subdirs=["linux-ppc64le"])
 
-    glibc_virtual = FakePackage(name="__glibc", version="2.17")
+    # NOTE: Keep this in sync with the MANYLINUX_TAGS maximum in pypi_solver.py
+    glibc_virtual = FakePackage(name="__glibc", version="2.28")
     repodata.add_package(
         glibc_virtual, subdirs=["linux-aarch64", "linux-ppc64le", "linux-64"]
     )

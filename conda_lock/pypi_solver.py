@@ -1,14 +1,16 @@
 import re
 import sys
+import warnings
 
 from pathlib import Path
 from posixpath import expandvars
-from typing import TYPE_CHECKING, Dict, List, Optional
-from urllib.parse import urldefrag, urlparse, urlsplit, urlunsplit
+from typing import TYPE_CHECKING, Dict, List, Literal, Optional, Tuple
+from urllib.parse import urldefrag, urlsplit, urlunsplit
 
 from clikit.api.io.flags import VERY_VERBOSE
 from clikit.io import ConsoleIO, NullIO
 from packaging.tags import compatible_tags, cpython_tags, mac_platforms
+from packaging.version import Version
 
 from conda_lock.interfaces.vendored_poetry import (
     Chooser,
@@ -39,11 +41,12 @@ from conda_lock.models.pip_repository import PipRepository
 if TYPE_CHECKING:
     from packaging.tags import Tag
 
-
 # NB: in principle these depend on the glibc on the machine creating the conda env.
 # We use tags supported by manylinux Docker images, which are likely the most common
 # in practice, see https://github.com/pypa/manylinux/blob/main/README.rst#docker-images.
+# NOTE: Keep the max in sync with the default value used in virtual_packages.py
 MANYLINUX_TAGS = ["1", "2010", "2014", "_2_17", "_2_24", "_2_28"]
+
 # This needs to be updated periodically as new macOS versions are released.
 MACOS_VERSION = (13, 4)
 
@@ -53,17 +56,32 @@ class PlatformEnv(Env):
     Fake poetry Env to match PyPI distributions to the target conda environment
     """
 
-    def __init__(self, python_version: str, platform: str):
+    _sys_platform: Literal["darwin", "linux", "win32"]
+    _platform_system: Literal["Darwin", "Linux", "Windows"]
+    _os_name: Literal["posix", "nt"]
+    _platforms: List[str]
+    _python_version: Tuple[int, ...]
+
+    def __init__(
+        self,
+        python_version: str,
+        platform: str,
+        platform_virtual_packages: Optional[Dict[str, dict]] = None,
+    ):
         super().__init__(path=Path(sys.prefix))
         system, arch = platform.split("-")
         if arch == "64":
             arch = "x86_64"
 
         if system == "linux":
+            # Summary of the manylinux tag story:
+            # <https://github.com/conda/conda-lock/pull/566#discussion_r1421745745>
+            compatible_manylinux_tags = _compute_compatible_manylinux_tags(
+                platform_virtual_packages=platform_virtual_packages
+            )
             self._platforms = [
-                f"manylinux{tag}_{arch}" for tag in reversed(MANYLINUX_TAGS)
-            ]
-            self._platforms.append(f"linux_{arch}")
+                f"manylinux{tag}_{arch}" for tag in compatible_manylinux_tags
+            ] + [f"linux_{arch}"]
         elif system == "osx":
             self._platforms = list(mac_platforms(MACOS_VERSION, arch))
         elif platform == "win-64":
@@ -108,6 +126,115 @@ class PlatformEnv(Env):
             "platform_system": self._platform_system,
             "os_name": self._os_name,
         }
+
+
+def _extract_glibc_version_from_virtual_packages(
+    platform_virtual_packages: Dict[str, dict],
+) -> Optional[Version]:
+    """Get the glibc version from the "package" repodata of a chosen platform.
+
+    Note that the glibc version coming from a virtual package is never a legacy
+    manylinux tag (i.e. 1, 2010, or 2014). Those tags predate PEP 600 which
+    introduced manylinux tags containing the glibc version. Currently, all
+    relevant glibc versions look like 2.XX.
+
+    >>> platform_virtual_packages = {
+    ...     "__glibc-2.17-0.tar.bz2": {
+    ...         "name": "__glibc",
+    ...         "version": "2.17",
+    ...     },
+    ... }
+    >>> _extract_glibc_version_from_virtual_packages(platform_virtual_packages)
+    <Version('2.17')>
+    >>> _extract_glibc_version_from_virtual_packages({}) is None
+    True
+    """
+    matches: List[Version] = []
+    for p in platform_virtual_packages.values():
+        if p["name"] == "__glibc":
+            matches.append(Version(p["version"]))
+    if len(matches) == 0:
+        return None
+    elif len(matches) == 1:
+        return matches[0]
+    else:
+        lowest = min(matches)
+        warnings.warn(
+            f"Multiple __glibc virtual package entries found! "
+            f"{matches=} Using the lowest version {lowest}."
+        )
+        return lowest
+
+
+def _glibc_version_from_manylinux_tag(tag: str) -> Version:
+    """
+    Return the glibc version for the given manylinux tag
+
+    >>> _glibc_version_from_manylinux_tag("2010")
+    <Version('2.12')>
+    >>> _glibc_version_from_manylinux_tag("_2_28")
+    <Version('2.28')>
+    """
+    SPECIAL_CASES = {
+        "1": Version("2.5"),
+        "2010": Version("2.12"),
+        "2014": Version("2.17"),
+    }
+    if tag in SPECIAL_CASES:
+        return SPECIAL_CASES[tag]
+    elif tag.startswith("_"):
+        return Version(tag[1:].replace("_", "."))
+    else:
+        raise ValueError(f"Unknown manylinux tag {tag}")
+
+
+def _compute_compatible_manylinux_tags(
+    platform_virtual_packages: Optional[Dict[str, dict]],
+) -> List[str]:
+    """Determine the manylinux tags that are compatible with the given platform.
+
+    If there is no glibc virtual package, then assume that all manylinux tags are
+    compatible.
+
+    The result is sorted in descending order in order to favor the latest.
+
+    >>> platform_virtual_packages = {
+    ...     "__glibc-2.24-0.tar.bz2": {
+    ...         "name": "__glibc",
+    ...         "version": "2.24",
+    ...     },
+    ... }
+    >>> _compute_compatible_manylinux_tags({}) == list(reversed(MANYLINUX_TAGS))
+    True
+    >>> _compute_compatible_manylinux_tags(platform_virtual_packages)
+    ['_2_24', '_2_17', '2014', '2010', '1']
+    """
+    # We use MANYLINUX_TAGS but only go up to the latest supported version
+    # as provided by __glibc if present
+
+    latest_supported_glibc_version: Optional[Version] = None
+    # Try to get the glibc version from the virtual packages if it exists
+    if platform_virtual_packages:
+        latest_supported_glibc_version = _extract_glibc_version_from_virtual_packages(
+            platform_virtual_packages
+        )
+    # Fall back to the latest of MANYLINUX_TAGS
+    if latest_supported_glibc_version is None:
+        latest_supported_glibc_version = _glibc_version_from_manylinux_tag(
+            MANYLINUX_TAGS[-1]
+        )
+
+    # The glibc versions are backwards compatible, so filter the MANYLINUX_TAGS
+    # to those compatible with less than or equal to the latest supported
+    # glibc version.
+    # Note that MANYLINUX_TAGS is sorted in ascending order. The latest tag
+    # is most preferred so we reverse the order.
+    compatible_manylinux_tags = [
+        tag
+        for tag in reversed(MANYLINUX_TAGS)
+        if _glibc_version_from_manylinux_tag(tag) <= latest_supported_glibc_version
+    ]
+    return compatible_manylinux_tags
 
 
 REQUIREMENT_PATTERN = re.compile(
@@ -214,8 +341,13 @@ def get_requirements(
 
             if op.package.source_type == "url":
                 url, fragment = urldefrag(op.package.source_url)
-                hash_type, hash = fragment.split("=")
-                hash = HashModel(**{hash_type: hash})
+                hash_splits = fragment.split("=")
+                if fragment == "":
+                    hash = HashModel()
+                elif len(hash_splits) == 2:
+                    hash = HashModel(**{hash_splits[0]: hash_splits[1]})
+                else:
+                    raise ValueError(f"Don't know what to do with {fragment}")
                 source = DependencySource(type="url", url=op.package.source_url)
             elif op.package.source_type == "git":
                 url = f"{op.package.source_type}+{op.package.source_url}@{op.package.source_resolved_reference}"
@@ -227,6 +359,8 @@ def get_requirements(
             # https://github.com/conda/conda-lock/blob/ac31f5ddf2951ed4819295238ccf062fb2beb33c/conda_lock/_vendor/poetry/installation/executor.py#L557
             else:
                 link = chooser.choose_for(op.package)
+                parsed_url = urlsplit(link.url)
+                link.url = link.url.replace(parsed_url.netloc, str(parsed_url.hostname))
                 url = link.url_without_fragment
                 hashes: Dict[str, str] = {}
                 if link.hash_name is not None and link.hash is not None:
@@ -260,6 +394,7 @@ def solve_pypi(
     conda_locked: Dict[str, LockedDependency],
     python_version: str,
     platform: str,
+    platform_virtual_packages: Optional[Dict[str, dict]] = None,
     pip_repositories: Optional[List[PipRepository]] = None,
     allow_pypi_requests: bool = True,
     verbose: bool = False,
@@ -284,6 +419,8 @@ def solve_pypi(
         Version of Python in conda_locked
     platform :
         Target platform
+    platform_virtual_packages :
+        Virtual packages for the target platform
     allow_pypi_requests :
         Add pypi.org to the list of repositories (pip packages only)
     verbose :
@@ -342,12 +479,12 @@ def solve_pypi(
         installed=installed,
         locked=locked,
         # ConsoleIO type is expected, but NullIO may be given:
-        io=io,  # type: ignore
+        io=io,  # pyright: ignore
     )
     to_update = list(
         {spec.name for spec in pip_locked.values()}.intersection(use_latest)
     )
-    env = PlatformEnv(python_version, platform)
+    env = PlatformEnv(python_version, platform, platform_virtual_packages)
     # find platform-specific solution (e.g. dependencies conditioned on markers)
     with s.use_environment(env):
         result = s.solve(use_latest=to_update)

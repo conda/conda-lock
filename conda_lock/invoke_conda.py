@@ -6,11 +6,12 @@ import shlex
 import shutil
 import subprocess
 import tempfile
+import threading
 
-from distutils.version import LooseVersion
 from typing import IO, Dict, Iterator, List, Optional, Sequence, Union
 
 from ensureconda.api import determine_micromamba_version, ensureconda
+from packaging.version import Version
 
 from conda_lock.models.channel import Channel
 
@@ -56,7 +57,7 @@ def determine_conda_executable(
     for candidate in _determine_conda_executable(conda_executable, mamba, micromamba):
         if candidate is not None:
             if is_micromamba(candidate):
-                if determine_micromamba_version(str(candidate)) < LooseVersion("0.17"):
+                if determine_micromamba_version(str(candidate)) < Version("0.17"):
                     mamba_root_prefix()
             return candidate
     raise RuntimeError("Could not find conda (or compatible) executable")
@@ -115,15 +116,28 @@ def _invoke_conda(
         encoding="utf-8",
     ) as p:
         stdout = []
+        # Using a thread so that both stdout and stderr can be consumed concurrently.
+        # This avoids a potential deadlock when the child conda process is trying to
+        # write to stderr (blocked, because the I/O is line-buffered) and conda-lock
+        # is still trying to read from stdout.
+        stdout_thread = None
         if p.stdout:
-            for line in _process_stdout(p.stdout):
-                logging.info(line)
-                stdout.append(line)
+
+            def read_stdout() -> None:
+                assert p.stdout is not None
+                for line in _process_stdout(p.stdout):
+                    logging.info(line)
+                    stdout.append(line)
+
+            stdout_thread = threading.Thread(target=read_stdout)
+            stdout_thread.start()
         stderr = []
         if p.stderr:
             for line in p.stderr:
                 stderr.append(line)
                 logging.error(line.rstrip())
+        if stdout_thread:
+            stdout_thread.join()
 
     if check_call and p.returncode != 0:
         raise subprocess.CalledProcessError(

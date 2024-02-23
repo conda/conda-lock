@@ -56,7 +56,6 @@ from conda_lock.invoke_conda import (
     is_micromamba,
 )
 from conda_lock.lockfile import (
-    UnknownLockfileVersion,
     parse_conda_lock_file,
     write_conda_lock_file,
 )
@@ -415,7 +414,7 @@ def make_lock_files(  # noqa: C901
                     deep=True,
                     update={"package": packages_not_to_lock},
                 )
-                new_lock_content = lock_content_to_persist | fresh_lock_content
+                new_lock_content = lock_content_to_persist.merge(fresh_lock_content)
 
             if "lock" in kinds:
                 write_conda_lock_file(
@@ -609,7 +608,12 @@ def render_lockfile_for_platform(  # noqa: C901
     pip_deps: List[LockedDependency] = []
 
     # ensure consistent ordering of generated file
-    lockfile.toposort_inplace()
+    # topographic for explicit files and alphabetical otherwise (see gh #554)
+    if kind == "explicit":
+        lockfile.toposort_inplace()
+    else:
+        lockfile.alphasort_inplace()
+    lockfile.filter_virtual_packages_inplace()
 
     for p in lockfile.package:
         if p.platform == platform and p.category in categories:
@@ -668,7 +672,7 @@ def render_lockfile_for_platform(  # noqa: C901
             [
                 "  - pip:",
                 *(
-                    f"    - {format_pip_requirement(dep, platform, direct=False)}"
+                    f"      - {format_pip_requirement(dep, platform, direct=False)}"
                     for dep in pip_deps
                 ),
             ]
@@ -762,6 +766,13 @@ def _solve_for_arch(
             conda_locked={dep.name: dep for dep in conda_deps.values()},
             python_version=conda_deps["python"].version,
             platform=platform,
+            platform_virtual_packages=(
+                spec.virtual_package_repo.all_repodata.get(
+                    platform, {"packages": None}
+                )["packages"]
+                if spec.virtual_package_repo
+                else None
+            ),
             pip_repositories=pip_repositories,
             allow_pypi_requests=spec.allow_pypi_requests,
             strip_auth=strip_auth,
@@ -1066,13 +1077,15 @@ def run_lock(
             lock_content = parse_conda_lock_file(lockfile_path)
             # reconstruct native paths
             locked_environment_files = [
-                pathlib.Path(p)
-                # absolute paths could be locked for both flavours
-                if pathlib.PurePosixPath(p).is_absolute()
-                or pathlib.PureWindowsPath(p).is_absolute()
-                else pathlib.Path(
-                    pathlib.PurePosixPath(lockfile_path).parent
-                    / pathlib.PurePosixPath(p)
+                (
+                    pathlib.Path(p)
+                    # absolute paths could be locked for both flavours
+                    if pathlib.PurePosixPath(p).is_absolute()
+                    or pathlib.PureWindowsPath(p).is_absolute()
+                    else pathlib.Path(
+                        pathlib.PurePosixPath(lockfile_path).parent
+                        / pathlib.PurePosixPath(p)
+                    )
                 )
                 for p in lock_content.metadata.sources
             ]
@@ -1328,7 +1341,7 @@ def lock(
     metadata_yamls = [pathlib.Path(path) for path in metadata_yamls]
 
     # bail out if we do not encounter the default file if no files were passed
-    if ctx.get_parameter_source("files") == click.core.ParameterSource.DEFAULT:
+    if ctx.get_parameter_source("files") == click.core.ParameterSource.DEFAULT:  # type: ignore
         candidates = list(files)
         candidates += [f.with_name(f.name.replace(".yml", ".yaml")) for f in candidates]
         for f in candidates:

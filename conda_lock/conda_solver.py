@@ -17,6 +17,9 @@ import yaml
 from typing_extensions import TypedDict
 
 from conda_lock.interfaces.vendored_conda import MatchSpec
+from conda_lock.interfaces.vendored_poetry import (
+    CalledProcessError as PoetryCalledProcessError,
+)
 from conda_lock.invoke_conda import (
     PathLike,
     _get_conda_flags,
@@ -350,7 +353,7 @@ def solve_specs_for_arch(
             args.extend(["--channel", "msys2"])
     args.extend(specs)
     logger.info("%s using specs %s", platform, specs)
-    proc = subprocess.run(
+    proc = subprocess.run(  # noqa: UP022  # Poetry monkeypatch breaks capture_output
         [str(arg) for arg in args],
         env=conda_env_override(platform),
         stdout=subprocess.PIPE,
@@ -367,7 +370,7 @@ def solve_specs_for_arch(
 
     try:
         proc.check_returncode()
-    except subprocess.CalledProcessError:
+    except (subprocess.CalledProcessError, PoetryCalledProcessError):
         try:
             err_json = json.loads(proc.stdout)
             try:
@@ -433,7 +436,7 @@ def update_specs_for_arch(
                 )
             )
         }
-        spec_for_name = {MatchSpec(v).name: v for v in specs}  # type: ignore
+        spec_for_name = {MatchSpec(v).name: v for v in specs}  # pyright: ignore
         to_update = [
             spec_for_name[name] for name in set(installed).intersection(update)
         ]
@@ -473,7 +476,7 @@ def update_specs_for_arch(
                     "update" if is_micromamba(conda) else "install",
                     *_get_conda_flags(channels=channels, platform=platform),
                 ]
-            proc = subprocess.run(
+            proc = subprocess.run(  # noqa: UP022  # Poetry monkeypatch breaks capture_output
                 [
                     str(arg)
                     for arg in [*args, "-p", prefix, "--json", "--dry-run", *to_update]
@@ -486,7 +489,7 @@ def update_specs_for_arch(
 
             try:
                 proc.check_returncode()
-            except subprocess.CalledProcessError as exc:
+            except (subprocess.CalledProcessError, PoetryCalledProcessError) as exc:
                 err_json = json.loads(proc.stdout)
                 raise RuntimeError(
                     f"Could not lock the environment for platform {platform}: {err_json.get('message')}"

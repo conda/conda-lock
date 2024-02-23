@@ -12,7 +12,7 @@ conda-lock --conda some_path_to_conda
 
 ## --mamba
 
-If you want to make use of mamba in order to perform faster solves this can be enabledd with
+If you want to make use of mamba in order to perform faster solves this can be enabled with
 
 ```
 conda-lock --mamba some_path_to_conda

@@ -42,7 +42,7 @@ def get_in(
 
 
 def read_file(filepath: Union[str, pathlib.Path]) -> str:
-    with open(filepath, mode="r") as fp:
+    with open(filepath) as fp:
         return fp.read()
 
 
@@ -67,7 +67,7 @@ def temporary_file_with_contents(content: str) -> Iterator[pathlib.Path]:
 
 
 def read_json(filepath: Union[str, pathlib.Path]) -> Dict:
-    with open(filepath, mode="r") as fp:
+    with open(filepath) as fp:
         return json.load(fp)
 
 

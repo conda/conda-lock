@@ -56,17 +56,18 @@ class UndefinedNeverFail(jinja2.Undefined):
         try:
             return object.__getattr__(self, k)  # type: ignore
         except AttributeError:
-            return self._return_undefined(self._undefined_name + "." + k)  # type: ignore
+            assert self._undefined_name is not None
+            return self._return_undefined(self._undefined_name + "." + k)
 
     # Unlike the methods above, Python requires that these
     # few methods must always return the correct type
-    __str__ = __repr__ = lambda self: self._return_value(str())  # type: ignore
+    __str__ = __repr__ = lambda self: self._return_value("")  # type: ignore
     __unicode__ = lambda self: self._return_value("")  # noqa: E731
     __int__ = lambda self: self._return_value(0)  # type: ignore  # noqa: E731
     __float__ = lambda self: self._return_value(0.0)  # type: ignore  # noqa: E731
     __nonzero__ = lambda self: self._return_value(False)  # noqa: E731
 
-    def _return_undefined(self, result_name: str) -> "UndefinedNeverFail":  # type: ignore
+    def _return_undefined(self, result_name: str) -> "UndefinedNeverFail":
         # Record that this undefined variable was actually used.
         UndefinedNeverFail.all_undefined_names.append(self._undefined_name)
         return UndefinedNeverFail(

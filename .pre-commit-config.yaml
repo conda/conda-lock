@@ -2,39 +2,54 @@
 ci:
     autofix_prs: false
 
-exclude: ^conda_lock/_vendor/.*$
-
 repos:
 - repo: https://github.com/pre-commit/pre-commit-hooks
   rev: v4.5.0
   hooks:
   - id: trailing-whitespace
-    exclude: "^.*\\.patch$"
+    exclude: |
+      (?x)^(
+        .*\.patch$
+        | ^conda_lock/_vendor/
+      )
   - id: check-ast
-
-- repo: https://github.com/psf/black
-  rev: 23.10.1
-  hooks:
-  - id: black
-    language_version: python3
+    exclude: ^conda_lock/_vendor/conda/_vendor/appdirs\.py$
 
 - repo: https://github.com/astral-sh/ruff-pre-commit
-  rev: v0.1.4
+  rev: v0.2.0
   hooks:
   - id: ruff
     args: [--fix, --exit-non-zero-on-fix]
+  - id: ruff-format
 
 - repo: https://github.com/pre-commit/mirrors-mypy
-  rev: v1.6.1
+  rev: v1.8.0
   hooks:
   - id: mypy
     additional_dependencies:
-      - types-filelock
-      - types-requests
-      - types-toml
-      - types-PyYAML
-      - pytest
-      - types-freezegun
-      - types-setuptools
+      - gitpython
+      - jinja2
       - pydantic
-    exclude: ^(tests/test-local-pip/setup.py$|tests/test_conda_lock.py)
+      - pytest
+      - ruamel.yaml
+      - types-click
+      - types-click-default-group
+      - types-colorama
+      - types-filelock
+      - types-freezegun
+      - types-requests
+      - types-pygments
+      - types-pyyaml
+      - types-setuptools
+      - types-toml
+    # pre-commit provides all the files explicitly so setting exclude in mypy.ini doesn't work.
+    exclude: |
+      (?x)^(
+        ^conda_lock/_vendor/.*\.pyi$
+        | ^tests/test-local-pip/setup\.py$
+        | ^tests/test-pip-repositories/fake-private-package-1\.0\.0/setup\.py$
+      )
+    # First exclude is due to:
+    #   conda_lock/_vendor/conda/__init__.py: error: Duplicate module named "conda_lock._vendor.conda" (also at "conda_lock/_vendor/conda.pyi")
+    # Second two excludes are due to:
+    #   tests/test-pip-repositories/fake-private-package-1.0.0/setup.py: error: Duplicate module named "setup" (also at "tests/test-local-pip/setup.py")

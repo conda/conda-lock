@@ -19,7 +19,7 @@ from conda_lock.invoke_conda import PathLike, _ensureconda
 @pytest.fixture(
     scope="session",
     params=[
-        pytest.param("conda", marks=pytest.mark.skip(reason="slow")),
+        pytest.param("conda"),
         pytest.param("mamba"),
         pytest.param("micromamba"),
     ],

@@ -1,32 +1,44 @@
+# Here we specify the development dependencies.
+
+# The main project dependencies are specified independently in pyproject.toml.
+
 name: conda-lock-dev
 category: dev
 channels:
 - conda-forge
 - nodefaults
 dependencies:
-- mamba
-- black
 - check-manifest
+- docker-py
 - doctr
 - filelock
-- python-build
+- flaky
 - freezegun
-- ruff
+- gitpython
+- mamba
+- mkdocs
+- mkdocs-click
+- mkdocs-material
+- mkdocs-include-markdown-plugin
 - mypy
+- pip
 - pre-commit
 - pytest
 - pytest-cov
-- pytest-xdist
 - pytest-timeout
+- pytest-xdist
+- python-build
+- requests-mock
+- ruff
 - tomli
 - twine
+- types-click
+- types-filelock
+- types-requests
+- types-toml
+- types-pyyaml
+- types-freezegun
+- types-setuptools
 - wheel
-- mkdocs
-- mkdocs-material
-- mkdocs-click
-- mkdocs-include-markdown-plugin
-- flaky
-- docker-py
-- gitpython
-- pip
-- requests-mock
+- pip:
+  - types-click-default-group

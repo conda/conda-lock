@@ -34,7 +34,7 @@ jobs:
           environment-file: environments/dev-environment.yaml
           init-shell: powershell
           create-args: >-
-            python=3.11
+            python=3.12
 
       - name: install conda-lock
         run: |
@@ -49,7 +49,7 @@ jobs:
           dir
           pytest --cov=conda_lock --cov-branch --cov-report=xml --cov-report=term tests
           copy coverage.xml %GITHUB_WORKSPACE%
-      - uses: codecov/codecov-action@v3
+      - uses: codecov/codecov-action@v4
 
   test:
     runs-on: ${{ matrix.os }}
@@ -57,7 +57,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ ubuntu-latest, macos-latest ]
-        python-version: [ "3.8", "3.11" ]
+        python-version: [ "3.8", "3.12" ]
     defaults:
       run:
         shell: bash -l {0}
@@ -93,7 +93,7 @@ jobs:
           which pytest
           pytest --cov=conda_lock --cov-branch --cov-report=xml --cov-report=term tests
           cp coverage.xml "${GITHUB_WORKSPACE}"
-      - uses: codecov/codecov-action@v3
+      - uses: codecov/codecov-action@v4
 
       - name: test-gdal
         shell: bash -eo pipefail -l {0}
