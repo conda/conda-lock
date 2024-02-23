@@ -1025,6 +1025,7 @@ def test_parse_pyproject_pypi_overrides(pep621_pyproject_toml_pypi_override: Pat
     # override for the package "some-name-i-want-to-override".
     assert "resolved-name" in specs
 
+
 def test_explicit_toposorted() -> None:
     """Verify that explicit lockfiles are topologically sorted.
 
