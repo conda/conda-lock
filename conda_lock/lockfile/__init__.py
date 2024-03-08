@@ -187,14 +187,14 @@ def write_conda_lock_file(
                 available, unless you explicitly update the lock file.
 
                 Install this environment as "YOURENV" with:
-                    conda-lock install -n YOURENV --file {path.name}
+                    conda-lock install -n YOURENV {path.name}
                 """
             )
             if "dev" in categories:
                 write_section(
                     f"""
                     This lock contains optional development dependencies. Include them in the installed environment with:
-                        conda-lock install --dev-dependencies -n YOURENV --file {path.name}
+                        conda-lock install --dev-dependencies -n YOURENV {path.name}
                     """
                 )
             extras = sorted(categories.difference({"main", "dev"}))
@@ -202,7 +202,7 @@ def write_conda_lock_file(
                 write_section(
                     f"""
                     This lock contains optional dependency categories {', '.join(extras)}. Include them in the installed environment with:
-                        conda-lock install {' '.join('-e '+extra for extra in extras)} -n YOURENV --file {path.name}
+                        conda-lock install {' '.join('-e '+extra for extra in extras)} -n YOURENV {path.name}
                     """
                 )
             write_section(
