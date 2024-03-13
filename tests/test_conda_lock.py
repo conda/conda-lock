@@ -2729,3 +2729,30 @@ def test_pip_full_whl_url(
         typing_extensions_dep.hash.sha256
         == "8f92fc8806f9a6b641eaa5318da32b44d401efaac0f6678c9bc448ba3605faa0"
     )
+
+
+def test_when_merging_lockfiles_content_hashes_are_updated(
+    conda_exe: str,
+    monkeypatch: "pytest.MonkeyPatch",
+    tmp_path: Path,
+):
+    work_path = clone_test_dir(name="test-update", tmp_path=tmp_path)
+    monkeypatch.chdir(work_path)
+    run_lock(
+        environment_files=[work_path / "environment-preupdate.yml"],
+        conda_exe=str(conda_exe),
+        platforms=["linux-64"],
+    )
+
+    def get_content_hashes_for_lock_file(lock_file: Path) -> dict[str, str]:
+        lock_file_dict = yaml.safe_load(lock_file.read_text())
+        return lock_file_dict["metadata"]["content_hash"]
+
+    preupdate_hashes = get_content_hashes_for_lock_file(work_path / "conda-lock.yml")
+    run_lock(
+        environment_files=[work_path / "environment-postupdate.yml"],
+        conda_exe=str(conda_exe),
+        platforms=["linux-64"],
+    )
+    postupdate_hashes = get_content_hashes_for_lock_file(work_path / "conda-lock.yml")
+    assert preupdate_hashes != postupdate_hashes
