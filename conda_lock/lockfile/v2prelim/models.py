@@ -65,7 +65,7 @@ class Lockfile(StrictModel):
 
         # Resort the conda packages topologically
         final_package = self._toposort(package)
-        return Lockfile(package=final_package, metadata=other.metadata | self.metadata)
+        return Lockfile(package=final_package, metadata=self.metadata | other.metadata)
 
     def toposort_inplace(self) -> None:
         self.package = self._toposort(self.package)
