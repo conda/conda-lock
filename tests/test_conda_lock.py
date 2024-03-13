@@ -2744,7 +2744,7 @@ def test_when_merging_lockfiles_content_hashes_are_updated(
         platforms=["linux-64"],
     )
 
-    def get_content_hashes_for_lock_file(lock_file: Path) -> dict[str, str]:
+    def get_content_hashes_for_lock_file(lock_file: Path) -> typing.Dict[str, str]:
         lock_file_dict = yaml.safe_load(lock_file.read_text())
         return lock_file_dict["metadata"]["content_hash"]
 
