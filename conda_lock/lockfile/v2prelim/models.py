@@ -1,5 +1,5 @@
 from collections import defaultdict
-from typing import ClassVar, Dict, List, Optional
+from typing import ClassVar, Dict, List, Optional, Set
 
 from conda_lock.lockfile.v1.models import (
     BaseLockedDependency,
@@ -17,20 +17,25 @@ from conda_lock.models import StrictModel
 
 
 class LockedDependency(BaseLockedDependency):
-    def to_v1(self) -> LockedDependencyV1:
-        return LockedDependencyV1(
-            name=self.name,
-            version=self.version,
-            manager=self.manager,
-            platform=self.platform,
-            dependencies=self.dependencies,
-            url=self.url,
-            hash=self.hash,
-            category=self.category,
-            source=self.source,
-            build=self.build,
-            optional=self.category != "main",
-        )
+    categories: Set[str] = set()
+
+    def to_v1(self) -> List[LockedDependencyV1]:
+        return [
+            LockedDependencyV1(
+                name=self.name,
+                version=self.version,
+                manager=self.manager,
+                platform=self.platform,
+                dependencies=self.dependencies,
+                url=self.url,
+                hash=self.hash,
+                category=category,
+                source=self.source,
+                build=self.build,
+                optional=category != "main",
+            )
+            for category in sorted(self.categories)
+        ]
 
 
 class Lockfile(StrictModel):
@@ -121,34 +126,45 @@ class Lockfile(StrictModel):
 
     def to_v1(self) -> LockfileV1:
         return LockfileV1(
-            package=[p.to_v1() for p in self.package],
+            package=[out for p in self.package for out in p.to_v1()],
             metadata=self.metadata,
         )
 
 
-def _locked_dependency_v1_to_v2(dep: LockedDependencyV1) -> LockedDependency:
+def _locked_dependency_v1_to_v2(dep: List[LockedDependencyV1]) -> LockedDependency:
     """Convert a LockedDependency from v1 to v2.
 
     * Remove the optional field (it is always equal to category != "main")
     """
+    assert len(dep) > 0
+    assert all(d.key() == dep[0].key() for d in dep)
+    assert len(set(d.category for d in dep)) == len(dep)
+
     return LockedDependency(
-        name=dep.name,
-        version=dep.version,
-        manager=dep.manager,
-        platform=dep.platform,
-        dependencies=dep.dependencies,
-        url=dep.url,
-        hash=dep.hash,
-        category=dep.category,
-        source=dep.source,
-        build=dep.build,
+        name=dep[0].name,
+        version=dep[0].version,
+        manager=dep[0].manager,
+        platform=dep[0].platform,
+        dependencies=dep[0].dependencies,
+        url=dep[0].url,
+        hash=dep[0].hash,
+        categories={d.category for d in dep},
+        source=dep[0].source,
+        build=dep[0].build,
     )
 
 
 def lockfile_v1_to_v2(lockfile_v1: LockfileV1) -> Lockfile:
     """Convert a Lockfile from v1 to v2."""
+    final_dependencies = defaultdict(list)
+    for dep in lockfile_v1.package:
+        final_dependencies[dep.key()].append(dep)
+
     return Lockfile(
-        package=[_locked_dependency_v1_to_v2(p) for p in lockfile_v1.package],
+        package=[
+            _locked_dependency_v1_to_v2(v1_pkgs)
+            for v1_pkgs in final_dependencies.values()
+        ],
         metadata=lockfile_v1.metadata,
     )
 
