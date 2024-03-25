@@ -1456,6 +1456,32 @@ def test_run_lock_relative_source_path(
 
 
 @pytest.fixture
+def conda_pip_conflict_environment(tmp_path: Path):
+    return clone_test_dir("test-conda-pip-conflict", tmp_path).joinpath(
+        "environment.yml"
+    )
+
+
+def test_conda_pip_conflict(
+    monkeypatch: pytest.MonkeyPatch,
+    conda_pip_conflict_environment: Path,
+    conda_exe: str,
+):
+    monkeypatch.chdir(conda_pip_conflict_environment.parent)
+    if is_micromamba(conda_exe):
+        monkeypatch.setenv("CONDA_FLAGS", "-v")
+    run_lock([conda_pip_conflict_environment], conda_exe=conda_exe)
+    lockfile = parse_conda_lock_file(
+        conda_pip_conflict_environment.parent / DEFAULT_LOCKFILE_NAME
+    )
+    clicks = []
+    for package in lockfile.package:
+        if package.name == "click":
+            clicks.append(package)
+    assert len(clicks) == 1
+
+
+@pytest.fixture
 def test_git_package_environment(tmp_path: Path):
     return clone_test_dir("test-git-package", tmp_path).joinpath("environment.yml")
 
