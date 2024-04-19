@@ -157,6 +157,13 @@ def pip_environment_different_names_same_deps(tmp_path: Path):
 
 
 @pytest.fixture
+def pip_hash_checking_environment(tmp_path: Path):
+    return clone_test_dir("test-pip-hash-checking", tmp_path).joinpath(
+        "environment.yml"
+    )
+
+
+@pytest.fixture
 def pip_local_package_environment(tmp_path: Path):
     return clone_test_dir("test-local-pip", tmp_path).joinpath("environment.yml")
 
@@ -1506,6 +1513,22 @@ def test_run_lock_with_pip_environment_different_names_same_deps(
     if is_micromamba(conda_exe):
         monkeypatch.setenv("CONDA_FLAGS", "-v")
     run_lock([pip_environment_different_names_same_deps], conda_exe=conda_exe)
+
+
+def test_run_lock_with_pip_hash_checking(
+    monkeypatch: "pytest.MonkeyPatch",
+    pip_hash_checking_environment: Path,
+    conda_exe: str,
+):
+    work_dir = pip_hash_checking_environment.parent
+    monkeypatch.chdir(work_dir)
+    if is_micromamba(conda_exe):
+        monkeypatch.setenv("CONDA_FLAGS", "-v")
+    run_lock([pip_hash_checking_environment], conda_exe=conda_exe)
+
+    lockfile = parse_conda_lock_file(work_dir / DEFAULT_LOCKFILE_NAME)
+    hashes = {package.name: package.hash for package in lockfile.package}
+    assert hashes["flit-core"].sha256 == "1234"
 
 
 def test_run_lock_uppercase_pip(
