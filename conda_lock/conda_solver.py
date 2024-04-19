@@ -493,10 +493,7 @@ def update_specs_for_arch(
         for package in set(installed).difference(updated):
             entry = installed[package]
             fn = f'{entry["dist_name"]}.tar.bz2'
-            if is_micromamba(conda):
-                channel = f'{entry["base_url"]}'
-            else:
-                channel = f'{entry["base_url"]}/{entry["platform"]}'
+            channel = f'{entry["base_url"]}/{entry["platform"]}'
             url = f"{channel}/{fn}"
             md5 = locked[package].hash.md5
             if md5 is None:
