@@ -377,9 +377,25 @@ def to_match_spec(conda_dep_name: str, conda_version: Optional[str]) -> str:
     return spec
 
 
+class RequirementWithHash(Requirement):
+    """Requirement with support for pip hash checking.
+
+    Pip offers hash checking where the requirement string is
+    my_package == 1.23 --hash=sha256:1234...
+    """
+
+    def __init__(self, requirement_string: str) -> None:
+        try:
+            requirement_string, hash = requirement_string.split(" --hash=")
+        except ValueError:
+            hash = None
+        self.hash: Optional[str] = hash
+        super().__init__(requirement_string)
+
+
 def parse_requirement_specifier(
     requirement: str,
-) -> Requirement:
+) -> RequirementWithHash:
     """Parse a url requirement to a conda spec"""
     if (
         requirement.startswith("git+")
@@ -392,9 +408,9 @@ def parse_requirement_specifier(
         if repo_name.endswith(".git"):
             repo_name = repo_name[:-4]
         # Use the repo name as a placeholder for the package name
-        return Requirement(f"{repo_name} @ {requirement}")
+        return RequirementWithHash(f"{repo_name} @ {requirement}")
     else:
-        return Requirement(requirement)
+        return RequirementWithHash(requirement)
 
 
 def unpack_git_url(url: str) -> Tuple[str, Optional[str]]:
@@ -460,6 +476,7 @@ def parse_python_requirement(
             manager=manager,
             category=category,
             extras=extras,
+            hash=parsed_req.hash,
         )
 
 

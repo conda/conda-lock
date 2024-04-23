@@ -16,6 +16,7 @@ from conda_lock.interfaces.vendored_poetry import (
     Chooser,
     Env,
     Factory,
+    Link,
     PoetryDependency,
     PoetryPackage,
     PoetryProjectPackage,
@@ -278,12 +279,27 @@ def parse_pip_requirement(requirement: str) -> Optional[Dict[str, str]]:
     return match.groupdict()
 
 
+class PoetryDependencyWithHash(PoetryDependency):
+    def __init__(self, *args, hash: Optional[str] = None, **kwargs) -> None:
+        self.hash = hash
+        super().__init__(*args, **kwargs)
+
+    def get_hash_model(self) -> Optional[HashModel]:
+        if self.hash:
+            algo, value = self.hash.split(":")
+            return HashModel(**{algo: value})
+        return None
+
+
 def get_dependency(dep: lock_spec.Dependency) -> PoetryDependency:
     # FIXME: how do deal with extras?
     extras: List[str] = []
     if isinstance(dep, lock_spec.VersionedDependency):
-        return PoetryDependency(
-            name=dep.name, constraint=dep.version or "*", extras=dep.extras
+        return PoetryDependencyWithHash(
+            name=dep.name,
+            constraint=dep.version or "*",
+            extras=dep.extras,
+            hash=dep.hash,
         )
     elif isinstance(dep, lock_spec.URLDependency):
         return PoetryURLDependency(
@@ -359,14 +375,9 @@ def get_requirements(
             # https://github.com/conda/conda-lock/blob/ac31f5ddf2951ed4819295238ccf062fb2beb33c/conda_lock/_vendor/poetry/installation/executor.py#L557
             else:
                 link = chooser.choose_for(op.package)
-                parsed_url = urlsplit(link.url)
-                link.url = link.url.replace(parsed_url.netloc, str(parsed_url.hostname))
-                url = link.url_without_fragment
-                hashes: Dict[str, str] = {}
-                if link.hash_name is not None and link.hash is not None:
-                    hashes[link.hash_name] = link.hash
-                hash = HashModel.parse_obj(hashes)
-
+                url = _get_url(link)
+                hash_chooser = _HashChooser(link, op.package.dependency)
+                hash = hash_chooser.get_hash()
             if source_repository:
                 url = source_repository.normalize_solver_url(url)
 
@@ -385,6 +396,37 @@ def get_requirements(
                 )
             )
     return requirements
+
+
+def _get_url(link: Link) -> str:
+    parsed_url = urlsplit(link.url)
+    link.url = link.url.replace(parsed_url.netloc, str(parsed_url.hostname))
+    return link.url_without_fragment
+
+
+class _HashChooser:
+    def __init__(
+        self, link: Link, dependency: PoetryDependency | PoetryDependencyWithHash
+    ):
+        self.link = link
+        self.dependency = dependency
+
+    def get_hash(self) -> HashModel:
+        return self._get_hash_from_dependency() or self._get_hash_from_link()
+
+    def _get_hash_from_dependency(self) -> Optional[HashModel]:
+        if self._dependency_provides_hash():
+            return self.dependency.get_hash_model()
+        return None
+
+    def _dependency_provides_hash(self) -> bool:
+        return isinstance(self.dependency, PoetryDependencyWithHash)
+
+    def _get_hash_from_link(self) -> HashModel:
+        hashes: Dict[str, str] = {}
+        if self.link.hash_name is not None and self.link.hash is not None:
+            hashes[self.link.hash_name] = self.link.hash
+        return HashModel.parse_obj(hashes)
 
 
 def solve_pypi(

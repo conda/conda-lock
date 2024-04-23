@@ -5,6 +5,7 @@ from conda_lock._vendor.poetry.core.packages import (
 )
 from conda_lock._vendor.poetry.core.packages import URLDependency as PoetryURLDependency
 from conda_lock._vendor.poetry.core.packages import VCSDependency as PoetryVCSDependency
+from conda_lock._vendor.poetry.core.packages.utils.link import Link
 from conda_lock._vendor.poetry.factory import Factory
 from conda_lock._vendor.poetry.installation.chooser import Chooser
 from conda_lock._vendor.poetry.installation.operations.uninstall import Uninstall
@@ -21,6 +22,7 @@ __all__ = [
     "Chooser",
     "Env",
     "Factory",
+    "Link",
     "PoetryDependency",
     "PoetryPackage",
     "PoetryProjectPackage",
