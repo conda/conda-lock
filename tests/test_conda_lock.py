@@ -1108,6 +1108,37 @@ def test_run_lock_with_input_metadata(
     ), "Input shasum didn't match expectation"
 
 
+@pytest.fixture
+def msys2_environment(tmp_path: Path):
+    contents = """
+    channels:
+    - defaults
+    dependencies:
+    - m2-zlib
+    platforms:
+    - win-64
+    """
+    env = tmp_path / "environment.yml"
+    env.write_text(contents)
+    return env
+
+
+def test_msys2_channel_included_in_defaults_on_windows(
+    monkeypatch: pytest.MonkeyPatch, msys2_environment: Path, conda_exe: str
+):
+    monkeypatch.chdir(msys2_environment.parent)
+    if is_micromamba(conda_exe):
+        monkeypatch.setenv("CONDA_FLAGS", "-v")
+    run_lock([msys2_environment], conda_exe=conda_exe)
+    lockfile = parse_conda_lock_file(msys2_environment.parent / DEFAULT_LOCKFILE_NAME)
+    m2_zlib_packages = [
+        package for package in lockfile.package if package.name == "m2-zlib"
+    ]
+    assert len(m2_zlib_packages) == 1
+    m2_zlib_package = m2_zlib_packages[0]
+    assert "/msys2/win-64/" in m2_zlib_package.url
+
+
 def test_run_lock_with_time_metadata(
     monkeypatch: "pytest.MonkeyPatch", zlib_environment: Path, conda_exe: str
 ):

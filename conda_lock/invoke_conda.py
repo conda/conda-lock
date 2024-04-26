@@ -198,6 +198,7 @@ def _get_conda_flags(channels: Sequence[Channel], platform: str) -> List[str]:
             # msys2 is a windows-only channel that conda automatically
             # injects if the host platform is Windows. If our host
             # platform is not Windows, we need to add it manually
+            # when using micromamba.
             args.extend(["--channel", "msys2"])
     return args
 
