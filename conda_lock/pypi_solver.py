@@ -4,7 +4,7 @@ import warnings
 
 from pathlib import Path
 from posixpath import expandvars
-from typing import TYPE_CHECKING, Dict, List, Literal, Optional, Tuple
+from typing import TYPE_CHECKING, Dict, List, Literal, Optional, Tuple, Union
 from urllib.parse import urldefrag, urlsplit, urlunsplit
 
 from clikit.api.io.flags import VERY_VERBOSE
@@ -406,7 +406,7 @@ def _get_url(link: Link) -> str:
 
 class _HashChooser:
     def __init__(
-        self, link: Link, dependency: PoetryDependency | PoetryDependencyWithHash
+        self, link: Link, dependency: Union[PoetryDependency, PoetryDependencyWithHash]
     ):
         self.link = link
         self.dependency = dependency
