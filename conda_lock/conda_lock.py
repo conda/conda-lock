@@ -1107,6 +1107,7 @@ def run_lock(
     _conda_exe = determine_conda_executable(
         conda_exe, mamba=mamba, micromamba=micromamba
     )
+    logger.debug(f"Using conda executable: {_conda_exe}")
     make_lock_files(
         conda=_conda_exe,
         src_files=environment_files,
