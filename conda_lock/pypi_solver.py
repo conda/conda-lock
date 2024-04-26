@@ -415,12 +415,9 @@ class _HashChooser:
         return self._get_hash_from_dependency() or self._get_hash_from_link()
 
     def _get_hash_from_dependency(self) -> Optional[HashModel]:
-        if self._dependency_provides_hash():
+        if isinstance(self.dependency, PoetryDependencyWithHash):
             return self.dependency.get_hash_model()
         return None
-
-    def _dependency_provides_hash(self) -> bool:
-        return isinstance(self.dependency, PoetryDependencyWithHash)
 
     def _get_hash_from_link(self) -> HashModel:
         hashes: Dict[str, str] = {}
