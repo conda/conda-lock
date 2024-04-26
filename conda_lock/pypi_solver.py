@@ -4,7 +4,7 @@ import warnings
 
 from pathlib import Path
 from posixpath import expandvars
-from typing import TYPE_CHECKING, Dict, List, Literal, Optional, Tuple
+from typing import TYPE_CHECKING, Dict, FrozenSet, List, Literal, Optional, Tuple, Union
 from urllib.parse import urldefrag, urlsplit, urlunsplit
 
 from clikit.api.io.flags import VERY_VERBOSE
@@ -12,10 +12,12 @@ from clikit.io import ConsoleIO, NullIO
 from packaging.tags import compatible_tags, cpython_tags, mac_platforms
 from packaging.version import Version
 
+from conda_lock._vendor.poetry.core.semver import VersionConstraint
 from conda_lock.interfaces.vendored_poetry import (
     Chooser,
     Env,
     Factory,
+    Link,
     PoetryDependency,
     PoetryPackage,
     PoetryProjectPackage,
@@ -278,12 +280,51 @@ def parse_pip_requirement(requirement: str) -> Optional[Dict[str, str]]:
     return match.groupdict()
 
 
+class PoetryDependencyWithHash(PoetryDependency):
+    def __init__(
+        self,
+        name,  # type: str
+        constraint,  # type: Union[str, VersionConstraint]
+        optional=False,  # type: bool
+        category="main",  # type: str
+        allows_prereleases=False,  # type: bool
+        extras=None,  # type: Optional[Union[List[str], FrozenSet[str]]]
+        source_type=None,  # type: Optional[str]
+        source_url=None,  # type: Optional[str]
+        source_reference=None,  # type: Optional[str]
+        source_resolved_reference=None,  # type: Optional[str]
+        hash: Optional[str] = None,
+    ) -> None:
+        super().__init__(
+            name,
+            constraint,
+            optional=optional,
+            category=category,
+            allows_prereleases=allows_prereleases,
+            extras=extras,  # type: ignore  # upstream type hint is wrong
+            source_type=source_type,
+            source_url=source_url,
+            source_reference=source_reference,
+            source_resolved_reference=source_resolved_reference,
+        )
+        self.hash = hash
+
+    def get_hash_model(self) -> Optional[HashModel]:
+        if self.hash:
+            algo, value = self.hash.split(":")
+            return HashModel(**{algo: value})
+        return None
+
+
 def get_dependency(dep: lock_spec.Dependency) -> PoetryDependency:
     # FIXME: how do deal with extras?
     extras: List[str] = []
     if isinstance(dep, lock_spec.VersionedDependency):
-        return PoetryDependency(
-            name=dep.name, constraint=dep.version or "*", extras=dep.extras
+        return PoetryDependencyWithHash(
+            name=dep.name,
+            constraint=dep.version or "*",
+            extras=dep.extras,
+            hash=dep.hash,
         )
     elif isinstance(dep, lock_spec.URLDependency):
         return PoetryURLDependency(
@@ -359,14 +400,9 @@ def get_requirements(
             # https://github.com/conda/conda-lock/blob/ac31f5ddf2951ed4819295238ccf062fb2beb33c/conda_lock/_vendor/poetry/installation/executor.py#L557
             else:
                 link = chooser.choose_for(op.package)
-                parsed_url = urlsplit(link.url)
-                link.url = link.url.replace(parsed_url.netloc, str(parsed_url.hostname))
-                url = link.url_without_fragment
-                hashes: Dict[str, str] = {}
-                if link.hash_name is not None and link.hash is not None:
-                    hashes[link.hash_name] = link.hash
-                hash = HashModel.parse_obj(hashes)
-
+                url = _get_url(link)
+                hash_chooser = _HashChooser(link, op.package.dependency)
+                hash = hash_chooser.get_hash()
             if source_repository:
                 url = source_repository.normalize_solver_url(url)
 
@@ -385,6 +421,34 @@ def get_requirements(
                 )
             )
     return requirements
+
+
+def _get_url(link: Link) -> str:
+    parsed_url = urlsplit(link.url)
+    link.url = link.url.replace(parsed_url.netloc, str(parsed_url.hostname))
+    return link.url_without_fragment
+
+
+class _HashChooser:
+    def __init__(
+        self, link: Link, dependency: Union[PoetryDependency, PoetryDependencyWithHash]
+    ):
+        self.link = link
+        self.dependency = dependency
+
+    def get_hash(self) -> HashModel:
+        return self._get_hash_from_dependency() or self._get_hash_from_link()
+
+    def _get_hash_from_dependency(self) -> Optional[HashModel]:
+        if isinstance(self.dependency, PoetryDependencyWithHash):
+            return self.dependency.get_hash_model()
+        return None
+
+    def _get_hash_from_link(self) -> HashModel:
+        hashes: Dict[str, str] = {}
+        if self.link.hash_name is not None and self.link.hash is not None:
+            hashes[self.link.hash_name] = self.link.hash
+        return HashModel.parse_obj(hashes)
 
 
 def solve_pypi(

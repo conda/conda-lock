@@ -29,6 +29,7 @@ class VersionedDependency(_BaseDependency):
     version: str
     build: Optional[str] = None
     conda_channel: Optional[str] = None
+    hash: Optional[str] = None
 
 
 class URLDependency(_BaseDependency):
