@@ -4,7 +4,7 @@ import warnings
 
 from pathlib import Path
 from posixpath import expandvars
-from typing import TYPE_CHECKING, Dict, List, Literal, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Dict, FrozenSet, List, Literal, Optional, Tuple, Union
 from urllib.parse import urldefrag, urlsplit, urlunsplit
 
 from clikit.api.io.flags import VERY_VERBOSE
@@ -12,6 +12,7 @@ from clikit.io import ConsoleIO, NullIO
 from packaging.tags import compatible_tags, cpython_tags, mac_platforms
 from packaging.version import Version
 
+from conda_lock._vendor.poetry.core.semver import VersionConstraint
 from conda_lock.interfaces.vendored_poetry import (
     Chooser,
     Env,
@@ -280,9 +281,33 @@ def parse_pip_requirement(requirement: str) -> Optional[Dict[str, str]]:
 
 
 class PoetryDependencyWithHash(PoetryDependency):
-    def __init__(self, *args, hash: Optional[str] = None, **kwargs) -> None:
+    def __init__(
+        self,
+        name,  # type: str
+        constraint,  # type: Union[str, VersionConstraint]
+        optional=False,  # type: bool
+        category="main",  # type: str
+        allows_prereleases=False,  # type: bool
+        extras=None,  # type: Optional[Union[List[str], FrozenSet[str]]]
+        source_type=None,  # type: Optional[str]
+        source_url=None,  # type: Optional[str]
+        source_reference=None,  # type: Optional[str]
+        source_resolved_reference=None,  # type: Optional[str]
+        hash: Optional[str] = None,
+    ) -> None:
+        super().__init__(
+            name,
+            constraint,
+            optional=optional,
+            category=category,
+            allows_prereleases=allows_prereleases,
+            extras=extras,  # type: ignore  # upstream type hint is wrong
+            source_type=source_type,
+            source_url=source_url,
+            source_reference=source_reference,
+            source_resolved_reference=source_resolved_reference,
+        )
         self.hash = hash
-        super().__init__(*args, **kwargs)
 
     def get_hash_model(self) -> Optional[HashModel]:
         if self.hash:
