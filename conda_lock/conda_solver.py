@@ -2,7 +2,6 @@ import json
 import logging
 import os
 import pathlib
-import shlex
 import subprocess
 import sys
 import tempfile
@@ -338,19 +337,7 @@ def solve_specs_for_arch(
         "--dry-run",
         "--json",
     ]
-    conda_flags = os.environ.get("CONDA_FLAGS")
-    if conda_flags:
-        args.extend(shlex.split(conda_flags))
-    if channels:
-        args.append("--override-channels")
-
-    for channel in channels:
-        args.extend(["--channel", channel.env_replaced_url()])
-        if channel.url == "defaults" and platform in {"win-64", "win-32"}:
-            # msys2 is a windows-only channel that conda automatically
-            # injects if the host platform is Windows. If our host
-            # platform is not Windows, we need to add it manually
-            args.extend(["--channel", "msys2"])
+    args.extend(_get_conda_flags(channels=channels, platform=platform))
     args.extend(specs)
     logger.info("%s using specs %s", platform, specs)
     proc = subprocess.run(  # noqa: UP022  # Poetry monkeypatch breaks capture_output
