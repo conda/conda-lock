@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from conda_lock._vendor.poetry.core.masonry.api import build_sdist
 from conda_lock._vendor.poetry.core.masonry.api import build_wheel
 from conda_lock._vendor.poetry.core.masonry.api import get_requires_for_build_sdist

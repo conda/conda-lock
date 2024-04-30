@@ -1,59 +1,63 @@
+from __future__ import annotations
+
 from typing import TYPE_CHECKING
 
-from conda_lock._vendor.poetry.core.utils.helpers import canonicalize_name
-from conda_lock._vendor.poetry.core.utils.helpers import normalize_version
-from conda_lock._vendor.poetry.core.version.helpers import format_python_constraint
+from conda_lock._vendor.poetry.core.utils.helpers import readme_content_type
 
 
 if TYPE_CHECKING:
-    from conda_lock._vendor.poetry.core.packages import Package  # noqa
+    from conda_lock._vendor.poetry.core.packages.package import Package
 
 
 class Metadata:
-
     metadata_version = "2.1"
     # version 1.0
-    name = None
-    version = None
-    platforms = ()
-    supported_platforms = ()
-    summary = None
-    description = None
-    keywords = None
-    home_page = None
-    download_url = None
-    author = None
-    author_email = None
-    license = None
+    name: str | None = None
+    version: str
+    platforms: tuple[str, ...] = ()
+    supported_platforms: tuple[str, ...] = ()
+    summary: str | None = None
+    description: str | None = None
+    keywords: str | None = None
+    home_page: str | None = None
+    download_url: str | None = None
+    author: str | None = None
+    author_email: str | None = None
+    license: str | None = None
     # version 1.1
-    classifiers = ()
-    requires = ()
-    provides = ()
-    obsoletes = ()
+    classifiers: tuple[str, ...] = ()
+    requires: tuple[str, ...] = ()
+    provides: tuple[str, ...] = ()
+    obsoletes: tuple[str, ...] = ()
     # version 1.2
-    maintainer = None
-    maintainer_email = None
-    requires_python = None
-    requires_external = ()
-    requires_dist = []
-    provides_dist = ()
-    obsoletes_dist = ()
-    project_urls = ()
+    maintainer: str | None = None
+    maintainer_email: str | None = None
+    requires_python: str | None = None
+    requires_external: tuple[str, ...] = ()
+    requires_dist: list[str] = []  # noqa: RUF012
+    provides_dist: tuple[str, ...] = ()
+    obsoletes_dist: tuple[str, ...] = ()
+    project_urls: tuple[str, ...] = ()
 
     # Version 2.1
-    description_content_type = None
-    provides_extra = []
+    description_content_type: str | None = None
+    provides_extra: list[str] = []  # noqa: RUF012
 
     @classmethod
-    def from_package(cls, package):  # type: ("Package") -> Metadata
+    def from_package(cls, package: Package) -> Metadata:
+        from conda_lock._vendor.poetry.core.version.helpers import format_python_constraint
+
         meta = cls()
 
-        meta.name = canonicalize_name(package.name)
-        meta.version = normalize_version(package.version.text)
+        meta.name = package.pretty_name
+        meta.version = package.version.to_string()
         meta.summary = package.description
-        if package.readme:
-            with package.readme.open(encoding="utf-8") as f:
-                meta.description = f.read()
+        if package.readmes:
+            descriptions = []
+            for readme in package.readmes:
+                with readme.open(encoding="utf-8") as f:
+                    descriptions.append(f.read())
+            meta.description = "\n".join(descriptions)
 
         meta.keywords = ",".join(package.keywords)
         meta.home_page = package.homepage or package.repository_url
@@ -63,7 +67,7 @@ class Metadata:
         if package.license:
             meta.license = package.license.id
 
-        meta.classifiers = package.all_classifiers
+        meta.classifiers = tuple(package.all_classifiers)
 
         # Version 1.2
         meta.maintainer = package.maintainer_name
@@ -76,21 +80,16 @@ class Metadata:
         meta.requires_dist = [d.to_pep_508() for d in package.requires]
 
         # Version 2.1
-        if package.readme:
-            if package.readme.suffix == ".rst":
-                meta.description_content_type = "text/x-rst"
-            elif package.readme.suffix in [".md", ".markdown"]:
-                meta.description_content_type = "text/markdown"
-            else:
-                meta.description_content_type = "text/plain"
+        if package.readmes:
+            meta.description_content_type = readme_content_type(package.readmes[0])
 
-        meta.provides_extra = [e for e in package.extras]
+        meta.provides_extra = list(package.extras)
 
         if package.urls:
             for name, url in package.urls.items():
                 if name == "Homepage" and meta.home_page == url:
                     continue
 
-                meta.project_urls += ("{}, {}".format(name, url),)
+                meta.project_urls += (f"{name}, {url}",)
 
         return meta

@@ -1,41 +1,54 @@
+from __future__ import annotations
+
 import json
-import os
+import sys
 
-from io import open
-from typing import List
+from pathlib import Path
+from typing import TYPE_CHECKING
+from typing import Any
 
-from jsonschema import Draft7Validator
+import fastjsonschema
+
+from fastjsonschema.exceptions import JsonSchemaException
 
 
-SCHEMA_DIR = os.path.join(os.path.dirname(__file__), "schemas")
+SCHEMA_DIR = Path(__file__).parent / "schemas"
+
+
+if sys.version_info < (3, 9):
+
+    def _get_schema_file(schema_name: str) -> Path:
+        return SCHEMA_DIR / f"{schema_name}.json"
+
+else:
+    from importlib.resources import files
+
+    if TYPE_CHECKING:
+        from importlib.abc import Traversable
+
+    def _get_schema_file(schema_name: str) -> Traversable:
+        return files(__package__) / "schemas" / f"{schema_name}.json"
 
 
 class ValidationError(ValueError):
-
     pass
 
 
-def validate_object(obj, schema_name):  # type: (dict, str) -> List[str]
-    schema = os.path.join(SCHEMA_DIR, "{}.json".format(schema_name))
+def validate_object(obj: dict[str, Any], schema_name: str) -> list[str]:
+    schema_file = _get_schema_file(schema_name)
 
-    if not os.path.exists(schema):
-        raise ValueError("Schema {} does not exist.".format(schema_name))
+    if not schema_file.is_file():
+        raise ValueError(f"Schema {schema_name} does not exist.")
 
-    with open(schema, encoding="utf-8") as f:
-        schema = json.loads(f.read())
+    with schema_file.open(encoding="utf-8") as f:
+        schema = json.load(f)
 
-    validator = Draft7Validator(schema)
-    validation_errors = sorted(validator.iter_errors(obj), key=lambda e: e.path)
+    validate = fastjsonschema.compile(schema)
 
     errors = []
-
-    for error in validation_errors:
-        message = error.message
-        if error.path:
-            message = "[{}] {}".format(
-                ".".join(str(x) for x in error.absolute_path), message
-            )
-
-        errors.append(message)
+    try:
+        validate(obj)
+    except JsonSchemaException as e:
+        errors = [e.message]
 
     return errors

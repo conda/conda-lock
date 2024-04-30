@@ -55,9 +55,6 @@ from conda_lock.errors import (
     PlatformValidationError,
 )
 from conda_lock.interfaces.vendored_conda import MatchSpec
-from conda_lock.interfaces.vendored_poetry import (
-    CalledProcessError as PoetryCalledProcessError,
-)
 from conda_lock.invoke_conda import is_micromamba, reset_conda_pkgs_dir
 from conda_lock.lockfile import parse_conda_lock_file
 from conda_lock.lockfile.v2prelim.models import (
@@ -1852,7 +1849,7 @@ def conda_supports_env(conda_exe: str):
         subprocess.check_call(
             [conda_exe, "env"], stdout=subprocess.PIPE, stderr=subprocess.PIPE
         )
-    except (subprocess.CalledProcessError, PoetryCalledProcessError):
+    except subprocess.CalledProcessError:
         return False
     return True
 
