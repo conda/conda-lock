@@ -9,10 +9,10 @@
       
       
       
-        <link rel="prev" href="../pip/">
+        <link rel="prev" href="../authenticated_channels/">
       
       
-        <link rel="next" href="../authenticated_channels/">
+        <link rel="next" href="../docker/">
       
       
       <link rel="icon" href="../assets/images/favicon.png">
@@ -20,7 +20,7 @@
     
     
       
-        <title>Flags - conda-lock</title>
+        <title>Basic Usage - conda-lock</title>
       
     
     
@@ -62,7 +62,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#options" class="md-skip">
+        <a href="#basic-usage" class="md-skip">
           Skip to content
         </a>
       
@@ -98,7 +98,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Flags
+              Basic Usage
             
           </span>
         </div>
@@ -407,30 +407,10 @@
       
   
   
-    
   
   
-  
-    <li class="md-nav__item md-nav__item--active">
-      
-      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
-      
-      
-        
-      
-      
-        <label class="md-nav__link md-nav__link--active" for="__toc">
-          
-  
-  <span class="md-ellipsis">
-    Flags
-  </span>
-  
-
-          <span class="md-nav__icon md-icon"></span>
-        </label>
-      
-      <a href="./" class="md-nav__link md-nav__link--active">
+    <li class="md-nav__item">
+      <a href="../flags/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -439,131 +419,6 @@
   
 
       </a>
-      
-        
-
-<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
-  
-  
-  
-    
-  
-  
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      Table of contents
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#-conda" class="md-nav__link">
-    <span class="md-ellipsis">
-      --conda
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#-mamba" class="md-nav__link">
-    <span class="md-ellipsis">
-      --mamba
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#-filename-template" class="md-nav__link">
-    <span class="md-ellipsis">
-      --filename-template
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#-channel" class="md-nav__link">
-    <span class="md-ellipsis">
-      --channel
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#-platform" class="md-nav__link">
-    <span class="md-ellipsis">
-      --platform
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#-dev-dependencies-no-dev-dependencies" class="md-nav__link">
-    <span class="md-ellipsis">
-      --dev-dependencies/--no-dev-dependencies
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#-extras-or-categories" class="md-nav__link">
-    <span class="md-ellipsis">
-      --extras or --categories
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#-check-input-hash" class="md-nav__link">
-    <span class="md-ellipsis">
-      --check-input-hash
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#-strip-auth-auth-and-auth-file" class="md-nav__link">
-    <span class="md-ellipsis">
-      --strip-auth, --auth and --auth-file
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#-virtual-package-spec" class="md-nav__link">
-    <span class="md-ellipsis">
-      --virtual-package-spec
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="--virtual-package-spec">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#input-hash-stability" class="md-nav__link">
-    <span class="md-ellipsis">
-      Input hash stability
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-    </ul>
-  
-</nav>
-      
     </li>
   
 
@@ -592,8 +447,10 @@
       
   
   
+    
   
   
+  
     
     
       
@@ -606,13 +463,11 @@
     
     
     
-    <li class="md-nav__item md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--active md-nav__item--nested">
       
         
         
-          
-        
-        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_8" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8" checked>
         
           
           <label class="md-nav__link" for="__nav_8" id="__nav_8_label" tabindex="0">
@@ -626,7 +481,7 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_8_label" aria-expanded="false">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_8_label" aria-expanded="true">
           <label class="md-nav__title" for="__nav_8">
             <span class="md-nav__icon md-icon"></span>
             Usage
@@ -637,10 +492,30 @@
                 
   
   
+    
   
   
-    <li class="md-nav__item">
-      <a href="../basic_usage/" class="md-nav__link">
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  <span class="md-ellipsis">
+    Basic Usage
+  </span>
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
         
   
   <span class="md-ellipsis">
@@ -649,6 +524,62 @@
   
 
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#generating-a-lockfile" class="md-nav__link">
+    <span class="md-ellipsis">
+      Generating a Lockfile
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#creating-an-environment" class="md-nav__link">
+    <span class="md-ellipsis">
+      Creating an Environment
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#updating-packages" class="md-nav__link">
+    <span class="md-ellipsis">
+      Updating Packages
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#adding-new-packages" class="md-nav__link">
+    <span class="md-ellipsis">
+      Adding new Packages
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
     </li>
   
 
@@ -730,107 +661,38 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#-conda" class="md-nav__link">
+  <a href="#generating-a-lockfile" class="md-nav__link">
     <span class="md-ellipsis">
-      --conda
+      Generating a Lockfile
     </span>
   </a>
   
 </li>
       
         <li class="md-nav__item">
-  <a href="#-mamba" class="md-nav__link">
+  <a href="#creating-an-environment" class="md-nav__link">
     <span class="md-ellipsis">
-      --mamba
+      Creating an Environment
     </span>
   </a>
   
 </li>
       
         <li class="md-nav__item">
-  <a href="#-filename-template" class="md-nav__link">
+  <a href="#updating-packages" class="md-nav__link">
     <span class="md-ellipsis">
-      --filename-template
+      Updating Packages
     </span>
   </a>
   
 </li>
       
         <li class="md-nav__item">
-  <a href="#-channel" class="md-nav__link">
+  <a href="#adding-new-packages" class="md-nav__link">
     <span class="md-ellipsis">
-      --channel
+      Adding new Packages
     </span>
   </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#-platform" class="md-nav__link">
-    <span class="md-ellipsis">
-      --platform
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#-dev-dependencies-no-dev-dependencies" class="md-nav__link">
-    <span class="md-ellipsis">
-      --dev-dependencies/--no-dev-dependencies
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#-extras-or-categories" class="md-nav__link">
-    <span class="md-ellipsis">
-      --extras or --categories
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#-check-input-hash" class="md-nav__link">
-    <span class="md-ellipsis">
-      --check-input-hash
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#-strip-auth-auth-and-auth-file" class="md-nav__link">
-    <span class="md-ellipsis">
-      --strip-auth, --auth and --auth-file
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#-virtual-package-spec" class="md-nav__link">
-    <span class="md-ellipsis">
-      --virtual-package-spec
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="--virtual-package-spec">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#input-hash-stability" class="md-nav__link">
-    <span class="md-ellipsis">
-      Input hash stability
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
   
 </li>
       
@@ -852,176 +714,46 @@
   
 
 
-<h1 id="options">Options</h1>
-<h2 id="-conda">--conda</h2>
-<p>If you wish to specify a particular conda/mamba executable to use to perform the solve this can be provided as follows</p>
-<div class="highlight"><pre><span></span><code>conda-lock<span class="w"> </span>--conda<span class="w"> </span>some_path_to_conda
-</code></pre></div>
-<hr />
-<h2 id="-mamba">--mamba</h2>
-<p>If you want to make use of mamba in order to perform faster solves this can be enabled with</p>
-<div class="highlight"><pre><span></span><code>conda-lock --mamba some_path_to_conda
-</code></pre></div>
-<p>If mamba is not installed, it will attempt to install it using <a href="https://github.com/conda-incubator/ensureconda">ensureconda</a></p>
-<hr />
-<h2 id="-filename-template">--filename-template</h2>
-<p>By default, <code>conda-lock</code> store its output in <code>conda-lock.yml</code> in the current
-working directory. This file will also be used by default for render, install,
-and update operations. You can supply a different filename with e.g.</p>
-<div class="highlight"><pre><span></span><code>conda-lock<span class="w"> </span>--lockfile<span class="w"> </span>superspecial.conda-lock.yml
-</code></pre></div>
-<p>The extension <code>.conda-lock.yml</code> will be added if not present. Rendered
-environment files (env or explicit) will be named as as
-<code>"conda-{platform}.lock"</code>.</p>
-<p>If you want to override that call conda-lock as follows.</p>
-<div class="highlight"><pre><span></span><code>conda-lock<span class="w"> </span>-k<span class="w"> </span>explicit<span class="w"> </span>--filename-template<span class="w"> </span><span class="s2">&quot;specific-{platform}.conda.lock&quot;</span>
-</code></pre></div>
-<p>The following fields are available for templating</p>
-<table>
-<thead>
-<tr>
-<th>field</th>
-<th></th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>platform</td>
-<td>the platform for lock file (conda subdir)</td>
-</tr>
-<tr>
-<td>dev-dependencies</td>
-<td>true/false flag for --dev-dependencies</td>
-</tr>
-<tr>
-<td>input-hash</td>
-<td>a sha256 hash of the lock file input specification</td>
-</tr>
-<tr>
-<td>version</td>
-<td>the version of conda-lock used</td>
-</tr>
-<tr>
-<td>timestamp</td>
-<td>the timestamp of the output file in ISO8601 basic format</td>
-</tr>
-</tbody>
-</table>
-<hr />
-<h2 id="-channel">--channel</h2>
-<p>You can override the channels that are used by conda-lock in case you need to override the ones specified in
-an [environment.yml][envyaml] or any of the other supported formats.</p>
-<div class="highlight"><pre><span></span><code>conda-lock<span class="w"> </span>--channel<span class="w"> </span>conda-forge
-</code></pre></div>
-<hr />
-<h2 id="-platform">--platform</h2>
-<p>You may specify the platforms you wish to target by default directly in an [environment.yml][envyaml]</p>
-<p>If you specify target platforms on the command line with <code>--platform</code>, these will
-override the values in the environment specification. If neither <code>platforms</code> (from source files) nor
-<code>--platforms</code> are provided, <code>conda-lock</code> will fall back to a default set of platforms.</p>
-<hr />
-<h2 id="-dev-dependencies-no-dev-dependencies">--dev-dependencies/--no-dev-dependencies</h2>
-<p>By default conda-lock will include dev dependencies in the specification of the lock (if the files that the lock
-is being built from support them).  This can be disabled easily</p>
-<div class="highlight"><pre><span></span><code>conda-lock<span class="w"> </span>--no-dev-dependencies<span class="w"> </span>--file<span class="w"> </span>./recipe/meta.yaml
-</code></pre></div>
-<hr />
-<h2 id="-extras-or-categories">--extras or --categories</h2>
-<p>If your source files contains optional dependencies/extras these can be included in the output of a <code>render</code> by using the
-flag.</p>
-<div class="highlight"><pre><span></span><code>conda-lock<span class="w"> </span>--extra<span class="w"> </span>mysql<span class="w"> </span>--extra<span class="w"> </span>pgsql<span class="w"> </span>-f<span class="w"> </span>pyproject.toml
-</code></pre></div>
-<p>When generating lockfiles that make use of extras it is recommended to make use of <code>--filename-template</code> covered <a href="#file-naming">here</a>.</p>
-<div class="admonition note">
-<p>By default conda-lock will attempt to solve for <em>ALL</em> extras/categories it discovers in sources.  This allows you to <em>render</em> or <em>install</em>
-from lockfiles of extras without needing to re-lock.</p>
-<p>However this does make the assumption that <em>all</em> extras are installed, <em>and</em> installable in conjunction with each other.
-If you want extras filtering to happen at the before solving use the flag <code>--filter-categories</code> or <code>--filter-extras</code></p>
-<div class="highlight"><pre><span></span><code>conda-lock<span class="w"> </span>--extra<span class="w"> </span>incompatiblea<span class="w"> </span>--filter-categories<span class="w"> </span>-f<span class="w"> </span>pyproject.toml
-</code></pre></div>
-<p>This will use categories from <code>--extras/--categories</code> flag as a filter at the specification build time.</p>
-</div>
-<hr />
-<h2 id="-check-input-hash">--check-input-hash</h2>
-<p>Under some situation you may want to run conda lock in some kind of automated way (eg as a precommit) and want to not
-need to regenerate the lockfiles if the underlying input specification for that particular lock as not changed.</p>
-<div class="highlight"><pre><span></span><code>conda-lock<span class="w"> </span>--check-input-hash<span class="w"> </span>--platform<span class="w"> </span>linux-64
-</code></pre></div>
-<p>When the input_hash of the input files, channels match those present in a given lockfile, that lockfile will not be regenerated.</p>
-<hr />
-<!-- BEGIN INCLUDE ./flags/strip-auth.md -->
-<h2 id="-strip-auth-auth-and-auth-file">--strip-auth, --auth and --auth-file</h2>
-<div class="admonition warning">
-<p class="admonition-title">Warning</p>
-<p>This flag is only used for basic auth.</p>
-</div>
-<p>By default <code>conda-lock</code> will leave basic auth credentials for private conda channels <em>in the manner in which they were specified</em>.</p>
-<p>This means that if you should specified your channel as</p>
-<div class="admonition success">
-<p class="admonition-title">Non-leaky credentials</p>
+<h1 id="basic-usage">Basic Usage</h1>
+<p>Consider the following source specification:</p>
 <div class="highlight"><span class="filename">environment.yml</span><pre><span></span><code><span class="nt">channels</span><span class="p">:</span>
-<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">http://$CHANNEL_USER:$CHANNEL_PASSWORD@host.com/channel</span>
+<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">conda-forge</span>
+<span class="nt">dependencies</span><span class="p">:</span>
+<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">python=3.12</span>
+<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">numpy</span>
 </code></pre></div>
-<div class="admonition note">
-<p>The environment variables <code>CHANNEL_USER</code> and <code>CHANNEL_PASSWORD</code> will be required at install time.</p>
-</div>
-</div>
-<div class="admonition fail">
-<p class="admonition-title">Leaky credentials</p>
-<div class="highlight"><span class="filename">environment.yml</span><pre><span></span><code><span class="nt">channels</span><span class="p">:</span>
-<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">http://username:password123@host.com/channel</span>
+<h3 id="generating-a-lockfile">Generating a Lockfile</h3>
+<p>Generate a multi-platform lockfile <code>conda-lock.yml</code></p>
+<div class="highlight"><pre><span></span><code>conda-lock<span class="w"> </span>-f<span class="w"> </span>environment.yml<span class="w"> </span>-p<span class="w"> </span>osx-64<span class="w"> </span>-p<span class="w"> </span>linux-64
 </code></pre></div>
-</div>
-<p>When used with explicit/env render targets you may wish to strip the basic auth from these files (regardless of if it is correctly or incorrectly specified).</p>
-<div class="highlight"><pre><span></span><code>conda-lock<span class="w"> </span>--strip-auth<span class="w"> </span>--file<span class="w"> </span>environment.yml
+<h3 id="creating-an-environment">Creating an Environment</h3>
+<p>Create an environment from the lockfile</p>
+<div class="highlight"><pre><span></span><code>conda-lock<span class="w"> </span>install<span class="w"> </span><span class="o">[</span>-p<span class="w"> </span><span class="o">{</span>prefix<span class="o">}</span><span class="p">|</span>-n<span class="w"> </span><span class="o">{</span>name<span class="o">}]</span>
 </code></pre></div>
-<p>In order to <code>conda-lock install</code> a lock file with its basic auth credentials stripped, you will need to create an authentication file in <code>.json</code> format like this:</p>
-<div class="highlight"><pre><span></span><code><span class="p">{</span>
-<span class="w">  </span><span class="nt">&quot;domain&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;username:password&quot;</span>
-<span class="p">}</span>
+<p>Alternatively, render a single-platform lockfile and use conda command directly</p>
+<div class="highlight"><pre><span></span><code>conda-lock<span class="w"> </span>render<span class="w"> </span>-p<span class="w"> </span>linux-64
+conda<span class="w"> </span>create<span class="w"> </span>-n<span class="w"> </span>my-locked-env<span class="w"> </span>--file<span class="w"> </span>conda-linux-64.lock
 </code></pre></div>
-<p>If you have multiple channels that require different authentication within the same domain, you can additionally specify the channel like this:</p>
-<div class="highlight"><pre><span></span><code><span class="p">{</span>
-<span class="w">  </span><span class="nt">&quot;domain.org/channel1&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;username1:password1&quot;</span><span class="p">,</span>
-<span class="w">  </span><span class="nt">&quot;domain.org/channel2&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;username2:password2&quot;</span>
-<span class="p">}</span>
+<h3 id="updating-packages">Updating Packages</h3>
+<p>Update the previous solution, using the latest version of numpy that is
+compatible with the source specification. This command overrides the lockfile.</p>
+<div class="highlight"><pre><span></span><code>conda-lock<span class="w"> </span>--update<span class="w"> </span>numpy
 </code></pre></div>
-<p>You can provide the authentication either as a yaml/json string through <code>--auth</code></p>
-<div class="highlight"><pre><span></span><code>conda-lock<span class="w"> </span>install<span class="w"> </span>--auth<span class="w"> </span><span class="s2">&quot;{domain: &#39;username:</span><span class="nv">$PASSWORD</span><span class="s2">&#39;}&quot;</span><span class="w"> </span>conda-linux-64.lock
+<h3 id="adding-new-packages">Adding new Packages</h3>
+<p>Add a new package to the environment</p>
+<div class="highlight"><span class="filename">Updated environment.yml</span><pre><span></span><code><span class="nt">channels</span><span class="p">:</span>
+<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">conda-forge</span>
+<span class="nt">dependencies</span><span class="p">:</span>
+<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">python=3.12</span>
+<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">numpy</span>
+<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">pandas</span><span class="w">  </span><span class="c1"># new</span>
 </code></pre></div>
-<p>or as a filepath through  <code>--auth-file</code>.</p>
-<div class="highlight"><pre><span></span><code>conda-lock<span class="w"> </span>install<span class="w"> </span>--auth-file<span class="w"> </span>auth.json<span class="w"> </span>conda-linux-64.lock
+<p>and regenerate the lockfile</p>
+<div class="highlight"><pre><span></span><code>conda-lock<span class="w"> </span>-f<span class="w"> </span>environment.yml<span class="w"> </span>-p<span class="w"> </span>osx-64<span class="w"> </span>-p<span class="w"> </span>linux-64
 </code></pre></div>
-<!-- END INCLUDE -->
-
-<hr />
-<h2 id="-virtual-package-spec">--virtual-package-spec</h2>
-<p>Conda makes use of <a href="https://conda.io/projects/conda/en/latest/user-guide/tasks/manage-virtual.html">virtual packages</a> that are available at
-runtime to gate dependency on system features.  Due to these not generally existing on your local execution platform conda-lock will inject
-them into the solution environment with a reasonable guess at what a default system configuration should be.</p>
-<p>If you want to override which virtual packages are injected you can create a virtual package spec file</p>
-<div class="highlight"><span class="filename">virtual-packages.yml</span><pre><span></span><code><span class="nt">subdirs</span><span class="p">:</span>
-<span class="w">  </span><span class="nt">linux-64</span><span class="p">:</span>
-<span class="w">    </span><span class="nt">packages</span><span class="p">:</span>
-<span class="w">      </span><span class="nt">__glibc</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;2.17&quot;</span>
-<span class="w">      </span><span class="nt">__cuda</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;11.4&quot;</span>
-<span class="w">  </span><span class="nt">win-64</span><span class="p">:</span>
-<span class="w">    </span><span class="nt">packages</span><span class="p">:</span>
-<span class="w">      </span><span class="nt">__cuda</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;11.4&quot;</span>
-</code></pre></div>
-<p>conda-lock will automatically use a <code>virtual-packages.yml</code> it finds in the the current working directory.  Alternatively one can be specified
-explicitly via the flag.</p>
-<div class="highlight"><pre><span></span><code>conda<span class="w"> </span>lock<span class="w"> </span>--virtual-package-spec<span class="w"> </span>virtual-packages-cuda.yml<span class="w"> </span>--platform<span class="w"> </span>linux-64
-</code></pre></div>
-<h3 id="input-hash-stability">Input hash stability</h3>
-<p>Virtual packages take part in the input hash so if you build an environment with a different set of virtual packages the input hash will change.
-Additionally the default set of virtual packages may be augmented in future versions of conda-lock.  If you desire very stable input hashes
-we recommend creating a <code>virtual-packages.yml</code> file to lock down the virtual packages considered.</p>
-<div class="admonition warning">
-<p class="admonition-title">in conjunction with micromamba</p>
-<p>Micromamba does not presently support some of the overrides to remove all discovered virtual packages, consequently the set of virtual packages
-available at solve time may be larger than those specified in your specification.</p>
-</div>
+<p>If there is an existing lockfile, it is used as constraint. That means
+conda-lock will search for the latest version of pandas that is compatible
+with the previous solution. This command overrides the lockfile.</p>
 
 
 
