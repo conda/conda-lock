@@ -52,6 +52,7 @@ nav:
   - Flags: flags.md
   - Authenticated Channels: authenticated_channels.md
   - Usage:
+    - Basic Usage: basic_usage.md
     - Docker: docker.md
     - CLI Reference: cli/gen.md
 
