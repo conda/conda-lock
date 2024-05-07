@@ -4,20 +4,35 @@ import warnings
 
 from pathlib import Path
 from posixpath import expandvars
-from typing import TYPE_CHECKING, Dict, FrozenSet, List, Literal, Optional, Tuple, Union
+from typing import (
+    TYPE_CHECKING,
+    Dict,
+    FrozenSet,
+    List,
+    Literal,
+    Optional,
+    Tuple,
+    Union,
+    cast,
+)
 from urllib.parse import urldefrag, urlsplit, urlunsplit
 
-from clikit.api.io.flags import VERY_VERBOSE
-from clikit.io import ConsoleIO, NullIO
 from packaging.tags import compatible_tags, cpython_tags, mac_platforms
+from packaging.utils import canonicalize_name
 from packaging.version import Version
 
-from conda_lock._vendor.poetry.core.semver import VersionConstraint
+from conda_lock._vendor.cleo.io.inputs.argv_input import ArgvInput
+from conda_lock._vendor.cleo.io.io import IO
+from conda_lock._vendor.cleo.io.null_io import NullIO
+from conda_lock._vendor.cleo.io.outputs.output import Verbosity
+from conda_lock._vendor.cleo.io.outputs.stream_output import StreamOutput
 from conda_lock.interfaces.vendored_poetry import (
     Chooser,
+    Config,
     Env,
     Factory,
     Link,
+    Operation,
     PoetryDependency,
     PoetryPackage,
     PoetryProjectPackage,
@@ -26,8 +41,7 @@ from conda_lock.interfaces.vendored_poetry import (
     PoetryVCSDependency,
     Pool,
     PyPiRepository,
-    Repository,
-    Uninstall,
+    VersionConstraint,
 )
 from conda_lock.lockfile import apply_categories
 from conda_lock.lockfile.v2prelim.models import (
@@ -286,7 +300,6 @@ class PoetryDependencyWithHash(PoetryDependency):
         name,  # type: str
         constraint,  # type: Union[str, VersionConstraint]
         optional=False,  # type: bool
-        category="main",  # type: str
         allows_prereleases=False,  # type: bool
         extras=None,  # type: Optional[Union[List[str], FrozenSet[str]]]
         source_type=None,  # type: Optional[str]
@@ -299,9 +312,8 @@ class PoetryDependencyWithHash(PoetryDependency):
             name,
             constraint,
             optional=optional,
-            category=category,
             allows_prereleases=allows_prereleases,
-            extras=extras,  # type: ignore  # upstream type hint is wrong
+            extras=extras,
             source_type=source_type,
             source_url=source_url,
             source_reference=source_reference,
@@ -356,7 +368,7 @@ def get_package(locked: LockedDependency) -> PoetryPackage:
 
 
 def get_requirements(
-    result: List,
+    result: List[Operation],
     platform: str,
     pool: Pool,
     env: Env,
@@ -375,13 +387,17 @@ def get_requirements(
     }
 
     for op in result:
-        if not isinstance(op, Uninstall) and not op.skipped:
+        if not op.skipped:
             # Take direct references verbatim
             source: Optional[DependencySource] = None
-            source_repository = repositories_by_name.get(op.package.source_reference)
+            source_repository = None
+            if op.package.source_reference:
+                source_repository = repositories_by_name.get(
+                    op.package.source_reference
+                )
 
             if op.package.source_type == "url":
-                url, fragment = urldefrag(op.package.source_url)
+                url, fragment = urldefrag(cast(str, op.package.source_url))
                 hash_splits = fragment.split("=")
                 if fragment == "":
                     hash = HashModel()
@@ -389,10 +405,12 @@ def get_requirements(
                     hash = HashModel(**{hash_splits[0]: hash_splits[1]})
                 else:
                     raise ValueError(f"Don't know what to do with {fragment}")
-                source = DependencySource(type="url", url=op.package.source_url)
+                source = DependencySource(
+                    type="url", url=cast(str, op.package.source_url)
+                )
             elif op.package.source_type == "git":
                 url = f"{op.package.source_type}+{op.package.source_url}@{op.package.source_resolved_reference}"
-                # TODO: FIXME git ls-remoet
+                # TODO: FIXME git ls-remote
                 hash = HashModel(**{"sha256": op.package.source_resolved_reference})
                 source = DependencySource(type="url", url=url)
             # Choose the most specific distribution for the target
@@ -401,7 +419,7 @@ def get_requirements(
             else:
                 link = chooser.choose_for(op.package)
                 url = _get_url(link)
-                hash_chooser = _HashChooser(link, op.package.dependency)
+                hash_chooser = _HashChooser(link, op.package.to_dependency())
                 hash = hash_chooser.get_hash()
             if source_repository:
                 url = source_repository.normalize_solver_url(url)
@@ -504,8 +522,8 @@ def solve_pypi(
         allow_pypi_requests, pip_repositories=pip_repositories
     )
 
-    installed = Repository()
-    locked = Repository()
+    installed = []  # type: List[PoetryPackage]
+    locked = []  # type: List[PoetryPackage]
 
     python_packages = dict()
     locked_dep: LockedDependency
@@ -527,14 +545,16 @@ def solve_pypi(
     # treat conda packages as both locked and installed
     for name, version in python_packages.items():
         for repo in (locked, installed):
-            repo.add_package(PoetryPackage(name=name, version=version))
+            repo.append(PoetryPackage(name=name, version=version))
     # treat pip packages as locked only
     for spec in pip_locked.values():
-        locked.add_package(get_package(spec))
+        locked.append(get_package(spec))
 
     if verbose:
-        io = ConsoleIO()
-        io.set_verbosity(VERY_VERBOSE)
+        input = ArgvInput()
+        input.set_stream(sys.stdin)
+        io = IO(input, StreamOutput(sys.stdout), StreamOutput(sys.stderr))
+        io.set_verbosity(Verbosity.VERY_VERBOSE)
     else:
         io = NullIO()
     s = PoetrySolver(
@@ -546,7 +566,9 @@ def solve_pypi(
         io=io,  # pyright: ignore
     )
     to_update = list(
-        {spec.name for spec in pip_locked.values()}.intersection(use_latest)
+        {canonicalize_name(spec.name) for spec in pip_locked.values()}.intersection(
+            use_latest
+        )
     )
     env = PlatformEnv(python_version, platform, platform_virtual_packages)
     # find platform-specific solution (e.g. dependencies conditioned on markers)
@@ -554,7 +576,7 @@ def solve_pypi(
         result = s.solve(use_latest=to_update)
 
     requirements = get_requirements(
-        result,
+        result.calculate_operations(with_uninstalls=False),
         platform,
         pool,
         env,
@@ -599,15 +621,15 @@ def _prepare_repositories_pool(
             Add pypi.org to the list of repositories
     """
     factory = Factory()
-    config = factory.create_config()
+    config = Config.create()
     repos = [
-        factory.create_legacy_repository(
+        factory.create_package_source(
             {"name": pip_repository.name, "url": expandvars(pip_repository.url)},
             config,
         )
         for pip_repository in pip_repositories or []
     ] + [
-        factory.create_legacy_repository(
+        factory.create_package_source(
             {"name": source[0], "url": source[1]["url"]}, config
         )
         for source in config.get("repositories", {}).items()
