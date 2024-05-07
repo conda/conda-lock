@@ -1,41 +1,42 @@
+from __future__ import annotations
+
 import json
-import os
 
-from io import open
-from typing import List
+from pathlib import Path
+from typing import Any
 
-import jsonschema
+import fastjsonschema
+
+from fastjsonschema.exceptions import JsonSchemaException
+from conda_lock._vendor.poetry.core.json import SCHEMA_DIR as CORE_SCHEMA_DIR
 
 
-SCHEMA_DIR = os.path.join(os.path.dirname(__file__), "schemas")
+SCHEMA_DIR = Path(__file__).parent / "schemas"
 
 
 class ValidationError(ValueError):
-
     pass
 
 
-def validate_object(obj, schema_name):  # type: (dict, str) -> List[str]
-    schema = os.path.join(SCHEMA_DIR, "{}.json".format(schema_name))
+def validate_object(obj: dict[str, Any]) -> list[str]:
+    schema_file = Path(SCHEMA_DIR, "poetry.json")
+    schema = json.loads(schema_file.read_text(encoding="utf-8"))
 
-    if not os.path.exists(schema):
-        raise ValueError("Schema {} does not exist.".format(schema_name))
-
-    with open(schema, encoding="utf-8") as f:
-        schema = json.loads(f.read())
-
-    validator = jsonschema.Draft7Validator(schema)
-    validation_errors = sorted(validator.iter_errors(obj), key=lambda e: e.path)
+    validate = fastjsonschema.compile(schema)
 
     errors = []
+    try:
+        validate(obj)
+    except JsonSchemaException as e:
+        errors = [e.message]
 
-    for error in validation_errors:
-        message = error.message
-        if error.path:
-            message = "[{}] {}".format(
-                ".".join(str(x) for x in error.absolute_path), message
-            )
+    core_schema = json.loads(
+        (CORE_SCHEMA_DIR / "poetry-schema.json").read_text(encoding="utf-8")
+    )
 
-        errors.append(message)
+    properties = {*schema["properties"].keys(), *core_schema["properties"].keys()}
+    additional_properties = set(obj.keys()) - properties
+    for key in additional_properties:
+        errors.append(f"Additional properties are not allowed ('{key}' was unexpected)")
 
     return errors

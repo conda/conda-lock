@@ -1,110 +1,204 @@
-import hashlib
-import json
+from __future__ import annotations
 
+import os
+import tempfile
+
+from contextlib import redirect_stdout
+from io import StringIO
+from pathlib import Path
 from typing import TYPE_CHECKING
 
-from conda_lock._vendor.poetry.core.packages.utils.link import Link
-from conda_lock._vendor.poetry.utils._compat import Path
+from build import BuildBackendException
+from build import ProjectBuilder
+from build.env import IsolatedEnv as BaseIsolatedEnv
+from conda_lock._vendor.poetry.core.utils.helpers import temporary_directory
+from pyproject_hooks import quiet_subprocess_runner  # type: ignore[import-untyped]
 
-from .chooser import InvalidWheelName
-from .chooser import Wheel
+from conda_lock._vendor.poetry.utils._compat import decode
+from conda_lock._vendor.poetry.utils.env import ephemeral_environment
+from conda_lock._vendor.poetry.utils.helpers import extractall
 
 
 if TYPE_CHECKING:
-    from typing import List
-    from typing import Optional
+    from collections.abc import Collection
 
-    from conda_lock._vendor.poetry.config.config import Config
+    from conda_lock._vendor.poetry.repositories import RepositoryPool
+    from conda_lock._vendor.poetry.utils.cache import ArtifactCache
     from conda_lock._vendor.poetry.utils.env import Env
 
 
-class Chef:
-    def __init__(self, config, env):  # type: (Config, Env) -> None
-        self._config = config
-        self._env = env
-        self._cache_dir = (
-            Path(config.get("cache-dir")).expanduser().joinpath("artifacts")
+class ChefError(Exception): ...
+
+
+class ChefBuildError(ChefError): ...
+
+
+class ChefInstallError(ChefError):
+    def __init__(self, requirements: Collection[str], output: str, error: str) -> None:
+        message = "\n\n".join(
+            (
+                f"Failed to install {', '.join(requirements)}.",
+                f"Output:\n{output}",
+                f"Error:\n{error}",
+            )
         )
+        super().__init__(message)
+        self._requirements = requirements
 
-    def prepare(self, archive):  # type: (Path) -> Path
-        return archive
+    @property
+    def requirements(self) -> Collection[str]:
+        return self._requirements
 
-    def prepare_sdist(self, archive):  # type: (Path) -> Path
-        return archive
 
-    def prepare_wheel(self, archive):  # type: (Path) -> Path
-        return archive
+class IsolatedEnv(BaseIsolatedEnv):
+    def __init__(self, env: Env, pool: RepositoryPool) -> None:
+        self._env = env
+        self._pool = pool
 
-    def should_prepare(self, archive):  # type: (Path) -> bool
-        return not self.is_wheel(archive)
+    @property
+    def python_executable(self) -> str:
+        return str(self._env.python)
 
-    def is_wheel(self, archive):  # type: (Path) -> bool
-        return archive.suffix == ".whl"
+    def make_extra_environ(self) -> dict[str, str]:
+        path = os.environ.get("PATH")
+        scripts_dir = str(self._env._bin_dir)
+        return {
+            "PATH": (
+                os.pathsep.join([scripts_dir, path])
+                if path is not None
+                else scripts_dir
+            )
+        }
 
-    def get_cached_archive_for_link(self, link):  # type: (Link) -> Optional[Link]
-        # If the archive is already a wheel, there is no need to cache it.
-        if link.is_wheel:
-            pass
+    def install(self, requirements: Collection[str]) -> None:
+        from conda_lock._vendor.cleo.io.buffered_io import BufferedIO
+        from conda_lock._vendor.poetry.core.packages.dependency import Dependency
+        from conda_lock._vendor.poetry.core.packages.project_package import ProjectPackage
 
-        archives = self.get_cached_archives_for_link(link)
+        from conda_lock._vendor.poetry.config.config import Config
+        from conda_lock._vendor.poetry.installation.installer import Installer
+        from conda_lock._vendor.poetry.packages.locker import Locker
+        from conda_lock._vendor.poetry.repositories.installed_repository import InstalledRepository
 
-        if not archives:
-            return link
+        # We build Poetry dependencies from the requirements
+        package = ProjectPackage("__root__", "0.0.0")
+        package.python_versions = ".".join(str(v) for v in self._env.version_info[:3])
+        for requirement in requirements:
+            dependency = Dependency.create_from_pep_508(requirement)
+            package.add_dependency(dependency)
 
-        candidates = []
-        for archive in archives:
-            if not archive.is_wheel:
-                candidates.append((float("inf"), archive))
-                continue
+        io = BufferedIO()
+        installer = Installer(
+            io,
+            self._env,
+            package,
+            Locker(self._env.path.joinpath("poetry.lock"), {}),
+            self._pool,
+            Config.create(),
+            InstalledRepository.load(self._env),
+        )
+        installer.update(True)
+        if installer.run() != 0:
+            raise ChefInstallError(requirements, io.fetch_output(), io.fetch_error())
 
+
+class Chef:
+    def __init__(
+        self, artifact_cache: ArtifactCache, env: Env, pool: RepositoryPool
+    ) -> None:
+        self._env = env
+        self._pool = pool
+        self._artifact_cache = artifact_cache
+
+    def prepare(
+        self, archive: Path, output_dir: Path | None = None, *, editable: bool = False
+    ) -> Path:
+        if not self._should_prepare(archive):
+            return archive
+
+        if archive.is_dir():
+            destination = output_dir or Path(tempfile.mkdtemp(prefix="poetry-chef-"))
+            return self._prepare(archive, destination=destination, editable=editable)
+
+        return self._prepare_sdist(archive, destination=output_dir)
+
+    def _prepare(
+        self, directory: Path, destination: Path, *, editable: bool = False
+    ) -> Path:
+        from subprocess import CalledProcessError
+
+        with ephemeral_environment(self._env.python) as venv:
+            env = IsolatedEnv(venv, self._pool)
+            builder = ProjectBuilder.from_isolated_env(
+                env, directory, runner=quiet_subprocess_runner
+            )
+            env.install(builder.build_system_requires)
+
+            stdout = StringIO()
+            error: Exception | None = None
             try:
-                wheel = Wheel(archive.filename)
-            except InvalidWheelName:
-                continue
+                with redirect_stdout(stdout):
+                    dist_format = "wheel" if not editable else "editable"
+                    env.install(
+                        builder.build_system_requires
+                        | builder.get_requires_for_build(dist_format)
+                    )
+                    path = Path(
+                        builder.build(
+                            dist_format,
+                            destination.as_posix(),
+                        )
+                    )
+            except BuildBackendException as e:
+                message_parts = [str(e)]
+                if isinstance(e.exception, CalledProcessError):
+                    text = e.exception.stderr or e.exception.stdout
+                    if text is not None:
+                        message_parts.append(decode(text))
+                else:
+                    message_parts.append(str(e.exception))
 
-            if not wheel.is_supported_by_environment(self._env):
-                continue
+                error = ChefBuildError("\n\n".join(message_parts))
 
-            candidates.append(
-                (wheel.get_minimum_supported_index(self._env.supported_tags), archive),
+            if error is not None:
+                raise error from None
+
+            return path
+
+    def _prepare_sdist(self, archive: Path, destination: Path | None = None) -> Path:
+        from conda_lock._vendor.poetry.core.packages.utils.link import Link
+
+        suffix = archive.suffix
+        zip = suffix == ".zip"
+
+        with temporary_directory() as tmp_dir:
+            archive_dir = Path(tmp_dir)
+            extractall(source=archive, dest=archive_dir, zip=zip)
+
+            elements = list(archive_dir.glob("*"))
+
+            if len(elements) == 1 and elements[0].is_dir():
+                sdist_dir = elements[0]
+            else:
+                sdist_dir = archive_dir / archive.name.rstrip(suffix)
+                if not sdist_dir.is_dir():
+                    sdist_dir = archive_dir
+
+            if destination is None:
+                destination = self._artifact_cache.get_cache_directory_for_link(
+                    Link(archive.as_uri())
+                )
+
+            destination.mkdir(parents=True, exist_ok=True)
+
+            return self._prepare(
+                sdist_dir,
+                destination,
             )
 
-        if not candidates:
-            return link
+    def _should_prepare(self, archive: Path) -> bool:
+        return archive.is_dir() or not self._is_wheel(archive)
 
-        return min(candidates)[1]
-
-    def get_cached_archives_for_link(self, link):  # type: (Link) -> List[Link]
-        cache_dir = self.get_cache_directory_for_link(link)
-
-        archive_types = ["whl", "tar.gz", "tar.bz2", "bz2", "zip"]
-        links = []
-        for archive_type in archive_types:
-            for archive in cache_dir.glob("*.{}".format(archive_type)):
-                links.append(Link(archive.as_uri()))
-
-        return links
-
-    def get_cache_directory_for_link(self, link):  # type: (Link) -> Path
-        key_parts = {"url": link.url_without_fragment}
-
-        if link.hash_name is not None and link.hash is not None:
-            key_parts[link.hash_name] = link.hash
-
-        if link.subdirectory_fragment:
-            key_parts["subdirectory"] = link.subdirectory_fragment
-
-        key_parts["interpreter_name"] = self._env.marker_env["interpreter_name"]
-        key_parts["interpreter_version"] = "".join(
-            self._env.marker_env["interpreter_version"].split(".")[:2]
-        )
-
-        key = hashlib.sha256(
-            json.dumps(
-                key_parts, sort_keys=True, separators=(",", ":"), ensure_ascii=True
-            ).encode("ascii")
-        ).hexdigest()
-
-        split_key = [key[:2], key[2:4], key[4:6], key[6:]]
-
-        return self._cache_dir.joinpath(*split_key)
+    @classmethod
+    def _is_wheel(cls, archive: Path) -> bool:
+        return archive.suffix == ".whl"
