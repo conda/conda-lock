@@ -7,12 +7,10 @@ from posixpath import expandvars
 from typing import (
     TYPE_CHECKING,
     Dict,
-    FrozenSet,
     List,
     Literal,
     Optional,
     Tuple,
-    Union,
     cast,
 )
 from urllib.parse import urldefrag, urlsplit, urlunsplit
@@ -41,7 +39,6 @@ from conda_lock.interfaces.vendored_poetry import (
     PoetryVCSDependency,
     Pool,
     PyPiRepository,
-    VersionConstraint,
 )
 from conda_lock.lockfile import apply_categories
 from conda_lock.lockfile.v2prelim.models import (
@@ -294,49 +291,12 @@ def parse_pip_requirement(requirement: str) -> Optional[Dict[str, str]]:
     return match.groupdict()
 
 
-class PoetryDependencyWithHash(PoetryDependency):
-    def __init__(
-        self,
-        name,  # type: str
-        constraint,  # type: Union[str, VersionConstraint]
-        optional=False,  # type: bool
-        allows_prereleases=False,  # type: bool
-        extras=None,  # type: Optional[Union[List[str], FrozenSet[str]]]
-        source_type=None,  # type: Optional[str]
-        source_url=None,  # type: Optional[str]
-        source_reference=None,  # type: Optional[str]
-        source_resolved_reference=None,  # type: Optional[str]
-        hash: Optional[str] = None,
-    ) -> None:
-        super().__init__(
-            name,
-            constraint,
-            optional=optional,
-            allows_prereleases=allows_prereleases,
-            extras=extras,
-            source_type=source_type,
-            source_url=source_url,
-            source_reference=source_reference,
-            source_resolved_reference=source_resolved_reference,
-        )
-        self.hash = hash
-
-    def get_hash_model(self) -> Optional[HashModel]:
-        if self.hash:
-            algo, value = self.hash.split(":")
-            return HashModel(**{algo: value})
-        return None
-
-
 def get_dependency(dep: lock_spec.Dependency) -> PoetryDependency:
     # FIXME: how do deal with extras?
     extras: List[str] = []
     if isinstance(dep, lock_spec.VersionedDependency):
-        return PoetryDependencyWithHash(
-            name=dep.name,
-            constraint=dep.version or "*",
-            extras=dep.extras,
-            hash=dep.hash,
+        return PoetryDependency(
+            name=dep.name, constraint=dep.version or "*", extras=dep.extras
         )
     elif isinstance(dep, lock_spec.URLDependency):
         return PoetryURLDependency(
@@ -374,6 +334,7 @@ def get_requirements(
     env: Env,
     pip_repositories: Optional[List[PipRepository]] = None,
     strip_auth: bool = False,
+    lock_spec_hashes: Optional[Dict[str, str]] = None,
 ) -> List[LockedDependency]:
     """Extract distributions from Poetry package plan, ignoring uninstalls
     (usually: conda package with no pypi equivalent) and skipped ops
@@ -381,6 +342,8 @@ def get_requirements(
     """
     chooser = Chooser(pool, env=env)
     requirements: List[LockedDependency] = []
+    if lock_spec_hashes is None:
+        lock_spec_hashes = {}
 
     repositories_by_name = {
         repository.name: repository for repository in pip_repositories or []
@@ -419,8 +382,7 @@ def get_requirements(
             else:
                 link = chooser.choose_for(op.package)
                 url = _get_url(link)
-                hash_chooser = _HashChooser(link, op.package.to_dependency())
-                hash = hash_chooser.get_hash()
+                hash = _compute_hash(link, lock_spec_hashes.get(op.package.name))
             if source_repository:
                 url = source_repository.normalize_solver_url(url)
 
@@ -447,26 +409,16 @@ def _get_url(link: Link) -> str:
     return link.url_without_fragment
 
 
-class _HashChooser:
-    def __init__(
-        self, link: Link, dependency: Union[PoetryDependency, PoetryDependencyWithHash]
-    ):
-        self.link = link
-        self.dependency = dependency
-
-    def get_hash(self) -> HashModel:
-        return self._get_hash_from_dependency() or self._get_hash_from_link()
-
-    def _get_hash_from_dependency(self) -> Optional[HashModel]:
-        if isinstance(self.dependency, PoetryDependencyWithHash):
-            return self.dependency.get_hash_model()
-        return None
-
-    def _get_hash_from_link(self) -> HashModel:
+def _compute_hash(link: Link, lock_spec_hash: Optional[str]) -> HashModel:
+    if lock_spec_hash is None:
         hashes: Dict[str, str] = {}
-        if self.link.hash_name is not None and self.link.hash is not None:
-            hashes[self.link.hash_name] = self.link.hash
+        if link.hash_name is not None and link.hash is not None:
+            hashes[link.hash_name] = link.hash
         return HashModel.parse_obj(hashes)
+    else:
+        # A hash was provided in the lock spec, so that takes precedence
+        algo, value = lock_spec_hash.split(":")
+        return HashModel(**{algo: value})
 
 
 def solve_pypi(
@@ -517,6 +469,12 @@ def solve_pypi(
     ]
     for dep in dependencies:
         dummy_package.add_dependency(dep)
+    lock_spec_hashes = {
+        # It's uncommon for hashes to be provided in a lock spec
+        spec.name: spec.hash
+        for spec in pip_specs.values()
+        if isinstance(spec, lock_spec.VersionedDependency) and spec.hash
+    }
 
     pool = _prepare_repositories_pool(
         allow_pypi_requests, pip_repositories=pip_repositories
@@ -582,6 +540,7 @@ def solve_pypi(
         env,
         pip_repositories=pip_repositories,
         strip_auth=strip_auth,
+        lock_spec_hashes=lock_spec_hashes,
     )
 
     # use PyPI names of conda packages to walking the dependency tree and propagate
