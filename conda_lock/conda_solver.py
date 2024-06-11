@@ -230,12 +230,12 @@ def _get_repodata_record(
                 with open(record) as f:
                     repodata: FetchAction = json.load(f)
                 return repodata
-        logger.warn(
+        logger.warning(
             f"Failed to find repodata_record.json for {dist_name}. "
             f"Retrying in 0.1 seconds ({retry}/{NUM_RETRIES})"
         )
         time.sleep(0.1)
-    logger.warn(f"Failed to find repodata_record.json for {dist_name}. Giving up.")
+    logger.warning(f"Failed to find repodata_record.json for {dist_name}. Giving up.")
     return None
 
 
