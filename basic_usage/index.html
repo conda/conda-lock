@@ -751,9 +751,7 @@ compatible with the source specification. This command overrides the lockfile.</
 <p>and regenerate the lockfile</p>
 <div class="highlight"><pre><span></span><code>conda-lock<span class="w"> </span>-f<span class="w"> </span>environment.yml<span class="w"> </span>-p<span class="w"> </span>osx-64<span class="w"> </span>-p<span class="w"> </span>linux-64
 </code></pre></div>
-<p>If there is an existing lockfile, it is used as constraint. That means
-conda-lock will search for the latest version of pandas that is compatible
-with the previous solution. This command overrides the lockfile.</p>
+<p>Note that this updates existing packages.</p>
 
 
 
