@@ -61,6 +61,4 @@ and regenerate the lockfile
 conda-lock -f environment.yml -p osx-64 -p linux-64
 ```
 
-If there is an existing lockfile, it is used as constraint. That means
-conda-lock will search for the latest version of pandas that is compatible
-with the previous solution. This command overrides the lockfile.
+Note that this updates existing packages.
