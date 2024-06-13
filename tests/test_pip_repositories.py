@@ -92,6 +92,7 @@ def mock_private_pypi(private_package_tar: Path, request: pytest.FixtureRequest)
         def _parse_auth(request: requests.Request) -> Tuple[str, str]:
             url = urlparse(request.url)
             if url.username:
+                assert url.password is not None
                 return url.username, url.password
             header = request.headers.get("Authorization")
             if not header or not header.startswith("Basic"):
