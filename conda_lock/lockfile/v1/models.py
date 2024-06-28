@@ -68,7 +68,7 @@ class BaseLockedDependency(StrictModel):
         return v
 
     def alphasort_inplace(self) -> None:
-        self.dependencies = {k: v for k, v in sorted(self.dependencies)}
+        self.dependencies = {k: self.dependencies[k] for k in sorted(self.dependencies)}
 
 
 class LockedDependency(BaseLockedDependency):
