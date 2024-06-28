@@ -67,6 +67,9 @@ class BaseLockedDependency(StrictModel):
             raise ValueError("conda package hashes must use MD5")
         return v
 
+    def alphasort_inplace(self) -> None:
+        self.dependencies = {k: v for k, v in sorted(self.dependencies)}
+
 
 class LockedDependency(BaseLockedDependency):
     optional: bool

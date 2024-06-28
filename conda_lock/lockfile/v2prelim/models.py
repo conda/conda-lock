@@ -72,6 +72,8 @@ class Lockfile(StrictModel):
 
     def alphasort_inplace(self) -> None:
         self.package.sort(key=lambda d: d.key())
+        for p in self.package:
+            p.alphasort_inplace()
 
     def filter_virtual_packages_inplace(self) -> None:
         self.package = [
