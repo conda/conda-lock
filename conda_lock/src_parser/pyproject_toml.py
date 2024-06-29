@@ -283,7 +283,9 @@ def parse_poetry_pyproject_toml(
 
             if "git" in depattrs and url is not None:
                 url, at_rev = unpack_git_url(url)
-                rev = depattrs.get("branch") or depattrs.get("tag") or depattrs.get("rev")
+                rev = (
+                    depattrs.get("branch") or depattrs.get("tag") or depattrs.get("rev")
+                )
                 if rev is None:
                     rev = at_rev
                 elif at_rev is not None and at_rev != rev:
