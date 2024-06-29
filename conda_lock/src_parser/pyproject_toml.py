@@ -282,7 +282,14 @@ def parse_poetry_pyproject_toml(
                 version = poetry_version_spec
 
             if "git" in depattrs and url is not None:
-                url, rev = unpack_git_url(url)
+                url, at_rev = unpack_git_url(url)
+                rev = depattrs.get("branch") or depattrs.get("tag") or depattrs.get("rev")
+                if rev is None:
+                    rev = at_rev
+                elif at_rev is not None and at_rev != rev:
+                    raise ValueError(
+                        f"git dependency {depname} has conflicting rev ({rev}) and url@rev {at_rev} specified"
+                    )
                 dependencies.append(
                     VCSDependency(
                         name=name,
