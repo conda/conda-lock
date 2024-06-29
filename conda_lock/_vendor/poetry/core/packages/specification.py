@@ -64,6 +64,16 @@ class PackageSpecification(object):
     def features(self):  # type: () -> FrozenSet[str]
         return self._features
 
+    def has_same_url_as(self, other):  # type: ("PackageSpecification") -> bool
+        if self._source_url == other.source_url:
+            return True
+
+        return (
+                self._source_type == other.source_type and
+                self._source_type == "git" and
+                self._source_url.removesuffix(".git") == other.source_url.removesuffix(".git")
+        )
+
     def is_same_package_as(self, other):  # type: ("PackageSpecification") -> bool
         if other.complete_name != self.complete_name:
             return False
@@ -73,7 +83,7 @@ class PackageSpecification(object):
                 return False
 
             if self._source_url or other.source_url:
-                if self._source_url != other.source_url:
+                if not self.has_same_url_as(other):
                     return False
 
             if self._source_reference or other.source_reference:
