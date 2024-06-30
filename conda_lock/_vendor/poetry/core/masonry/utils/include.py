@@ -1,10 +1,13 @@
-from typing import List
-from typing import Optional
+from __future__ import annotations
 
-from conda_lock._vendor.poetry.core.utils._compat import Path
+from typing import TYPE_CHECKING
 
 
-class Include(object):
+if TYPE_CHECKING:
+    from pathlib import Path
+
+
+class Include:
     """
     Represents an "include" entry.
 
@@ -19,32 +22,30 @@ class Include(object):
     """
 
     def __init__(
-        self, base, include, formats=None
-    ):  # type: (Path, str, Optional[List[str]]) -> None
+        self, base: Path, include: str, formats: list[str] | None = None
+    ) -> None:
         self._base = base
         self._include = str(include)
         self._formats = formats
 
-        self._elements = sorted(
-            list(self._base.glob(str(self._include)))
-        )  # type: List[Path]
+        self._elements: list[Path] = sorted(self._base.glob(str(self._include)))
 
     @property
-    def base(self):  # type: () -> Path
+    def base(self) -> Path:
         return self._base
 
     @property
-    def elements(self):  # type: () -> List[Path]
+    def elements(self) -> list[Path]:
         return self._elements
 
     @property
-    def formats(self):  # type: () -> Optional[List[str]]
+    def formats(self) -> list[str] | None:
         return self._formats
 
-    def is_empty(self):  # type: () -> bool
+    def is_empty(self) -> bool:
         return len(self._elements) == 0
 
-    def refresh(self):  # type: () -> Include
-        self._elements = sorted(list(self._base.glob(self._include)))
+    def refresh(self) -> Include:
+        self._elements = sorted(self._base.glob(self._include))
 
         return self

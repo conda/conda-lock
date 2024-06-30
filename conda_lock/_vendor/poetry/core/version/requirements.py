@@ -1,26 +1,12 @@
-# This file is dual licensed under the terms of the Apache License, Version
-# 2.0, and the BSD License. See the LICENSE file in the root of this repository
-# for complete details.
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
+from __future__ import annotations
 
-import os
+import urllib.parse as urlparse
 
-from lark import Lark
-from lark import UnexpectedCharacters
-from lark import UnexpectedToken
-
-from conda_lock._vendor.poetry.core.semver import parse_constraint
-from conda_lock._vendor.poetry.core.semver.exceptions import ParseConstraintError
-
-from .markers import _compact_markers
-
-
-try:
-    import urllib.parse as urlparse
-except ImportError:
-    import urlparse
+from conda_lock._vendor.poetry.core.constraints.version import parse_constraint
+from conda_lock._vendor.poetry.core.constraints.version.exceptions import ParseConstraintError
+from conda_lock._vendor.poetry.core.version.grammars import GRAMMAR_PEP_508_CONSTRAINTS
+from conda_lock._vendor.poetry.core.version.markers import _compact_markers
+from conda_lock._vendor.poetry.core.version.parser import Parser
 
 
 class InvalidRequirement(ValueError):
@@ -29,12 +15,11 @@ class InvalidRequirement(ValueError):
     """
 
 
-_parser = Lark.open(
-    os.path.join(os.path.dirname(__file__), "grammars", "pep508.lark"), parser="lalr"
-)
+# Parser: PEP 508 Constraints
+_parser = Parser(GRAMMAR_PEP_508_CONSTRAINTS, "lalr")
 
 
-class Requirement(object):
+class Requirement:
     """
     Parse a requirement.
 
@@ -43,17 +28,19 @@ class Requirement(object):
     string.
     """
 
-    def __init__(self, requirement_string):  # type: (str) -> None
+    def __init__(self, requirement_string: str) -> None:
+        from lark import UnexpectedCharacters
+        from lark import UnexpectedToken
+
         try:
             parsed = _parser.parse(requirement_string)
         except (UnexpectedCharacters, UnexpectedToken) as e:
             raise InvalidRequirement(
-                "The requirement is invalid: Unexpected character at column {}\n\n{}".format(
-                    e.column, e.get_context(requirement_string)
-                )
+                "The requirement is invalid: Unexpected character at column"
+                f" {e.column}\n\n{e.get_context(requirement_string)}"
             )
 
-        self.name = next(parsed.scan_values(lambda t: t.type == "NAME")).value
+        self.name: str = next(parsed.scan_values(lambda t: t.type == "NAME")).value
         url = next(parsed.scan_values(lambda t: t.type == "URI"), None)
 
         if url:
@@ -62,14 +49,13 @@ class Requirement(object):
             if parsed_url.scheme == "file":
                 if urlparse.urlunparse(parsed_url) != url:
                     raise InvalidRequirement(
-                        'The requirement is invalid: invalid URL "{0}"'.format(url)
+                        f'The requirement is invalid: invalid URL "{url}"'
                     )
             elif (
                 not (parsed_url.scheme and parsed_url.netloc)
-                or (not parsed_url.scheme and not parsed_url.netloc)
             ) and not parsed_url.path:
                 raise InvalidRequirement(
-                    'The requirement is invalid: invalid URL "{0}"'.format(url)
+                    f'The requirement is invalid: invalid URL "{url}"'
                 )
             self.url = url
         else:
@@ -77,18 +63,13 @@ class Requirement(object):
 
         self.extras = [e.value for e in parsed.scan_values(lambda t: t.type == "EXTRA")]
         constraint = next(parsed.find_data("version_specification"), None)
-        if not constraint:
-            constraint = "*"
-        else:
-            constraint = ",".join(constraint.children)
+        constraint = ",".join(constraint.children) if constraint else "*"
 
         try:
             self.constraint = parse_constraint(constraint)
         except ParseConstraintError:
             raise InvalidRequirement(
-                'The requirement is invalid: invalid version constraint "{}"'.format(
-                    constraint
-                )
+                f'The requirement is invalid: invalid version constraint "{constraint}"'
             )
 
         self.pretty_constraint = constraint
@@ -101,22 +82,23 @@ class Requirement(object):
 
         self.marker = marker
 
-    def __str__(self):  # type: () -> str
+    def __str__(self) -> str:
         parts = [self.name]
 
         if self.extras:
-            parts.append("[{0}]".format(",".join(sorted(self.extras))))
+            extras = ",".join(sorted(self.extras))
+            parts.append(f"[{extras}]")
 
         if self.pretty_constraint:
             parts.append(self.pretty_constraint)
 
         if self.url:
-            parts.append("@ {0}".format(self.url))
+            parts.append(f"@ {self.url}")
 
         if self.marker:
-            parts.append("; {0}".format(self.marker))
+            parts.append(f"; {self.marker}")
 
         return "".join(parts)
 
-    def __repr__(self):  # type: () -> str
-        return "<Requirement({0!r})>".format(str(self))
+    def __repr__(self) -> str:
+        return f"<Requirement({str(self)!r})>"

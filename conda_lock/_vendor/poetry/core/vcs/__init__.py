@@ -1,26 +1,39 @@
+from __future__ import annotations
+
 import os
 import subprocess
 
-from conda_lock._vendor.poetry.core.utils._compat import Path
-from conda_lock._vendor.poetry.core.utils._compat import decode
+from pathlib import Path
 
-from .git import Git
+from conda_lock._vendor.poetry.core.vcs.git import Git
 
 
-def get_vcs(directory):  # type: (Path) -> Git
+def get_vcs(directory: Path) -> Git | None:
     working_dir = Path.cwd()
     os.chdir(str(directory.resolve()))
 
+    vcs: Git | None
+
     try:
-        from .git import executable
+        from conda_lock._vendor.poetry.core.vcs.git import executable
 
-        git_dir = decode(
-            subprocess.check_output(
-                [executable(), "rev-parse", "--show-toplevel"], stderr=subprocess.STDOUT
-            )
-        ).strip()
+        check_ignore = subprocess.run(
+            [executable(), "check-ignore", "."],
+            stderr=subprocess.DEVNULL,
+            stdout=subprocess.DEVNULL,
+        ).returncode
 
-        vcs = Git(Path(git_dir))
+        if check_ignore == 0:
+            vcs = None
+        else:
+            git_dir = subprocess.check_output(
+                [executable(), "rev-parse", "--show-toplevel"],
+                stderr=subprocess.STDOUT,
+                text=True,
+                encoding="utf-8",
+            ).strip()
+
+            vcs = Git(Path(git_dir))
 
     except (subprocess.CalledProcessError, OSError, RuntimeError):
         vcs = None

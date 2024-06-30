@@ -1,13 +1,13 @@
+from __future__ import annotations
+
 import sys
 
+from pathlib import Path
 
-try:
-    from pathlib import Path
-except ImportError:
-    # noinspection PyUnresolvedReferences
-    from pathlib2 import Path
 
-__version__ = "1.0.8"
+# this cannot presently be replaced with importlib.metadata.version as when building
+# itself, poetry-core is not available as an installed distribution.
+__version__ = "1.9.0"
 
 __vendor_site__ = (Path(__file__).parent / "_vendor").as_posix()
 

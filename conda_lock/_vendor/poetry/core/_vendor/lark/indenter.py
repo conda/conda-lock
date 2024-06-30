@@ -1,15 +1,27 @@
-"Provides Indentation services for languages with indentation similar to Python"
+"Provides a post-lexer for implementing Python-style indentation."
 
+from abc import ABC, abstractmethod
+from typing import List, Iterator
+
+from .exceptions import LarkError
+from .lark import PostLex
 from .lexer import Token
 
 ###{standalone
-class Indenter:
-    def __init__(self):
-        self.paren_level = None
-        self.indent_level = None
+
+class DedentError(LarkError):
+    pass
+
+class Indenter(PostLex, ABC):
+    paren_level: int
+    indent_level: List[int]
+
+    def __init__(self) -> None:
+        self.paren_level = 0
+        self.indent_level = [0]
         assert self.tab_len > 0
 
-    def handle_NL(self, token):
+    def handle_NL(self, token: Token) -> Iterator[Token]:
         if self.paren_level > 0:
             return
 
@@ -26,13 +38,13 @@ class Indenter:
                 self.indent_level.pop()
                 yield Token.new_borrow_pos(self.DEDENT_type, indent_str, token)
 
-            assert indent == self.indent_level[-1], '%s != %s' % (indent, self.indent_level[-1])
+            if indent != self.indent_level[-1]:
+                raise DedentError('Unexpected dedent to column %s. Expected dedent to %s' % (indent, self.indent_level[-1]))
 
     def _process(self, stream):
         for token in stream:
             if token.type == self.NL_type:
-                for t in self.handle_NL(token):
-                    yield t
+                yield from self.handle_NL(token)
             else:
                 yield token
 
@@ -57,5 +69,44 @@ class Indenter:
     @property
     def always_accept(self):
         return (self.NL_type,)
+
+    @property
+    @abstractmethod
+    def NL_type(self) -> str:
+        raise NotImplementedError()
+
+    @property
+    @abstractmethod
+    def OPEN_PAREN_types(self) -> List[str]:
+        raise NotImplementedError()
+
+    @property
+    @abstractmethod
+    def CLOSE_PAREN_types(self) -> List[str]:
+        raise NotImplementedError()
+
+    @property
+    @abstractmethod
+    def INDENT_type(self) -> str:
+        raise NotImplementedError()
+
+    @property
+    @abstractmethod
+    def DEDENT_type(self) -> str:
+        raise NotImplementedError()
+
+    @property
+    @abstractmethod
+    def tab_len(self) -> int:
+        raise NotImplementedError()
+
+
+class PythonIndenter(Indenter):
+    NL_type = '_NEWLINE'
+    OPEN_PAREN_types = ['LPAR', 'LSQB', 'LBRACE']
+    CLOSE_PAREN_types = ['RPAR', 'RSQB', 'RBRACE']
+    INDENT_type = '_INDENT'
+    DEDENT_type = '_DEDENT'
+    tab_len = 8
 
 ###}

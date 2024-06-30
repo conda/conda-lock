@@ -1,115 +1,108 @@
-# -*- coding: utf-8 -*-
+from __future__ import annotations
+
 import re
 import subprocess
 
 from collections import namedtuple
+from pathlib import Path
 from typing import Any
-from typing import Optional
 
-from conda_lock._vendor.poetry.core.utils._compat import PY36
 from conda_lock._vendor.poetry.core.utils._compat import WINDOWS
-from conda_lock._vendor.poetry.core.utils._compat import Path
-from conda_lock._vendor.poetry.core.utils._compat import decode
 
 
-pattern_formats = {
-    "protocol": r"\w+",
-    "user": r"[a-zA-Z0-9_.-]+",
-    "resource": r"[a-zA-Z0-9_.-]+",
-    "port": r"\d+",
-    "path": r"[\w~.\-/\\]+",
-    "name": r"[\w~.\-]+",
-    "rev": r"[^@#]+",
-}
+PROTOCOL = r"\w+"
+USER = r"[a-zA-Z0-9_.-]+"
+RESOURCE = r"[a-zA-Z0-9_.-]+"
+PORT = r"\d+"
+PATH = r"[%\w~.\-/\\\$]+"
+NAME = r"[%\w~.\-]+"
+REV = r"[^@#]+?"
+SUBDIR = r"[\w\-/\\]+"
 
 PATTERNS = [
     re.compile(
         r"^(git\+)?"
         r"(?P<protocol>https?|git|ssh|rsync|file)://"
-        r"(?:(?P<user>{user})@)?"
-        r"(?P<resource>{resource})?"
-        r"(:(?P<port>{port}))?"
-        r"(?P<pathname>[:/\\]({path}[/\\])?"
-        r"((?P<name>{name}?)(\.git|[/\\])?)?)"
-        r"([@#](?P<rev>{rev}))?"
-        r"$".format(
-            user=pattern_formats["user"],
-            resource=pattern_formats["resource"],
-            port=pattern_formats["port"],
-            path=pattern_formats["path"],
-            name=pattern_formats["name"],
-            rev=pattern_formats["rev"],
-        )
+        rf"(?:(?P<user>{USER})@)?"
+        rf"(?P<resource>{RESOURCE})?"
+        rf"(:(?P<port>{PORT}))?"
+        rf"(?P<pathname>[:/\\]({PATH}[/\\])?"
+        rf"((?P<name>{NAME}?)(\.git|[/\\])?)?)"
+        r"(?:"
+        rf"#(?:egg=.+?&subdirectory=|subdirectory=)(?P<subdirectory>{SUBDIR})"
+        r"|"
+        r"#egg=?.+"
+        r"|"
+        rf"[@#](?P<rev>{REV})(?:[&#](?:(?:egg=.+?&subdirectory=|subdirectory=)(?P<rev_subdirectory>{SUBDIR})|egg=.+?))?"
+        r")?"
+        r"$"
     ),
     re.compile(
         r"(git\+)?"
-        r"((?P<protocol>{protocol})://)"
-        r"(?:(?P<user>{user})@)?"
-        r"(?P<resource>{resource}:?)"
-        r"(:(?P<port>{port}))?"
-        r"(?P<pathname>({path})"
-        r"(?P<name>{name})(\.git|/)?)"
-        r"([@#](?P<rev>{rev}))?"
-        r"$".format(
-            protocol=pattern_formats["protocol"],
-            user=pattern_formats["user"],
-            resource=pattern_formats["resource"],
-            port=pattern_formats["port"],
-            path=pattern_formats["path"],
-            name=pattern_formats["name"],
-            rev=pattern_formats["rev"],
-        )
+        rf"((?P<protocol>{PROTOCOL})://)"
+        rf"(?:(?P<user>{USER})@)?"
+        rf"(?P<resource>{RESOURCE}:?)"
+        rf"(:(?P<port>{PORT}))?"
+        rf"(?P<pathname>({PATH})"
+        rf"(?P<name>{NAME})(\.git|/)?)"
+        r"(?:"
+        rf"#(?:egg=.+?&subdirectory=|subdirectory=)(?P<subdirectory>{SUBDIR})"
+        r"|"
+        r"#egg=?.+"
+        r"|"
+        rf"[@#](?P<rev>{REV})(?:[&#](?:(?:egg=.+?&subdirectory=|subdirectory=)(?P<rev_subdirectory>{SUBDIR})|egg=.+?))?"
+        r")?"
+        r"$"
     ),
     re.compile(
-        r"^(?:(?P<user>{user})@)?"
-        r"(?P<resource>{resource})"
-        r"(:(?P<port>{port}))?"
-        r"(?P<pathname>([:/]{path}/)"
-        r"(?P<name>{name})(\.git|/)?)"
-        r"([@#](?P<rev>{rev}))?"
-        r"$".format(
-            user=pattern_formats["user"],
-            resource=pattern_formats["resource"],
-            port=pattern_formats["port"],
-            path=pattern_formats["path"],
-            name=pattern_formats["name"],
-            rev=pattern_formats["rev"],
-        )
+        rf"^(?:(?P<user>{USER})@)?"
+        rf"(?P<resource>{RESOURCE})"
+        rf"(:(?P<port>{PORT}))?"
+        rf"(?P<pathname>([:/]{PATH}/)"
+        rf"(?P<name>{NAME})(\.git|/)?)"
+        r"(?:"
+        rf"#(?:egg=.+?&subdirectory=|subdirectory=)(?P<subdirectory>{SUBDIR})"
+        r"|"
+        r"#egg=?.+"
+        r"|"
+        rf"[@#](?P<rev>{REV})(?:[&#](?:(?:egg=.+?&subdirectory=|subdirectory=)(?P<rev_subdirectory>{SUBDIR})|egg=.+?))?"
+        r")?"
+        r"$"
     ),
     re.compile(
-        r"((?P<user>{user})@)?"
-        r"(?P<resource>{resource})"
+        rf"((?P<user>{USER})@)?"
+        rf"(?P<resource>{RESOURCE})"
         r"[:/]{{1,2}}"
-        r"(?P<pathname>({path})"
-        r"(?P<name>{name})(\.git|/)?)"
-        r"([@#](?P<rev>{rev}))?"
-        r"$".format(
-            user=pattern_formats["user"],
-            resource=pattern_formats["resource"],
-            path=pattern_formats["path"],
-            name=pattern_formats["name"],
-            rev=pattern_formats["rev"],
-        )
+        rf"(?P<pathname>({PATH})"
+        rf"(?P<name>{NAME})(\.git|/)?)"
+        r"(?:"
+        rf"#(?:egg=.+?&subdirectory=|subdirectory=)(?P<subdirectory>{SUBDIR})"
+        r"|"
+        r"#egg=?.+"
+        r"|"
+        rf"[@#](?P<rev>{REV})(?:[&#](?:(?:egg=.+?&subdirectory=|subdirectory=)(?P<rev_subdirectory>{SUBDIR})|egg=.+?))?"
+        r")?"
+        r"$"
     ),
 ]
 
 
 class GitError(RuntimeError):
-
     pass
 
 
 class ParsedUrl:
     def __init__(
         self,
-        protocol,  # type: Optional[str]
-        resource,  # type: Optional[str]
-        pathname,  # type: Optional[str]
-        user,  # type: Optional[str]
-        port,  # type: Optional[str]
-        name,  # type: Optional[str]
-        rev,  # type: Optional[str]
-    ):
+        protocol: str | None,
+        resource: str | None,
+        pathname: str | None,
+        user: str | None,
+        port: str | None,
+        name: str | None,
+        rev: str | None,
+        subdirectory: str | None = None,
+    ) -> None:
         self.protocol = protocol
         self.resource = resource
         self.pathname = pathname
@@ -117,9 +110,10 @@ class ParsedUrl:
         self.port = port
         self.name = name
         self.rev = rev
+        self.subdirectory = subdirectory
 
     @classmethod
-    def parse(cls, url):  # type: (str) -> ParsedUrl
+    def parse(cls, url: str) -> ParsedUrl:
         for pattern in PATTERNS:
             m = pattern.match(url)
             if m:
@@ -132,54 +126,53 @@ class ParsedUrl:
                     groups.get("port"),
                     groups.get("name"),
                     groups.get("rev"),
+                    groups.get("rev_subdirectory") or groups.get("subdirectory"),
                 )
 
-        raise ValueError('Invalid git url "{}"'.format(url))
+        raise ValueError(f'Invalid git url "{url}"')
 
     @property
-    def url(self):  # type: () -> str
-        return "{}{}{}{}{}".format(
-            "{}://".format(self.protocol) if self.protocol else "",
-            "{}@".format(self.user) if self.user else "",
-            self.resource,
-            ":{}".format(self.port) if self.port else "",
-            "/" + self.pathname.lstrip(":/"),
-        )
+    def url(self) -> str:
+        protocol = f"{self.protocol}://" if self.protocol else ""
+        user = f"{self.user}@" if self.user else ""
+        port = f":{self.port}" if self.port else ""
+        path = "/" + (self.pathname or "").lstrip(":/")
+        return f"{protocol}{user}{self.resource}{port}{path}"
 
-    def format(self):  # type: () -> str
+    def format(self) -> str:
         return self.url
 
-    def __str__(self):  # type: () -> str
+    def __str__(self) -> str:
         return self.format()
 
 
-GitUrl = namedtuple("GitUrl", ["url", "revision"])
+GitUrl = namedtuple("GitUrl", ["url", "revision", "subdirectory"])
 
 
-_executable = None
+_executable: str | None = None
 
 
-def executable():
+def executable() -> str:
     global _executable
 
     if _executable is not None:
         return _executable
 
-    if WINDOWS and PY36:
+    if WINDOWS:
         # Finding git via where.exe
         where = "%WINDIR%\\System32\\where.exe"
-        paths = decode(
-            subprocess.check_output([where, "git"], shell=True, encoding="oem")
+        paths = subprocess.check_output(
+            [where, "git"], shell=True, encoding="oem"
         ).split("\n")
         for path in paths:
             if not path:
                 continue
 
-            path = Path(path.strip())
+            _path = Path(path.strip())
             try:
-                path.relative_to(Path.cwd())
+                _path.relative_to(Path.cwd())
             except ValueError:
-                _executable = str(path)
+                _executable = str(_path)
 
                 break
     else:
@@ -191,22 +184,20 @@ def executable():
     return _executable
 
 
-def _reset_executable():
+def _reset_executable() -> None:
     global _executable
 
     _executable = None
 
 
 class GitConfig:
-    def __init__(self, requires_git_presence=False):  # type: (bool) -> None
+    def __init__(self, requires_git_presence: bool = False) -> None:
         self._config = {}
 
         try:
-            config_list = decode(
-                subprocess.check_output(
-                    [executable(), "config", "-l"], stderr=subprocess.STDOUT
-                )
-            )
+            config_list = subprocess.check_output(
+                [executable(), "config", "-l"], stderr=subprocess.STDOUT
+            ).decode()
 
             m = re.findall("(?ms)^([^=]+)=(.*?)$", config_list)
             if m:
@@ -216,31 +207,36 @@ class GitConfig:
             if requires_git_presence:
                 raise
 
-    def get(self, key, default=None):  # type: (Any, Optional[Any]) -> Any
+    def get(self, key: Any, default: Any | None = None) -> Any:
         return self._config.get(key, default)
 
-    def __getitem__(self, item):  # type: (Any) -> Any
+    def __getitem__(self, item: Any) -> Any:
         return self._config[item]
 
 
 class Git:
-    def __init__(self, work_dir=None):  # type: (Optional[Path]) -> None
+    def __init__(self, work_dir: Path | None = None) -> None:
         self._config = GitConfig(requires_git_presence=True)
         self._work_dir = work_dir
 
     @classmethod
-    def normalize_url(cls, url):  # type: (str) -> GitUrl
+    def normalize_url(cls, url: str) -> GitUrl:
         parsed = ParsedUrl.parse(url)
 
         formatted = re.sub(r"^git\+", "", url)
         if parsed.rev:
-            formatted = re.sub(r"[#@]{}$".format(parsed.rev), "", formatted)
+            formatted = re.sub(rf"[#@]{parsed.rev}(?=[#&]?)(?!\=)", "", formatted)
+
+        if parsed.subdirectory:
+            formatted = re.sub(
+                rf"[#&]subdirectory={parsed.subdirectory}$", "", formatted
+            )
 
         altered = parsed.format() != formatted
 
         if altered:
             if re.match(r"^git\+https?", url) and re.match(
-                r"^/?:[^0-9]", parsed.pathname
+                r"^/?:[^0-9]", parsed.pathname or ""
             ):
                 normalized = re.sub(r"git\+(.*:[^:]+):(.*)", "\\1/\\2", url)
             elif re.match(r"^git\+file", url):
@@ -250,18 +246,38 @@ class Git:
         else:
             normalized = parsed.format()
 
-        return GitUrl(re.sub(r"#[^#]*$", "", normalized), parsed.rev)
+        return GitUrl(
+            re.sub(r"#[^#]*$", "", normalized), parsed.rev, parsed.subdirectory
+        )
 
     @property
-    def config(self):  # type: () -> GitConfig
+    def config(self) -> GitConfig:
         return self._config
 
-    def clone(self, repository, dest):  # type: (str, Path) -> str
+    @property
+    def version(self) -> tuple[int, int, int]:
+        output = self.run("version")
+        version = re.search(r"(\d+)\.(\d+)\.(\d+)", output)
+        if not version:
+            return (0, 0, 0)
+        return int(version.group(1)), int(version.group(2)), int(version.group(3))
+
+    def clone(self, repository: str, dest: Path) -> str:
         self._check_parameter(repository)
+        cmd = [
+            "clone",
+            "--filter=blob:none",
+            "--recurse-submodules",
+            "--",
+            repository,
+            str(dest),
+        ]
+        # Blobless clones introduced in Git 2.17
+        if self.version < (2, 17):
+            cmd.remove("--filter=blob:none")
+        return self.run(*cmd)
 
-        return self.run("clone", "--recurse-submodules", "--", repository, str(dest))
-
-    def checkout(self, rev, folder=None):  # type: (str, Optional[Path]) -> str
+    def checkout(self, rev: str, folder: Path | None = None) -> str:
         args = []
         if folder is None and self._work_dir:
             folder = self._work_dir
@@ -276,22 +292,14 @@ class Git:
 
         self._check_parameter(rev)
 
-        args += ["checkout", rev]
+        args += ["checkout", "--recurse-submodules", rev]
 
         return self.run(*args)
 
-    def rev_parse(self, rev, folder=None):  # type: (str, Optional[Path]) -> str
+    def rev_parse(self, rev: str, folder: Path | None = None) -> str:
         args = []
         if folder is None and self._work_dir:
             folder = self._work_dir
-
-        if folder:
-            args += [
-                "--git-dir",
-                (folder / ".git").as_posix(),
-                "--work-tree",
-                folder.as_posix(),
-            ]
 
         self._check_parameter(rev)
 
@@ -305,9 +313,17 @@ class Git:
         # they should not be escaped.
         args += ["rev-parse", rev + "^0"]
 
-        return self.run(*args)
+        return self.run(*args, folder=folder)
 
-    def get_ignored_files(self, folder=None):  # type: (Optional[Path]) -> list
+    def get_current_branch(self, folder: Path | None = None) -> str:
+        if folder is None and self._work_dir:
+            folder = self._work_dir
+
+        output = self.run("symbolic-ref", "--short", "HEAD", folder=folder)
+
+        return output.strip()
+
+    def get_ignored_files(self, folder: Path | None = None) -> list[str]:
         args = []
         if folder is None and self._work_dir:
             folder = self._work_dir
@@ -325,7 +341,7 @@ class Git:
 
         return output.strip().split("\n")
 
-    def remote_urls(self, folder=None):  # type: (Optional[Path]) -> dict
+    def remote_urls(self, folder: Path | None = None) -> dict[str, str]:
         output = self.run(
             "config", "--get-regexp", r"remote\..*\.url", folder=folder
         ).strip()
@@ -337,12 +353,12 @@ class Git:
 
         return urls
 
-    def remote_url(self, folder=None):  # type: (Optional[Path]) -> str
+    def remote_url(self, folder: Path | None = None) -> str:
         urls = self.remote_urls(folder=folder)
 
-        return urls.get("remote.origin.url", urls[list(urls.keys())[0]])
+        return urls.get("remote.origin.url", urls[next(iter(urls.keys()))])
 
-    def run(self, *args, **kwargs):  # type: (*Any, **Any) -> str
+    def run(self, *args: Any, **kwargs: Any) -> str:
         folder = kwargs.pop("folder", None)
         if folder:
             args = (
@@ -350,17 +366,20 @@ class Git:
                 (folder / ".git").as_posix(),
                 "--work-tree",
                 folder.as_posix(),
-            ) + args
-
-        return decode(
-            subprocess.check_output(
-                [executable()] + list(args), stderr=subprocess.STDOUT
+                *args,
             )
-        ).strip()
 
-    def _check_parameter(self, parameter):  # type: (str) -> None
+        return (
+            subprocess.check_output(
+                [executable(), *list(args)], stderr=subprocess.STDOUT
+            )
+            .decode()
+            .strip()
+        )
+
+    def _check_parameter(self, parameter: str) -> None:
         """
         Checks a git parameter to avoid unwanted code execution.
         """
         if parameter.strip().startswith("-"):
-            raise GitError("Invalid Git parameter: {}".format(parameter))
+            raise GitError(f"Invalid Git parameter: {parameter}")

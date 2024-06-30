@@ -36,37 +36,50 @@ dependencies = [
     "pydantic >=1.10",
     "pyyaml >= 5.1",
     "setuptools",
-    'tomli; python_version<"3.11"',
+    'tomli ; python_version <"3.11"',
     "typing-extensions",
     # conda dependencies
     "ruamel.yaml",
     "toolz >=0.12.0,<1.0.0",
-    # The following dependencies were added in the process of vendoring Poetry 1.1.15.
+    # The following dependencies were added in the process of vendoring Poetry 1.8.2.
     # poetry:
-    "cachecontrol[filecache] >=0.12.9",
+    "cachecontrol[filecache] >=0.14.0,<0.15.0",
+    # cleo
+    "crashtest >=0.4.1,<0.5.0",
     # poetry:
-    "cachy >=0.3.0",
-    # cleo, poetry:
-    "clikit >=0.6.2",
+    "dulwich >=0.21.2,<0.22",
     # poetry:
-    "crashtest >=0.3.0",
+    "fastjsonschema >=2.18.0,<2.19.0",
     # poetry:
-    "html5lib >=1.0",
+    'importlib-metadata >= 4.4 ;  python_version <"3.10"',
     # poetry:
-    "keyring >=21.2.0",
+    "installer >=0.7.0,<0.8.0",
     # poetry:
-    "packaging >=20.4",
+    "keyring >=24.3.1,<24.4.0",
     # poetry:
-    "pkginfo >=1.4",
+    "packaging >=24.0",
+    # poetry (extending to 5.0.0 because o/w does not exist on osx-arm64)
+    "pexpect >=4.7.0,<5.0.0",
+    # poetry:
+    "pkginfo >=1.10,<1.11",
+    # poetry:
+    "platformdirs >=3.0.0,<5",
+    # poetry:
+    "pyproject-hooks >=1.0.0,<1.1.0",
+    # cleo:
+    "rapidfuzz >=3.0.0,<3.1.0",
     # poetry, conda-lock:
-    "requests >=2.18",
+    "requests >=2.26",
     # poetry:
-    "tomlkit >=0.7.0",
+    "requests-toolbelt >=1.0.0,<1.1.0",
     # poetry:
-    "virtualenv >=20.0.26",
-    # urllib3 is a dependency of requests and poetry, v2 removes some deprecated features that our vendored version of
-    # poetry relies on.
-    "urllib3 >=1.26.5,<2.0",
+    "tomlkit >=0.11.4,<1.0.0",
+    # poetry:
+    "trove-classifiers >= 2022.5.19",
+    # poetry:
+    "virtualenv >=20.23.0,<20.24.0",
+    # poetry:
+    'xattr >=1.0.0,<1.1.0 ; sys_platform == "darwin"',
 ]
 
 [project.scripts]
@@ -134,9 +147,6 @@ patches-dir = "conda_lock/scripts/vendor_poetry/patches"
 drop = [
     "bin",
     "conda_env",
-    # From cleo we only need cleo.io.io_mixin
-    '^cleo\/(?!io$|io\/io_mixin\.py$).*$',
-    "poetry/console",
     "poetry/publishing",
     "poetry/utils/shell.py",
     "poetry/core/_vendor/six.py",
@@ -153,7 +163,7 @@ substitute = [
 
 [tool.conda-lock]
 channels = ["conda-forge", "nodefaults"]
-platforms = ["linux-64", "osx-64", "osx-arm64", "win-64", "osx-arm64", "linux-aarch64"]
+platforms = ["linux-64", "osx-64", "osx-arm64", "win-64", "linux-aarch64"]
 
 [tool.conda-lock.dependencies]
 # This is necessary to pull in the lockfile/filelock dependency

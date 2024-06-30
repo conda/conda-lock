@@ -1,41 +1,50 @@
-from __future__ import absolute_import
-from __future__ import unicode_literals
+from __future__ import annotations
 
 from typing import TYPE_CHECKING
 from typing import Any
 
-from conda_lock._vendor.poetry.core.pyproject import PyProjectTOML
-from conda_lock._vendor.poetry.core.utils._compat import Path  # noqa
+from conda_lock._vendor.poetry.core.pyproject.toml import PyProjectTOML
 
 
 if TYPE_CHECKING:
-    from conda_lock._vendor.poetry.core.packages import ProjectPackage  # noqa
-    from conda_lock._vendor.poetry.core.pyproject.toml import PyProjectTOMLFile  # noqa
+    from pathlib import Path
+
+    from conda_lock._vendor.poetry.core.packages.project_package import ProjectPackage
 
 
-class Poetry(object):
+class Poetry:
     def __init__(
-        self, file, local_config, package,
-    ):  # type: (Path, dict, "ProjectPackage") -> None
-        self._pyproject = PyProjectTOML(file)
+        self,
+        file: Path,
+        local_config: dict[str, Any],
+        package: ProjectPackage,
+        pyproject_type: type[PyProjectTOML] = PyProjectTOML,
+    ) -> None:
+        self._pyproject = pyproject_type(file)
         self._package = package
         self._local_config = local_config
 
     @property
-    def pyproject(self):  # type: () -> PyProjectTOML
+    def pyproject(self) -> PyProjectTOML:
         return self._pyproject
 
     @property
-    def file(self):  # type: () -> "PyProjectTOMLFile"
-        return self._pyproject.file
+    def pyproject_path(self) -> Path:
+        return self._pyproject.path
 
     @property
-    def package(self):  # type: () -> "ProjectPackage"
+    def package(self) -> ProjectPackage:
         return self._package
 
     @property
-    def local_config(self):  # type: () -> dict
+    def is_package_mode(self) -> bool:
+        package_mode = self._local_config["package-mode"]
+        assert isinstance(package_mode, bool)
+        return package_mode
+
+    @property
+    def local_config(self) -> dict[str, Any]:
         return self._local_config
 
-    def get_project_config(self, config, default=None):  # type: (str, Any) -> Any
+    def get_project_config(self, config: str, default: Any = None) -> Any:
         return self._local_config.get("config", {}).get(config, default)

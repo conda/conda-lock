@@ -13,13 +13,10 @@ Conda lock vendors (and subvendors) several Python packages to reduce the number
 
 ## Poetry
 
-* cleo v0.8.1, licensed as [MIT](cleo.LICENSE), Copyright (c) 2013 Sébastien Eustace.
-* poetry v1.1.15, licensed as [MIT](poetry.LICENSE), Copyright (c) 2018 Sébastien Eustace.
-* poetry-core v1.0.8, licensed as [MIT](poetry-core.LICENSE), Copyright (c) 2020 Sébastien Eustace.
-  * attrs v20.3.0, licensed as [MIT](poetry/core/_vendor/attrs.LICENSE), Copyright (c) 2015 Hynek Schlawack.
-  * jsonschema v3.2.0, licensed as [MIT](poetry/core/_vendor/jsonschema/LICENSE), Copyright (c) 2012 Julian Berman.
-  * lark-parser v0.9.0, licensed as [MIT](poetry/core/_vendor/lark-parser.LICENSE), Copyright (c) 2017 Erez Shinan.
-  * packaging v20.9, licensed as [one](poetry/core/_vendor/packaging/LICENSE) of [Apache-2.0](poetry/core/_vendor/packaging/LICENSE.APACHE) or [BSD-2-Clause](poetry/core/_vendor/packaging/LICENSE.BSD), Copyright (c) Donald Stufft and individual contributors.
-  * pyparsing v2.4.7, licensed as [MIT](poetry/core/_vendor/pyparsing.LICENSE), Copyright (c) 2003-2019  Paul T. McGuire.
-  * pyrsistent v0.16.1, licensed as [MIT](poetry/core/_vendor/pyrsistent/LICENSE.mit), Copyright (c) 2019 Tobias Gustafsson.
-  * tomlkit v0.7.0, licensed as [MIT](poetry/core/_vendor/tomlkit/LICENSE), Copyright (c) 2018 Sébastien Eustace.
+* cleo v2.1.0, licensed as [MIT](cleo.LICENSE), Copyright (c) 2013 Sébastien Eustace.
+* poetry v1.8.2, licensed as [MIT](poetry.LICENSE), Copyright (c) 2018-present Sébastien Eustace.
+* poetry-core v1.9.0, licensed as [MIT](poetry_core.LICENSE), Copyright (c) 2020 Sébastien Eustace.
+  * fastjsonschema v2.19.1, licensed as [BSD 3-Clause](poetry/core/_vendor/fastjsonschema/LICENSE), Copyright (c) 2018, Michal Horejsek.
+  * lark v1.1.9, licensed as [MIT](poetry/core/_vendor/lark/LICENSE), Copyright (c) 2017 Erez Shinan.
+  * packaging v23.2, licensed as [one](poetry/core/_vendor/packaging/LICENSE) of [Apache-2.0](poetry/core/_vendor/packaging/LICENSE.APACHE) or [BSD-2-Clause](poetry/core/_vendor/packaging/LICENSE.BSD), Copyright (c) Donald Stufft and individual contributors.
+  * tomli v2.0.1, licensed as [MIT](poetry/core/_vendor/tomli/LICENSE), Copyright (c) 2021 Taneli Hukkinen

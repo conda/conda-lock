@@ -1,35 +1,49 @@
+from __future__ import annotations
+
+import warnings
+
 from typing import TYPE_CHECKING
-from typing import Optional
-from typing import Union
-
-from conda_lock._vendor.poetry.core.utils._compat import Path
-
-from .builders.sdist import SdistBuilder
-from .builders.wheel import WheelBuilder
 
 
 if TYPE_CHECKING:
-    from conda_lock._vendor.poetry.core.poetry import Poetry  # noqa
+    from pathlib import Path
+
+    from conda_lock._vendor.poetry.core.poetry import Poetry
+
+
+warnings.warn(
+    "poetry.core.masonry.builder is deprecated. Its functionality has been moved"
+    "from poetry-core to poetry (poetry.console.commands.build).",
+    DeprecationWarning,
+    stacklevel=2,
+)
 
 
 class Builder:
-    _FORMATS = {
-        "sdist": SdistBuilder,
-        "wheel": WheelBuilder,
-    }
+    def __init__(self, poetry: Poetry) -> None:
+        from conda_lock._vendor.poetry.core.masonry.builders.sdist import SdistBuilder
+        from conda_lock._vendor.poetry.core.masonry.builders.wheel import WheelBuilder
 
-    def __init__(self, poetry):  # type: ("Poetry") -> None
         self._poetry = poetry
 
+        self._formats = {
+            "sdist": SdistBuilder,
+            "wheel": WheelBuilder,
+        }
+
     def build(
-        self, fmt, executable=None
-    ):  # type: (str, Optional[Union[str, Path]]) -> None
-        if fmt in self._FORMATS:
-            builders = [self._FORMATS[fmt]]
+        self,
+        fmt: str,
+        executable: str | Path | None = None,
+        *,
+        target_dir: Path | None = None,
+    ) -> None:
+        if fmt in self._formats:
+            builders = [self._formats[fmt]]
         elif fmt == "all":
-            builders = self._FORMATS.values()
+            builders = list(self._formats.values())
         else:
-            raise ValueError("Invalid format: {}".format(fmt))
+            raise ValueError(f"Invalid format: {fmt}")
 
         for builder in builders:
-            builder(self._poetry, executable=executable).build()
+            builder(self._poetry, executable=executable).build(target_dir)

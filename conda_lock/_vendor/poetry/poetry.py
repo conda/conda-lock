@@ -1,57 +1,97 @@
-from __future__ import absolute_import
-from __future__ import unicode_literals
+from __future__ import annotations
 
-from conda_lock._vendor.poetry.core.packages import ProjectPackage
+from typing import TYPE_CHECKING
+from typing import Any
+from typing import cast
+
 from conda_lock._vendor.poetry.core.poetry import Poetry as BasePoetry
 
-from .__version__ import __version__
-from .config.config import Config
-from .packages import Locker
-from .repositories.pool import Pool
-from .utils._compat import Path
+from conda_lock._vendor.poetry.__version__ import __version__
+from conda_lock._vendor.poetry.config.source import Source
+from conda_lock._vendor.poetry.pyproject.toml import PyProjectTOML
+
+
+if TYPE_CHECKING:
+    from pathlib import Path
+
+    from conda_lock._vendor.poetry.core.packages.project_package import ProjectPackage
+
+    from conda_lock._vendor.poetry.config.config import Config
+    from conda_lock._vendor.poetry.packages.locker import Locker
+    from conda_lock._vendor.poetry.plugins.plugin_manager import PluginManager
+    from conda_lock._vendor.poetry.repositories.repository_pool import RepositoryPool
+    from conda_lock._vendor.poetry.toml import TOMLFile
 
 
 class Poetry(BasePoetry):
-
     VERSION = __version__
 
     def __init__(
         self,
-        file,  # type: Path
-        local_config,  # type: dict
-        package,  # type: ProjectPackage
-        locker,  # type: Locker
-        config,  # type: Config
-    ):
-        super(Poetry, self).__init__(file, local_config, package)
+        file: Path,
+        local_config: dict[str, Any],
+        package: ProjectPackage,
+        locker: Locker,
+        config: Config,
+        disable_cache: bool = False,
+    ) -> None:
+        from conda_lock._vendor.poetry.repositories.repository_pool import RepositoryPool
+
+        super().__init__(file, local_config, package, pyproject_type=PyProjectTOML)
 
         self._locker = locker
         self._config = config
-        self._pool = Pool()
+        self._pool = RepositoryPool(config=config)
+        self._plugin_manager: PluginManager | None = None
+        self._disable_cache = disable_cache
 
     @property
-    def locker(self):  # type: () -> Locker
+    def pyproject(self) -> PyProjectTOML:
+        pyproject = super().pyproject
+        return cast("PyProjectTOML", pyproject)
+
+    @property
+    def file(self) -> TOMLFile:
+        return self.pyproject.file
+
+    @property
+    def locker(self) -> Locker:
         return self._locker
 
     @property
-    def pool(self):  # type: () -> Pool
+    def pool(self) -> RepositoryPool:
         return self._pool
 
     @property
-    def config(self):  # type: () -> Config
+    def config(self) -> Config:
         return self._config
 
-    def set_locker(self, locker):  # type: (Locker) -> Poetry
+    @property
+    def disable_cache(self) -> bool:
+        return self._disable_cache
+
+    def set_locker(self, locker: Locker) -> Poetry:
         self._locker = locker
 
         return self
 
-    def set_pool(self, pool):  # type: (Pool) -> Poetry
+    def set_pool(self, pool: RepositoryPool) -> Poetry:
         self._pool = pool
 
         return self
 
-    def set_config(self, config):  # type: (Config) -> Poetry
+    def set_config(self, config: Config) -> Poetry:
         self._config = config
 
         return self
+
+    def set_plugin_manager(self, plugin_manager: PluginManager) -> Poetry:
+        self._plugin_manager = plugin_manager
+
+        return self
+
+    def get_sources(self) -> list[Source]:
+        return [
+            Source(**source)
+            for source in self.pyproject.poetry_config.get("source", [])
+        ]
