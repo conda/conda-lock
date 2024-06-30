@@ -71,7 +71,14 @@ class Lockfile(StrictModel):
         self.package = self._toposort(self.package)
 
     def alphasort_inplace(self) -> None:
+        # Sort the packages themselves by key (conda/pip, name, platform)
         self.package.sort(key=lambda d: d.key())
+        for p in self.package:
+            # Also ensure that the dependencies of each package are sorted
+            # <https://github.com/conda/conda-lock/pull/654#issuecomment-2198453427>
+            p.dependencies = {
+                name: spec for name, spec in sorted(p.dependencies.items())
+            }
 
     def filter_virtual_packages_inplace(self) -> None:
         self.package = [
