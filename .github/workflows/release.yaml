@@ -32,7 +32,7 @@ jobs:
 
     - name: Test wheels
       run: |
-        python -m twine check dist/*
+        python -m twine check --strict dist/*
       shell: bash
 
     - name: Upload dist files for publication
