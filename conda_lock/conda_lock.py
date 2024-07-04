@@ -269,6 +269,8 @@ def make_lock_files(  # noqa: C901
     metadata_yamls: Sequence[pathlib.Path] = (),
     with_cuda: Optional[str] = None,
     strip_auth: bool = False,
+    disable_pypi_requests: bool = False,
+    private_pip_repositories: Optional[Sequence[str]] = None,
 ) -> None:
     """
     Generate a lock file from the src files provided
@@ -332,7 +334,6 @@ def make_lock_files(  # noqa: C901
         required_categories.add("dev")
     if extras is not None:
         required_categories.update(extras)
-
     with virtual_package_repo:
         lock_spec = make_lock_spec(
             src_files=src_files,
@@ -340,6 +341,8 @@ def make_lock_files(  # noqa: C901
             platform_overrides=platform_overrides,
             virtual_package_repo=virtual_package_repo,
             required_categories=required_categories if filter_categories else None,
+            pip_repository_overrides=private_pip_repositories,
+            allow_pypi_requests_overrides=not disable_pypi_requests,
         )
         original_lock_content: Optional[Lockfile] = None
 
@@ -829,9 +832,7 @@ def create_lockfile_from_spec(
         platforms = []
     assert spec.virtual_package_repo is not None
     virtual_package_channel = spec.virtual_package_repo.channel
-
     locked: Dict[Tuple[str, str, str], LockedDependency] = {}
-
     for platform in platforms or spec.platforms:
         deps = _solve_for_arch(
             conda=conda,
@@ -1071,6 +1072,8 @@ def run_lock(
     metadata_choices: AbstractSet[MetadataOption] = frozenset(),
     metadata_yamls: Sequence[pathlib.Path] = (),
     strip_auth: bool = False,
+    disable_pypi_requests: bool = False,
+    private_pip_repositories: Optional[List[str]] = None,
 ) -> None:
     if environment_files == DEFAULT_FILES:
         if lockfile_path.exists():
@@ -1126,6 +1129,8 @@ def run_lock(
         metadata_choices=metadata_choices,
         metadata_yamls=metadata_yamls,
         strip_auth=strip_auth,
+        disable_pypi_requests=disable_pypi_requests,
+        private_pip_repositories=private_pip_repositories,
     )
 
 
@@ -1290,6 +1295,18 @@ TLogLevel = Union[
     type=click.Path(),
     help="YAML or JSON file(s) containing structured metadata to add to metadata section of the lockfile.",
 )
+@click.option(
+    "--disable-pypi-requests",
+    is_flag=True,
+    default=False,
+    help="Disable requests to pypi.org",
+)
+@click.option(
+    "-r",
+    "--private_pip_repositories",
+    multiple=True,
+    help="Add private pip repositories",
+)
 @click.pass_context
 def lock(
     ctx: click.Context,
@@ -1304,6 +1321,8 @@ def lock(
     filename_template: str,
     lockfile: PathLike,
     strip_auth: bool,
+    disable_pypi_requests: bool,
+    private_pip_repositories: List[str],
     extras: List[str],
     filter_categories: bool,
     check_input_hash: bool,
@@ -1351,7 +1370,6 @@ def lock(
         else:
             print(ctx.get_help())
             sys.exit(1)
-
     if pdb:
         sys.excepthook = _handle_exception_post_mortem
 
@@ -1389,6 +1407,8 @@ def lock(
         metadata_choices=metadata_enum_choices,
         metadata_yamls=metadata_yamls,
         strip_auth=strip_auth,
+        disable_pypi_requests=disable_pypi_requests,
+        private_pip_repositories=private_pip_repositories,
     )
     if strip_auth:
         with tempfile.TemporaryDirectory() as tempdir:
