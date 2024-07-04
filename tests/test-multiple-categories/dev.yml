@@ -1,0 +1,9 @@
+category: dev
+channels:
+  - conda-forge
+platforms:
+  - linux-64
+
+dependencies:
+  - pandas =2.0
+  - astropy =5.0
