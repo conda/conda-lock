@@ -340,6 +340,18 @@ platforms = [
 ]
 ```
 
+#### PyPI name mapping
+
+If you would like to supplement or override the pypi-to-conda name mappings provided by
+[pypi-mapping][mapping], you can do so by adding a `pypi-to-conda-name` section:
+
+```toml
+# pyproject.toml
+
+[tool.conda-lock.pypi-to-conda-name]
+cupy-cuda11x = "cupy"
+```
+
 #### Extras
 
 If your pyproject.toml file contains optional dependencies/extras these can be referred to by using the `--extras` flag
