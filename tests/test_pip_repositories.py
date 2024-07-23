@@ -1,5 +1,6 @@
 import base64
 import os
+import shutil
 import tarfile
 
 from io import BytesIO
@@ -11,6 +12,7 @@ import pytest
 import requests
 import requests_mock
 
+from conda_lock._vendor.poetry.locations import DEFAULT_CACHE_DIR
 from conda_lock.conda_lock import DEFAULT_LOCKFILE_NAME, run_lock
 from conda_lock.lockfile import parse_conda_lock_file
 from tests.test_conda_lock import clone_test_dir
@@ -135,11 +137,13 @@ def test_it_uses_pip_repositories_with_env_var_substitution(
     conda_exe: str,
     tmp_path: Path,
 ):
-    # GIVEN an environment.yaml with custom pip repositories
+    # GIVEN an environment.yaml with custom pip repositories and clean cache
     directory = clone_test_dir("test-pip-repositories", tmp_path)
     monkeypatch.chdir(directory)
     environment_file = directory / "environment.yaml"
     assert environment_file.exists(), list(directory.iterdir())
+    assert DEFAULT_CACHE_DIR.name == "pypoetry-conda-lock"
+    shutil.rmtree(DEFAULT_CACHE_DIR, ignore_errors=True)
 
     # WHEN I create the lockfile
     run_lock([directory / "environment.yaml"], conda_exe=conda_exe)
