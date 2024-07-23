@@ -24,6 +24,7 @@ from conda_lock._vendor.cleo.io.io import IO
 from conda_lock._vendor.cleo.io.null_io import NullIO
 from conda_lock._vendor.cleo.io.outputs.output import Verbosity
 from conda_lock._vendor.cleo.io.outputs.stream_output import StreamOutput
+from conda_lock._vendor.poetry.repositories.http_repository import HTTPRepository
 from conda_lock.interfaces.vendored_poetry import (
     Chooser,
     Config,
@@ -581,18 +582,19 @@ def _prepare_repositories_pool(
     """
     factory = Factory()
     config = Config.create()
-    repos = [
-        factory.create_package_source(
+    repos: List[HTTPRepository] = []
+    pip_repositories = pip_repositories or []
+    for pip_repository in pip_repositories:
+        source = factory.create_package_source(
             {"name": pip_repository.name, "url": expandvars(pip_repository.url)},
             config,
         )
-        for pip_repository in pip_repositories or []
-    ] + [
-        factory.create_package_source(
-            {"name": source[0], "url": source[1]["url"]}, config
+        repos.append(source)
+    for name, repo_config in config.get("repositories", {}).items():
+        source = factory.create_package_source(
+            {"name": name, "url": repo_config["url"]}, config
         )
-        for source in config.get("repositories", {}).items()
-    ]
+        repos.append(source)
     if allow_pypi_requests:
         repos.append(PyPiRepository())
     return Pool(repositories=[*repos])
