@@ -4,6 +4,12 @@ from urllib.parse import urlparse, urlunparse
 from pydantic import BaseModel, ConfigDict
 
 
+def stripped_url(url: str) -> str:
+    parsed_url = urlparse(url)
+    stripped = parsed_url._replace(netloc=parsed_url.netloc.split("@", 1)[-1])
+    return urlunparse(stripped)
+
+
 class PipRepository(BaseModel):
     model_config = ConfigDict(frozen=True)
 
@@ -22,8 +28,7 @@ class PipRepository(BaseModel):
     @property
     def stripped_base_url(self) -> str:
         """The base URL of the pip repository, without any basic auth."""
-        base_url = urlparse(self.base_url)
-        return urlunparse(base_url._replace(netloc=base_url.netloc.split("@", 1)[-1]))
+        return stripped_url(self.base_url)
 
     @property
     def name(self) -> str:
