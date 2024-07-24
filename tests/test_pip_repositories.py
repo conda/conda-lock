@@ -142,8 +142,7 @@ def test_it_uses_pip_repositories_with_env_var_substitution(
     monkeypatch.chdir(directory)
     environment_file = directory / "environment.yaml"
     assert environment_file.exists(), list(directory.iterdir())
-    assert DEFAULT_CACHE_DIR.name == "pypoetry-conda-lock"
-    shutil.rmtree(DEFAULT_CACHE_DIR, ignore_errors=True)
+    clear_poetry_cache()
 
     # WHEN I create the lockfile
     run_lock([directory / "environment.yaml"], conda_exe=conda_exe)
@@ -176,3 +175,16 @@ def test_it_uses_pip_repositories_with_env_var_substitution(
         "Password environment variable was not respected, See full lock-file:\n"
         + lockfile_content
     )
+
+
+def clear_poetry_cache() -> None:
+    # We are going to rmtree the cache directory. Let's be extra careful to make
+    # sure we only delete a directory named "pypoetry-conda-lock" or one of its
+    # subdirectories.
+    to_delete = DEFAULT_CACHE_DIR.resolve()
+    assert to_delete.name == "pypoetry-conda-lock" or (
+        to_delete.parent.name == "pypoetry-conda-lock" and to_delete.name == "Cache"
+    )
+    # Do another independent check that triggers even if we're in optimized mode
+    if "pypoetry-conda-lock" in to_delete.parts:
+        shutil.rmtree(DEFAULT_CACHE_DIR, ignore_errors=True)
