@@ -585,8 +585,14 @@ def _prepare_repositories_pool(
     repos: List[HTTPRepository] = []
     pip_repositories = pip_repositories or []
     for pip_repository in pip_repositories:
+        creds = pip_repository.expanded_basic_auth
+        if creds is not None:
+            config.merge({"http-basic": {pip_repository.name: creds}})
         source = factory.create_package_source(
-            {"name": pip_repository.name, "url": expandvars(pip_repository.url)},
+            {
+                "name": pip_repository.name,
+                "url": expandvars(pip_repository.stripped_url),
+            },
             config,
         )
         repos.append(source)

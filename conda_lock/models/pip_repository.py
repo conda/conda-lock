@@ -1,7 +1,14 @@
 from hashlib import sha256
+from posixpath import expandvars
+from typing import Optional, TypedDict
 from urllib.parse import urlparse, urlunparse
 
 from pydantic import BaseModel, ConfigDict
+
+
+class UsernamePasswordDict(TypedDict):
+    username: str
+    password: str
 
 
 def stripped_url(url: str) -> str:
@@ -26,9 +33,23 @@ class PipRepository(BaseModel):
         return full_url.scheme + "://" + full_url.netloc
 
     @property
+    def expanded_basic_auth(self) -> Optional[UsernamePasswordDict]:
+        parsed_url = urlparse(self.url)
+        if parsed_url.username is None:
+            return None
+        username = expandvars(parsed_url.username)
+        password = expandvars(parsed_url.password or "")
+        return UsernamePasswordDict(username=username, password=password)
+
+    @property
     def stripped_base_url(self) -> str:
         """The base URL of the pip repository, without any basic auth."""
         return stripped_url(self.base_url)
+
+    @property
+    def stripped_url(self) -> str:
+        """The URL of the pip repository, without any basic auth."""
+        return stripped_url(self.url)
 
     @property
     def name(self) -> str:
