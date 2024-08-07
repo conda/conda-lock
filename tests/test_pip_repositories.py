@@ -12,6 +12,8 @@ import pytest
 import requests
 import requests_mock
 
+from filelock import FileLock
+
 from conda_lock._vendor.poetry.locations import DEFAULT_CACHE_DIR
 from conda_lock.conda_lock import DEFAULT_LOCKFILE_NAME, run_lock
 from conda_lock.lockfile import parse_conda_lock_file
@@ -130,6 +132,27 @@ def mock_private_pypi(private_package_tar: Path, request: pytest.FixtureRequest)
 def configure_auth(monkeypatch):
     monkeypatch.setenv("PIP_USER", _PRIVATE_REPO_USERNAME)
     monkeypatch.setenv("PIP_PASSWORD", _PRIVATE_REPO_PASSWORD)
+
+
+@pytest.fixture(autouse=True)
+def poetry_cache():
+    # This fixture serves to make sure that only one test that relies on the
+    # cache being cleared runs at a time
+
+    # We are going to rmtree the cache directory. Let's be extra careful to make
+    # sure we only delete a directory named "pypoetry-conda-lock" or one of its
+    # subdirectories.
+    to_delete = DEFAULT_CACHE_DIR.resolve()
+    assert to_delete.name == "pypoetry-conda-lock" or (
+        to_delete.parent.name == "pypoetry-conda-lock" and to_delete.name == "Cache"
+    )
+
+    # Grab a lock
+    with FileLock(to_delete.parent / ".conda_lock.lock"):
+        yield
+        # Do another independent check that triggers even if we're in optimized mode
+        if "pypoetry-conda-lock" in to_delete.parts:
+            shutil.rmtree(DEFAULT_CACHE_DIR, ignore_errors=True)
 
 
 def test_it_uses_pip_repositories_with_env_var_substitution(
