@@ -1,4 +1,4 @@
-from __future__ import unicode_literals
+from __future__ import annotations
 
 import contextlib
 import csv
@@ -8,40 +8,39 @@ import os
 import shutil
 import stat
 import subprocess
+import sys
+import sysconfig
 import tempfile
 import zipfile
 
 from base64 import urlsafe_b64encode
-from io import BytesIO
 from io import StringIO
+from pathlib import Path
 from typing import TYPE_CHECKING
-from typing import Iterator
-from typing import Optional
 from typing import TextIO
-from typing import Union
 
-from packaging.tags import sys_tags
+import packaging.tags
 
 from conda_lock._vendor.poetry.core import __version__
-from conda_lock._vendor.poetry.core.semver import parse_constraint
-from conda_lock._vendor.poetry.core.utils._compat import PY2
-from conda_lock._vendor.poetry.core.utils._compat import Path
-from conda_lock._vendor.poetry.core.utils._compat import decode
-
-from ..utils.helpers import escape_name
-from ..utils.helpers import escape_version
-from ..utils.helpers import normalize_file_permissions
-from ..utils.package_include import PackageInclude
-from .builder import Builder
-from .sdist import SdistBuilder
+from conda_lock._vendor.poetry.core.constraints.version import parse_constraint
+from conda_lock._vendor.poetry.core.masonry.builders.builder import Builder
+from conda_lock._vendor.poetry.core.masonry.builders.sdist import SdistBuilder
+from conda_lock._vendor.poetry.core.masonry.utils.helpers import distribution_name
+from conda_lock._vendor.poetry.core.masonry.utils.helpers import normalize_file_permissions
+from conda_lock._vendor.poetry.core.masonry.utils.package_include import PackageInclude
+from conda_lock._vendor.poetry.core.utils.helpers import temporary_directory
 
 
 if TYPE_CHECKING:
-    from conda_lock._vendor.poetry.core.poetry import Poetry  # noqa
+    from collections.abc import Iterator
+
+    from packaging.utils import NormalizedName
+
+    from conda_lock._vendor.poetry.core.poetry import Poetry
 
 wheel_file_template = """\
 Wheel-Version: 1.0
-Generator: poetry {version}
+Generator: poetry-core {version}
 Root-Is-Purelib: {pure_lib}
 Tag: {tag}
 """
@@ -53,76 +52,97 @@ class WheelBuilder(Builder):
     format = "wheel"
 
     def __init__(
-        self, poetry, target_dir=None, original=None, executable=None, editable=False,
-    ):  # type: ("Poetry", Optional[Path], Optional[Path], Optional[str], bool) -> None
-        super(WheelBuilder, self).__init__(poetry, executable=executable)
+        self,
+        poetry: Poetry,
+        original: Path | None = None,
+        executable: Path | None = None,
+        editable: bool = False,
+        metadata_directory: Path | None = None,
+    ) -> None:
+        super().__init__(poetry, executable=executable)
 
-        self._records = []
+        self._records: list[tuple[str, str, int]] = []
         self._original_path = self._path
-        self._target_dir = target_dir or (self._poetry.file.parent / "dist")
         if original:
-            self._original_path = original.file.parent
+            self._original_path = original.parent
         self._editable = editable
+        self._metadata_directory = metadata_directory
 
     @classmethod
     def make_in(
-        cls, poetry, directory=None, original=None, executable=None, editable=False,
-    ):  # type: ("Poetry", Optional[Path], Optional[Path], Optional[str], bool) -> str
+        cls,
+        poetry: Poetry,
+        directory: Path | None = None,
+        original: Path | None = None,
+        executable: Path | None = None,
+        editable: bool = False,
+        metadata_directory: Path | None = None,
+    ) -> str:
         wb = WheelBuilder(
             poetry,
-            target_dir=directory,
             original=original,
             executable=executable,
             editable=editable,
+            metadata_directory=metadata_directory,
         )
-        wb.build()
+        wb.build(target_dir=directory)
 
         return wb.wheel_filename
 
     @classmethod
-    def make(cls, poetry, executable=None):  # type: ("Poetry", Optional[str]) -> None
+    def make(cls, poetry: Poetry, executable: Path | None = None) -> None:
         """Build a wheel in the dist/ directory, and optionally upload it."""
         cls.make_in(poetry, executable=executable)
 
-    def build(self):  # type: () -> None
+    def build(
+        self,
+        target_dir: Path | None = None,
+    ) -> Path:
         logger.info("Building wheel")
 
-        dist_dir = self._target_dir
-        if not dist_dir.exists():
-            dist_dir.mkdir()
+        target_dir = target_dir or self.default_target_dir
+        if not target_dir.exists():
+            target_dir.mkdir()
 
-        (fd, temp_path) = tempfile.mkstemp(suffix=".whl")
+        fd, temp_path = tempfile.mkstemp(suffix=".whl")
 
         st_mode = os.stat(temp_path).st_mode
         new_mode = normalize_file_permissions(st_mode)
         os.chmod(temp_path, new_mode)
 
-        with os.fdopen(fd, "w+b") as fd_file:
-            with zipfile.ZipFile(
-                fd_file, mode="w", compression=zipfile.ZIP_DEFLATED
-            ) as zip_file:
-                if not self._editable:
-                    if not self._poetry.package.build_should_generate_setup():
-                        self._build(zip_file)
-                        self._copy_module(zip_file)
-                    else:
-                        self._copy_module(zip_file)
-                        self._build(zip_file)
-                else:
-                    self._build(zip_file)
-                    self._add_pth(zip_file)
+        with os.fdopen(fd, "w+b") as fd_file, zipfile.ZipFile(
+            fd_file, mode="w", compression=zipfile.ZIP_DEFLATED
+        ) as zip_file:
+            if self._editable:
+                self._build(zip_file)
+                self._add_pth(zip_file)
+            elif self._poetry.package.build_should_generate_setup():
+                self._copy_module(zip_file)
+                self._build(zip_file)
+            else:
+                self._build(zip_file)
+                self._copy_module(zip_file)
 
-                self._write_metadata(zip_file)
-                self._write_record(zip_file)
+            self._copy_file_scripts(zip_file)
 
-        wheel_path = dist_dir / self.wheel_filename
+            if self._metadata_directory is None:
+                with temporary_directory() as temp_dir:
+                    metadata_directory = self.prepare_metadata(Path(temp_dir))
+                    self._copy_dist_info(zip_file, metadata_directory)
+            else:
+                self._copy_dist_info(zip_file, self._metadata_directory)
+
+            self._write_record(zip_file)
+
+        wheel_path = target_dir / self.wheel_filename
         if wheel_path.exists():
             wheel_path.unlink()
         shutil.move(temp_path, str(wheel_path))
 
-        logger.info("Built {}".format(self.wheel_filename))
+        logger.info(f"Built {self.wheel_filename}")
+        return wheel_path
 
-    def _add_pth(self, wheel):  # type: (zipfile.ZipFile) -> None
+    def _add_pth(self, wheel: zipfile.ZipFile) -> None:
         paths = set()
         for include in self._module.includes:
             if isinstance(include, PackageInclude) and (
@@ -139,16 +159,16 @@ class WheelBuilder(Builder):
         with self._write_to_zip(wheel, str(pth_file)) as f:
             f.write(content)
 
-    def _build(self, wheel):  # type: (zipfile.ZipFile) -> None
+    def _build(self, wheel: zipfile.ZipFile) -> None:
         if self._package.build_script:
             if not self._poetry.package.build_should_generate_setup():
                 # Since we have a build script but no setup.py generation is required,
                 # we assume that the build script will build and copy the files
                 # directly.
                 # That way they will be picked up when adding files to the wheel.
-                current_path = os.getcwd()
+                current_path = Path.cwd()
                 try:
-                    os.chdir(str(self._path))
+                    os.chdir(self._path)
                     self._run_build_script(self._package.build_script)
                 finally:
                     os.chdir(current_path)
@@ -156,91 +176,133 @@ class WheelBuilder(Builder):
                 with SdistBuilder(poetry=self._poetry).setup_py() as setup:
                     # We need to place ourselves in the temporary
                     # directory in order to build the package
-                    current_path = os.getcwd()
+                    current_path = Path.cwd()
                     try:
-                        os.chdir(str(self._path))
+                        os.chdir(self._path)
                         self._run_build_command(setup)
                     finally:
                         os.chdir(current_path)
 
-                    build_dir = self._path / "build"
-                    lib = list(build_dir.glob("lib.*"))
-                    if not lib:
+                    if self._editable:
+                        # For an editable install, the extension modules will be built
+                        # in-place - so there's no need to copy them into the zip
+                        return
+
+                    lib = self._get_build_lib_dir()
+                    if lib is None:
                         # The result of building the extensions
                         # does not exist, this may due to conditional
                         # builds, so we assume that it's okay
                         return
 
-                    lib = lib[0]
-
-                    for pkg in lib.glob("**/*"):
+                    for pkg in sorted(lib.glob("**/*")):
                         if pkg.is_dir() or self.is_excluded(pkg):
                             continue
 
-                        rel_path = str(pkg.relative_to(lib))
+                        rel_path = pkg.relative_to(lib)
 
-                        if rel_path in wheel.namelist():
+                        if rel_path.as_posix() in wheel.namelist():
                             continue
 
-                        logger.debug("Adding: {}".format(rel_path))
+                        logger.debug(f"Adding: {rel_path}")
 
                         self._add_file(wheel, pkg, rel_path)
 
-    def _run_build_command(self, setup):  # type: (Path) -> None
-        subprocess.check_call(
-            [
+    def _get_build_purelib_dir(self) -> Path:
+        return self._path / "build/lib"
+
+    def _get_build_platlib_dir(self) -> Path:
+        # Roughly equivalent to the naming convention in used by distutils, see:
+        # distutils.command.build.build.finalize_options
+        plat_specifier = f"{sysconfig.get_platform()}-{sys.implementation.cache_tag}"
+        return self._path / f"build/lib.{plat_specifier}"
+
+    def _get_build_lib_dir(self) -> Path | None:
+        # Either the purelib or platlib path will have been used when building
+        build_platlib = self._get_build_platlib_dir()
+        build_purelib = self._get_build_purelib_dir()
+        if build_platlib.exists():
+            return build_platlib
+        elif build_purelib.exists():
+            return build_purelib
+        return None
+
+    def _copy_file_scripts(self, wheel: zipfile.ZipFile) -> None:
+        file_scripts = self.convert_script_files()
+
+        for abs_path in file_scripts:
+            self._add_file(
+                wheel,
+                abs_path,
+                Path(self.wheel_data_folder) / "scripts" / abs_path.name,
+            )
+
+    def _run_build_command(self, setup: Path) -> None:
+        if self._editable:
+            subprocess.check_call([
                 self.executable.as_posix(),
                 str(setup),
-                "build",
-                "-b",
-                str(self._path / "build"),
-            ]
-        )
+                "build_ext",
+                "--inplace",
+            ])
+        subprocess.check_call([
+            self.executable.as_posix(),
+            str(setup),
+            "build",
+            "-b",
+            str(self._path / "build"),
+            "--build-purelib",
+            str(self._get_build_purelib_dir()),
+            "--build-platlib",
+            str(self._get_build_platlib_dir()),
+        ])
 
-    def _run_build_script(self, build_script):  # type: (str) -> None
-        logger.debug("Executing build script: {}".format(build_script))
+    def _run_build_script(self, build_script: str) -> None:
+        logger.debug(f"Executing build script: {build_script}")
         subprocess.check_call([self.executable.as_posix(), build_script])
 
-    def _copy_module(self, wheel):  # type: (zipfile.ZipFile) -> None
+    def _copy_module(self, wheel: zipfile.ZipFile) -> None:
         to_add = self.find_files_to_add()
 
         # Walk the files and compress them,
         # sorting everything so the order is stable.
-        for file in sorted(list(to_add), key=lambda x: x.path):
-            self._add_file(wheel, file.path, file.relative_to_source_root())
+        for file in sorted(to_add, key=lambda x: x.path):
+            self._add_file(wheel, file.path, file.relative_to_target_root())
 
-    def _write_metadata(self, wheel):  # type: (zipfile.ZipFile) -> None
+    def prepare_metadata(self, metadata_directory: Path) -> Path:
+        dist_info = metadata_directory / self.dist_info
+        dist_info.mkdir(parents=True, exist_ok=True)
+
         if (
             "scripts" in self._poetry.local_config
             or "plugins" in self._poetry.local_config
         ):
-            with self._write_to_zip(wheel, self.dist_info + "/entry_points.txt") as f:
+            with (dist_info / "entry_points.txt").open(
+                "w", encoding="utf-8", newline="\n"
+            ) as f:
                 self._write_entry_points(f)
 
-        license_files_to_add = []
-        for base in ("COPYING", "LICENSE"):
-            license_files_to_add.append(self._path / base)
-            license_files_to_add.extend(self._path.glob(base + ".*"))
-
-        license_files_to_add.extend(self._path.joinpath("LICENSES").glob("**/*"))
-
-        for path in set(license_files_to_add):
-            if path.is_file():
-                relative_path = "%s/%s" % (self.dist_info, path.relative_to(self._path))
-                self._add_file(wheel, path, relative_path)
-            else:
-                logger.debug("Skipping: {}".format(path.as_posix()))
-
-        with self._write_to_zip(wheel, self.dist_info + "/WHEEL") as f:
+        with (dist_info / "WHEEL").open("w", encoding="utf-8", newline="\n") as f:
             self._write_wheel_file(f)
 
-        with self._write_to_zip(wheel, self.dist_info + "/METADATA") as f:
+        with (dist_info / "METADATA").open("w", encoding="utf-8", newline="\n") as f:
             self._write_metadata_file(f)
 
-    def _write_record(self, wheel):  # type: (zipfile.ZipFile) -> None
+        for legal_file in self._get_legal_files():
+            if not legal_file.is_file():
+                logger.debug(f"Skipping: {legal_file.as_posix()}")
+                continue
+
+            dest = dist_info / legal_file.relative_to(self._path)
+            dest.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy(legal_file, dest)
+
+        return dist_info
+
+    def _write_record(self, wheel: zipfile.ZipFile) -> None:
         # Write a record of the files in the wheel
         with self._write_to_zip(wheel, self.dist_info + "/RECORD") as f:
-            record = StringIO() if not PY2 else BytesIO()
+            record = StringIO()
 
             csv_writer = csv.writer(
                 record,
@@ -249,65 +311,116 @@ class WheelBuilder(Builder):
                 lineterminator="\n",
             )
             for path, hash, size in self._records:
-                csv_writer.writerow((path, "sha256={}".format(hash), size))
+                csv_writer.writerow((path, f"sha256={hash}", size))
 
             # RECORD itself is recorded with no hash or size
             csv_writer.writerow((self.dist_info + "/RECORD", "", ""))
 
-            f.write(decode(record.getvalue()))
+            f.write(record.getvalue())
+
+    def _copy_dist_info(self, wheel: zipfile.ZipFile, source: Path) -> None:
+        dist_info = Path(self.dist_info)
+        for file in sorted(source.glob("**/*")):
+            if not file.is_file():
+                continue
+
+            rel_path = file.relative_to(source)
+            target = dist_info / rel_path
+            self._add_file(wheel, file, target)
 
     @property
-    def dist_info(self):  # type: () -> str
+    def dist_info(self) -> str:
         return self.dist_info_name(self._package.name, self._meta.version)
 
     @property
-    def wheel_filename(self):  # type: () -> str
-        return "{}-{}-{}.whl".format(
-            escape_name(self._package.pretty_name),
-            escape_version(self._meta.version),
-            self.tag,
-        )
+    def wheel_data_folder(self) -> str:
+        name = distribution_name(self._package.name)
+        return f"{name}-{self._meta.version}.data"
 
-    def supports_python2(self):  # type: () -> bool
+    @property
+    def wheel_filename(self) -> str:
+        name = distribution_name(self._package.name)
+        version = self._meta.version
+        return f"{name}-{version}-{self.tag}.whl"
+
+    def supports_python2(self) -> bool:
         return self._package.python_constraint.allows_any(
             parse_constraint(">=2.0.0 <3.0.0")
         )
 
-    def dist_info_name(self, distribution, version):  # type: (str, str) -> str
-        escaped_name = escape_name(distribution)
-        escaped_version = escape_version(version)
+    def dist_info_name(self, name: NormalizedName, version: str) -> str:
+        escaped_name = distribution_name(name)
+        return f"{escaped_name}-{version}.dist-info"
 
-        return "{}-{}.dist-info".format(escaped_name, escaped_version)
+    def _get_sys_tags(self) -> list[str]:
+        """Get sys_tags via subprocess.
+        Required if poetry-core is not run inside the build environment.
+        """
+        try:
+            output = subprocess.check_output(
+                [
+                    self.executable.as_posix(),
+                    "-c",
+                    f"""
+import importlib.util
+import sys
+
+from pathlib import Path
+
+spec = importlib.util.spec_from_file_location(
+    "packaging", Path(r"{packaging.__file__}")
+)
+
+packaging = importlib.util.module_from_spec(spec)
+sys.modules[spec.name] = packaging
+
+spec = importlib.util.spec_from_file_location(
+    "packaging.tags", Path(r"{packaging.tags.__file__}")
+)
+packaging_tags = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(packaging_tags)
+for t in packaging_tags.sys_tags():
+    print(t.interpreter, t.abi, t.platform, sep="-")
+""",
+                ],
+                stderr=subprocess.STDOUT,
+                text=True,
+                encoding="utf-8",
+            )
+        except subprocess.CalledProcessError as e:
+            raise RuntimeError(
+                "Failed to get sys_tags for python interpreter"
+                f" '{self.executable.as_posix()}':\n{e.output}"
+            )
+        return output.strip().splitlines()
 
     @property
-    def tag(self):  # type: () -> str
+    def tag(self) -> str:
         if self._package.build_script:
-            tag = next(sys_tags())
-            tag = (tag.interpreter, tag.abi, tag.platform)
+            if self.executable != Path(sys.executable):
+                # poetry-core is not run in the build environment
+                # -> this is probably not a PEP 517 build but a poetry build
+                return self._get_sys_tags()[0]
+            sys_tag = next(packaging.tags.sys_tags())
+            tag = (sys_tag.interpreter, sys_tag.abi, sys_tag.platform)
         else:
             platform = "any"
-            if self.supports_python2():
-                impl = "py2.py3"
-            else:
-                impl = "py3"
-
+            impl = "py2.py3" if self.supports_python2() else "py3"
             tag = (impl, "none", platform)
-
         return "-".join(tag)
 
     def _add_file(
-        self, wheel, full_path, rel_path
-    ):  # type: (zipfile.ZipFile, Union[Path, str], Union[Path, str]) -> None
-        full_path, rel_path = str(full_path), str(rel_path)
-        if os.sep != "/":
-            # We always want to have /-separated paths in the zip file and in
-            # RECORD
-            rel_path = rel_path.replace(os.sep, "/")
-
-        zinfo = zipfile.ZipInfo(rel_path)
+        self,
+        wheel: zipfile.ZipFile,
+        full_path: Path,
+        rel_path: Path,
+    ) -> None:
+        # We always want to have /-separated paths in the zip file and in RECORD
+        rel_path_name = rel_path.as_posix()
+        zinfo = zipfile.ZipInfo(rel_path_name)
 
         # Normalize permission bits to either 755 (executable) or 644
-        st_mode = os.stat(full_path).st_mode
+        st_mode = full_path.stat().st_mode
         new_mode = normalize_file_permissions(st_mode)
         zinfo.external_attr = (new_mode & 0xFFFF) << 16  # Unix attributes
 
@@ -315,7 +428,7 @@ class WheelBuilder(Builder):
             zinfo.external_attr |= 0x10  # MS-DOS directory flag
 
         hashsum = hashlib.sha256()
-        with open(full_path, "rb") as src:
+        with full_path.open("rb") as src:
             while True:
                 buf = src.read(1024 * 8)
                 if not buf:
@@ -325,15 +438,15 @@ class WheelBuilder(Builder):
             src.seek(0)
             wheel.writestr(zinfo, src.read(), compress_type=zipfile.ZIP_DEFLATED)
 
-        size = os.stat(full_path).st_size
+        size = full_path.stat().st_size
         hash_digest = urlsafe_b64encode(hashsum.digest()).decode("ascii").rstrip("=")
 
-        self._records.append((rel_path, hash_digest, size))
+        self._records.append((rel_path_name, hash_digest, size))
 
     @contextlib.contextmanager
     def _write_to_zip(
-        self, wheel, rel_path
-    ):  # type: (zipfile.ZipFile, str) -> Iterator[StringIO]
+        self, wheel: zipfile.ZipFile, rel_path: str
+    ) -> Iterator[StringIO]:
         sio = StringIO()
         yield sio
 
@@ -350,20 +463,20 @@ class WheelBuilder(Builder):
         wheel.writestr(zi, b, compress_type=zipfile.ZIP_DEFLATED)
         self._records.append((rel_path, hash_digest, len(b)))
 
-    def _write_entry_points(self, fp):  # type: (TextIO) -> None
+    def _write_entry_points(self, fp: TextIO) -> None:
         """
         Write entry_points.txt.
         """
         entry_points = self.convert_entry_points()
 
         for group_name in sorted(entry_points):
-            fp.write("[{}]\n".format(group_name))
+            fp.write(f"[{group_name}]\n")
             for ep in sorted(entry_points[group_name]):
                 fp.write(ep.replace(" ", "") + "\n")
 
             fp.write("\n")
 
-    def _write_wheel_file(self, fp):  # type: (TextIO) -> None
+    def _write_wheel_file(self, fp: TextIO) -> None:
         fp.write(
             wheel_file_template.format(
                 version=__version__,
@@ -372,8 +485,8 @@ class WheelBuilder(Builder):
             )
         )
 
-    def _write_metadata_file(self, fp):  # type: (TextIO) -> None
+    def _write_metadata_file(self, fp: TextIO) -> None:
         """
         Write out metadata in the 2.x format (email like)
         """
-        fp.write(decode(self.get_metadata_content()))
+        fp.write(self.get_metadata_content())

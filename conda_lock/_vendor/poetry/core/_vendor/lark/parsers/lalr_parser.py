@@ -2,19 +2,21 @@
 """
 # Author: Erez Shinan (2017)
 # Email : erezshin@gmail.com
-from ..exceptions import UnexpectedToken
-from ..lexer import Token
-from ..utils import Enumerator, Serialize
+from typing import Dict, Any, Optional
+from ..lexer import Token, LexerThread
+from ..utils import Serialize
+from ..common import ParserConf, ParserCallbacks
 
-from .lalr_analysis import LALR_Analyzer, Shift, Reduce, IntParseTable
-from .lalr_puppet import ParserPuppet
+from .lalr_analysis import LALR_Analyzer, IntParseTable, ParseTableBase
+from .lalr_interactive_parser import InteractiveParser
+from lark.exceptions import UnexpectedCharacters, UnexpectedInput, UnexpectedToken
+from .lalr_parser_state import ParserState, ParseConf
 
 ###{standalone
 
-class LALR_Parser(object):
-    def __init__(self, parser_conf, debug=False):
-        assert all(r.options.priority is None for r in parser_conf.rules), "LALR doesn't yet support prioritization"
-        analysis = LALR_Analyzer(parser_conf, debug=debug)
+class LALR_Parser(Serialize):
+    def __init__(self, parser_conf: ParserConf, debug: bool=False, strict: bool=False):
+        analysis = LALR_Analyzer(parser_conf, debug=debug, strict=strict)
         analysis.compute_lalr()
         callbacks = parser_conf.callbacks
 
@@ -23,97 +25,98 @@ class LALR_Parser(object):
         self.parser = _Parser(analysis.parse_table, callbacks, debug)
 
     @classmethod
-    def deserialize(cls, data, memo, callbacks):
+    def deserialize(cls, data, memo, callbacks, debug=False):
         inst = cls.__new__(cls)
         inst._parse_table = IntParseTable.deserialize(data, memo)
-        inst.parser = _Parser(inst._parse_table, callbacks)
+        inst.parser = _Parser(inst._parse_table, callbacks, debug)
         return inst
 
-    def serialize(self, memo):
+    def serialize(self, memo: Any = None) -> Dict[str, Any]:
         return self._parse_table.serialize(memo)
 
-    def parse(self, *args):
-        return self.parser.parse(*args)
+    def parse_interactive(self, lexer: LexerThread, start: str):
+        return self.parser.parse(lexer, start, start_interactive=True)
+
+    def parse(self, lexer, start, on_error=None):
+        try:
+            return self.parser.parse(lexer, start)
+        except UnexpectedInput as e:
+            if on_error is None:
+                raise
+
+            while True:
+                if isinstance(e, UnexpectedCharacters):
+                    s = e.interactive_parser.lexer_thread.state
+                    p = s.line_ctr.char_pos
+
+                if not on_error(e):
+                    raise e
+
+                if isinstance(e, UnexpectedCharacters):
+                    # If user didn't change the character position, then we should
+                    if p == s.line_ctr.char_pos:
+                        s.line_ctr.feed(s.text[p:p+1])
+
+                try:
+                    return e.interactive_parser.resume_parse()
+                except UnexpectedToken as e2:
+                    if (isinstance(e, UnexpectedToken)
+                        and e.token.type == e2.token.type == '$END'
+                        and e.interactive_parser == e2.interactive_parser):
+                        # Prevent infinite loop
+                        raise e2
+                    e = e2
+                except UnexpectedCharacters as e2:
+                    e = e2
 
 
 class _Parser:
-    def __init__(self, parse_table, callbacks, debug=False):
+    parse_table: ParseTableBase
+    callbacks: ParserCallbacks
+    debug: bool
+
+    def __init__(self, parse_table: ParseTableBase, callbacks: ParserCallbacks, debug: bool=False):
         self.parse_table = parse_table
         self.callbacks = callbacks
         self.debug = debug
 
-    def parse(self, seq, start, set_state=None, value_stack=None, state_stack=None):
-        token = None
-        stream = iter(seq)
-        states = self.parse_table.states
-        start_state = self.parse_table.start_states[start]
-        end_state = self.parse_table.end_states[start]
+    def parse(self, lexer: LexerThread, start: str, value_stack=None, state_stack=None, start_interactive=False):
+        parse_conf = ParseConf(self.parse_table, self.callbacks, start)
+        parser_state = ParserState(parse_conf, lexer, state_stack, value_stack)
+        if start_interactive:
+            return InteractiveParser(self, parser_state, parser_state.lexer)
+        return self.parse_from_state(parser_state)
 
-        state_stack = state_stack or [start_state]
-        value_stack = value_stack or []
 
-        if set_state: set_state(start_state)
+    def parse_from_state(self, state: ParserState, last_token: Optional[Token]=None):
+        """Run the main LALR parser loop
 
-        def get_action(token):
-            state = state_stack[-1]
-            try:
-                return states[state][token.type]
-            except KeyError:
-                expected = [s for s in states[state].keys() if s.isupper()]
-                try:
-                    puppet = ParserPuppet(self, state_stack, value_stack, start, stream, set_state)
-                except NameError:
-                    puppet = None
-                raise UnexpectedToken(token, expected, state=state, puppet=puppet)
-
-        def reduce(rule):
-            size = len(rule.expansion)
-            if size:
-                s = value_stack[-size:]
-                del state_stack[-size:]
-                del value_stack[-size:]
-            else:
-                s = []
-
-            value = self.callbacks[rule](s)
-
-            _action, new_state = states[state_stack[-1]][rule.origin.name]
-            assert _action is Shift
-            state_stack.append(new_state)
-            value_stack.append(value)
-
-        # Main LALR-parser loop
+        Parameters:
+            state - the initial state. Changed in-place.
+            last_token - Used only for line information in case of an empty lexer.
+        """
         try:
-            for token in stream:
-                while True:
-                    action, arg = get_action(token)
-                    assert arg != end_state
+            token = last_token
+            for token in state.lexer.lex(state):
+                assert token is not None
+                state.feed_token(token)
 
-                    if action is Shift:
-                        state_stack.append(arg)
-                        value_stack.append(token)
-                        if set_state: set_state(arg)
-                        break # next token
-                    else:
-                        reduce(arg)
+            end_token = Token.new_borrow_pos('$END', '', token) if token else Token('$END', '', 0, 1, 1)
+            return state.feed_token(end_token, True)
+        except UnexpectedInput as e:
+            try:
+                e.interactive_parser = InteractiveParser(self, state, state.lexer)
+            except NameError:
+                pass
+            raise e
         except Exception as e:
             if self.debug:
                 print("")
                 print("STATE STACK DUMP")
                 print("----------------")
-                for i, s in enumerate(state_stack):
+                for i, s in enumerate(state.state_stack):
                     print('%d)' % i , s)
                 print("")
 
             raise
-
-        token = Token.new_borrow_pos('$END', '', token) if token else Token('$END', '', 0, 1, 1)
-        while True:
-            _action, arg = get_action(token)
-            assert(_action is Reduce)
-            reduce(arg)
-            if state_stack[-1] == end_state:
-                return value_stack[-1]
-
 ###}
-

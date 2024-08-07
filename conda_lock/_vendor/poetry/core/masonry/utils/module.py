@@ -1,38 +1,44 @@
+from __future__ import annotations
+
+from pathlib import Path
+from typing import TYPE_CHECKING
 from typing import Any
-from typing import Dict
-from typing import List
-from typing import Optional
+from typing import Mapping
+from typing import Sequence
 
-from conda_lock._vendor.poetry.core.utils._compat import Path
-from conda_lock._vendor.poetry.core.utils.helpers import module_name
 
-from .include import Include
-from .package_include import PackageInclude
+if TYPE_CHECKING:
+    from conda_lock._vendor.poetry.core.masonry.utils.include import Include
 
 
 class ModuleOrPackageNotFound(ValueError):
-
     pass
 
 
 class Module:
     def __init__(
-        self, name, directory=".", packages=None, includes=None
-    ):  # type: (str, str, Optional[List[Dict[str, Any]]], Optional[List[Dict[str, Any]]]) -> None
+        self,
+        name: str,
+        directory: str = ".",
+        packages: Sequence[Mapping[str, Any]] = (),
+        includes: Sequence[Mapping[str, Any]] = (),
+    ) -> None:
+        from conda_lock._vendor.poetry.core.masonry.utils.include import Include
+        from conda_lock._vendor.poetry.core.masonry.utils.package_include import PackageInclude
+        from conda_lock._vendor.poetry.core.utils.helpers import module_name
+
         self._name = module_name(name)
         self._in_src = False
         self._is_package = False
         self._path = Path(directory)
-        self._includes = []
-        packages = packages or []
-        includes = includes or []
+        self._includes: list[Include] = []
 
         if not packages:
             # It must exist either as a .py file or a directory, but not both
             pkg_dir = Path(directory, self._name)
             py_file = Path(directory, self._name + ".py")
             if pkg_dir.is_dir() and py_file.is_file():
-                raise ValueError("Both {} and {} exist".format(pkg_dir, py_file))
+                raise ValueError(f"Both {pkg_dir} and {py_file} exist")
             elif pkg_dir.is_dir():
                 packages = [{"include": str(pkg_dir.relative_to(self._path))}]
             elif py_file.is_file():
@@ -44,24 +50,20 @@ class Module:
                 src_py_file = src / (self._name + ".py")
 
                 if src_pkg_dir.is_dir() and src_py_file.is_file():
-                    raise ValueError("Both {} and {} exist".format(pkg_dir, py_file))
+                    raise ValueError(f"Both {pkg_dir} and {py_file} exist")
                 elif src_pkg_dir.is_dir():
-                    packages = [
-                        {
-                            "include": str(src_pkg_dir.relative_to(src)),
-                            "from": str(src.relative_to(self._path)),
-                        }
-                    ]
+                    packages = [{
+                        "include": str(src_pkg_dir.relative_to(src)),
+                        "from": str(src.relative_to(self._path)),
+                    }]
                 elif src_py_file.is_file():
-                    packages = [
-                        {
-                            "include": str(src_py_file.relative_to(src)),
-                            "from": str(src.relative_to(self._path)),
-                        }
-                    ]
+                    packages = [{
+                        "include": str(src_py_file.relative_to(src)),
+                        "from": str(src.relative_to(self._path)),
+                    }]
                 else:
                     raise ModuleOrPackageNotFound(
-                        "No file/folder found for package {}".format(name)
+                        f"No file/folder found for package {name}"
                     )
 
         for package in packages:
@@ -75,6 +77,7 @@ class Module:
                     package["include"],
                     formats=formats,
                     source=package.get("from"),
+                    target=package.get("to"),
                 )
             )
 
@@ -84,26 +87,26 @@ class Module:
             )
 
     @property
-    def name(self):  # type: () -> str
+    def name(self) -> str:
         return self._name
 
     @property
-    def path(self):  # type: () -> Path
+    def path(self) -> Path:
         return self._path
 
     @property
-    def file(self):  # type: () -> Path
+    def file(self) -> Path:
         if self._is_package:
             return self._path / "__init__.py"
         else:
             return self._path
 
     @property
-    def includes(self):  # type: () -> List
+    def includes(self) -> list[Include]:
         return self._includes
 
-    def is_package(self):  # type: () -> bool
+    def is_package(self) -> bool:
         return self._is_package
 
-    def is_in_src(self):  # type: () -> bool
+    def is_in_src(self) -> bool:
         return self._in_src

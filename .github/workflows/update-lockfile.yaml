@@ -27,10 +27,17 @@ jobs:
     - name: Install conda-lock from branch
       run: pip install --editable .
 
+    # We don't generate for windows because xattr does not exist for
+    # windows and conda-lock does not yet support platform specifiers
+    # Remove platform arguments when one of these two things changes
     - name: Run conda-lock to recreate lockfile from scratch
       run: |
         rm environments/conda-lock.yml
         conda-lock \
+            --platform linux-64 \
+            --platform osx-64 \
+            --platform osx-arm64 \
+            --platform linux-aarch64 \
             --file=environments/dev-environment.yaml \
             --file=pyproject.toml \
             --lockfile=environments/conda-lock.yml

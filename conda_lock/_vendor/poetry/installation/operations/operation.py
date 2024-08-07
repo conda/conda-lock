@@ -1,52 +1,58 @@
-# -*- coding: utf-8 -*-
+from __future__ import annotations
 
-from typing import Union
+from typing import TYPE_CHECKING
+from typing import TypeVar
 
 
-class Operation(object):
-    def __init__(
-        self, reason=None, priority=0
-    ):  # type: (Union[str, None], int) -> None
+if TYPE_CHECKING:
+    from conda_lock._vendor.poetry.core.packages.package import Package
+
+T = TypeVar("T", bound="Operation")
+
+
+class Operation:
+    def __init__(self, reason: str | None = None, priority: float = 0) -> None:
         self._reason = reason
 
         self._skipped = False
-        self._skip_reason = None
+        self._skip_reason: str | None = None
         self._priority = priority
 
     @property
-    def job_type(self):  # type: () -> str
+    def job_type(self) -> str:
         raise NotImplementedError
 
     @property
-    def reason(self):  # type: () -> str
+    def reason(self) -> str | None:
         return self._reason
 
     @property
-    def skipped(self):  # type: () -> bool
+    def skipped(self) -> bool:
         return self._skipped
 
     @property
-    def skip_reason(self):  # type: () -> Union[str, None]
+    def skip_reason(self) -> str | None:
         return self._skip_reason
 
     @property
-    def priority(self):  # type: () -> int
+    def priority(self) -> float:
         return self._priority
 
     @property
-    def package(self):
+    def package(self) -> Package:
         raise NotImplementedError()
 
-    def format_version(self, package):  # type: (...) -> str
-        return package.full_pretty_version
+    def format_version(self, package: Package) -> str:
+        version: str = package.full_pretty_version
+        return version
 
-    def skip(self, reason):  # type: (str) -> Operation
+    def skip(self: T, reason: str) -> T:
         self._skipped = True
         self._skip_reason = reason
 
         return self
 
-    def unskip(self):  # type: () -> Operation
+    def unskip(self: T) -> T:
         self._skipped = False
         self._skip_reason = None
 

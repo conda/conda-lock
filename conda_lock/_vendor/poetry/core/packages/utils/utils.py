@@ -1,62 +1,58 @@
-import os
+from __future__ import annotations
+
+import functools
 import posixpath
 import re
 import sys
 
+from contextlib import suppress
+from pathlib import Path
 from typing import TYPE_CHECKING
 from typing import Dict
 from typing import List
 from typing import Tuple
-from typing import Union
+from urllib.parse import unquote
+from urllib.parse import urlsplit
+from urllib.request import url2pathname
 
-from six.moves.urllib.parse import unquote  # noqa
-from six.moves.urllib.parse import urlsplit  # noqa
-from six.moves.urllib.request import url2pathname  # noqa
-
-from conda_lock._vendor.poetry.core.packages.constraints.constraint import Constraint
-from conda_lock._vendor.poetry.core.packages.constraints.multi_constraint import MultiConstraint
-from conda_lock._vendor.poetry.core.packages.constraints.union_constraint import UnionConstraint
-from conda_lock._vendor.poetry.core.semver import EmptyConstraint
-from conda_lock._vendor.poetry.core.semver import Version
-from conda_lock._vendor.poetry.core.semver import VersionConstraint
-from conda_lock._vendor.poetry.core.semver import VersionRange
-from conda_lock._vendor.poetry.core.semver import VersionUnion
-from conda_lock._vendor.poetry.core.semver import parse_constraint
-from conda_lock._vendor.poetry.core.utils._compat import Path
-from conda_lock._vendor.poetry.core.version.markers import BaseMarker
-from conda_lock._vendor.poetry.core.version.markers import MarkerUnion
-from conda_lock._vendor.poetry.core.version.markers import MultiMarker
+from conda_lock._vendor.poetry.core.constraints.version import Version
+from conda_lock._vendor.poetry.core.constraints.version import VersionRange
+from conda_lock._vendor.poetry.core.constraints.version import parse_marker_version_constraint
 from conda_lock._vendor.poetry.core.version.markers import SingleMarker
+from conda_lock._vendor.poetry.core.version.markers import SingleMarkerLike
+from conda_lock._vendor.poetry.core.version.markers import dnf
 
 
 if TYPE_CHECKING:
-    from conda_lock._vendor.poetry.core.packages.constraints import BaseConstraint  # noqa
-    from conda_lock._vendor.poetry.core.semver import VersionTypes  # noqa
+    from conda_lock._vendor.poetry.core.constraints.generic import BaseConstraint
+    from conda_lock._vendor.poetry.core.constraints.version import VersionConstraint
+    from conda_lock._vendor.poetry.core.version.markers import BaseMarker
+
+    # Even though we've `from __future__ import annotations`, mypy doesn't seem to like
+    # this as `dict[str, ...]`
+    ConvertedMarkers = Dict[str, List[List[Tuple[str, str]]]]
+
 
 BZ2_EXTENSIONS = (".tar.bz2", ".tbz")
 XZ_EXTENSIONS = (".tar.xz", ".txz", ".tlz", ".tar.lz", ".tar.lzma")
 ZIP_EXTENSIONS = (".zip", ".whl")
 TAR_EXTENSIONS = (".tar.gz", ".tgz", ".tar")
 ARCHIVE_EXTENSIONS = ZIP_EXTENSIONS + BZ2_EXTENSIONS + TAR_EXTENSIONS + XZ_EXTENSIONS
-SUPPORTED_EXTENSIONS = ZIP_EXTENSIONS + TAR_EXTENSIONS
+SUPPORTED_EXTENSIONS: tuple[str, ...] = ZIP_EXTENSIONS + TAR_EXTENSIONS
 
-try:
-    import bz2  # noqa
+with suppress(ImportError):
+    import bz2  # noqa: F401
 
     SUPPORTED_EXTENSIONS += BZ2_EXTENSIONS
-except ImportError:
-    pass
 
-try:
+with suppress(ImportError):
     # Only for Python 3.3+
-    import lzma  # noqa
+    import lzma  # noqa: F401
 
     SUPPORTED_EXTENSIONS += XZ_EXTENSIONS
-except ImportError:
-    pass
 
 
-def path_to_url(path):  # type: (Union[str, Path]) -> str
+def path_to_url(path: str | Path) -> str:
     """
     Convert a path to a file: URL.  The path will be made absolute unless otherwise
     specified and have quoted path parts.
@@ -64,7 +60,7 @@ def path_to_url(path):  # type: (Union[str, Path]) -> str
     return Path(path).absolute().as_uri()
 
 
-def url_to_path(url):  # type: (str) -> Path
+def url_to_path(url: str) -> Path:
     """
     Convert an RFC8089 file URI to path.
 
@@ -72,7 +68,7 @@ def url_to_path(url):  # type: (str) -> Path
     https://github.com/pypa/pip/blob/4d1932fcdd1974c820ea60b3286984ebb0c3beaa/src/pip/_internal/utils/urls.py#L31
     """
     if not url.startswith("file:"):
-        raise ValueError("{} is not a valid file URI".format(url))
+        raise ValueError(f"{url} is not a valid file URI")
 
     _, netloc, path, _, _ = urlsplit(url)
 
@@ -84,13 +80,13 @@ def url_to_path(url):  # type: (str) -> Path
         netloc = "\\\\" + netloc
     else:
         raise ValueError(
-            "non-local file URIs are not supported on this platform: {}".format(url)
+            f"non-local file URIs are not supported on this platform: {url}"
         )
 
     return Path(url2pathname(netloc + unquote(path)))
 
 
-def is_url(name):  # type: (str) -> bool
+def is_url(name: str) -> bool:
     if ":" not in name:
         return False
     scheme = name.split(":", 1)[0].lower()
@@ -110,7 +106,7 @@ def is_url(name):  # type: (str) -> bool
     ]
 
 
-def strip_extras(path):  # type: (str) -> Tuple[str, str]
+def strip_extras(path: str) -> tuple[str, str | None]:
     m = re.match(r"^(.+)(\[[^\]]+\])$", path)
     extras = None
     if m:
@@ -122,17 +118,22 @@ def strip_extras(path):  # type: (str) -> Tuple[str, str]
     return path_no_extras, extras
 
 
-def is_installable_dir(path):  # type: (str) -> bool
-    """Return True if `path` is a directory containing a setup.py file."""
-    if not os.path.isdir(path):
+@functools.lru_cache(maxsize=None)
+def is_python_project(path: Path) -> bool:
+    """Return true if the directory is a Python project"""
+    if not path.is_dir():
         return False
-    setup_py = os.path.join(path, "setup.py")
-    if os.path.isfile(setup_py):
-        return True
-    return False
+
+    setup_py = path / "setup.py"
+    setup_cfg = path / "setup.cfg"
+    setuptools_project = setup_py.exists() or setup_cfg.exists()
+
+    pyproject = (path / "pyproject.toml").exists()
+
+    return pyproject or setuptools_project
 
 
-def is_archive_file(name):  # type: (str) -> bool
+def is_archive_file(name: str) -> bool:
     """Return True if `name` is a considered as an archive file."""
     ext = splitext(name)[1].lower()
     if ext in ARCHIVE_EXTENSIONS:
@@ -140,7 +141,7 @@ def is_archive_file(name):  # type: (str) -> bool
     return False
 
 
-def splitext(path):  # type: (str) -> Tuple[str, str]
+def splitext(path: str) -> tuple[str, str]:
     """Like os.path.splitext, but take off .tar too"""
     base, ext = posixpath.splitext(path)
     if base.lower().endswith(".tar"):
@@ -149,149 +150,159 @@ def splitext(path):  # type: (str) -> Tuple[str, str]
     return base, ext
 
 
-def group_markers(
-    markers, or_=False
-):  # type: (List[BaseMarker], bool) -> List[Union[Tuple[str, str, str], List[Tuple[str, str, str]]]]
-    groups = [[]]
+def convert_markers(marker: BaseMarker) -> ConvertedMarkers:
+    from conda_lock._vendor.poetry.core.version.markers import MarkerUnion
+    from conda_lock._vendor.poetry.core.version.markers import MultiMarker
+    from conda_lock._vendor.poetry.core.version.markers import SingleMarker
 
-    for marker in markers:
-        if or_:
-            groups.append([])
+    requirements: ConvertedMarkers = {}
+    marker = dnf(marker)
+    conjunctions = marker.markers if isinstance(marker, MarkerUnion) else [marker]
+    group_count = len(conjunctions)
 
-        if isinstance(marker, (MultiMarker, MarkerUnion)):
-            groups[-1].append(
-                group_markers(marker.markers, isinstance(marker, MarkerUnion))
-            )
-        elif isinstance(marker, SingleMarker):
-            lhs, op, rhs = marker.name, marker.operator, marker.value
+    def add_constraint(
+        marker_name: str, constraint: tuple[str, str], group_index: int
+    ) -> None:
+        # python_full_version is equivalent to python_version
+        # for Poetry so we merge them
+        if marker_name == "python_full_version":
+            marker_name = "python_version"
+        if marker_name not in requirements:
+            requirements[marker_name] = [[] for _ in range(group_count)]
+        requirements[marker_name][group_index].append(constraint)
 
-            groups[-1].append((lhs, op, rhs))
-
-    return groups
-
-
-def convert_markers(marker):  # type: (BaseMarker) -> Dict[str, List[Tuple[str, str]]]
-    groups = group_markers([marker])
-
-    requirements = {}
-
-    def _group(
-        _groups, or_=False
-    ):  # type: (List[Union[Tuple[str, str, str], List[Tuple[str, str, str]]]], bool) -> None
-        ors = {}
-        for group in _groups:
-            if isinstance(group, list):
-                _group(group, or_=True)
+    for i, sub_marker in enumerate(conjunctions):
+        if isinstance(sub_marker, MultiMarker):
+            for m in sub_marker.markers:
+                assert isinstance(m, SingleMarkerLike)
+                if isinstance(m, SingleMarker):
+                    add_constraint(m.name, (m.operator, m.value), i)
+                else:
+                    add_constraint(m.name, ("", str(m.constraint)), i)
+        elif isinstance(sub_marker, SingleMarkerLike):
+            if isinstance(sub_marker, SingleMarker):
+                add_constraint(
+                    sub_marker.name, (sub_marker.operator, sub_marker.value), i
+                )
             else:
-                variable, op, value = group
-                group_name = str(variable)
+                add_constraint(sub_marker.name, ("", str(sub_marker.constraint)), i)
 
-                # python_full_version is equivalent to python_version
-                # for Poetry so we merge them
-                if group_name == "python_full_version":
-                    group_name = "python_version"
-
-                if group_name not in requirements:
-                    requirements[group_name] = []
-
-                if group_name not in ors:
-                    ors[group_name] = or_
-
-                if ors[group_name] or not requirements[group_name]:
-                    requirements[group_name].append([])
-
-                requirements[group_name][-1].append((str(op), str(value)))
-
-                ors[group_name] = False
-
-    _group(groups, or_=True)
+    for group_name in requirements:
+        # remove duplicates
+        seen = []
+        for r in requirements[group_name]:
+            if r not in seen:
+                seen.append(r)
+        requirements[group_name] = seen
 
     return requirements
 
 
+def contains_group_without_marker(markers: ConvertedMarkers, marker_name: str) -> bool:
+    return marker_name not in markers or [] in markers[marker_name]
+
+
 def create_nested_marker(
-    name, constraint
-):  # type: (str, Union["BaseConstraint", VersionUnion, Version, VersionConstraint]) -> str
+    name: str,
+    constraint: BaseConstraint | VersionConstraint,
+) -> str:
+    from conda_lock._vendor.poetry.core.constraints.generic import Constraint
+    from conda_lock._vendor.poetry.core.constraints.generic import MultiConstraint
+    from conda_lock._vendor.poetry.core.constraints.generic import UnionConstraint
+    from conda_lock._vendor.poetry.core.constraints.version import VersionUnion
+
     if constraint.is_any():
         return ""
 
     if isinstance(constraint, (MultiConstraint, UnionConstraint)):
-        parts = []
+        multi_parts = []
         for c in constraint.constraints:
-            multi = False
-            if isinstance(c, (MultiConstraint, UnionConstraint)):
-                multi = True
-
-            parts.append((multi, create_nested_marker(name, c)))
+            multi = isinstance(c, (MultiConstraint, UnionConstraint))
+            multi_parts.append((multi, create_nested_marker(name, c)))
 
         glue = " and "
         if isinstance(constraint, UnionConstraint):
-            parts = ["({})".format(part[1]) if part[0] else part[1] for part in parts]
+            parts = [f"({part[1]})" if part[0] else part[1] for part in multi_parts]
             glue = " or "
         else:
-            parts = [part[1] for part in parts]
+            parts = [part[1] for part in multi_parts]
 
         marker = glue.join(parts)
     elif isinstance(constraint, Constraint):
-        marker = '{} {} "{}"'.format(name, constraint.operator, constraint.version)
+        marker = f'{name} {constraint.operator} "{constraint.value}"'
     elif isinstance(constraint, VersionUnion):
-        parts = []
-        for c in constraint.ranges:
-            parts.append(create_nested_marker(name, c))
-
+        parts = [create_nested_marker(name, c) for c in constraint.ranges]
         glue = " or "
-        parts = ["({})".format(part) for part in parts]
-
+        parts = [f"({part})" for part in parts]
         marker = glue.join(parts)
     elif isinstance(constraint, Version):
         if name == "python_version" and constraint.precision >= 3:
             name = "python_full_version"
 
-        marker = '{} == "{}"'.format(name, constraint.text)
+        marker = f'{name} == "{constraint.text}"'
     else:
+        assert isinstance(constraint, VersionRange)
+        min_name = max_name = name
+
+        parts = []
+
+        # `python_version` is a special case: to keep the constructed marker equivalent
+        # to the constraint we need to be careful with the precision.
+        #
+        # PEP 440 tells us that when we come to make the comparison the release
+        # segment will be zero padded: eg "<= 3.10" is equivalent to "<= 3.10.0".
+        #
+        # But "python_version <= 3.10" is _not_ equivalent to "python_version <= 3.10.0"
+        # - see normalize_python_version_markers.
+        #
+        # A similar issue arises for a constraint like "> 3.6".
         if constraint.min is not None:
-            op = ">="
-            if not constraint.include_min:
-                op = ">"
-
+            op = ">=" if constraint.include_min else ">"
             version = constraint.min
-            if constraint.max is not None:
-                min_name = max_name = name
-                if min_name == "python_version" and constraint.min.precision >= 3:
-                    min_name = "python_full_version"
+            if min_name == "python_version" and version.precision >= 3:
+                min_name = "python_full_version"
 
-                if max_name == "python_version" and constraint.max.precision >= 3:
-                    max_name = "python_full_version"
+            if (
+                min_name == "python_version"
+                and not constraint.include_min
+                and version.precision < 3
+            ):
+                padding = ".0" * (3 - version.precision)
+                part = f'python_full_version > "{version}{padding}"'
+            else:
+                part = f'{min_name} {op} "{version}"'
 
-                text = '{} {} "{}"'.format(min_name, op, version)
+            parts.append(part)
 
-                op = "<="
-                if not constraint.include_max:
-                    op = "<"
-
-                version = constraint.max
-
-                text += ' and {} {} "{}"'.format(max_name, op, version)
-
-                return text
-        elif constraint.max is not None:
-            op = "<="
-            if not constraint.include_max:
-                op = "<"
-
+        if constraint.max is not None:
+            op = "<=" if constraint.include_max else "<"
             version = constraint.max
-        else:
-            return ""
+            if max_name == "python_version" and version.precision >= 3:
+                max_name = "python_full_version"
 
-        if name == "python_version" and version.precision >= 3:
-            name = "python_full_version"
+            if (
+                max_name == "python_version"
+                and constraint.include_max
+                and version.precision < 3
+            ):
+                padding = ".0" * (3 - version.precision)
+                part = f'python_full_version <= "{version}{padding}"'
+            else:
+                part = f'{max_name} {op} "{version}"'
 
-        marker = '{} {} "{}"'.format(name, op, version)
+            parts.append(part)
+
+        marker = " and ".join(parts)
 
     return marker
 
 
-def get_python_constraint_from_marker(marker,):  # type: (BaseMarker) -> "VersionTypes"
+def get_python_constraint_from_marker(
+    marker: BaseMarker,
+) -> VersionConstraint:
+    from conda_lock._vendor.poetry.core.constraints.version import EmptyConstraint
+    from conda_lock._vendor.poetry.core.constraints.version import VersionRange
+
     python_marker = marker.only("python_version", "python_full_version")
     if python_marker.is_any():
         return VersionRange()
@@ -300,38 +311,69 @@ def get_python_constraint_from_marker(marker,):  # type: (BaseMarker) -> "Versio
         return EmptyConstraint()
 
     markers = convert_markers(marker)
+    if contains_group_without_marker(markers, "python_version"):
+        # groups are in disjunctive normal form (DNF),
+        # an empty group means that python_version does not appear in this group,
+        # which means that python_version is arbitrary for this group
+        return VersionRange()
 
+    python_version_markers = markers["python_version"]
+    normalized = normalize_python_version_markers(python_version_markers)
+    constraint = parse_marker_version_constraint(normalized)
+    return constraint
+
+
+def normalize_python_version_markers(  # NOSONAR
+    disjunction: list[list[tuple[str, str]]],
+) -> str:
     ors = []
-    for or_ in markers["python_version"]:
+    for or_ in disjunction:
         ands = []
         for op, version in or_:
             # Expand python version
-            if op == "==":
+            if op == "==" and "*" not in version and version.count(".") < 2:
                 version = "~" + version
                 op = ""
-            elif op == "!=":
+
+            elif op == "!=" and "*" not in version and version.count(".") < 2:
                 version += ".*"
+
             elif op in ("<=", ">"):
+                # Make adjustments on encountering versions with less than full
+                # precision.
+                #
+                # Per PEP-508:
+                # python_version <-> '.'.join(platform.python_version_tuple()[:2])
+                #
+                # So for two digits of precision we make the following adjustments:
+                # - `python_version > "x.y"` requires version >= x.(y+1).anything
+                # - `python_version <= "x.y"` requires version < x.(y+1).anything
+                #
+                # Treatment when we see a single digit of precision is less clear: is
+                # that even a legitimate marker?
+                #
+                # Experiment suggests that pip behaviour is essentially to make a
+                # lexicographical comparison, for example `python_version > "3"` is
+                # satisfied by version 3.anything, whereas `python_version <= "3"` is
+                # satisfied only by version 2.anything.
+                #
+                # We achieve the above by fiddling with the operator and version in the
+                # marker.
                 parsed_version = Version.parse(version)
-                if parsed_version.precision == 1:
+                if parsed_version.precision < 3:
                     if op == "<=":
                         op = "<"
-                        version = parsed_version.next_major.text
                     elif op == ">":
                         op = ">="
-                        version = parsed_version.next_major.text
-                elif parsed_version.precision == 2:
-                    if op == "<=":
-                        op = "<"
-                        version = parsed_version.next_minor.text
-                    elif op == ">":
-                        op = ">="
-                        version = parsed_version.next_minor.text
+
+                if parsed_version.precision == 2:
+                    version = parsed_version.next_minor().text
+
             elif op in ("in", "not in"):
                 versions = []
-                for v in re.split("[ ,]+", version):
+                for v in SingleMarker.VALUE_SEPARATOR_RE.split(version):
                     split = v.split(".")
-                    if len(split) in [1, 2]:
+                    if len(split) in (1, 2):
                         split.append("*")
                         op_ = "" if op == "in" else "!="
                     else:
@@ -339,14 +381,14 @@ def get_python_constraint_from_marker(marker,):  # type: (BaseMarker) -> "Versio
 
                     versions.append(op_ + ".".join(split))
 
-                glue = " || " if op == "in" else ", "
                 if versions:
+                    glue = " || " if op == "in" else ", "
                     ands.append(glue.join(versions))
 
                 continue
 
-            ands.append("{}{}".format(op, version))
+            ands.append(f"{op}{version}")
 
         ors.append(" ".join(ands))
 
-    return parse_constraint(" || ".join(ors))
+    return " || ".join(ors)

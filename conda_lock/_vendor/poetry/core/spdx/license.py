@@ -1,10 +1,16 @@
+from __future__ import annotations
+
 from collections import namedtuple
-from typing import Optional
+from typing import ClassVar
 
 
 class License(namedtuple("License", "id name is_osi_approved is_deprecated")):
+    id: str
+    name: str
+    is_osi_approved: bool
+    is_deprecated: bool
 
-    CLASSIFIER_SUPPORTED = {
+    CLASSIFIER_SUPPORTED: ClassVar[set[str]] = {
         # Not OSI Approved
         "Aladdin",
         "CC0-1.0",
@@ -69,7 +75,7 @@ class License(namedtuple("License", "id name is_osi_approved is_deprecated")):
         "ZPL-2.1",
     }
 
-    CLASSIFIER_NAMES = {
+    CLASSIFIER_NAMES: ClassVar[dict[str, str]] = {
         # Not OSI Approved
         "AFPL": "Aladdin Free Public License (AFPL)",
         "CC0-1.0": "CC0 1.0 Universal (CC0 1.0) Public Domain Dedication",
@@ -131,7 +137,7 @@ class License(namedtuple("License", "id name is_osi_approved is_deprecated")):
     }
 
     @property
-    def classifier(self):  # type: () -> str
+    def classifier(self) -> str:
         parts = ["License"]
 
         if self.is_osi_approved:
@@ -144,7 +150,7 @@ class License(namedtuple("License", "id name is_osi_approved is_deprecated")):
         return " :: ".join(parts)
 
     @property
-    def classifier_name(self):  # type: () -> Optional[str]
+    def classifier_name(self) -> str | None:
         if self.id not in self.CLASSIFIER_SUPPORTED:
             if self.is_osi_approved:
                 return None
