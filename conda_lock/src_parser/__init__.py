@@ -75,7 +75,6 @@ def _parse_source_files(
 def make_lock_spec(
     *,
     src_files: List[pathlib.Path],
-    virtual_package_repo: FakeRepoData,
     channel_overrides: Optional[Sequence[str]] = None,
     pip_repository_overrides: Optional[Sequence[str]] = None,
     platform_overrides: Optional[Sequence[str]] = None,
@@ -131,6 +130,5 @@ def make_lock_spec(
         channels=channels,
         pip_repositories=pip_repositories,
         sources=aggregated_lock_spec.sources,
-        virtual_package_repo=virtual_package_repo,
         allow_pypi_requests=aggregated_lock_spec.allow_pypi_requests,
     )

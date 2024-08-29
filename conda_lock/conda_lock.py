@@ -76,6 +76,7 @@ from conda_lock.models.pip_repository import PipRepository
 from conda_lock.pypi_solver import solve_pypi
 from conda_lock.src_parser import make_lock_spec
 from conda_lock.virtual_package import (
+    FakeRepoData,
     default_virtual_package_repodata,
     virtual_package_repo_from_specification,
 )
@@ -338,7 +339,6 @@ def make_lock_files(  # noqa: C901
             src_files=src_files,
             channel_overrides=channel_overrides,
             platform_overrides=platform_overrides,
-            virtual_package_repo=virtual_package_repo,
             required_categories=required_categories if filter_categories else None,
         )
         original_lock_content: Optional[Lockfile] = None
@@ -368,7 +368,9 @@ def make_lock_files(  # noqa: C901
                     update
                     or platform not in platforms_already_locked
                     or not check_input_hash
-                    or lock_spec.content_hash_for_platform(platform)
+                    or lock_spec.content_hash_for_platform(
+                        platform, virtual_package_repo
+                    )
                     != original_lock_content.metadata.content_hash[platform]
                 ):
                     platforms_to_lock.append(platform)
@@ -399,6 +401,7 @@ def make_lock_files(  # noqa: C901
                 metadata_choices=metadata_choices,
                 metadata_yamls=metadata_yamls,
                 strip_auth=strip_auth,
+                virtual_package_repo=virtual_package_repo,
             )
 
             if not original_lock_content:
@@ -720,11 +723,13 @@ def render_lockfile_for_platform(  # noqa: C901
 
 
 def _solve_for_arch(
+    *,
     conda: PathLike,
     spec: LockSpecification,
     platform: str,
     channels: List[Channel],
     pip_repositories: List[PipRepository],
+    virtual_package_repo: FakeRepoData,
     update_spec: Optional[UpdateSpecification] = None,
     strip_auth: bool = False,
 ) -> List[LockedDependency]:
@@ -767,10 +772,10 @@ def _solve_for_arch(
             python_version=conda_deps["python"].version,
             platform=platform,
             platform_virtual_packages=(
-                spec.virtual_package_repo.all_repodata.get(
-                    platform, {"packages": None}
-                )["packages"]
-                if spec.virtual_package_repo
+                virtual_package_repo.all_repodata.get(platform, {"packages": None})[
+                    "packages"
+                ]
+                if virtual_package_repo
                 else None
             ),
             pip_repositories=pip_repositories,
@@ -821,14 +826,13 @@ def create_lockfile_from_spec(
     metadata_choices: AbstractSet[MetadataOption] = frozenset(),
     metadata_yamls: Sequence[pathlib.Path] = (),
     strip_auth: bool = False,
+    virtual_package_repo: FakeRepoData,
 ) -> Lockfile:
     """
     Solve or update specification
     """
     if platforms is None:
         platforms = []
-    assert spec.virtual_package_repo is not None
-    virtual_package_channel = spec.virtual_package_repo.channel
 
     locked: Dict[Tuple[str, str, str], LockedDependency] = {}
 
@@ -837,8 +841,9 @@ def create_lockfile_from_spec(
             conda=conda,
             spec=spec,
             platform=platform,
-            channels=[*spec.channels, virtual_package_channel],
+            channels=[*spec.channels, virtual_package_repo.channel],
             pip_repositories=spec.pip_repositories,
+            virtual_package_repo=virtual_package_repo,
             update_spec=update_spec,
             strip_auth=strip_auth,
         )
@@ -888,11 +893,12 @@ def create_lockfile_from_spec(
         inputs_metadata = None
 
     custom_metadata = get_custom_metadata(metadata_yamls=metadata_yamls)
+    content_hash = spec.content_hash(virtual_package_repo)
 
     return Lockfile(
         package=[locked[k] for k in locked],
         metadata=LockMeta(
-            content_hash=spec.content_hash(),
+            content_hash=content_hash,
             channels=[c for c in spec.channels],
             platforms=spec.platforms,
             sources=list(meta_sources.keys()),
