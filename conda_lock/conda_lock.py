@@ -313,6 +313,30 @@ def make_lock_files(  # noqa: C901
         YAML or JSON file(s) containing structured metadata to add to metadata section of the lockfile.
     """
 
+    # Compute lock specification
+    required_categories = {"main"}
+    if include_dev_dependencies:
+        required_categories.add("dev")
+    if extras is not None:
+        required_categories.update(extras)
+    lock_spec = make_lock_spec(
+        src_files=src_files,
+        channel_overrides=channel_overrides,
+        platform_overrides=platform_overrides,
+        required_categories=required_categories if filter_categories else None,
+    )
+
+    # Load existing lockfile if it exists
+    original_lock_content: Optional[Lockfile] = None
+    if lockfile_path.exists():
+        try:
+            original_lock_content = parse_conda_lock_file(lockfile_path)
+        except (yaml.error.YAMLError, FileNotFoundError):
+            logger.warning("Failed to parse existing lock.  Regenerating from scratch")
+            original_lock_content = None
+    else:
+        original_lock_content = None
+
     # initialize virtual packages
     if virtual_package_spec and virtual_package_spec.exists():
         virtual_package_repo = virtual_package_repo_from_specification(
@@ -325,37 +349,9 @@ def make_lock_files(  # noqa: C901
             with_cuda = "11.4"
         else:
             cuda_specified = True
-
         virtual_package_repo = default_virtual_package_repodata(cuda_version=with_cuda)
 
-    required_categories = {"main"}
-    if include_dev_dependencies:
-        required_categories.add("dev")
-    if extras is not None:
-        required_categories.update(extras)
-
     with virtual_package_repo:
-        lock_spec = make_lock_spec(
-            src_files=src_files,
-            channel_overrides=channel_overrides,
-            platform_overrides=platform_overrides,
-            required_categories=required_categories if filter_categories else None,
-        )
-        original_lock_content: Optional[Lockfile] = None
-
-        if lockfile_path.exists():
-            import yaml
-
-            try:
-                original_lock_content = parse_conda_lock_file(lockfile_path)
-            except (yaml.error.YAMLError, FileNotFoundError):
-                logger.warning(
-                    "Failed to parse existing lock.  Regenerating from scratch"
-                )
-                original_lock_content = None
-        else:
-            original_lock_content = None
-
         platforms_to_lock: List[str] = []
         platforms_already_locked: List[str] = []
         if original_lock_content is not None:
