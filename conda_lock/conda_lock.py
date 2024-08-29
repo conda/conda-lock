@@ -1145,7 +1145,7 @@ TLogLevel = Union[
 ]
 
 
-@main.command("lock")
+@main.command("lock", context_settings={"show_default": True})
 @click.option(
     "--conda", default=None, help="path (or name) of the conda/mamba executable to use."
 )
@@ -1414,7 +1414,7 @@ DEFAULT_INSTALL_OPT_DEV = True
 DEFAULT_INSTALL_OPT_LOCK_FILE = pathlib.Path(DEFAULT_LOCKFILE_NAME)
 
 
-@main.command("install")
+@main.command("install", context_settings={"show_default": True})
 @click.option(
     "--conda", default=None, help="path (or name) of the conda/mamba executable to use."
 )
@@ -1552,7 +1552,7 @@ def install(
             install_func(file=lockfile)
 
 
-@main.command("render")
+@main.command("render", context_settings={"show_default": True})
 @click.option(
     "--dev-dependencies/--no-dev-dependencies",
     is_flag=True,
