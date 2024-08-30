@@ -12,7 +12,7 @@ import pytest
 import requests
 import requests_mock
 
-from filelock import FileLock
+from filelock import FileLock, Timeout
 
 from conda_lock._vendor.poetry.locations import DEFAULT_CACHE_DIR
 from conda_lock.conda_lock import DEFAULT_LOCKFILE_NAME, run_lock
@@ -148,11 +148,17 @@ def poetry_cache():
     )
 
     # Grab a lock
-    with FileLock(to_delete.parent / ".conda_lock.lock"):
-        yield
-        # Do another independent check that triggers even if we're in optimized mode
-        if "pypoetry-conda-lock" in to_delete.parts:
-            shutil.rmtree(DEFAULT_CACHE_DIR, ignore_errors=True)
+    lock = FileLock(to_delete.parent / ".conda_lock.lock")
+    try:
+        with lock.acquire(timeout=300):
+            yield
+            # Do another independent check that triggers even if we're in optimized mode
+            if "pypoetry-conda-lock" in to_delete.parts:
+                shutil.rmtree(DEFAULT_CACHE_DIR, ignore_errors=True)
+            else:
+                assert False, f"Unexpected cache directory: {to_delete}"
+    except Timeout:
+        assert False, "Could not acquire lock {to_delete.parent}/.conda_lock.lock for cache cleanup"
 
 
 def test_it_uses_pip_repositories_with_env_var_substitution(
