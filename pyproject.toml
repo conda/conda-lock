@@ -49,7 +49,7 @@ dependencies = [
     # poetry:
     "dulwich >=0.21.2,<0.22",
     # poetry:
-    "fastjsonschema >=2.18.0,<2.19.0",
+    "fastjsonschema >=2.20.0,<2.21.0",
     # poetry:
     'importlib-metadata >= 4.4 ;  python_version <"3.10"',
     # poetry:
