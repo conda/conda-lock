@@ -61,7 +61,7 @@ dependencies = [
     # poetry (extending to 5.0.0 because o/w does not exist on osx-arm64)
     "pexpect >=4.7.0,<5.0.0",
     # poetry:
-    "pkginfo >=1.10,<1.11",
+    "pkginfo >=1.11,<1.12",
     # poetry:
     "platformdirs >=3.0.0,<5",
     # poetry:
