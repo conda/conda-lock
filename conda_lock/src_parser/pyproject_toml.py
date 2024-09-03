@@ -30,7 +30,7 @@ from packaging.utils import canonicalize_name as canonicalize_pypi_name
 from typing_extensions import Literal
 
 from conda_lock.common import get_in
-from conda_lock.lookup import get_forward_lookup as get_lookup
+from conda_lock.lookup import pypi_name_to_conda_name, set_pypi_lookup_overrides
 from conda_lock.models.lock_spec import (
     Dependency,
     LockSpecification,
@@ -71,22 +71,6 @@ POETRY_OPTIONAL_NOT_MAIN = (
 
 def join_version_components(pieces: Sequence[Union[str, int]]) -> str:
     return ".".join(str(p) for p in pieces)
-
-
-def normalize_pypi_name(name: str) -> str:
-    cname = canonicalize_pypi_name(name)
-    if cname in get_lookup():
-        lookup = get_lookup()[cname]
-        res = lookup.get("conda_name") or lookup.get("conda_forge")
-        if res is not None:
-            return res
-        else:
-            logging.warning(
-                f"Could not find conda name for {cname}. Assuming identity."
-            )
-            return cname
-    else:
-        return cname
 
 
 def poetry_version_to_conda_version(version_string: Optional[str]) -> Optional[str]:
@@ -275,7 +259,7 @@ def parse_poetry_pyproject_toml(
                 )
 
             if manager == "conda":
-                name = normalize_pypi_name(depname)
+                name = pypi_name_to_conda_name(depname)
                 version = poetry_version_to_conda_version(poetry_version_spec)
             else:
                 name = depname
@@ -437,16 +421,15 @@ def parse_python_requirement(
 ) -> Dependency:
     """Parse a requirements.txt like requirement to a conda spec"""
     parsed_req = parse_requirement_specifier(requirement)
-    name = canonicalize_pypi_name(parsed_req.name)
     collapsed_version = str(parsed_req.specifier)
     conda_version = poetry_version_to_conda_version(collapsed_version)
     if conda_version:
         conda_version = ",".join(sorted(conda_version.split(",")))
 
     if normalize_name:
-        conda_dep_name = normalize_pypi_name(name)
+        conda_dep_name = pypi_name_to_conda_name(parsed_req.name)
     else:
-        conda_dep_name = name
+        conda_dep_name = canonicalize_pypi_name(parsed_req.name)
     extras = list(parsed_req.extras)
 
     if parsed_req.url and parsed_req.url.startswith("git+"):
@@ -575,6 +558,10 @@ def parse_pyproject_toml(
     with pyproject_toml.open("rb") as fp:
         contents = toml_load(fp)
     build_system = get_in(["build-system", "build-backend"], contents)
+
+    pypi_map = get_in(["tool", "conda-lock", "pypi-to-conda-name"], contents, False)
+    if pypi_map:
+        set_pypi_lookup_overrides(pypi_map)
 
     if get_in(
         ["tool", "conda-lock", "skip-non-conda-lock"],
