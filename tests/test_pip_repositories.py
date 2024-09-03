@@ -1,6 +1,7 @@
 import base64
 import os
 import shutil
+import sys
 import tarfile
 
 from io import BytesIO
@@ -12,7 +13,7 @@ import pytest
 import requests
 import requests_mock
 
-from filelock import FileLock, Timeout
+from filelock import FileLock
 
 from conda_lock._vendor.poetry.locations import DEFAULT_CACHE_DIR
 from conda_lock.conda_lock import DEFAULT_LOCKFILE_NAME, run_lock
@@ -134,44 +135,36 @@ def configure_auth(monkeypatch):
     monkeypatch.setenv("PIP_PASSWORD", _PRIVATE_REPO_PASSWORD)
 
 
-@pytest.fixture(autouse=True)
-def poetry_cache():
-    # This fixture serves to make sure that only one test that relies on the
-    # cache being cleared runs at a time
-
-    # We are going to rmtree the cache directory. Let's be extra careful to make
-    # sure we only delete a directory named "pypoetry-conda-lock" or one of its
-    # subdirectories.
-    to_delete = DEFAULT_CACHE_DIR.resolve()
-    assert to_delete.name == "pypoetry-conda-lock" or (
-        to_delete.parent.name == "pypoetry-conda-lock" and to_delete.name == "Cache"
-    )
-
-    # Grab a lock
-    lock = FileLock(to_delete.parent / ".conda_lock.lock")
-    try:
-        with lock.acquire(timeout=300):
-            yield
-            # Do another independent check that triggers even if we're in optimized mode
-            if "pypoetry-conda-lock" in to_delete.parts:
-                shutil.rmtree(DEFAULT_CACHE_DIR, ignore_errors=True)
-            else:
-                assert False, f"Unexpected cache directory: {to_delete}"
-    except Timeout:
-        assert False, "Could not acquire lock {to_delete.parent}/.conda_lock.lock for cache cleanup"
+@pytest.fixture()
+def cleared_poetry_cache(tmp_path_factory, testrun_uid: str):
+    """Ensure no concurrency for tests that rely on the cache being cleared"""
+    # testrun_uid comes from xdist <https://stackoverflow.com/a/62765653>
+    # The idea for using FileLock with the base temp directory comes from
+    # <https://pytest-xdist.readthedocs.io/en/latest/how-to.html#making-session-scoped-fixtures-execute-only-once>
+    root_tmp_dir = tmp_path_factory.getbasetemp().parent
+    testrun_lockfile = root_tmp_dir / f".conda_lock_pytest_{testrun_uid}.lock"
+    with FileLock(testrun_lockfile):
+        # Use `pytest -s` to see these messages
+        print(
+            f"Clearing {DEFAULT_CACHE_DIR} based on lock {testrun_lockfile}",
+            file=sys.stderr,
+        )
+        clear_poetry_cache()
+        yield
+        print(f"Releasing lock {testrun_lockfile}", file=sys.stderr)
 
 
 def test_it_uses_pip_repositories_with_env_var_substitution(
     monkeypatch: "pytest.MonkeyPatch",
     conda_exe: str,
     tmp_path: Path,
+    cleared_poetry_cache: None,
 ):
     # GIVEN an environment.yaml with custom pip repositories and clean cache
     directory = clone_test_dir("test-pip-repositories", tmp_path)
     monkeypatch.chdir(directory)
     environment_file = directory / "environment.yaml"
     assert environment_file.exists(), list(directory.iterdir())
-    clear_poetry_cache()
 
     # WHEN I create the lockfile
     run_lock([directory / "environment.yaml"], conda_exe=conda_exe)
@@ -217,3 +210,5 @@ def clear_poetry_cache() -> None:
     # Do another independent check that triggers even if we're in optimized mode
     if "pypoetry-conda-lock" in to_delete.parts:
         shutil.rmtree(DEFAULT_CACHE_DIR, ignore_errors=True)
+    else:
+        raise RuntimeError(f"Refusing to delete {to_delete} as it does not look right")
