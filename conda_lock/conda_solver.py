@@ -2,6 +2,7 @@ import json
 import logging
 import os
 import pathlib
+import shlex
 import subprocess
 import sys
 import tempfile
@@ -337,6 +338,7 @@ def solve_specs_for_arch(
     args.extend(_get_conda_flags(channels=channels, platform=platform))
     args.extend(specs)
     logger.info("%s using specs %s", platform, specs)
+    logger.debug(f"Running command {shlex.join(args)}")
     proc = subprocess.run(  # noqa: UP022  # Poetry monkeypatch breaks capture_output
         [str(arg) for arg in args],
         env=conda_env_override(platform),
