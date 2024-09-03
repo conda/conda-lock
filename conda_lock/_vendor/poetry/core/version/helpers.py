@@ -1,13 +1,14 @@
-from typing import TYPE_CHECKING
-from typing import Union
+from __future__ import annotations
 
-from conda_lock._vendor.poetry.core.semver import Version
-from conda_lock._vendor.poetry.core.semver import VersionUnion
-from conda_lock._vendor.poetry.core.semver import parse_constraint
+from typing import TYPE_CHECKING
+
+from conda_lock._vendor.poetry.core.constraints.version import Version
+from conda_lock._vendor.poetry.core.constraints.version import VersionUnion
+from conda_lock._vendor.poetry.core.constraints.version import parse_constraint
 
 
 if TYPE_CHECKING:
-    from conda_lock._vendor.poetry.core.semver import VersionConstraint  # noqa
+    from conda_lock._vendor.poetry.core.constraints.version import VersionConstraint
 
 PYTHON_VERSION = [
     "2.7.*",
@@ -21,28 +22,27 @@ PYTHON_VERSION = [
     "3.7.*",
     "3.8.*",
     "3.9.*",
+    "3.10.*",
+    "3.11.*",
+    "3.12.*",
 ]
 
 
-def format_python_constraint(
-    constraint,
-):  # type: (Union[Version, VersionUnion, "VersionConstraint"]) -> str
+def format_python_constraint(constraint: VersionConstraint) -> str:
     """
     This helper will help in transforming
     disjunctive constraint into proper constraint.
     """
     if isinstance(constraint, Version):
         if constraint.precision >= 3:
-            return "=={}".format(str(constraint))
+            return f"=={constraint}"
 
         # Transform 3.6 or 3
         if constraint.precision == 2:
             # 3.6
-            constraint = parse_constraint(
-                "~{}.{}".format(constraint.major, constraint.minor)
-            )
+            constraint = parse_constraint(f"~{constraint.major}.{constraint.minor}")
         else:
-            constraint = parse_constraint("^{}.0".format(constraint.major))
+            constraint = parse_constraint(f"^{constraint.major}.0")
 
     if not isinstance(constraint, VersionUnion):
         return str(constraint)

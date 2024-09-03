@@ -1,29 +1,34 @@
+from __future__ import annotations
+
 import itertools
+import json
+import logging
 
-from typing import Set
-from typing import Union
+from pathlib import Path
+from typing import TYPE_CHECKING
 
-from conda_lock._vendor.poetry.core.packages import Package
+from packaging.utils import canonicalize_name
+from conda_lock._vendor.poetry.core.packages.package import Package
+from conda_lock._vendor.poetry.core.packages.utils.utils import url_to_path
 from conda_lock._vendor.poetry.core.utils.helpers import module_name
-from conda_lock._vendor.poetry.utils._compat import Path
+
+from conda_lock._vendor.poetry.repositories.repository import Repository
 from conda_lock._vendor.poetry.utils._compat import metadata
-from conda_lock._vendor.poetry.utils.env import Env
-
-from .repository import Repository
 
 
-_VENDORS = Path(__file__).parent.parent.joinpath("_vendor")
+if TYPE_CHECKING:
+    from conda_lock._vendor.poetry.utils.env import Env
 
 
-try:
-    FileNotFoundError
-except NameError:
-    FileNotFoundError = OSError
+logger = logging.getLogger(__name__)
 
 
 class InstalledRepository(Repository):
+    def __init__(self) -> None:
+        super().__init__("poetry-installed")
+
     @classmethod
-    def get_package_paths(cls, env, name):  # type: (Env, str) -> Set[Path]
+    def get_package_paths(cls, env: Env, name: str) -> set[Path]:
         """
         Process a .pth file within the site-packages directories, and return any valid
         paths. We skip executable .pth files as there is no reliable means to do this
@@ -41,10 +46,11 @@ class InstalledRepository(Repository):
         paths = set()
 
         # we identify the candidate pth files to check, this is done so to handle cases
-        # where the pth file for foo-bar might have been installed as either foo-bar.pth or
-        # foo_bar.pth (expected) in either pure or platform lib directories.
+        # where the pth file for foo-bar might have been installed as either foo-bar.pth
+        # or foo_bar.pth (expected) in either pure or platform lib directories.
         candidates = itertools.product(
-            {env.purelib, env.platlib}, {name, module_name(name)},
+            {env.purelib, env.platlib},
+            {name, module_name(name)},
         )
 
         for lib, module in candidates:
@@ -58,35 +64,24 @@ class InstalledRepository(Repository):
                     if line and not line.startswith(("#", "import ", "import\t")):
                         path = Path(line)
                         if not path.is_absolute():
-                            try:
-                                path = lib.joinpath(path).resolve()
-                            except FileNotFoundError:
-                                # this is required to handle pathlib oddity on win32 python==3.5
-                                path = lib.joinpath(path)
+                            path = lib.joinpath(path).resolve()
                         paths.add(path)
+
+        src_path = env.path / "src" / name
+        if not paths and src_path.exists():
+            paths.add(src_path)
+
         return paths
 
     @classmethod
-    def set_package_vcs_properties_from_path(
-        cls, src, package
-    ):  # type: (Path, Package) -> None
-        from conda_lock._vendor.poetry.core.vcs.git import Git
+    def get_package_vcs_properties_from_path(cls, src: Path) -> tuple[str, str, str]:
+        from conda_lock._vendor.poetry.vcs.git import Git
 
-        git = Git()
-        revision = git.rev_parse("HEAD", src).strip()
-        url = git.remote_url(src)
-
-        package._source_type = "git"
-        package._source_url = url
-        package._source_reference = revision
+        info = Git.info(repo=src)
+        return "git", info.origin, info.revision
 
     @classmethod
-    def set_package_vcs_properties(cls, package, env):  # type: (Package, Env) -> None
-        src = env.path / "src" / package.name
-        cls.set_package_vcs_properties_from_path(src, package)
-
-    @classmethod
-    def is_vcs_package(cls, package, env):  # type: (Union[Path, Package], Env) -> bool
+    def is_vcs_package(cls, package: Path | Package, env: Env) -> bool:
         # A VCS dependency should have been installed
         # in the src directory.
         src = env.path / "src"
@@ -101,66 +96,189 @@ class InstalledRepository(Repository):
             return True
 
     @classmethod
-    def load(cls, env):  # type: (Env) -> InstalledRepository
+    def create_package_from_distribution(
+        cls, distribution: metadata.Distribution, env: Env
+    ) -> Package:
+        # We first check for a direct_url.json file to determine
+        # the type of package.
+        path = Path(str(distribution._path))  # type: ignore[attr-defined]
+
+        if (
+            path.name.endswith(".dist-info")
+            and path.joinpath("direct_url.json").exists()
+        ):
+            return cls.create_package_from_pep610(distribution)
+
+        is_standard_package = env.is_path_relative_to_lib(path)
+
+        source_type = None
+        source_url = None
+        source_reference = None
+        source_resolved_reference = None
+        source_subdirectory = None
+        if is_standard_package:
+            if path.name.endswith(".dist-info"):
+                paths = cls.get_package_paths(
+                    env=env, name=distribution.metadata["name"]
+                )
+                if paths:
+                    is_editable_package = False
+                    for src in paths:
+                        if cls.is_vcs_package(src, env):
+                            (
+                                source_type,
+                                source_url,
+                                source_reference,
+                            ) = cls.get_package_vcs_properties_from_path(src)
+                            break
+
+                        if not (
+                            is_editable_package or env.is_path_relative_to_lib(src)
+                        ):
+                            is_editable_package = True
+                    else:
+                        # TODO: handle multiple source directories?
+                        if is_editable_package:
+                            source_type = "directory"
+                            source_url = paths.pop().as_posix()
+        elif cls.is_vcs_package(path, env):
+            (
+                source_type,
+                source_url,
+                source_reference,
+            ) = cls.get_package_vcs_properties_from_path(
+                env.path / "src" / canonicalize_name(distribution.metadata["name"])
+            )
+        else:
+            # If not, it's a path dependency
+            source_type = "directory"
+            source_url = str(path.parent)
+
+        package = Package(
+            distribution.metadata["name"],
+            distribution.metadata["version"],
+            source_type=source_type,
+            source_url=source_url,
+            source_reference=source_reference,
+            source_resolved_reference=source_resolved_reference,
+            source_subdirectory=source_subdirectory,
+        )
+
+        package.description = distribution.metadata.get(  # type: ignore[attr-defined]
+            "summary",
+            "",
+        )
+
+        return package
+
+    @classmethod
+    def create_package_from_pep610(cls, distribution: metadata.Distribution) -> Package:
+        path = Path(str(distribution._path))  # type: ignore[attr-defined]
+        source_type = None
+        source_url = None
+        source_reference = None
+        source_resolved_reference = None
+        source_subdirectory = None
+        develop = False
+
+        url_reference = json.loads(
+            path.joinpath("direct_url.json").read_text(encoding="utf-8")
+        )
+        if "archive_info" in url_reference:
+            # File or URL distribution
+            if url_reference["url"].startswith("file:"):
+                # File distribution
+                source_type = "file"
+                source_url = url_to_path(url_reference["url"]).as_posix()
+            else:
+                # URL distribution
+                source_type = "url"
+                source_url = url_reference["url"]
+        elif "dir_info" in url_reference:
+            # Directory distribution
+            source_type = "directory"
+            source_url = url_to_path(url_reference["url"]).as_posix()
+            develop = url_reference["dir_info"].get("editable", False)
+        elif "vcs_info" in url_reference:
+            # VCS distribution
+            source_type = url_reference["vcs_info"]["vcs"]
+            source_url = url_reference["url"]
+            source_resolved_reference = url_reference["vcs_info"]["commit_id"]
+            source_reference = url_reference["vcs_info"].get(
+                "requested_revision", source_resolved_reference
+            )
+        source_subdirectory = url_reference.get("subdirectory")
+
+        package = Package(
+            distribution.metadata["name"],
+            distribution.metadata["version"],
+            source_type=source_type,
+            source_url=source_url,
+            source_reference=source_reference,
+            source_resolved_reference=source_resolved_reference,
+            source_subdirectory=source_subdirectory,
+            develop=develop,
+        )
+
+        package.description = distribution.metadata.get(  # type: ignore[attr-defined]
+            "summary",
+            "",
+        )
+
+        return package
+
+    @classmethod
+    def load(cls, env: Env, with_dependencies: bool = False) -> InstalledRepository:
         """
         Load installed packages.
         """
+        from conda_lock._vendor.poetry.core.packages.dependency import Dependency
+
         repo = cls()
         seen = set()
+        skipped = set()
 
         for entry in reversed(env.sys_path):
+            if not entry.strip():
+                logger.debug(
+                    "Project environment contains an empty path in <c1>sys_path</>,"
+                    " ignoring."
+                )
+                continue
+
             for distribution in sorted(
-                metadata.distributions(path=[entry]), key=lambda d: str(d._path),
+                metadata.distributions(path=[entry]),
+                key=lambda d: str(d._path),  # type: ignore[attr-defined]
             ):
-                name = distribution.metadata["name"]
-                path = Path(str(distribution._path))
-                version = distribution.metadata["version"]
-                package = Package(name, version, version)
-                package.description = distribution.metadata.get("summary", "")
+                path = Path(str(distribution._path))  # type: ignore[attr-defined]
 
-                if package.name in seen:
+                if path in skipped:
                     continue
 
-                try:
-                    path.relative_to(_VENDORS)
-                except ValueError:
-                    pass
-                else:
+                name = distribution.metadata.get("name")  # type: ignore[attr-defined]
+                if name is None:
+                    logger.warning(
+                        "Project environment contains an invalid distribution"
+                        " (<c1>%s</>). Consider removing it manually or recreate"
+                        " the environment.",
+                        path,
+                    )
+                    skipped.add(path)
                     continue
+
+                name = canonicalize_name(name)
+
+                if name in seen:
+                    continue
+
+                package = cls.create_package_from_distribution(distribution, env)
+
+                if with_dependencies:
+                    for require in distribution.metadata.get_all("requires-dist", []):
+                        dep = Dependency.create_from_pep_508(require)
+                        package.add_dependency(dep)
 
                 seen.add(package.name)
-
                 repo.add_package(package)
-
-                is_standard_package = env.is_path_relative_to_lib(path)
-
-                if is_standard_package:
-                    if path.name.endswith(".dist-info"):
-                        paths = cls.get_package_paths(env=env, name=package.pretty_name)
-                        if paths:
-                            is_editable_package = False
-                            for src in paths:
-                                if cls.is_vcs_package(src, env):
-                                    cls.set_package_vcs_properties(package, env)
-                                    break
-
-                                if not (
-                                    is_editable_package
-                                    or env.is_path_relative_to_lib(src)
-                                ):
-                                    is_editable_package = True
-                            else:
-                                # TODO: handle multiple source directories?
-                                if is_editable_package:
-                                    package._source_type = "directory"
-                                    package._source_url = paths.pop().as_posix()
-                    continue
-
-                if cls.is_vcs_package(path, env):
-                    cls.set_package_vcs_properties(package, env)
-                else:
-                    # If not, it's a path dependency
-                    package._source_type = "directory"
-                    package._source_url = str(path.parent)
 
         return repo

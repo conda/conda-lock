@@ -1,22 +1,35 @@
-from .dependency_package import DependencyPackage
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+from typing import List
+
+from conda_lock._vendor.poetry.packages.dependency_package import DependencyPackage
 
 
-class PackageCollection(list):
-    def __init__(self, dependency, packages=None):
+if TYPE_CHECKING:
+    from collections.abc import Iterable
+
+    from conda_lock._vendor.poetry.core.packages.dependency import Dependency
+    from conda_lock._vendor.poetry.core.packages.package import Package
+
+
+class PackageCollection(List[DependencyPackage]):
+    def __init__(
+        self,
+        dependency: Dependency,
+        packages: Iterable[Package | DependencyPackage] = (),
+    ) -> None:
         self._dependency = dependency
 
-        if packages is None:
-            packages = []
-
-        super(PackageCollection, self).__init__()
+        super().__init__()
 
         for package in packages:
             self.append(package)
 
-    def append(self, package):
+    def append(self, package: Package | DependencyPackage) -> None:
         if isinstance(package, DependencyPackage):
             package = package.package
 
         package = DependencyPackage(self._dependency, package)
 
-        return super(PackageCollection, self).append(package)
+        return super().append(package)
