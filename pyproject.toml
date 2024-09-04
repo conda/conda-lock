@@ -79,7 +79,7 @@ dependencies = [
     # poetry:
     "virtualenv >=20.23.0,<20.24.0",
     # poetry:
-    'xattr >=1.0.0,<1.1.0 ; sys_platform == "darwin"',
+    'xattr >=1.1.0,<1.2.0; sys_platform == "darwin"',
 ]
 
 [project.scripts]
