@@ -121,7 +121,17 @@ def poetry_version_to_conda_version(version_string: Optional[str]) -> Optional[s
     """
     if version_string is None:
         return None
-    return encode_poetry_version(version_string)
+    conda_version = encode_poetry_version(version_string)
+    # Python's '===' is explicitly discouraged in PEP 440:
+    # <https://peps.python.org/pep-0440/#arbitrary-equality>
+    # Python's '==' seems equivalent to conda's '==':
+    # <https://peps.python.org/pep-0440/#version-matching>
+    # <https://docs.conda.io/projects/conda-build/en/latest/resources/package-spec.html#id4>
+    # I'm unconvinced that this is correct, but let's replicate the previous behavior for now.
+    conda_version = conda_version.replace("===", "=").replace("==", "=")
+    # # I think the correct thing should be instead:
+    # conda_version = conda_version.replace("===", "==")
+    return conda_version
 
 
 def handle_mapping(
