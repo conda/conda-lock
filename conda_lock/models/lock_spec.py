@@ -43,9 +43,16 @@ class VCSDependency(_BaseDependency):
     source: str
     vcs: str
     rev: Optional[str] = None
+    subdirectory: Optional[str] = None
 
 
-Dependency = Union[VersionedDependency, URLDependency, VCSDependency]
+class PathDependency(_BaseDependency):
+    path: str
+    is_directory: bool
+    subdirectory: Optional[str] = None
+
+
+Dependency = Union[VersionedDependency, URLDependency, VCSDependency, PathDependency]
 
 
 class Package(StrictModel):

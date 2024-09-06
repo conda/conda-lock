@@ -33,6 +33,8 @@ from conda_lock.interfaces.vendored_poetry import (
     Link,
     Operation,
     PoetryDependency,
+    PoetryDirectoryDependency,
+    PoetryFileDependency,
     PoetryPackage,
     PoetryProjectPackage,
     PoetrySolver,
@@ -322,6 +324,15 @@ def get_dependency(dep: lock_spec.Dependency) -> PoetryDependency:
             source=dep.source,
             rev=dep.rev,
         )
+    elif isinstance(dep, lock_spec.PathDependency):
+        if dep.is_directory:
+            return PoetryDirectoryDependency(
+                name=dep.name, path=Path(dep.path), extras=dep.extras
+            )
+        else:
+            return PoetryFileDependency(
+                name=dep.name, path=Path(dep.path), extras=dep.extras
+            )
     else:
         raise ValueError(f"Unknown requirement {dep}")
 
@@ -386,6 +397,10 @@ def get_requirements(
                 url = f"{op.package.source_type}+{op.package.source_url}@{op.package.source_resolved_reference}"
                 # TODO: FIXME git ls-remote
                 hash = HashModel(**{"sha256": op.package.source_resolved_reference})
+                source = DependencySource(type="url", url=url)
+            elif op.package.source_type in ("directory", "file"):
+                url = f"file://{op.package.source_url}"
+                hash = HashModel()
                 source = DependencySource(type="url", url=url)
             # Choose the most specific distribution for the target
             # TODO: need to handle  git here

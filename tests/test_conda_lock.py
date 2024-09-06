@@ -63,7 +63,12 @@ from conda_lock.lockfile.v2prelim.models import (
 )
 from conda_lock.lookup import DEFAULT_MAPPING_URL, conda_name_to_pypi_name
 from conda_lock.models.channel import Channel
-from conda_lock.models.lock_spec import Dependency, VCSDependency, VersionedDependency
+from conda_lock.models.lock_spec import (
+    Dependency,
+    PathDependency,
+    VCSDependency,
+    VersionedDependency,
+)
 from conda_lock.models.pip_repository import PipRepository
 from conda_lock.pypi_solver import (
     MANYLINUX_TAGS,
@@ -222,6 +227,11 @@ def poetry_pyproject_toml_skip_non_conda_lock(tmp_path: Path):
 @pytest.fixture
 def poetry_pyproject_toml_git(tmp_path: Path):
     return clone_test_dir("test-poetry-git", tmp_path).joinpath("pyproject.toml")
+
+
+@pytest.fixture
+def poetry_pyproject_toml_path(tmp_path: Path):
+    return clone_test_dir("test-poetry-path", tmp_path).joinpath("pyproject.toml")
 
 
 @pytest.fixture
@@ -803,6 +813,19 @@ def test_parse_poetry_git(poetry_pyproject_toml_git: Path):
     assert isinstance(specs["pydantic"], VCSDependency)
     assert specs["pydantic"].vcs == "git"
     assert specs["pydantic"].rev == "v2.0b2"
+
+
+def test_parse_poetry_path(poetry_pyproject_toml_path: Path):
+    res = parse_pyproject_toml(
+        poetry_pyproject_toml_path,
+        platforms=["linux-64"],
+        mapping_url=DEFAULT_MAPPING_URL,
+    )
+
+    specs = {dep.name: dep for dep in res.dependencies["linux-64"]}
+
+    assert isinstance(specs["fake-private-package"], PathDependency)
+    assert specs["fake-private-package"].path == "./fake-private-package-1.0.0"
 
 
 def test_parse_poetry_no_pypi(poetry_pyproject_toml_no_pypi: Path):

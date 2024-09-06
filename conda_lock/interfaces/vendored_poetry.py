@@ -5,6 +5,12 @@ from conda_lock._vendor.poetry.core.constraints.version.version_constraint impor
 from conda_lock._vendor.poetry.core.packages.dependency import (
     Dependency as PoetryDependency,
 )
+from conda_lock._vendor.poetry.core.packages.directory_dependency import (
+    DirectoryDependency as PoetryDirectoryDependency,
+)
+from conda_lock._vendor.poetry.core.packages.file_dependency import (
+    FileDependency as PoetryFileDependency,
+)
 from conda_lock._vendor.poetry.core.packages.package import Package as PoetryPackage
 from conda_lock._vendor.poetry.core.packages.project_package import (
     ProjectPackage as PoetryProjectPackage,
@@ -37,6 +43,8 @@ __all__ = [
     "Operation",
     "PoetryDependency",
     "PoetryPackage",
+    "PoetryDirectoryDependency",
+    "PoetryFileDependency",
     "PoetryProjectPackage",
     "PoetrySolver",
     "PoetryURLDependency",
