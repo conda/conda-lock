@@ -151,6 +151,7 @@ drop = [
     "poetry/utils/shell.py",
     "poetry/core/_vendor/six.py",
     "poetry/core/_vendor/six.LICENSE",
+    '^grayskull\/(?!strategy$|strategy\/parse_poetry_version\.py$|strategy\/__init__\.py$).*$',
 ]
 substitute = [
     # simple substitution patch to fix conda.exports
