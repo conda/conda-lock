@@ -44,7 +44,7 @@ rich = ">=12.4.4,<14"
 sqlglot = ">=10.4.3,<12"
 toolz = ">=0.11,<1"
 typing-extensions = ">=4.3.0,<5"
-black = { version = ">=22.1.0,<24", optional = true }
+black = { version = ">=24.3.0,<25", optional = true }
 clickhouse-cityhash = { version = ">=1.0.2,<2", optional = true }
 clickhouse-driver = { version = ">=0.1,<1", optional = true, extras = [
   "numpy",
