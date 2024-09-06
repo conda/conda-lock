@@ -447,7 +447,7 @@ def test_parse_environment_file_with_pip(pip_environment: Path):
                 manager="pip",
                 category="main",
                 extras=[],
-                version="=0.9.1",
+                version="==0.9.1",
             )
         ]
 

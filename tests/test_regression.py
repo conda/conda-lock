@@ -105,6 +105,6 @@ def test_pip_environment_regression_gh449(pip_environment_regression_gh449: Path
                 manager="pip",
                 category="main",
                 extras=["dotenv", "email"],
-                version="=1.10.10",
+                version="==1.10.10",
             )
         ]
