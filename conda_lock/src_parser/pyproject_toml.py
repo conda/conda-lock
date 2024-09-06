@@ -127,10 +127,7 @@ def poetry_version_to_conda_version(version_string: Optional[str]) -> Optional[s
     # Python's '==' seems equivalent to conda's '==':
     # <https://peps.python.org/pep-0440/#version-matching>
     # <https://docs.conda.io/projects/conda-build/en/latest/resources/package-spec.html#id4>
-    # I'm unconvinced that this is correct, but let's replicate the previous behavior for now.
-    conda_version = conda_version.replace("===", "=").replace("==", "=")
-    # # I think the correct thing should be instead:
-    # conda_version = conda_version.replace("===", "==")
+    conda_version = conda_version.replace("===", "==")
     return conda_version
 
 
