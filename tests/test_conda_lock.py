@@ -779,25 +779,21 @@ def test_poetry_no_pypi_multiple_pyprojects(
     poetry_pyproject_toml_no_pypi: Path,
     poetry_pyproject_toml_no_pypi_other_projects: List[Path],
 ):
-    virtual_package_repo = default_virtual_package_repodata()
-    with virtual_package_repo:
-        spec = make_lock_spec(
-            src_files=poetry_pyproject_toml_no_pypi_other_projects,
-            virtual_package_repo=virtual_package_repo,
-        )
-        assert (
-            spec.allow_pypi_requests is True
-        ), "PyPI requests should be allowed when all pyprojects.toml allow PyPI requests"
-        spec = make_lock_spec(
-            src_files=[
-                *poetry_pyproject_toml_no_pypi_other_projects,
-                poetry_pyproject_toml_no_pypi,
-            ],
-            virtual_package_repo=virtual_package_repo,
-        )
-        assert (
-            spec.allow_pypi_requests is False
-        ), "PyPI requests should be forbidden when at least one pyproject.toml forbids PyPI requests"
+    spec = make_lock_spec(
+        src_files=poetry_pyproject_toml_no_pypi_other_projects,
+    )
+    assert (
+        spec.allow_pypi_requests is True
+    ), "PyPI requests should be allowed when all pyprojects.toml allow PyPI requests"
+    spec = make_lock_spec(
+        src_files=[
+            *poetry_pyproject_toml_no_pypi_other_projects,
+            poetry_pyproject_toml_no_pypi,
+        ],
+    )
+    assert (
+        spec.allow_pypi_requests is False
+    ), "PyPI requests should be forbidden when at least one pyproject.toml forbids PyPI requests"
 
 
 def test_prepare_repositories_pool():
@@ -813,38 +809,32 @@ def test_prepare_repositories_pool():
 
 
 def test_spec_poetry(poetry_pyproject_toml: Path):
-    virtual_package_repo = default_virtual_package_repodata()
-    with virtual_package_repo:
-        spec = make_lock_spec(
-            src_files=[poetry_pyproject_toml], virtual_package_repo=virtual_package_repo
-        )
-        for plat in spec.platforms:
-            deps = {d.name for d in spec.dependencies[plat]}
-            assert "tomlkit" in deps
-            assert "pytest" in deps
-            assert "requests" in deps
+    spec = make_lock_spec(src_files=[poetry_pyproject_toml])
+    for plat in spec.platforms:
+        deps = {d.name for d in spec.dependencies[plat]}
+        assert "tomlkit" in deps
+        assert "pytest" in deps
+        assert "requests" in deps
 
-        spec = make_lock_spec(
-            src_files=[poetry_pyproject_toml],
-            virtual_package_repo=virtual_package_repo,
-            required_categories={"main", "dev"},
-        )
-        for plat in spec.platforms:
-            deps = {d.name for d in spec.dependencies[plat]}
-            assert "tomlkit" not in deps
-            assert "pytest" in deps
-            assert "requests" in deps
+    spec = make_lock_spec(
+        src_files=[poetry_pyproject_toml],
+        required_categories={"main", "dev"},
+    )
+    for plat in spec.platforms:
+        deps = {d.name for d in spec.dependencies[plat]}
+        assert "tomlkit" not in deps
+        assert "pytest" in deps
+        assert "requests" in deps
 
-        spec = make_lock_spec(
-            src_files=[poetry_pyproject_toml],
-            virtual_package_repo=virtual_package_repo,
-            required_categories={"main"},
-        )
-        for plat in spec.platforms:
-            deps = {d.name for d in spec.dependencies[plat]}
-            assert "tomlkit" not in deps
-            assert "pytest" not in deps
-            assert "requests" in deps
+    spec = make_lock_spec(
+        src_files=[poetry_pyproject_toml],
+        required_categories={"main"},
+    )
+    for plat in spec.platforms:
+        deps = {d.name for d in spec.dependencies[plat]}
+        assert "tomlkit" not in deps
+        assert "pytest" not in deps
+        assert "requests" in deps
 
 
 def test_parse_flit(flit_pyproject_toml: Path):
@@ -1578,13 +1568,8 @@ def test_run_lock_with_local_package(
     monkeypatch.chdir(pip_local_package_environment.parent)
     if is_micromamba(conda_exe):
         monkeypatch.setenv("CONDA_FLAGS", "-v")
-    virtual_package_repo = default_virtual_package_repodata()
 
-    with virtual_package_repo:
-        lock_spec = make_lock_spec(
-            src_files=[pip_local_package_environment],
-            virtual_package_repo=virtual_package_repo,
-        )
+    lock_spec = make_lock_spec(src_files=[pip_local_package_environment])
     assert not any(
         p.manager == "pip"
         for platform in lock_spec.platforms
@@ -1664,13 +1649,13 @@ def test_poetry_version_parsing_constraints(
                 # NB: this file must exist for relative path resolution to work
                 # in create_lockfile_from_spec
                 sources=[Path(tf.name)],
-                virtual_package_repo=vpr,
             )
             lockfile_contents = create_lockfile_from_spec(
                 conda=_conda_exe,
                 spec=spec,
                 lockfile_path=Path(DEFAULT_LOCKFILE_NAME),
                 metadata_yamls=(),
+                virtual_package_repo=vpr,
             )
 
         python = next(p for p in lockfile_contents.package if p.name == "python")
@@ -1735,7 +1720,7 @@ def test_aggregate_lock_specs():
         sources=[],
     )
     assert actual.dict(exclude={"sources"}) == expected.dict(exclude={"sources"})
-    assert actual.content_hash() == expected.content_hash()
+    assert actual.content_hash(None) == expected.content_hash(None)
 
 
 def test_aggregate_lock_specs_override_version():
@@ -2279,24 +2264,22 @@ def test_virtual_packages(
 def test_virtual_package_input_hash_stability():
     from conda_lock.virtual_package import virtual_package_repo_from_specification
 
-    test_dir = TESTS_DIR.joinpath("test-cuda")
-    vspec = test_dir / "virtual-packages-old-glibc.yaml"
-
-    vpr = virtual_package_repo_from_specification(vspec)
     spec = LockSpecification(
         dependencies={"linux-64": []},
         channels=[],
         sources=[],
-        virtual_package_repo=vpr,
     )
+
+    test_dir = TESTS_DIR.joinpath("test-cuda")
+    vspec = test_dir / "virtual-packages-old-glibc.yaml"
+    vpr = virtual_package_repo_from_specification(vspec)
+
     expected = "8ee5fc79fca4cb7732d2e88443209e0a3a354da9899cb8899d94f9b1dcccf975"
-    assert spec.content_hash() == {"linux-64": expected}
+    assert spec.content_hash(vpr) == {"linux-64": expected}
 
 
 def test_default_virtual_package_input_hash_stability():
     from conda_lock.virtual_package import default_virtual_package_repodata
-
-    vpr = default_virtual_package_repodata()
 
     expected = {
         "linux-64": "a949aac83da089258ce729fcd54dc0a3a1724ea325d67680d7a6d7cc9c0f1d1b",
@@ -2311,9 +2294,9 @@ def test_default_virtual_package_input_hash_stability():
         dependencies={platform: [] for platform in expected.keys()},
         channels=[],
         sources=[],
-        virtual_package_repo=vpr,
     )
-    assert spec.content_hash() == expected
+    vpr = default_virtual_package_repodata()
+    assert spec.content_hash(vpr) == expected
 
 
 @pytest.fixture

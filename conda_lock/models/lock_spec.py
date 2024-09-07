@@ -64,20 +64,23 @@ class LockSpecification(BaseModel):
     channels: List[Channel]
     sources: List[pathlib.Path]
     pip_repositories: List[PipRepository] = Field(default_factory=list)
-    virtual_package_repo: Optional[FakeRepoData] = None
     allow_pypi_requests: bool = True
 
     @property
     def platforms(self) -> List[str]:
         return list(self.dependencies.keys())
 
-    def content_hash(self) -> Dict[str, str]:
+    def content_hash(
+        self, virtual_package_repo: Optional[FakeRepoData]
+    ) -> Dict[str, str]:
         return {
-            platform: self.content_hash_for_platform(platform)
+            platform: self.content_hash_for_platform(platform, virtual_package_repo)
             for platform in self.platforms
         }
 
-    def content_hash_for_platform(self, platform: str) -> str:
+    def content_hash_for_platform(
+        self, platform: str, virtual_package_repo: Optional[FakeRepoData]
+    ) -> str:
         data = {
             "channels": [c.json() for c in self.channels],
             "specs": [
@@ -89,8 +92,8 @@ class LockSpecification(BaseModel):
         }
         if self.pip_repositories:
             data["pip_repositories"] = [repo.json() for repo in self.pip_repositories]
-        if self.virtual_package_repo is not None:
-            vpr_data = self.virtual_package_repo.all_repodata
+        if virtual_package_repo is not None:
+            vpr_data = virtual_package_repo.all_repodata
             data["virtual_package_hash"] = {
                 "noarch": vpr_data.get("noarch", {}),
                 **{platform: vpr_data.get(platform, {})},
