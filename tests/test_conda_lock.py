@@ -2652,18 +2652,22 @@ def test_platformenv_linux_platforms():
     ] + ["linux_x86_64"]
 
     # Check that we get the default platforms when no virtual packages are specified
-    e = PlatformEnv("3.12", "linux-64")
+    e = PlatformEnv(python_version="3.12", platform="linux-64")
     assert e._platforms == all_expected_platforms
 
     # Check that we get the default platforms when the virtual packages are empty
-    e = PlatformEnv("3.12", "linux-64", platform_virtual_packages={})
+    e = PlatformEnv(
+        python_version="3.12", platform="linux-64", platform_virtual_packages={}
+    )
     assert e._platforms == all_expected_platforms
 
     # Check that we get the default platforms when the virtual packages are nonempty
     # but don't include __glibc
     platform_virtual_packages = {"x.bz2": {"name": "not_glibc"}}
     e = PlatformEnv(
-        "3.12", "linux-64", platform_virtual_packages=platform_virtual_packages
+        python_version="3.12",
+        platform="linux-64",
+        platform_virtual_packages=platform_virtual_packages,
     )
     assert e._platforms == all_expected_platforms
 
@@ -2672,7 +2676,9 @@ def test_platformenv_linux_platforms():
     default_repodata = default_virtual_package_repodata()
     platform_virtual_packages = default_repodata.all_repodata["linux-64"]["packages"]
     e = PlatformEnv(
-        "3.12", "linux-64", platform_virtual_packages=platform_virtual_packages
+        python_version="3.12",
+        platform="linux-64",
+        platform_virtual_packages=platform_virtual_packages,
     )
     assert e._platforms == all_expected_platforms
 
@@ -2684,7 +2690,9 @@ def test_platformenv_linux_platforms():
         if record["name"] != "__glibc"
     }
     e = PlatformEnv(
-        "3.12", "linux-64", platform_virtual_packages=platform_virtual_packages
+        python_version="3.12",
+        platform="linux-64",
+        platform_virtual_packages=platform_virtual_packages,
     )
     assert e._platforms == all_expected_platforms
 
@@ -2701,7 +2709,9 @@ def test_platformenv_linux_platforms():
         name="__glibc", version="2.17"
     )
     e = PlatformEnv(
-        "3.12", "linux-64", platform_virtual_packages=platform_virtual_packages
+        python_version="3.12",
+        platform="linux-64",
+        platform_virtual_packages=platform_virtual_packages,
     )
     assert e._platforms == restricted_platforms
 
@@ -2711,7 +2721,9 @@ def test_platformenv_linux_platforms():
     )
     with pytest.warns(UserWarning):
         e = PlatformEnv(
-            "3.12", "linux-64", platform_virtual_packages=platform_virtual_packages
+            python_version="3.12",
+            platform="linux-64",
+            platform_virtual_packages=platform_virtual_packages,
         )
     assert e._platforms == restricted_platforms
 

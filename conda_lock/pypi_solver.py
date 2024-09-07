@@ -74,13 +74,14 @@ class PlatformEnv(Env):
     _platform_system: Literal["Darwin", "Linux", "Windows"]
     _os_name: Literal["posix", "nt"]
     _platforms: List[str]
-    _python_version: Tuple[int, ...]
+    _python_version: Optional[Tuple[int, ...]]
 
     def __init__(
         self,
-        python_version: str,
+        *,
         platform: str,
         platform_virtual_packages: Optional[Dict[str, dict]] = None,
+        python_version: Optional[str] = None,
     ):
         super().__init__(path=Path(sys.prefix))
         system, arch = platform.split("-")
@@ -102,7 +103,10 @@ class PlatformEnv(Env):
             self._platforms = ["win_amd64"]
         else:
             raise ValueError(f"Unsupported platform '{platform}'")
-        self._python_version = tuple(map(int, python_version.split(".")))
+        if python_version is None:
+            self._python_version = None
+        else:
+            self._python_version = tuple(map(int, python_version.split(".")))
 
         if system == "osx":
             self._sys_platform = "darwin"
@@ -133,13 +137,19 @@ class PlatformEnv(Env):
 
     def get_marker_env(self) -> Dict[str, str]:
         """Return the subset of info needed to match common markers"""
-        return {
-            "python_full_version": ".".join([str(c) for c in self._python_version]),
-            "python_version": ".".join([str(c) for c in self._python_version[:2]]),
+        result: Dict[str, str] = {
             "sys_platform": self._sys_platform,
             "platform_system": self._platform_system,
             "os_name": self._os_name,
         }
+        if self._python_version is not None:
+            result["python_full_version"] = ".".join(
+                [str(c) for c in self._python_version]
+            )
+            result["python_version"] = ".".join(
+                [str(c) for c in self._python_version[:2]]
+            )
+        return result
 
 
 def _extract_glibc_version_from_virtual_packages(
@@ -529,7 +539,11 @@ def solve_pypi(
             use_latest
         )
     )
-    env = PlatformEnv(python_version, platform, platform_virtual_packages)
+    env = PlatformEnv(
+        python_version=python_version,
+        platform=platform,
+        platform_virtual_packages=platform_virtual_packages,
+    )
     # find platform-specific solution (e.g. dependencies conditioned on markers)
     with s.use_environment(env):
         result = s.solve(use_latest=to_update)
