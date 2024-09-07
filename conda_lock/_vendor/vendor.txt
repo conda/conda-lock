@@ -2,6 +2,7 @@
 cleo==2.1.0
 poetry==1.8.3
 poetry-core==1.9.0
+git+https://github.com/maresb/grayskull.git@d367c1605f320bae345b441b81ba38f5f72dc17e
 
 # install conda from github
 git+https://github.com/conda/conda.git@22.9.0

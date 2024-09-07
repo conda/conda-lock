@@ -15,7 +15,6 @@ from typing import (
     Optional,
     Sequence,
     Tuple,
-    Union,
 )
 from urllib.parse import urldefrag
 
@@ -29,6 +28,9 @@ from packaging.requirements import Requirement
 from packaging.utils import canonicalize_name as canonicalize_pypi_name
 from typing_extensions import Literal
 
+from conda_lock._vendor.grayskull.strategy.parse_poetry_version import (
+    encode_poetry_version,
+)
 from conda_lock.common import get_in
 from conda_lock.lookup import get_forward_lookup as get_lookup
 from conda_lock.models.lock_spec import (
@@ -69,10 +71,6 @@ POETRY_OPTIONAL_NOT_MAIN = (
 )
 
 
-def join_version_components(pieces: Sequence[Union[str, int]]) -> str:
-    return ".".join(str(p) for p in pieces)
-
-
 def normalize_pypi_name(name: str) -> str:
     cname = canonicalize_pypi_name(name)
     if cname in get_lookup():
@@ -90,32 +88,47 @@ def normalize_pypi_name(name: str) -> str:
 
 
 def poetry_version_to_conda_version(version_string: Optional[str]) -> Optional[str]:
+    """Convert a Poetry-style version string to a Conda-compatible version string.
+
+    >>> poetry_version_to_conda_version("1.2.3.4")
+    '1.2.3.4'
+
+    >>> poetry_version_to_conda_version("1.2.3, 2.3, <=3.4")
+    '1.2.3,2.3,<=3.4'
+
+    >>> poetry_version_to_conda_version("^0.14.2")
+    '>=0.14.2,<0.15.0'
+
+    >>> poetry_version_to_conda_version("^1.2.3")
+    '>=1.2.3,<2.0.0'
+
+    >>> poetry_version_to_conda_version("^0.0.1")
+    '>=0.0.1,<0.0.2'
+
+    >>> poetry_version_to_conda_version("~1.2.3")
+    '>=1.2.3,<1.3.0'
+
+    >>> poetry_version_to_conda_version("~1.2")
+    '>=1.2.0,<1.3.0'
+
+    >>> poetry_version_to_conda_version("~1")
+    '>=1.0.0,<2.0.0'
+
+    >>> poetry_version_to_conda_version(None)
+
+    >>> poetry_version_to_conda_version("~1.2.3, ^2.3")
+    '>=1.2.3,<1.3.0,>=2.3.0,<3.0.0'
+    """
     if version_string is None:
         return None
-    components = [c.replace(" ", "").strip() for c in version_string.split(",")]
-    output_components = []
-
-    for c in components:
-        if len(c) == 0:
-            continue
-        version_pieces = c.lstrip("<>=^~!").split(".")
-        if c[0] == "^":
-            upper_version = [int(version_pieces[0]) + 1]
-            for i in range(1, len(version_pieces)):
-                upper_version.append(0)
-
-            output_components.append(f">={join_version_components(version_pieces)}")
-            output_components.append(f"<{join_version_components(upper_version)}")
-        elif c[0] == "~":
-            upper_version = [int(version_pieces[0]), int(version_pieces[1]) + 1]
-            for i in range(2, len(version_pieces)):
-                upper_version.append(0)
-
-            output_components.append(f">={join_version_components(version_pieces)}")
-            output_components.append(f"<{join_version_components(upper_version)}")
-        else:
-            output_components.append(c.replace("===", "=").replace("==", "="))
-    return ",".join(output_components)
+    conda_version = encode_poetry_version(version_string)
+    # Python's '===' is explicitly discouraged in PEP 440:
+    # <https://peps.python.org/pep-0440/#arbitrary-equality>
+    # Python's '==' seems equivalent to conda's '==':
+    # <https://peps.python.org/pep-0440/#version-matching>
+    # <https://docs.conda.io/projects/conda-build/en/latest/resources/package-spec.html#id4>
+    conda_version = conda_version.replace("===", "==")
+    return conda_version
 
 
 def handle_mapping(

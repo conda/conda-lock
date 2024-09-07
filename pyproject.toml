@@ -35,6 +35,7 @@ dependencies = [
     "jinja2",
     "pydantic >=1.10",
     "pyyaml >= 5.1",
+    "semver >=3,<4",
     "setuptools",
     'tomli ; python_version <"3.11"',
     "typing-extensions",
@@ -151,6 +152,7 @@ drop = [
     "poetry/utils/shell.py",
     "poetry/core/_vendor/six.py",
     "poetry/core/_vendor/six.LICENSE",
+    '^grayskull\/(?!strategy$|strategy\/parse_poetry_version\.py$|strategy\/__init__\.py$).*$',
 ]
 substitute = [
     # simple substitution patch to fix conda.exports

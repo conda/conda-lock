@@ -634,7 +634,7 @@ def render_lockfile_for_platform(  # noqa: C901
                 s += f"#sha256={spec.hash.sha256}"
             return s
         else:
-            s = f"{spec.name} === {spec.version}"
+            s = f"{spec.name} == {spec.version}"
             if spec.hash.sha256:
                 s += f" --hash=sha256:{spec.hash.sha256}"
             return s
