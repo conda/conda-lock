@@ -78,7 +78,7 @@ dependencies = [
     # poetry:
     "trove-classifiers >= 2022.5.19",
     # poetry:
-    "virtualenv >=20.23.0,<20.24.0",
+    "virtualenv >=20.26.4,<20.27.0",
     # poetry:
     'xattr >=1.0.0,<1.1.0 ; sys_platform == "darwin"',
 ]
