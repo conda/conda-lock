@@ -19,6 +19,7 @@ class _BaseDependency(StrictModel):
     manager: Literal["conda", "pip"] = "conda"
     category: str = "main"
     extras: List[str] = []
+    markers: Optional[str] = None
 
     @validator("extras")
     def sorted_extras(cls, v: List[str]) -> List[str]:
@@ -55,6 +56,7 @@ class PoetryMappedDependencySpec(StrictModel):
     url: Optional[str]
     manager: Literal["conda", "pip"]
     extras: List
+    markers: Optional[str]
     poetry_version_spec: Optional[str]
 
 

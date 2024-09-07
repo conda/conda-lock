@@ -42,6 +42,7 @@ from conda_lock.models.lock_spec import (
     VersionedDependency,
 )
 from conda_lock.src_parser.conda_common import conda_spec_to_versioned_dep
+from conda_lock.src_parser.markers import evaluate_marker
 
 
 POETRY_INVALID_EXTRA_LOC = (
@@ -179,9 +180,12 @@ def handle_mapping(
     # or is a URL dependency, delegate to the pip section
     if depattrs.get("source", None) == "pypi" or poetry_version_spec is None:
         manager = "pip"
-    # TODO: support additional features such as markers for things like sys_platform, platform_system
     return PoetryMappedDependencySpec(
-        url=url, manager=manager, extras=extras, poetry_version_spec=poetry_version_spec
+        url=url,
+        manager=manager,
+        extras=extras,
+        poetry_version_spec=poetry_version_spec,
+        markers=depattrs.get("markers", None),
     )
 
 
@@ -239,6 +243,7 @@ def parse_poetry_pyproject_toml(
             url = None
             extras: List[Any] = []
             in_extra: bool = False
+            markers: Optional[str] = None
 
             # Poetry spec includes Python version in "tool.poetry.dependencies"
             # Cannot be managed by pip
@@ -266,11 +271,12 @@ def parse_poetry_pyproject_toml(
                     manager,
                     poetry_version_spec,
                 )
-                url, manager, extras, poetry_version_spec = (
+                url, manager, extras, poetry_version_spec, markers = (
                     pvs.url,
                     pvs.manager,
                     pvs.extras,
                     pvs.poetry_version_spec,
+                    pvs.markers,
                 )
 
             elif isinstance(depattrs, str):
@@ -299,6 +305,7 @@ def parse_poetry_pyproject_toml(
                 dependencies.append(
                     VCSDependency(
                         name=name,
+                        markers=markers,
                         source=url,
                         manager=manager,
                         vcs="git",
@@ -314,6 +321,7 @@ def parse_poetry_pyproject_toml(
                 dependencies.append(
                     URLDependency(
                         name=name,
+                        markers=markers,
                         url=url,
                         hashes=[hashes],
                         manager=manager,
@@ -325,6 +333,7 @@ def parse_poetry_pyproject_toml(
                 dependencies.append(
                     VersionedDependency(
                         name=name,
+                        markers=markers,
                         version=version,
                         manager=manager,
                         category=category,
@@ -371,8 +380,13 @@ def specification_with_dependencies(
         ["tool", "conda-lock", "pip-repositories"], toml_contents, []
     )
 
+    platform_specific_dependencies: Dict[str, List[Dependency]] = {}
+    for platform in platforms:
+        platform_specific_dependencies[platform] = [
+            d for d in dependencies if evaluate_marker(d.markers, platform)
+        ]
     return LockSpecification(
-        dependencies={platform: dependencies for platform in platforms},
+        dependencies=platform_specific_dependencies,
         channels=channels,
         pip_repositories=pip_repositories,
         sources=[path],
