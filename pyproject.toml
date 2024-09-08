@@ -35,56 +35,35 @@ dependencies = [
     "jinja2",
     "pydantic >=1.10",
     "pyyaml >= 5.1",
+    # constraint on version comes from poetry
+    "requests >=2.26,<3.0",
     "semver >=3,<4",
     "setuptools",
-    # Constraint on version comes from poetry
+    # constraint on version comes from poetry
     'tomli >=2.0.1,<3.0.0 ; python_version <"3.11"',
     "typing-extensions",
     # conda dependencies
     "ruamel.yaml",
     "toolz >=0.12.0,<1.0.0",
     # The following dependencies were added in the process of vendoring Poetry 1.8.3.
-    # poetry:
     "build >=1.0.3,<2.0.0",
-    # poetry:
     "cachecontrol[filecache] >=0.14.0,<0.15.0",
-    # cleo
     "crashtest >=0.4.1,<0.5.0",
-    # poetry:
     "dulwich >=0.21.2,<0.22.0",
-    # poetry:
     "fastjsonschema >=2.18.0,<3.0.0",
-    # poetry:
     'importlib-metadata >= 4.4 ;  python_version <"3.10"',
-    # poetry:
     "installer >=0.7.0,<0.8.0",
-    # poetry:
     "keyring >=24.0.0,<25.0.0",
-    # poetry:
     "packaging >=23.1",
-    # poetry
     "pexpect >=4.7.0,<5.0.0",
-    # poetry:
     "pkginfo >=1.10,<2.0",
-    # poetry:
     "platformdirs >=3.0.0,<5.0.0",
-    # poetry:
     "pyproject-hooks >=1.0.0,<2.0.0",
-    # cleo:
-    "rapidfuzz >=3.0.0,<4.0.0",
-    # poetry, conda-lock:
-    "requests >=2.26,<3.0",
-    # poetry:
     "requests-toolbelt >=1.0.0,<2.0.0",
-    # poetry:
     "shellingham >=1.5,<2.0",
-    # poetry:
     "tomlkit >=0.11.4,<1.0.0",
-    # poetry:
     "trove-classifiers >= 2022.5.19",
-    # poetry:
     "virtualenv >=20.23.0,<21.0.0",
-    # poetry:
     'xattr >=1.0.0,<2.0.0 ; sys_platform == "darwin"',
 ]
 
@@ -159,8 +138,8 @@ drop = [
     "poetry/core/_vendor/six.LICENSE",
     # Drop everything in grayskull/ except for the listed files:
     # - __init__.py
-    # - strategy/parse_poetry_version.py
     # - strategy/__init__.py
+    # - strategy/parse_poetry_version.py
     '^grayskull\/(?!__init__\.py$|strategy\/parse_poetry_version\.py$|strategy\/__init__\.py$)',
 ]
 substitute = [
@@ -170,6 +149,10 @@ substitute = [
     # Patch a syntax warning in conda_lock/_vendor/conda/_vendor/appdirs.py:82
     # (invalid escape sequence '\D')
     { match = '  """Return full path to the user-shared data dir', replace = '  r"""Return full path to the user-shared data dir' },
+    # Rapidfuzz is a dependency of cleo but is only used to suggest similar names
+    # for CLI apps. We don't need this functionality in conda-lock, and removing
+    # this import allows us to drop it as a dependency.
+    { match = 'from rapidfuzz.distance import Levenshtein', replace = ''}
 ]
 
 [tool.conda-lock]
