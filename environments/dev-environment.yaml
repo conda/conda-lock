@@ -25,6 +25,7 @@ dependencies:
 - pre-commit
 - pytest
 - pytest-cov
+- pytest-split
 - pytest-timeout
 - pytest-xdist
 - python-build
