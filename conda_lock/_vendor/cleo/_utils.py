@@ -5,7 +5,7 @@ import math
 from dataclasses import dataclass
 from html.parser import HTMLParser
 
-from rapidfuzz.distance import Levenshtein
+
 
 
 class TagStripper(HTMLParser):
