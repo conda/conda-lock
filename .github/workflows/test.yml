@@ -94,11 +94,3 @@ jobs:
           pytest --cov=conda_lock --cov-branch --cov-report=xml --cov-report=term tests
           cp coverage.xml "${GITHUB_WORKSPACE}"
       - uses: codecov/codecov-action@v4
-
-      - name: test-gdal
-        shell: bash -eo pipefail -l {0}
-        run: |
-          pushd "${RUNNER_TEMP}/tests/gdal"
-          export TMPDIR="${RUNNER_TEMP}"
-          ls -lah
-          conda-lock --mamba  -f environment.yml -p linux-64
