@@ -468,6 +468,7 @@ def parse_python_requirement(
             name=conda_dep_name,
             source=url,
             manager=manager,
+            category=category,
             vcs="git",
             rev=rev,
         )
