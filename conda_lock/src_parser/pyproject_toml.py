@@ -40,6 +40,7 @@ from conda_lock.models.lock_spec import (
     VersionedDependency,
 )
 from conda_lock.src_parser.conda_common import conda_spec_to_versioned_dep
+from conda_lock.src_parser.markers import evaluate_marker
 
 
 POETRY_INVALID_EXTRA_LOC = (
@@ -177,9 +178,12 @@ def handle_mapping(
     # or is a URL dependency, delegate to the pip section
     if depattrs.get("source", None) == "pypi" or poetry_version_spec is None:
         manager = "pip"
-    # TODO: support additional features such as markers for things like sys_platform, platform_system
     return PoetryMappedDependencySpec(
-        url=url, manager=manager, extras=extras, poetry_version_spec=poetry_version_spec
+        url=url,
+        manager=manager,
+        extras=extras,
+        poetry_version_spec=poetry_version_spec,
+        markers=depattrs.get("markers", None),
     )
 
 
@@ -237,6 +241,7 @@ def parse_poetry_pyproject_toml(
             url = None
             extras: List[Any] = []
             in_extra: bool = False
+            markers: Optional[str] = None
 
             # Poetry spec includes Python version in "tool.poetry.dependencies"
             # Cannot be managed by pip
@@ -264,11 +269,12 @@ def parse_poetry_pyproject_toml(
                     manager,
                     poetry_version_spec,
                 )
-                url, manager, extras, poetry_version_spec = (
+                url, manager, extras, poetry_version_spec, markers = (
                     pvs.url,
                     pvs.manager,
                     pvs.extras,
                     pvs.poetry_version_spec,
+                    pvs.markers,
                 )
 
             elif isinstance(depattrs, str):
@@ -297,6 +303,7 @@ def parse_poetry_pyproject_toml(
                 dependencies.append(
                     VCSDependency(
                         name=name,
+                        markers=markers,
                         source=url,
                         manager=manager,
                         vcs="git",
@@ -312,6 +319,7 @@ def parse_poetry_pyproject_toml(
                 dependencies.append(
                     URLDependency(
                         name=name,
+                        markers=markers,
                         url=url,
                         hashes=[hashes],
                         manager=manager,
@@ -323,6 +331,7 @@ def parse_poetry_pyproject_toml(
                 dependencies.append(
                     VersionedDependency(
                         name=name,
+                        markers=markers,
                         version=version,
                         manager=manager,
                         category=category,
@@ -369,8 +378,13 @@ def specification_with_dependencies(
         ["tool", "conda-lock", "pip-repositories"], toml_contents, []
     )
 
+    platform_specific_dependencies: Dict[str, List[Dependency]] = {}
+    for platform in platforms:
+        platform_specific_dependencies[platform] = [
+            d for d in dependencies if evaluate_marker(d.markers, platform)
+        ]
     return LockSpecification(
-        dependencies={platform: dependencies for platform in platforms},
+        dependencies=platform_specific_dependencies,
         channels=channels,
         pip_repositories=pip_repositories,
         sources=[path],
@@ -446,7 +460,44 @@ def parse_python_requirement(
     category: str = "main",
     normalize_name: bool = True,
 ) -> Dependency:
-    """Parse a requirements.txt like requirement to a conda spec"""
+    """Parse a requirements.txt like requirement to a conda spec.
+
+    >>> parse_python_requirement("my_package")  # doctest: +NORMALIZE_WHITESPACE
+    VersionedDependency(name='my-package', manager='conda', category='main', extras=[],
+        markers=None, version='*', build=None, conda_channel=None, hash=None)
+
+    >>> parse_python_requirement(
+    ...     "My_Package[extra]==1.23"
+    ... )  # doctest: +NORMALIZE_WHITESPACE
+    VersionedDependency(name='my-package', manager='conda', category='main',
+        extras=['extra'], markers=None, version='==1.23', build=None,
+        conda_channel=None, hash=None)
+
+    >>> parse_python_requirement(
+    ...     "conda-lock @ git+https://github.com/conda/conda-lock.git@v2.4.1"
+    ... )  # doctest: +NORMALIZE_WHITESPACE
+    VCSDependency(name='conda-lock', manager='conda', category='main', extras=[],
+        markers=None, source='https://github.com/conda/conda-lock.git', vcs='git',
+        rev='v2.4.1')
+
+    >>> parse_python_requirement(
+    ...     "some-package @ https://some-repository.org/some-package-1.2.3.tar.gz"
+    ... )  # doctest: +NORMALIZE_WHITESPACE
+    URLDependency(name='some-package', manager='conda', category='main', extras=[],
+        markers=None, url='https://some-repository.org/some-package-1.2.3.tar.gz',
+        hashes=[''])
+
+    >>> parse_python_requirement(
+    ...     "some-package ; sys_platform == 'darwin'"
+    ... )  # doctest: +NORMALIZE_WHITESPACE
+    VersionedDependency(name='some-package', manager='conda', category='main',
+        extras=[], markers="sys_platform == 'darwin'", version='*', build=None,
+        conda_channel=None, hash=None)
+    """
+    if ";" in requirement:
+        requirement, markers = (s.strip() for s in requirement.rsplit(";", 1))
+    else:
+        markers = None
     parsed_req = parse_requirement_specifier(requirement)
     name = canonicalize_pypi_name(parsed_req.name)
     collapsed_version = str(parsed_req.specifier)
@@ -466,8 +517,10 @@ def parse_python_requirement(
             name=conda_dep_name,
             source=url,
             manager=manager,
+            category=category,
             vcs="git",
             rev=rev,
+            markers=markers,
         )
     elif parsed_req.url:
         assert conda_version in {"", "*", None}
@@ -479,6 +532,7 @@ def parse_python_requirement(
             extras=extras,
             url=url,
             hashes=[frag.replace("=", ":")],
+            markers=markers,
         )
     else:
         return VersionedDependency(
@@ -488,6 +542,7 @@ def parse_python_requirement(
             category=category,
             extras=extras,
             hash=parsed_req.hash,
+            markers=markers,
         )
 
 
