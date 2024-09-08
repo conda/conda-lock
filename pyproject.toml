@@ -170,6 +170,10 @@ substitute = [
     # Patch a syntax warning in conda_lock/_vendor/conda/_vendor/appdirs.py:82
     # (invalid escape sequence '\D')
     { match = '  """Return full path to the user-shared data dir', replace = '  r"""Return full path to the user-shared data dir' },
+    # Rapidfuzz is a dependency of cleo but is only used to suggest similar names
+    # for CLI apps. We don't need this functionality in conda-lock, and removing
+    # this import allows us to drop it as a dependency.
+    { match = 'from rapidfuzz.distance import Levenshtein', replace = ''}
 ]
 
 [tool.conda-lock]
