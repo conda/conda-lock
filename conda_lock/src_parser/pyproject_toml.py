@@ -462,7 +462,17 @@ def parse_python_requirement(
     category: str = "main",
     normalize_name: bool = True,
 ) -> Dependency:
-    """Parse a requirements.txt like requirement to a conda spec"""
+    """Parse a requirements.txt like requirement to a conda spec.
+
+    >>> parse_python_requirement("my_package")  # doctest: +NORMALIZE_WHITESPACE
+    VersionedDependency(name='my-package', manager='conda', category='main', extras=[],
+        markers=None, version='*', build=None, conda_channel=None, hash=None)
+
+    >>> parse_python_requirement("My_Package[extra]==1.23")  # doctest: +NORMALIZE_WHITESPACE
+    VersionedDependency(name='my-package', manager='conda', category='main',
+        extras=['extra'], markers=None, version='==1.23', build=None,
+        conda_channel=None, hash=None)
+    """
     parsed_req = parse_requirement_specifier(requirement)
     name = canonicalize_pypi_name(parsed_req.name)
     collapsed_version = str(parsed_req.specifier)
