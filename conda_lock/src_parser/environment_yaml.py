@@ -8,6 +8,7 @@ import yaml
 
 from conda_lock.models.lock_spec import Dependency, LockSpecification
 from conda_lock.src_parser.conda_common import conda_spec_to_versioned_dep
+from conda_lock.src_parser.markers import evaluate_marker
 from conda_lock.src_parser.selectors import filter_platform_selectors
 
 from .pyproject_toml import parse_python_requirement
@@ -69,14 +70,14 @@ def _parse_environment_file_for_platform(
                 )
                 continue
 
-            dependencies.append(
-                parse_python_requirement(
-                    spec,
-                    manager="pip",
-                    category=category,
-                    normalize_name=False,
-                )
+            dependency = parse_python_requirement(
+                spec, manager="pip", category=category, normalize_name=False
             )
+            if evaluate_marker(dependency.markers, platform):
+                # The above condition will skip adding the dependency if a
+                # marker specifies a platform that doesn't match the target,
+                # e.g. sys_platform == 'win32' for a linux target.
+                dependencies.append(dependency)
 
         # ensure pip is in target env
         dependencies.append(parse_python_requirement("pip", manager="conda"))
