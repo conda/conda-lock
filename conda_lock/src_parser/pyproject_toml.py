@@ -468,11 +468,38 @@ def parse_python_requirement(
     VersionedDependency(name='my-package', manager='conda', category='main', extras=[],
         markers=None, version='*', build=None, conda_channel=None, hash=None)
 
-    >>> parse_python_requirement("My_Package[extra]==1.23")  # doctest: +NORMALIZE_WHITESPACE
+    >>> parse_python_requirement(
+    ...     "My_Package[extra]==1.23"
+    ... )  # doctest: +NORMALIZE_WHITESPACE
     VersionedDependency(name='my-package', manager='conda', category='main',
         extras=['extra'], markers=None, version='==1.23', build=None,
         conda_channel=None, hash=None)
+
+    >>> parse_python_requirement(
+    ...     "conda-lock @ git+https://github.com/conda/conda-lock.git@v2.4.1"
+    ... )  # doctest: +NORMALIZE_WHITESPACE
+    VCSDependency(name='conda-lock', manager='conda', category='main', extras=[],
+        markers=None, source='https://github.com/conda/conda-lock.git', vcs='git',
+        rev='v2.4.1')
+
+    >>> parse_python_requirement(
+    ...     "some-package @ https://some-repository.org/some-package-1.2.3.tar.gz"
+    ... )  # doctest: +NORMALIZE_WHITESPACE
+    URLDependency(name='some-package', manager='conda', category='main', extras=[],
+        markers=None, url='https://some-repository.org/some-package-1.2.3.tar.gz',
+        hashes=[''])
+
+    >>> parse_python_requirement(
+    ...     "some-package ; sys_platform == 'darwin'"
+    ... )  # doctest: +NORMALIZE_WHITESPACE
+    VersionedDependency(name='some-package', manager='conda', category='main',
+        extras=[], markers="sys_platform == 'darwin'", version='*', build=None,
+        conda_channel=None, hash=None)
     """
+    if ";" in requirement:
+        requirement, markers = (s.strip() for s in requirement.rsplit(";", 1))
+    else:
+        markers = None
     parsed_req = parse_requirement_specifier(requirement)
     name = canonicalize_pypi_name(parsed_req.name)
     collapsed_version = str(parsed_req.specifier)
@@ -495,6 +522,7 @@ def parse_python_requirement(
             category=category,
             vcs="git",
             rev=rev,
+            markers=markers,
         )
     elif parsed_req.url:
         assert conda_version in {"", "*", None}
@@ -506,6 +534,7 @@ def parse_python_requirement(
             extras=extras,
             url=url,
             hashes=[frag.replace("=", ":")],
+            markers=markers,
         )
     else:
         return VersionedDependency(
@@ -515,6 +544,7 @@ def parse_python_requirement(
             category=category,
             extras=extras,
             hash=parsed_req.hash,
+            markers=markers,
         )
 
 
