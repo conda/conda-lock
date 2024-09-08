@@ -35,6 +35,8 @@ dependencies = [
     "jinja2",
     "pydantic >=1.10",
     "pyyaml >= 5.1",
+    # constraint on version comes from poetry
+    "requests >=2.26,<3.0",
     "semver >=3,<4",
     "setuptools",
     # Constraint on version comes from poetry
@@ -70,8 +72,6 @@ dependencies = [
     "platformdirs >=3.0.0,<5.0.0",
     # poetry:
     "pyproject-hooks >=1.0.0,<2.0.0",
-    # poetry, conda-lock:
-    "requests >=2.26,<3.0",
     # poetry:
     "requests-toolbelt >=1.0.0,<2.0.0",
     # poetry:
