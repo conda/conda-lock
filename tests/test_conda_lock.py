@@ -414,7 +414,7 @@ def test_parse_environment_file(gdal_environment: Path):
             VersionedDependency(
                 name="python",
                 manager="conda",
-                version=">=3.7,<3.8",
+                version=">=3.8,<3.9",
             ),
             VersionedDependency(
                 name="gdal",
