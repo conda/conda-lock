@@ -28,7 +28,7 @@ jobs:
         python-version: [ "3.8", "3.12" ]
     defaults:
       run:
-        shell: bash -l {0}
+        shell: bash -eo pipefail -l {0}
     env:
       PYTHONUNBUFFERED: "1"
       FORCE_COLOR: "1"
@@ -46,14 +46,12 @@ jobs:
             python=${{ matrix.python-version }} --category=main --category=dev
 
       - name: install conda-lock
-        shell: bash -eo pipefail -l {0}
         run: |
           which pip
           pip install -e . --no-deps
           pip check
 
       - name: run-test
-        shell: bash -eo pipefail -l {0}
         run: |
           mkdir -p tests/durations
           cp pyproject.toml "${RUNNER_TEMP}/"
