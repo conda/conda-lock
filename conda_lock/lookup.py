@@ -1,12 +1,18 @@
+import logging
+import time
+
 from functools import cached_property
 from pathlib import Path
 from typing import Dict
 
 import requests
-import yaml
+import ruamel.yaml
 
 from packaging.utils import NormalizedName, canonicalize_name
 from typing_extensions import TypedDict
+
+
+logger = logging.getLogger(__name__)
 
 
 class MappingEntry(TypedDict):
@@ -50,7 +56,12 @@ class _LookupLoader:
             else:
                 path = url
             content = Path(path).read_bytes()
-        lookup = yaml.safe_load(content)
+        logger.debug("Parsing PyPI mapping")
+        load_start = time.monotonic()
+        yaml = ruamel.yaml.YAML(typ="safe")
+        lookup = yaml.load(content)
+        load_duration = time.monotonic() - load_start
+        logger.debug(f"Loaded {len(lookup)} entries in {load_duration:.2f}s")
         # lowercase and kebabcase the pypi names
         assert lookup is not None
         lookup = {canonicalize_name(k): v for k, v in lookup.items()}
