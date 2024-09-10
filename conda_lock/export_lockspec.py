@@ -1,17 +1,9 @@
-import hashlib
 import json
-import pathlib
-import typing
 import warnings
 
 from collections import defaultdict
-from typing import Any, Dict, List, NamedTuple, Optional, Set, Tuple, Union
+from typing import Any, Dict, List, NamedTuple, Optional, Set, Tuple
 
-from pydantic import BaseModel, Field, validator
-from typing_extensions import Literal
-
-from conda_lock.models import StrictModel
-from conda_lock.models.channel import Channel
 from conda_lock.models.lock_spec import (
     Dependency,
     LockSpecification,
@@ -19,8 +11,6 @@ from conda_lock.models.lock_spec import (
     VCSDependency,
     VersionedDependency,
 )
-from conda_lock.models.pip_repository import PipRepository
-from conda_lock.virtual_package import FakeRepoData
 
 
 class DepKey1(NamedTuple):
