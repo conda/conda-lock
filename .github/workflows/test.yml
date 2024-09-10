@@ -19,44 +19,12 @@ env:
   MICROMAMBA_VERSION: 'latest'
 
 jobs:
-  test-windows:
-    env:
-      PYTHONUNBUFFERED: "1"
-      FORCE_COLOR: "1"
-    runs-on: windows-latest
-    steps:
-      - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4
-
-      - name: Install Conda environment with Micromamba
-        uses: mamba-org/setup-micromamba@v1
-        with:
-          micromamba-version: ${{ env.MICROMAMBA_VERSION }}
-          environment-file: environments/dev-environment.yaml
-          init-shell: powershell
-          create-args: >-
-            python=3.12
-
-      - name: install conda-lock
-        run: |
-          pip install -e . --force-reinstall
-
-      - name: run-test
-        run: |
-          copy pyproject.toml "%RUNNER_TEMP%"
-          Xcopy /E /I tests "%RUNNER_TEMP%\\tests"
-          pushd "${RUNNER_TEMP}"
-          set TMPDIR="%RUNNER_TEMP%"
-          dir
-          pytest --cov=conda_lock --cov-branch --cov-report=xml --cov-report=term tests
-          copy coverage.xml %GITHUB_WORKSPACE%
-      - uses: codecov/codecov-action@v4
-
   test:
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
-        os: [ ubuntu-latest, macos-latest ]
+        os: [ ubuntu-latest, macos-latest, windows-latest ]
         python-version: [ "3.8", "3.12" ]
     defaults:
       run:
