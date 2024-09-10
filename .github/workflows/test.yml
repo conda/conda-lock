@@ -38,16 +38,19 @@ jobs:
       - uses: mamba-org/setup-micromamba@v1
         with:
           micromamba-version: ${{ env.MICROMAMBA_VERSION }}
-          environment-file: environments/dev-environment.yaml
+          environment-file: environments/conda-lock.yml
+          environment-name: conda-lock-dev
           init-shell: bash
+          cache-environment: true
           create-args: >-
-            python=${{ matrix.python-version }}
+            python=${{ matrix.python-version }} --category=main --category=dev
 
       - name: install conda-lock
         shell: bash -eo pipefail -l {0}
         run: |
           which pip
-          pip install -e . --force-reinstall
+          pip install -e . --no-deps
+          pip check
 
       - name: run-test
         shell: bash -eo pipefail -l {0}
