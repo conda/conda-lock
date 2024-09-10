@@ -55,6 +55,7 @@ jobs:
       - name: run-test
         shell: bash -eo pipefail -l {0}
         run: |
+          mkdir -p tests/durations
           cp pyproject.toml "${RUNNER_TEMP}/"
           cp -a tests "${RUNNER_TEMP}/"
           pushd "${RUNNER_TEMP}"
@@ -62,6 +63,22 @@ jobs:
           ls -lah
           set -x
           which pytest
-          pytest --cov=conda_lock --cov-branch --cov-report=xml --cov-report=term tests
-          cp coverage.xml "${GITHUB_WORKSPACE}"
+          pytest \
+            --cov=conda_lock --cov-branch --cov-report=xml --cov-report=term \
+            --store-durations \
+            --durations-path "${{ github.workspace }}/tests/durations/${{ matrix.os }}-py${{ matrix.python-version }}.json" \
+            tests
+          cp coverage.xml "${{ github.workspace }}"
+
       - uses: codecov/codecov-action@v4
+
+      - name: Print test durations
+        run: |
+          ls -al tests/durations
+          cat tests/durations/${{ matrix.os }}-py${{ matrix.python-version }}.json
+
+      - name: Store test durations
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-durations-${{ matrix.os }}-py${{ matrix.python-version }}
+          path: tests/durations/${{ matrix.os }}-py${{ matrix.python-version }}.json
