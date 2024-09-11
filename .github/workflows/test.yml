@@ -38,6 +38,8 @@ jobs:
         exclude:
           - os: windows
             python-version: "3.8"
+          - os: macos
+            python-version: "3.8"
 
           # Prune the indices so that we only run the splits up to the group size
           # defined below in "include". (This is ugly but effective.)
@@ -101,22 +103,15 @@ jobs:
       - name: run-test
         run: |
           mkdir -p tests/durations
-          cp pyproject.toml "${RUNNER_TEMP}/"
-          cp -a tests "${RUNNER_TEMP}/"
-          pushd "${RUNNER_TEMP}"
-          export TMPDIR="${RUNNER_TEMP}"
-          ls -lah
           set -x
           which pytest
           pytest \
             --cov=conda_lock --cov-branch --cov-report=xml --cov-report=term \
             --store-durations \
             --clean-durations \
-            --durations-path "${{ github.workspace }}/tests/durations/${{ matrix.os }}-py${{ matrix.python-version }}.json" \
+            --durations-path "tests/durations/${{ matrix.os }}-py${{ matrix.python-version }}.json" \
             --splits="${{ matrix.pytest-split-group-size }}" \
-            --group="${{ matrix.pytest-split-group-index }}" \
-            tests
-          cp coverage.xml "${{ github.workspace }}"
+            --group="${{ matrix.pytest-split-group-index }}"
 
       - uses: codecov/codecov-action@v4
 
@@ -147,11 +142,11 @@ jobs:
           mkdir temp
           find . -type f -name '*.json' | xargs -n1 basename | sort | uniq > temp/filenames.txt
           cat temp/filenames.txt
-      - name: Aggregate test durations
+      - name: Aggregate test durations and sort by key (test name)
         run: |
           mkdir aggregated
           while read -r filename; do
-            jq -s 'add' $(find . -type f -name "$filename") > "aggregated/$filename"
+            jq -s 'add | to_entries | sort_by(.key) | from_entries' $(find . -type f -name "$filename") > "aggregated/$filename"
           done < temp/filenames.txt
       - name: Upload aggregated test durations
         uses: actions/upload-artifact@v4
