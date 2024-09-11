@@ -5,7 +5,7 @@ import typing
 
 from typing import Dict, List, Optional, Union
 
-from pydantic import field_validator, BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 from typing_extensions import Literal
 
 from conda_lock.models import StrictModel
@@ -85,16 +85,18 @@ class LockSpecification(BaseModel):
         self, platform: str, virtual_package_repo: Optional[FakeRepoData]
     ) -> str:
         data = {
-            "channels": [c.json() for c in self.channels],
+            "channels": [c.model_dump_json() for c in self.channels],
             "specs": [
-                p.dict()
+                p.model_dump()
                 for p in sorted(
                     self.dependencies[platform], key=lambda p: (p.manager, p.name)
                 )
             ],
         }
         if self.pip_repositories:
-            data["pip_repositories"] = [repo.json() for repo in self.pip_repositories]
+            data["pip_repositories"] = [
+                repo.model_dump_json() for repo in self.pip_repositories
+            ]
         if virtual_package_repo is not None:
             vpr_data = virtual_package_repo.all_repodata
             data["virtual_package_hash"] = {

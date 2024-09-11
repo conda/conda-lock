@@ -1727,7 +1727,9 @@ def test_aggregate_lock_specs():
         ],
         sources=[],
     )
-    assert actual.dict(exclude={"sources"}) == expected.dict(exclude={"sources"})
+    assert actual.model_dump(exclude={"sources"}) == expected.model_dump(
+        exclude={"sources"}
+    )
     assert actual.content_hash(None) == expected.content_hash(None)
 
 

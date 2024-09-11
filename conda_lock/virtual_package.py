@@ -8,7 +8,7 @@ from collections import defaultdict
 from types import TracebackType
 from typing import Any, Dict, Iterable, List, Optional, Set, Tuple, Type
 
-from pydantic import field_validator, ConfigDict, BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from conda_lock.interfaces.vendored_conda import MatchSpec
 from conda_lock.models.channel import Channel
@@ -22,6 +22,7 @@ DEFAULT_TIME = 1577854800000
 
 class FakePackage(BaseModel):
     """A minimal representation of the required metadata for a conda package"""
+
     model_config = ConfigDict(frozen=True)
 
     name: str
@@ -34,7 +35,7 @@ class FakePackage(BaseModel):
     package_type: Optional[str] = "virtual_system"
 
     def to_repodata_entry(self) -> Tuple[str, Dict[str, Any]]:
-        out = self.dict()
+        out = self.model_dump()
         if self.build_string:
             build = f"{self.build_string}_{self.build_number}"
         else:
