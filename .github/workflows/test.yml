@@ -142,11 +142,11 @@ jobs:
           mkdir temp
           find . -type f -name '*.json' | xargs -n1 basename | sort | uniq > temp/filenames.txt
           cat temp/filenames.txt
-      - name: Aggregate test durations
+      - name: Aggregate test durations and sort by key (test name)
         run: |
           mkdir aggregated
           while read -r filename; do
-            jq -s 'add' $(find . -type f -name "$filename") > "aggregated/$filename"
+            jq -s 'add | to_entries | sort_by(.key) | from_entries' $(find . -type f -name "$filename") > "aggregated/$filename"
           done < temp/filenames.txt
       - name: Upload aggregated test durations
         uses: actions/upload-artifact@v4
