@@ -33,7 +33,7 @@ dependencies = [
     "ensureconda >=1.4.4",
     "gitpython >=3.1.30",
     "jinja2",
-    "pydantic >=1.10",
+    "pydantic >=2",
     "pyyaml >= 5.1",
     # constraint on version comes from poetry
     "requests >=2.26,<3.0",
