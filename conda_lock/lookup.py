@@ -191,6 +191,5 @@ def cached_download_file(url: str) -> bytes:
         except Timeout:
             logger.warning(
                 f"Failed to acquire lock on {destination_lock}, it is likely "
-                f"being downloaded by another process. Retrying...",
-                destination_lock,
+                f"being downloaded by another process. Retrying..."
             )
