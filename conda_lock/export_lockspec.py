@@ -68,23 +68,7 @@ def render_pixi_toml(
         ]
     )
 
-    indexed_deps: Dict[DepKey1, Dependency] = {}
-    for platform in all_platforms:
-        deps = lock_spec.dependencies[platform]
-        for dep in deps:
-            category = dep.category
-            key1 = DepKey1(
-                name=dep.name, category=category, platform=platform, manager=dep.manager
-            )
-            if key1 in indexed_deps:
-                raise ValueError(
-                    f"Duplicate dependency {key1}: {dep}, {indexed_deps[key1]}"
-                )
-            indexed_deps[key1] = dep
-
-    arranged_deps = arrange_for_toml(
-        indexed_deps=indexed_deps, all_platforms=set(all_platforms)
-    )
+    arranged_deps = arrange_for_toml(lock_spec)
     for key, deps_by_name in arranged_deps.items():
         result.append(toml_header(key))
         for name, dep in deps_by_name.items():
@@ -186,8 +170,22 @@ def extract_platform_independent_deps(
 
 
 def arrange_for_toml(
-    *, indexed_deps: Dict[DepKey1, Dependency], all_platforms: Set[str]
+    lock_spec: LockSpecification,
 ) -> Dict[TomlKey, Dict[str, Dependency]]:
+    all_platforms = lock_spec.dependencies.keys()
+    indexed_deps: Dict[DepKey1, Dependency] = {}
+    for platform in all_platforms:
+        deps = lock_spec.dependencies[platform]
+        for dep in deps:
+            category = dep.category
+            key1 = DepKey1(
+                name=dep.name, category=category, platform=platform, manager=dep.manager
+            )
+            if key1 in indexed_deps:
+                raise ValueError(
+                    f"Duplicate dependency {key1}: {dep}, {indexed_deps[key1]}"
+                )
+            indexed_deps[key1] = dep
     unsorted_result: Dict[TomlKey, Dict[str, Dependency]] = defaultdict(dict)
     all_platform_deps, platform_specific_deps = extract_platform_independent_deps(
         indexed_deps=indexed_deps, num_platforms=len(all_platforms)
