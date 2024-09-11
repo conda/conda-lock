@@ -38,6 +38,8 @@ jobs:
         exclude:
           - os: windows
             python-version: "3.8"
+          - os: macos
+            python-version: "3.8"
 
           # Prune the indices so that we only run the splits up to the group size
           # defined below in "include". (This is ugly but effective.)
