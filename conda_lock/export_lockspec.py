@@ -112,6 +112,37 @@ def render_pixi_toml(
 
 
 def make_pixi_spec(dep: Dependency) -> str:
+    """Render a conda-lock Dependency as a pixi VersionSpec or matchspec.
+
+    The result is suitable for the values used in the `dependencies` or
+    `pypi-dependencies` tables of a pixi TOML file.
+
+    >>> make_pixi_spec(VersionedDependency(name="numpy", version="2.1.1"))
+    '"2.1.1"'
+
+    >>> make_pixi_spec(VersionedDependency(name="numpy", version=""))
+    '"*"'
+
+    >>> make_pixi_spec(
+    ...     VersionedDependency(
+    ...         name="numpy",
+    ...         version="2.1.1",
+    ...         conda_channel="conda-forge",
+    ...         build="py313h4bf6692_0"
+    ...     )
+    ... )
+    '{"version": "2.1.1", "build": "py313h4bf6692_0", "channel": "conda-forge"}'
+
+    >>> make_pixi_spec(
+    ...     VersionedDependency(
+    ...         name="xarray",
+    ...         version="",
+    ...         extras=["io", "parallel"],
+    ...         manager="pip",
+    ...     )
+    ... )
+    '{"version": "*", "extras": ["io", "parallel"]}'
+    """
     matchspec: Dict[str, Any] = {}
     if isinstance(dep, VersionedDependency):
         matchspec["version"] = dep.version or "*"
