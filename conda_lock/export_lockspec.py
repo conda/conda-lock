@@ -67,23 +67,6 @@ def render_pixi_toml(
             f"platforms = {list(all_platforms)}",
         ]
     )
-    channels: List[str] = [channel.url for channel in lock_spec.channels]
-    for channel in lock_spec.channels:
-        if channel.used_env_vars:
-            warnings.warn(
-                f"Channel {channel.url} uses environment variables "
-                "which are not implemented"
-            )
-    result.append(f"channels = {channels}")
-    result.append("")
-
-    sorted_categories = sorted(all_categories)
-    if "main" in sorted_categories:
-        sorted_categories.remove("main")
-        sorted_categories.insert(0, "main")
-    if "default" in sorted_categories:
-        sorted_categories.remove("default")
-        sorted_categories.insert(0, "default")
 
     indexed_deps: Dict[DepKey1, Dependency] = {}
     for platform in all_platforms:
