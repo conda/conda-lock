@@ -38,12 +38,10 @@ class DepWithPlatform(NamedTuple):
 
 
 def render_pixi_toml(
-    *,
-    lock_spec: LockSpecification,
-    project_name: str = "project-name-placeholder",
+    *, lock_spec: LockSpecification, project_name: str = "project-name-placeholder"
 ) -> List[str]:
+    """Render a pixi.toml from a LockSpecification."""
     all_platforms = lock_spec.dependencies.keys()
-
     all_categories: Set[str] = set()
     for platform in all_platforms:
         for dep in lock_spec.dependencies[platform]:
@@ -57,23 +55,23 @@ def render_pixi_toml(
         "and <https://pixi.sh>.",
         "# Source files:",
     ]
-    for source in lock_spec.sources:
-        result.append(f"# - {source}")
+    result.extend(f"# - {source}" for source in lock_spec.sources)
     result.extend(
         [
             "",
             "[project]",
             f'name = "{project_name}"',
             f"platforms = {list(all_platforms)}",
+            "",
         ]
     )
 
     arranged_deps = arrange_for_toml(lock_spec)
     for key, deps_by_name in arranged_deps.items():
         result.append(toml_header(key))
-        for name, dep in deps_by_name.items():
-            pixi_spec = make_pixi_spec(dep)
-            result.append(f"{name} = {pixi_spec}")
+        result.extend(
+            f"{name} = {make_pixi_spec(dep)}" for name, dep in deps_by_name.items()
+        )
         result.append("")
     return result
 
@@ -136,9 +134,10 @@ def make_pixi_spec(dep: Dependency) -> str:
         raise ValueError(f"Unknown dependency type {dep}")
 
 
-def extract_platform_independent_deps(
+def aggregate_platform_independent_deps(
     *, indexed_deps: Dict[DepKey1, Dependency], num_platforms: int
-) -> tuple[Dict[DepKey2, Dependency], Dict[DepKey1, Dependency]]:
+) -> Tuple[Dict[DepKey2, Dependency], Dict[DepKey1, Dependency]]:
+    """Aggregate platform-independent dependencies."""
     all_platform_deps: Dict[DepKey2, Dependency] = {}
     platform_specific_deps: Dict[DepKey1, Dependency] = {}
 
@@ -172,24 +171,26 @@ def extract_platform_independent_deps(
 def arrange_for_toml(
     lock_spec: LockSpecification,
 ) -> Dict[TomlKey, Dict[str, Dependency]]:
-    all_platforms = lock_spec.dependencies.keys()
+    """Arrange dependencies into a structured dictionary for TOML generation."""
     indexed_deps: Dict[DepKey1, Dependency] = {}
-    for platform in all_platforms:
-        deps = lock_spec.dependencies[platform]
+    for platform, deps in lock_spec.dependencies.items():
         for dep in deps:
-            category = dep.category
             key1 = DepKey1(
-                name=dep.name, category=category, platform=platform, manager=dep.manager
+                name=dep.name,
+                category=dep.category,
+                platform=platform,
+                manager=dep.manager,
             )
             if key1 in indexed_deps:
                 raise ValueError(
                     f"Duplicate dependency {key1}: {dep}, {indexed_deps[key1]}"
                 )
             indexed_deps[key1] = dep
-    unsorted_result: Dict[TomlKey, Dict[str, Dependency]] = defaultdict(dict)
-    all_platform_deps, platform_specific_deps = extract_platform_independent_deps(
-        indexed_deps=indexed_deps, num_platforms=len(all_platforms)
+
+    all_platform_deps, platform_specific_deps = aggregate_platform_independent_deps(
+        indexed_deps=indexed_deps, num_platforms=len(lock_spec.dependencies)
     )
+    unsorted_result: Dict[TomlKey, Dict[str, Dependency]] = defaultdict(dict)
     for key1, dep in platform_specific_deps.items():
         toml_key = TomlKey(
             category=key1.category, platform=key1.platform, manager=key1.manager
@@ -198,6 +199,7 @@ def arrange_for_toml(
             preexisting_dep = unsorted_result[toml_key][key1.name]
             raise ValueError(f"Duplicate key {key1} for {dep} and {preexisting_dep}")
         unsorted_result[toml_key][key1.name] = dep
+
     for key2, dep in all_platform_deps.items():
         toml_key = TomlKey(category=key2.category, platform=None, manager=key2.manager)
         if key2.name in unsorted_result[toml_key]:
@@ -213,8 +215,24 @@ def arrange_for_toml(
     return sorted_result
 
 
-def toml_ordering(item: Tuple[TomlKey, dict]) -> tuple[str, str, str]:
-    """Make an associated key that is totally ordered.
+def toml_ordering(item: Tuple[TomlKey, dict]) -> Tuple[str, str, str]:
+    """Make a sort key to properly order the dependency tables in the pixi.toml.
+
+    The main category = default feature comes first. Then the other categories.
+
+    Within each category, the platform-independent dependencies come first, followed by
+    the platform-specific dependencies.
+
+    Within each platform, we declare the conda dependencies first, followed by the pip
+    dependencies.
+
+    Within each table determined by the hierarchy of category, platform, and manager,
+    the dependencies are sorted alphabetically by name. But the key here is just for
+    sorting the tables that occur, not the dependencies within them.
+
+    We define the ordering via a tuple of strings: (category, platform, manager).
+    The main category and the platform-independent dependencies are represented by
+    empty strings so that they come lexicographically first.
 
     >>> toml_ordering((TomlKey(category="main", platform=None, manager="conda"), {}))
     ('', '', 'conda')
@@ -228,18 +246,14 @@ def toml_ordering(item: Tuple[TomlKey, dict]) -> tuple[str, str, str]:
     ('dev', '', 'pip')
     """
     key = item[0]
-    category = key.category
-    if category == "main" or category == "default":
-        # Make sure "main"/"default" comes first
-        category = ""
-    # Make sure all-platform comes first
+    category = "" if key.category in ["main", "default"] else key.category
     platform = key.platform if key.platform is not None else ""
-    # "conda" before "pip" is easy since it's already alphabetical.
+    # "conda" before "pip" is conveniently already lexicographical order.
     return category, platform, key.manager
 
 
 def toml_header(key: TomlKey) -> str:
-    """Generate a TOML header for a given key.
+    """Generates a TOML header based on the dependency type, platform, and manager.
 
     >>> toml_header(TomlKey(category="main", platform=None, manager="conda"))
     '[dependencies]'
@@ -265,18 +279,10 @@ def toml_header(key: TomlKey) -> str:
     >>> toml_header(TomlKey(category="dev", platform="linux-64", manager="pip"))
     '[feature.dev.target.linux-64.pypi-dependencies]'
     """
-    result = "["
-    category = key.category
-    platform = key.platform
-    manager = key.manager
-    if category != "main" and category != "default":
-        result += f"feature.{category}."
-    if platform is not None:
-        result += f"target.{platform}."
-    if manager == "conda":
-        result += "dependencies]"
-    elif manager == "pip":
-        result += "pypi-dependencies]"
-    else:
-        raise ValueError(f"Unknown manager {manager}")
-    return result
+    parts = []
+    if key.category not in ["main", "default"]:
+        parts.extend(["feature", key.category])
+    if key.platform:
+        parts.extend(["target", key.platform])
+    parts.append("dependencies" if key.manager == "conda" else "pypi-dependencies")
+    return "[" + ".".join(parts) + "]"
