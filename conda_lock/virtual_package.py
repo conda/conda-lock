@@ -8,7 +8,7 @@ from collections import defaultdict
 from types import TracebackType
 from typing import Any, Dict, Iterable, List, Optional, Set, Tuple, Type
 
-from pydantic import BaseModel, Field, validator
+from pydantic import field_validator, ConfigDict, BaseModel, Field
 
 from conda_lock.interfaces.vendored_conda import MatchSpec
 from conda_lock.models.channel import Channel
@@ -22,9 +22,7 @@ DEFAULT_TIME = 1577854800000
 
 class FakePackage(BaseModel):
     """A minimal representation of the required metadata for a conda package"""
-
-    class Config:
-        frozen = True
+    model_config = ConfigDict(frozen=True)
 
     name: str
     version: str = "1.0"
@@ -236,7 +234,8 @@ def default_virtual_package_repodata(cuda_version: str = "11.4") -> FakeRepoData
 class VirtualPackageSpecSubdir(BaseModel):
     packages: Dict[str, str]
 
-    @validator("packages")
+    @field_validator("packages")
+    @classmethod
     def validate_packages(cls, v: Dict[str, str]) -> Dict[str, str]:
         for package_name in v:
             if not package_name.startswith("__"):

@@ -61,6 +61,8 @@ class BaseLockedDependency(StrictModel):
     def key(self) -> LockKey:
         return LockKey(self.manager, self.name, self.platform)
 
+    # TODO[pydantic]: We couldn't refactor the `validator`, please replace it by `field_validator` manually.
+    # Check https://docs.pydantic.dev/dev-v2/migration/#changes-to-validators for more information.
     @validator("hash")
     def validate_hash(cls, v: HashModel, values: Dict[str, typing.Any]) -> HashModel:
         if (values["manager"] == "conda") and (v.md5 is None):
@@ -282,6 +284,8 @@ class LockMeta(StrictModel):
             custom_metadata=new_custom_metadata,
         )
 
+    # TODO[pydantic]: We couldn't refactor the `validator`, please replace it by `field_validator` manually.
+    # Check https://docs.pydantic.dev/dev-v2/migration/#changes-to-validators for more information.
     @validator("channels", pre=True, always=True)
     def ensure_channels(cls, v: List[Union[str, Channel]]) -> List[Channel]:
         res: List[Channel] = []

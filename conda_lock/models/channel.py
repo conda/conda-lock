@@ -57,14 +57,14 @@ class CondaUrl(BaseModel):
     raw_url: str
     env_var_url: str
 
-    token: Optional[str]
-    token_env_var: Optional[str]
+    token: Optional[str] = None
+    token_env_var: Optional[str] = None
 
-    user: Optional[str]
-    user_env_var: Optional[str]
+    user: Optional[str] = None
+    user_env_var: Optional[str] = None
 
-    password: Optional[str]
-    password_env_var: Optional[str]
+    password: Optional[str] = None
+    password_env_var: Optional[str] = None
 
     @classmethod
     def from_string(cls, value: str) -> "CondaUrl":

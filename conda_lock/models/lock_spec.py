@@ -5,7 +5,7 @@ import typing
 
 from typing import Dict, List, Optional, Union
 
-from pydantic import BaseModel, Field, validator
+from pydantic import field_validator, BaseModel, Field
 from typing_extensions import Literal
 
 from conda_lock.models import StrictModel
@@ -21,7 +21,8 @@ class _BaseDependency(StrictModel):
     extras: List[str] = []
     markers: Optional[str] = None
 
-    @validator("extras")
+    @field_validator("extras")
+    @classmethod
     def sorted_extras(cls, v: List[str]) -> List[str]:
         return sorted(v)
 
@@ -53,11 +54,11 @@ class Package(StrictModel):
 
 
 class PoetryMappedDependencySpec(StrictModel):
-    url: Optional[str]
+    url: Optional[str] = None
     manager: Literal["conda", "pip"]
     extras: List
-    markers: Optional[str]
-    poetry_version_spec: Optional[str]
+    markers: Optional[str] = None
+    poetry_version_spec: Optional[str] = None
 
 
 class LockSpecification(BaseModel):
@@ -104,7 +105,8 @@ class LockSpecification(BaseModel):
         env_spec = json.dumps(data, sort_keys=True)
         return hashlib.sha256(env_spec.encode("utf-8")).hexdigest()
 
-    @validator("channels", pre=True)
+    @field_validator("channels", mode="before")
+    @classmethod
     def validate_channels(cls, v: List[Union[Channel, str]]) -> List[Channel]:
         for i, e in enumerate(v):
             if isinstance(e, str):
@@ -114,7 +116,8 @@ class LockSpecification(BaseModel):
                 raise ValueError("nodefaults channel is not allowed, ref #418")
         return typing.cast(List[Channel], v)
 
-    @validator("pip_repositories", pre=True)
+    @field_validator("pip_repositories", mode="before")
+    @classmethod
     def validate_pip_repositories(
         cls, value: List[Union[PipRepository, str]]
     ) -> List[PipRepository]:
