@@ -4,7 +4,7 @@ import warnings
 from collections import defaultdict
 from typing import Any, Dict, List, NamedTuple, Optional, Set, Tuple
 
-from conda_lock._export_lockspec_compute_platform_indep import (
+from conda_lock._export_lock_spec_compute_platform_indep import (
     unify_platform_independent_deps,
 )
 from conda_lock.models.lock_spec import (
