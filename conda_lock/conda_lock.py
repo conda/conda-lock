@@ -1052,6 +1052,45 @@ def _detect_lockfile_kind(path: pathlib.Path) -> TKindAll:
         )
 
 
+def reconstruct_environment_files_from_lockfile(
+    lockfile_path: pathlib.Path,
+) -> List[pathlib.Path]:
+    if lockfile_path.exists():
+        lock_content = parse_conda_lock_file(lockfile_path)
+        # reconstruct native paths
+        locked_environment_files = [
+            (
+                pathlib.Path(p)
+                # absolute paths could be locked for both flavours
+                if pathlib.PurePosixPath(p).is_absolute()
+                or pathlib.PureWindowsPath(p).is_absolute()
+                else pathlib.Path(
+                    pathlib.PurePosixPath(lockfile_path).parent
+                    / pathlib.PurePosixPath(p)
+                )
+            )
+            for p in lock_content.metadata.sources
+        ]
+        if all(p.exists() for p in locked_environment_files):
+            environment_files = locked_environment_files
+        else:
+            missing = [p for p in locked_environment_files if not p.exists()]
+            environment_files = DEFAULT_FILES.copy()
+            print(
+                f"{lockfile_path} was created from {[str(p) for p in locked_environment_files]},"
+                f" but some files ({[str(p) for p in missing]}) do not exist. Falling back to"
+                f" {[str(p) for p in environment_files]}.",
+                file=sys.stderr,
+            )
+    else:
+        long_ext_file = pathlib.Path("environment.yaml")
+        if long_ext_file.exists() and not DEFAULT_FILES[0].exists():
+            environment_files = [long_ext_file]
+        else:
+            environment_files = DEFAULT_FILES.copy()
+    return environment_files
+
+
 def run_lock(
     environment_files: List[pathlib.Path],
     *,
@@ -1075,36 +1114,7 @@ def run_lock(
     strip_auth: bool = False,
 ) -> None:
     if environment_files == DEFAULT_FILES:
-        if lockfile_path.exists():
-            lock_content = parse_conda_lock_file(lockfile_path)
-            # reconstruct native paths
-            locked_environment_files = [
-                (
-                    pathlib.Path(p)
-                    # absolute paths could be locked for both flavours
-                    if pathlib.PurePosixPath(p).is_absolute()
-                    or pathlib.PureWindowsPath(p).is_absolute()
-                    else pathlib.Path(
-                        pathlib.PurePosixPath(lockfile_path).parent
-                        / pathlib.PurePosixPath(p)
-                    )
-                )
-                for p in lock_content.metadata.sources
-            ]
-            if all(p.exists() for p in locked_environment_files):
-                environment_files = locked_environment_files
-            else:
-                missing = [p for p in locked_environment_files if not p.exists()]
-                print(
-                    f"{lockfile_path} was created from {[str(p) for p in locked_environment_files]},"
-                    f" but some files ({[str(p) for p in missing]}) do not exist. Falling back to"
-                    f" {[str(p) for p in environment_files]}.",
-                    file=sys.stderr,
-                )
-        else:
-            long_ext_file = pathlib.Path("environment.yaml")
-            if long_ext_file.exists() and not environment_files[0].exists():
-                environment_files = [long_ext_file]
+        environment_files = reconstruct_environment_files_from_lockfile(lockfile_path)
 
     _conda_exe = determine_conda_executable(
         conda_exe, mamba=mamba, micromamba=micromamba
