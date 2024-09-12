@@ -358,6 +358,9 @@ def make_lock_files(  # noqa: C901
         platforms_already_locked: List[str] = []
         if original_lock_content is not None:
             platforms_already_locked = list(original_lock_content.metadata.platforms)
+            if update is not None:
+                # Narrow `update` sequence to list for mypy
+                update = list(update)
             update_spec = UpdateSpecification(
                 locked=original_lock_content.package, update=update
             )
