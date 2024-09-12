@@ -13,14 +13,18 @@ from conda_lock.models.lock_spec import (
 )
 
 
-class DepKey1(NamedTuple):
+class FullDepKey(NamedTuple):
+    """A unique key for a dependency in a LockSpecification."""
+
     name: str
     category: str
     platform: str
     manager: str
 
 
-class DepKey2(NamedTuple):
+class DepKeyNoPlatform(NamedTuple):
+    """A key for a dependency in a LockSpecification without a platform."""
+
     name: str
     category: str
     manager: str
@@ -144,16 +148,35 @@ def toml_dependency_line(dep: Dependency) -> str:
 
 
 def aggregate_platform_independent_deps(
-    *, indexed_deps: Dict[DepKey1, Dependency], num_platforms: int
-) -> Tuple[Dict[DepKey2, Dependency], Dict[DepKey1, Dependency]]:
+    dependencies: Dict[str, List[Dependency]],
+) -> Tuple[Dict[DepKeyNoPlatform, Dependency], Dict[FullDepKey, Dependency]]:
     """Aggregate platform-independent dependencies."""
-    all_platform_deps: Dict[DepKey2, Dependency] = {}
-    platform_specific_deps: Dict[DepKey1, Dependency] = {}
+    all_platform_deps: Dict[DepKeyNoPlatform, Dependency] = {}
+    platform_specific_deps: Dict[FullDepKey, Dependency] = {}
+
+    num_platforms = len(dependencies.keys())
+
+    indexed_deps: Dict[FullDepKey, Dependency] = {}
+    for platform, deps in dependencies.items():
+        for dep in deps:
+            key = FullDepKey(
+                name=dep.name,
+                category=dep.category,
+                platform=platform,
+                manager=dep.manager,
+            )
+            if key in indexed_deps:
+                raise ValueError(
+                    f"Duplicate dependency {key}: {dep}, {indexed_deps[key]}"
+                )
+            indexed_deps[key] = dep
 
     # Collect by platform
-    aggregated_deps: Dict[DepKey2, List[DepWithPlatform]] = defaultdict(list)
+    aggregated_deps: Dict[DepKeyNoPlatform, List[DepWithPlatform]] = defaultdict(list)
     for key1, dep in indexed_deps.items():
-        key2 = DepKey2(name=key1.name, category=key1.category, manager=key1.manager)
+        key2 = DepKeyNoPlatform(
+            name=key1.name, category=key1.category, manager=key1.manager
+        )
         aggregated_deps[key2].append(DepWithPlatform(dep=dep, platform=key1.platform))
 
     # Check for all-arch dependencies
@@ -167,7 +190,7 @@ def aggregate_platform_independent_deps(
             all_platform_deps[key2] = deps_with_platforms[0].dep
         else:
             for dep_with_platform in deps_with_platforms:
-                key1 = DepKey1(
+                key1 = FullDepKey(
                     name=key2.name,
                     category=key2.category,
                     platform=dep_with_platform.platform,
@@ -181,33 +204,18 @@ def arrange_for_toml(
     lock_spec: LockSpecification,
 ) -> Dict[TomlTableKey, Dict[str, Dependency]]:
     """Arrange dependencies into a structured dictionary for TOML generation."""
-    indexed_deps: Dict[DepKey1, Dependency] = {}
-    for platform, deps in lock_spec.dependencies.items():
-        for dep in deps:
-            key1 = DepKey1(
-                name=dep.name,
-                category=dep.category,
-                platform=platform,
-                manager=dep.manager,
-            )
-            if key1 in indexed_deps:
-                raise ValueError(
-                    f"Duplicate dependency {key1}: {dep}, {indexed_deps[key1]}"
-                )
-            indexed_deps[key1] = dep
-
     all_platform_deps, platform_specific_deps = aggregate_platform_independent_deps(
-        indexed_deps=indexed_deps, num_platforms=len(lock_spec.dependencies)
+        lock_spec.dependencies
     )
     unsorted_result: Dict[TomlTableKey, Dict[str, Dependency]] = defaultdict(dict)
-    for key1, dep in platform_specific_deps.items():
+    for key, dep in platform_specific_deps.items():
         toml_key = TomlTableKey(
-            category=key1.category, platform=key1.platform, manager=key1.manager
+            category=key.category, platform=key.platform, manager=key.manager
         )
-        if key1.name in unsorted_result[toml_key]:
-            preexisting_dep = unsorted_result[toml_key][key1.name]
-            raise ValueError(f"Duplicate key {key1} for {dep} and {preexisting_dep}")
-        unsorted_result[toml_key][key1.name] = dep
+        if key.name in unsorted_result[toml_key]:
+            preexisting_dep = unsorted_result[toml_key][key.name]
+            raise ValueError(f"Duplicate key {key} for {dep} and {preexisting_dep}")
+        unsorted_result[toml_key][key.name] = dep
 
     for key2, dep in all_platform_deps.items():
         toml_key = TomlTableKey(
