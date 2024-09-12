@@ -260,7 +260,7 @@ def make_lock_files(  # noqa: C901
     platform_overrides: Optional[Sequence[str]] = None,
     channel_overrides: Optional[Sequence[str]] = None,
     virtual_package_spec: Optional[pathlib.Path] = None,
-    update: Optional[List[str]] = None,
+    update: Optional[Sequence[str]] = None,
     include_dev_dependencies: bool = True,
     filename_template: Optional[str] = None,
     filter_categories: bool = False,
@@ -1095,7 +1095,7 @@ def run_lock(
     environment_files: List[pathlib.Path],
     *,
     conda_exe: Optional[PathLike],
-    platforms: Optional[List[str]] = None,
+    platforms: Optional[Sequence[str]] = None,
     mamba: bool = False,
     micromamba: bool = False,
     include_dev_dependencies: bool = True,
@@ -1107,7 +1107,7 @@ def run_lock(
     extras: Optional[AbstractSet[str]] = None,
     virtual_package_spec: Optional[pathlib.Path] = None,
     with_cuda: Optional[str] = None,
-    update: Optional[List[str]] = None,
+    update: Optional[Sequence[str]] = None,
     filter_categories: bool = False,
     metadata_choices: AbstractSet[MetadataOption] = frozenset(),
     metadata_yamls: Sequence[pathlib.Path] = (),
@@ -1308,25 +1308,25 @@ def lock(
     conda: Optional[str],
     mamba: bool,
     micromamba: bool,
-    platform: List[str],
-    channel_overrides: List[str],
+    platform: Sequence[str],
+    channel_overrides: Sequence[str],
     dev_dependencies: bool,
-    files: List[pathlib.Path],
-    kind: List[Union[Literal["lock"], Literal["env"], Literal["explicit"]]],
+    files: Sequence[PathLike],
+    kind: Sequence[Union[Literal["lock"], Literal["env"], Literal["explicit"]]],
     filename_template: str,
     lockfile: PathLike,
     strip_auth: bool,
-    extras: List[str],
+    extras: Sequence[str],
     filter_categories: bool,
     check_input_hash: bool,
     log_level: TLogLevel,
     pdb: bool,
-    virtual_package_spec: Optional[pathlib.Path],
+    virtual_package_spec: Optional[PathLike],
     pypi_to_conda_lookup_file: Optional[str],
     with_cuda: Optional[str] = None,
-    update: Optional[List[str]] = None,
+    update: Optional[Sequence[str]] = None,
     metadata_choices: Sequence[str] = (),
-    metadata_yamls: Sequence[pathlib.Path] = (),
+    metadata_yamls: Sequence[PathLike] = (),
 ) -> None:
     """Generate fully reproducible lock files for conda environments.
 
@@ -1351,11 +1351,9 @@ def lock(
 
     metadata_enum_choices = set(MetadataOption(md) for md in metadata_choices)
 
-    metadata_yamls = [pathlib.Path(path) for path in metadata_yamls]
-
     # bail out if we do not encounter the default file if no files were passed
     if ctx.get_parameter_source("files") == click.core.ParameterSource.DEFAULT:  # type: ignore
-        candidates = list(files)
+        candidates = DEFAULT_FILES.copy()
         candidates += [f.with_name(f.name.replace(".yml", ".yaml")) for f in candidates]
         for f in candidates:
             if f.exists():
@@ -1368,7 +1366,7 @@ def lock(
     if pdb:
         sys.excepthook = _handle_exception_post_mortem
 
-    if not virtual_package_spec:
+    if virtual_package_spec is None:
         candidates = [
             pathlib.Path("virtual-packages.yml"),
             pathlib.Path("virtual-packages.yaml"),
@@ -1381,11 +1379,10 @@ def lock(
     else:
         virtual_package_spec = pathlib.Path(virtual_package_spec)
 
-    files = [pathlib.Path(file) for file in files]
     extras_ = set(extras)
     lock_func = partial(
         run_lock,
-        environment_files=files,
+        environment_files=[pathlib.Path(file) for file in files],
         conda_exe=conda,
         platforms=platform,
         mamba=mamba,
@@ -1400,7 +1397,7 @@ def lock(
         update=update,
         filter_categories=filter_categories,
         metadata_choices=metadata_enum_choices,
-        metadata_yamls=metadata_yamls,
+        metadata_yamls=[pathlib.Path(path) for path in metadata_yamls],
         strip_auth=strip_auth,
     )
     if strip_auth:
