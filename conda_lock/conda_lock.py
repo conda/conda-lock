@@ -256,7 +256,7 @@ def make_lock_files(  # noqa: C901
     conda: PathLike,
     src_files: List[pathlib.Path],
     kinds: Sequence[TKindAll],
-    lockfile_path: pathlib.Path = pathlib.Path(DEFAULT_LOCKFILE_NAME),
+    lockfile_path: Optional[pathlib.Path] = None,
     platform_overrides: Optional[Sequence[str]] = None,
     channel_overrides: Optional[Sequence[str]] = None,
     virtual_package_spec: Optional[pathlib.Path] = None,
@@ -328,6 +328,8 @@ def make_lock_files(  # noqa: C901
 
     # Load existing lockfile if it exists
     original_lock_content: Optional[Lockfile] = None
+    if lockfile_path is None:
+        lockfile_path = pathlib.Path(DEFAULT_LOCKFILE_NAME)
     if lockfile_path.exists():
         try:
             original_lock_content = parse_conda_lock_file(lockfile_path)
@@ -1053,8 +1055,11 @@ def _detect_lockfile_kind(path: pathlib.Path) -> TKindAll:
 
 
 def reconstruct_environment_files_from_lockfile(
-    lockfile_path: pathlib.Path,
+    lockfile_path: Optional[pathlib.Path],
 ) -> List[pathlib.Path]:
+    is_lockfile_specified = lockfile_path is not None
+    if lockfile_path is None:
+        lockfile_path = pathlib.Path(DEFAULT_LOCKFILE_NAME)
     if lockfile_path.exists():
         lock_content = parse_conda_lock_file(lockfile_path)
         # reconstruct native paths
@@ -1073,6 +1078,12 @@ def reconstruct_environment_files_from_lockfile(
         ]
         if all(p.exists() for p in locked_environment_files):
             environment_files = locked_environment_files
+            if not is_lockfile_specified:
+                logger.warning(
+                    f"Using source files {[str(p) for p in locked_environment_files]} "
+                    f"from implicitly-specified {lockfile_path} to create the "
+                    f"environment."
+                )
         else:
             missing = [p for p in locked_environment_files if not p.exists()]
             environment_files = DEFAULT_FILES.copy()
@@ -1102,7 +1113,7 @@ def run_lock(
     channel_overrides: Optional[Sequence[str]] = None,
     filename_template: Optional[str] = None,
     kinds: Optional[Sequence[TKindAll]] = None,
-    lockfile_path: pathlib.Path = pathlib.Path(DEFAULT_LOCKFILE_NAME),
+    lockfile_path: Optional[pathlib.Path] = None,
     check_input_hash: bool = False,
     extras: Optional[AbstractSet[str]] = None,
     virtual_package_spec: Optional[pathlib.Path] = None,
@@ -1214,7 +1225,7 @@ TLogLevel = Union[
 )
 @click.option(
     "--lockfile",
-    default=DEFAULT_LOCKFILE_NAME,
+    default=None,
     help="Path to a conda-lock.yml to create or update",
 )
 @click.option(
@@ -1314,7 +1325,7 @@ def lock(
     files: Sequence[PathLike],
     kind: Sequence[Union[Literal["lock"], Literal["env"], Literal["explicit"]]],
     filename_template: str,
-    lockfile: PathLike,
+    lockfile: Optional[PathLike],
     strip_auth: bool,
     extras: Sequence[str],
     filter_categories: bool,
@@ -1390,7 +1401,7 @@ def lock(
         include_dev_dependencies=dev_dependencies,
         channel_overrides=channel_overrides,
         kinds=kind,
-        lockfile_path=pathlib.Path(lockfile),
+        lockfile_path=None if lockfile is None else pathlib.Path(lockfile),
         extras=extras_,
         virtual_package_spec=virtual_package_spec,
         with_cuda=with_cuda,
