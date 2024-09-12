@@ -1351,6 +1351,7 @@ def lock(
             if f.exists():
                 break
         else:
+            logger.error("No source files provided.")
             print(ctx.get_help())
             sys.exit(1)
 
