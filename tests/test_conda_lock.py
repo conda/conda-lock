@@ -2752,7 +2752,12 @@ def test_parse_environment_file_with_pip_and_platform_selector():
 
 
 def test_pip_full_whl_url(
-    tmp_path: Path, conda_exe: str, monkeypatch: "pytest.MonkeyPatch"
+    tmp_path: Path,
+    conda_exe: str,
+    monkeypatch: "pytest.MonkeyPatch",
+    # If the cache is cleared under this test, it can cause an error message:
+    # E       FileNotFoundError: [Errno 2] No such file or directory: '/Users/runner/Library/Caches/pypoetry-conda-lock/artifacts/5a/51/bb/896565e2c84dc024b41e43536c67cef3618b17b0daa532d87a72054dca/requests-2.31.0-py3-none-any.whl'
+    cleared_poetry_cache: None,
 ):
     """Ensure that we can specify full wheel URL in the environment file."""
 
