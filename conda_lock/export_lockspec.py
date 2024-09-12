@@ -5,7 +5,7 @@ from collections import defaultdict
 from typing import Any, Dict, List, NamedTuple, Optional, Set, Tuple
 
 from conda_lock._export_lockspec_compute_platform_indep import (
-    aggregate_platform_independent_deps,
+    unify_platform_independent_deps,
 )
 from conda_lock.models.lock_spec import (
     Dependency,
@@ -30,11 +30,6 @@ class TomlTableKey(NamedTuple):
     category: str
     platform: Optional[str]
     manager: str
-
-
-# class DepWithPlatform(NamedTuple):
-#     dep: Dependency
-#     platform: str
 
 
 def render_pixi_toml(
@@ -137,33 +132,35 @@ def arrange_for_toml(
     lock_spec: LockSpecification,
 ) -> Dict[TomlTableKey, Dict[str, Dependency]]:
     """Arrange dependencies into a structured dictionary for TOML generation."""
-    platform_independent_deps, platform_specific_deps = (
-        aggregate_platform_independent_deps(lock_spec.dependencies)
-    )
+    unified_deps = unify_platform_independent_deps(lock_spec.dependencies)
+
+    # Stick all the dependencies into the correct TOML table
     unsorted_result: Dict[TomlTableKey, Dict[str, Dependency]] = defaultdict(dict)
-    for key, dep in platform_specific_deps.items():
+    for dep_key, dep in unified_deps.items():
         toml_key = TomlTableKey(
-            category=key.category, platform=key.platform, manager=key.manager
+            category=dep_key.category,
+            platform=dep_key.platform,
+            manager=dep_key.manager,
         )
-        if key.name in unsorted_result[toml_key]:
-            preexisting_dep = unsorted_result[toml_key][key.name]
-            raise ValueError(f"Duplicate key {key} for {dep} and {preexisting_dep}")
-        unsorted_result[toml_key][key.name] = dep
+        if dep_key.name in unsorted_result[toml_key]:
+            # This should never happen. Keys must be unique within a TOML table.
+            # Moreover, the `unify_platform_independent_deps` function should have
+            # already ensured that there are no duplicate keys.
+            preexisting_dep = unsorted_result[toml_key][dep_key.name]
+            raise RuntimeError(
+                f"Duplicate key {dep_key} for {dep} and {preexisting_dep}"
+            )
+        unsorted_result[toml_key][dep_key.name] = dep
 
-    for key2, dep in platform_independent_deps.items():
-        toml_key = TomlTableKey(
-            category=key2.category, platform=None, manager=key2.manager
-        )
-        if key2.name in unsorted_result[toml_key]:
-            preexisting_dep = unsorted_result[toml_key][key2.name]
-            raise ValueError(f"Duplicate key {key2} for {dep} and {preexisting_dep}")
-        unsorted_result[toml_key][key2.name] = dep
-
+    # Alphabetize the dependencies within each table
     alphabetized_result = {
         toml_key: dict(sorted(deps_by_name.items()))
         for toml_key, deps_by_name in unsorted_result.items()
     }
+
+    # Sort the tables themselves
     sorted_result = dict(sorted(alphabetized_result.items(), key=toml_ordering))
+
     return sorted_result
 
 
