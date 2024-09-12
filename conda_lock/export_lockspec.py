@@ -26,7 +26,17 @@ class DepKey2(NamedTuple):
     manager: str
 
 
-class TomlKey(NamedTuple):
+class TomlTableKey(NamedTuple):
+    """Represents a key in a pixi.toml table.
+
+    It can be rendered into a TOML header line using `toml_header_line`.
+
+    >>> toml_header_line(
+    ...     TomlTableKey(category="dev", platform="linux-64", manager="pip")
+    ... )
+    '[feature.dev.target.linux-64.pypi-dependencies]'
+    """
+
     category: str
     platform: Optional[str]
     manager: str
@@ -169,7 +179,7 @@ def aggregate_platform_independent_deps(
 
 def arrange_for_toml(
     lock_spec: LockSpecification,
-) -> Dict[TomlKey, Dict[str, Dependency]]:
+) -> Dict[TomlTableKey, Dict[str, Dependency]]:
     """Arrange dependencies into a structured dictionary for TOML generation."""
     indexed_deps: Dict[DepKey1, Dependency] = {}
     for platform, deps in lock_spec.dependencies.items():
@@ -189,9 +199,9 @@ def arrange_for_toml(
     all_platform_deps, platform_specific_deps = aggregate_platform_independent_deps(
         indexed_deps=indexed_deps, num_platforms=len(lock_spec.dependencies)
     )
-    unsorted_result: Dict[TomlKey, Dict[str, Dependency]] = defaultdict(dict)
+    unsorted_result: Dict[TomlTableKey, Dict[str, Dependency]] = defaultdict(dict)
     for key1, dep in platform_specific_deps.items():
-        toml_key = TomlKey(
+        toml_key = TomlTableKey(
             category=key1.category, platform=key1.platform, manager=key1.manager
         )
         if key1.name in unsorted_result[toml_key]:
@@ -200,7 +210,9 @@ def arrange_for_toml(
         unsorted_result[toml_key][key1.name] = dep
 
     for key2, dep in all_platform_deps.items():
-        toml_key = TomlKey(category=key2.category, platform=None, manager=key2.manager)
+        toml_key = TomlTableKey(
+            category=key2.category, platform=None, manager=key2.manager
+        )
         if key2.name in unsorted_result[toml_key]:
             preexisting_dep = unsorted_result[toml_key][key2.name]
             raise ValueError(f"Duplicate key {key2} for {dep} and {preexisting_dep}")
@@ -214,7 +226,7 @@ def arrange_for_toml(
     return sorted_result
 
 
-def toml_ordering(item: Tuple[TomlKey, dict]) -> Tuple[str, str, str]:
+def toml_ordering(item: Tuple[TomlTableKey, dict]) -> Tuple[str, str, str]:
     """Make a sort key to properly order the dependency tables in the pixi.toml.
 
     The main category = default feature comes first. Then the other categories.
@@ -233,15 +245,17 @@ def toml_ordering(item: Tuple[TomlKey, dict]) -> Tuple[str, str, str]:
     The main category and the platform-independent dependencies are represented by
     empty strings so that they come lexicographically first.
 
-    >>> toml_ordering((TomlKey(category="main", platform=None, manager="conda"), {}))
+    >>> toml_ordering(
+    ...     (TomlTableKey(category="main", platform=None, manager="conda"), {})
+    ... )
     ('', '', 'conda')
 
     >>> toml_ordering(
-    ...     (TomlKey(category="main", platform="linux-64", manager="conda"), {})
+    ...     (TomlTableKey(category="main", platform="linux-64", manager="conda"), {})
     ... )
     ('', 'linux-64', 'conda')
 
-    >>> toml_ordering((TomlKey(category="dev", platform=None, manager="pip"), {}))
+    >>> toml_ordering((TomlTableKey(category="dev", platform=None, manager="pip"), {}))
     ('dev', '', 'pip')
     """
     key = item[0]
@@ -251,31 +265,41 @@ def toml_ordering(item: Tuple[TomlKey, dict]) -> Tuple[str, str, str]:
     return category, platform, key.manager
 
 
-def toml_header_line(key: TomlKey) -> str:
+def toml_header_line(key: TomlTableKey) -> str:
     """Generates a TOML header based on the dependency type, platform, and manager.
 
-    >>> toml_header_line(TomlKey(category="main", platform=None, manager="conda"))
+    >>> toml_header_line(
+    ...     TomlTableKey(category="main", platform=None, manager="conda")
+    ... )
     '[dependencies]'
 
-    >>> toml_header_line(TomlKey(category="main", platform="linux-64", manager="conda"))
+    >>> toml_header_line(
+    ...     TomlTableKey(category="main", platform="linux-64", manager="conda")
+    ... )
     '[target.linux-64.dependencies]'
 
-    >>> toml_header_line(TomlKey(category="main", platform=None, manager="pip"))
+    >>> toml_header_line(TomlTableKey(category="main", platform=None, manager="pip"))
     '[pypi-dependencies]'
 
-    >>> toml_header_line(TomlKey(category="main", platform="linux-64", manager="pip"))
+    >>> toml_header_line(
+    ...     TomlTableKey(category="main", platform="linux-64", manager="pip")
+    ... )
     '[target.linux-64.pypi-dependencies]'
 
-    >>> toml_header_line(TomlKey(category="dev", platform=None, manager="conda"))
+    >>> toml_header_line(TomlTableKey(category="dev", platform=None, manager="conda"))
     '[feature.dev.dependencies]'
 
-    >>> toml_header_line(TomlKey(category="dev", platform="linux-64", manager="conda"))
+    >>> toml_header_line(
+    ...     TomlTableKey(category="dev", platform="linux-64", manager="conda")
+    ... )
     '[feature.dev.target.linux-64.dependencies]'
 
-    >>> toml_header_line(TomlKey(category="dev", platform=None, manager="pip"))
+    >>> toml_header_line(TomlTableKey(category="dev", platform=None, manager="pip"))
     '[feature.dev.pypi-dependencies]'
 
-    >>> toml_header_line(TomlKey(category="dev", platform="linux-64", manager="pip"))
+    >>> toml_header_line(
+    ...     TomlTableKey(category="dev", platform="linux-64", manager="pip")
+    ... )
     '[feature.dev.target.linux-64.pypi-dependencies]'
     """
     parts = []
