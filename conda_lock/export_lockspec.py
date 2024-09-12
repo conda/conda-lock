@@ -21,6 +21,11 @@ class FullDepKey(NamedTuple):
     platform: str
     manager: str
 
+    def drop_platform(self) -> "DepKeyNoPlatform":
+        return DepKeyNoPlatform(
+            name=self.name, category=self.category, manager=self.manager
+        )
+
 
 class DepKeyNoPlatform(NamedTuple):
     """A key for a dependency in a LockSpecification without a platform."""
@@ -46,9 +51,9 @@ class TomlTableKey(NamedTuple):
     manager: str
 
 
-class DepWithPlatform(NamedTuple):
-    dep: Dependency
-    platform: str
+# class DepWithPlatform(NamedTuple):
+#     dep: Dependency
+#     platform: str
 
 
 def render_pixi_toml(
@@ -150,12 +155,46 @@ def toml_dependency_line(dep: Dependency) -> str:
 def aggregate_platform_independent_deps(
     dependencies: Dict[str, List[Dependency]],
 ) -> Tuple[Dict[DepKeyNoPlatform, Dependency], Dict[FullDepKey, Dependency]]:
-    """Aggregate platform-independent dependencies."""
-    all_platform_deps: Dict[DepKeyNoPlatform, Dependency] = {}
-    platform_specific_deps: Dict[FullDepKey, Dependency] = {}
+    """Aggregate platform-independent dependencies.
 
-    num_platforms = len(dependencies.keys())
+    >>> numpy1a = VersionedDependency(name="numpy", version="1.2.3")
+    >>> numpy1b = VersionedDependency(name="numpy", version="1.2.3")
+    >>> pandas1 = VersionedDependency(name="pandas", version="4.5.6")
+    >>> pandas2 = VersionedDependency(name="pandas", version="7.8.9")
+    >>> xarray = VersionedDependency(name="xarray", version="1.2.3")
+    >>> dependencies = {
+    ...     "linux-64": [numpy1a, pandas1],
+    ...     "osx-64": [numpy1b, pandas1, xarray],
+    ...     "win-64": [numpy1a, pandas2],
+    ... }
+    >>> platform_independent, platform_specific = aggregate_platform_independent_deps(
+    ...     dependencies
+    ... )
 
+    Since `numpy1a` and `numpy1b` are equal, `numpy` is platform-independent.
+
+    >>> platform_independent  # doctest: +NORMALIZE_WHITESPACE
+    {DepKeyNoPlatform(name='numpy', category='main', manager='conda'):
+      VersionedDependency(name='numpy', manager='conda', category='main', extras=[],
+        markers=None, version='1.2.3', build=None, conda_channel=None, hash=None)}
+
+    `xarray` only appears on `osx-64`.
+    `pandas` is present on all platforms, but the versions aren't all the same.
+
+    >>> platform_specific  # doctest: +NORMALIZE_WHITESPACE
+    {FullDepKey(name='pandas', category='main', platform='linux-64', manager='conda'):
+       VersionedDependency(name='pandas', manager='conda', category='main', extras=[],
+         markers=None, version='4.5.6', build=None, conda_channel=None, hash=None),
+     FullDepKey(name='pandas', category='main', platform='osx-64', manager='conda'):
+       VersionedDependency(name='pandas', manager='conda', category='main', extras=[],
+         markers=None, version='4.5.6', build=None, conda_channel=None, hash=None),
+     FullDepKey(name='xarray', category='main', platform='osx-64', manager='conda'):
+       VersionedDependency(name='xarray', manager='conda', category='main', extras=[],
+         markers=None, version='1.2.3', build=None, conda_channel=None, hash=None),
+     FullDepKey(name='pandas', category='main', platform='win-64', manager='conda'):
+       VersionedDependency(name='pandas', manager='conda', category='main', extras=[],
+         markers=None, version='7.8.9', build=None, conda_channel=None, hash=None)}
+    """
     indexed_deps: Dict[FullDepKey, Dependency] = {}
     for platform, deps in dependencies.items():
         for dep in deps:
@@ -172,40 +211,33 @@ def aggregate_platform_independent_deps(
             indexed_deps[key] = dep
 
     # Collect by platform
-    aggregated_deps: Dict[DepKeyNoPlatform, List[DepWithPlatform]] = defaultdict(list)
-    for key1, dep in indexed_deps.items():
-        key2 = DepKeyNoPlatform(
-            name=key1.name, category=key1.category, manager=key1.manager
-        )
-        aggregated_deps[key2].append(DepWithPlatform(dep=dep, platform=key1.platform))
+    collected_deps: Dict[DepKeyNoPlatform, List[Dependency]] = defaultdict(list)
+    for key, dep in indexed_deps.items():
+        collected_deps[key.drop_platform()].append(dep)
 
-    # Check for all-arch dependencies
-    for key2, deps_with_platforms in aggregated_deps.items():
-        # It's all-arch if there's a dep for each platform and they're all the same.
-        is_allarch = len(deps_with_platforms) == num_platforms and all(
-            curr.dep == next.dep
-            for curr, next in zip(deps_with_platforms, deps_with_platforms[1:])
-        )
-        if is_allarch:
-            all_platform_deps[key2] = deps_with_platforms[0].dep
-        else:
-            for dep_with_platform in deps_with_platforms:
-                key1 = FullDepKey(
-                    name=key2.name,
-                    category=key2.category,
-                    platform=dep_with_platform.platform,
-                    manager=key2.manager,
-                )
-                platform_specific_deps[key1] = dep_with_platform.dep
-    return all_platform_deps, platform_specific_deps
+    # Check for platform-independent dependencies
+    num_platforms = len(dependencies.keys())
+    platform_independent_deps: Dict[DepKeyNoPlatform, Dependency] = {
+        np_key: deps[0]
+        for np_key, deps in collected_deps.items()
+        # It's independent if there's a dep for each platform and they're all the same.
+        if len(deps) == num_platforms
+        and all(curr == next for curr, next in zip(deps, deps[1:]))
+    }
+    platform_specific_deps: Dict[FullDepKey, Dependency] = {
+        key: dep
+        for key, dep in indexed_deps.items()
+        if key.drop_platform() not in platform_independent_deps
+    }
+    return platform_independent_deps, platform_specific_deps
 
 
 def arrange_for_toml(
     lock_spec: LockSpecification,
 ) -> Dict[TomlTableKey, Dict[str, Dependency]]:
     """Arrange dependencies into a structured dictionary for TOML generation."""
-    all_platform_deps, platform_specific_deps = aggregate_platform_independent_deps(
-        lock_spec.dependencies
+    platform_independent_deps, platform_specific_deps = (
+        aggregate_platform_independent_deps(lock_spec.dependencies)
     )
     unsorted_result: Dict[TomlTableKey, Dict[str, Dependency]] = defaultdict(dict)
     for key, dep in platform_specific_deps.items():
@@ -217,7 +249,7 @@ def arrange_for_toml(
             raise ValueError(f"Duplicate key {key} for {dep} and {preexisting_dep}")
         unsorted_result[toml_key][key.name] = dep
 
-    for key2, dep in all_platform_deps.items():
+    for key2, dep in platform_independent_deps.items():
         toml_key = TomlTableKey(
             category=key2.category, platform=None, manager=key2.manager
         )
