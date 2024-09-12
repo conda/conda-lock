@@ -49,6 +49,7 @@ from conda_lock.common import (
 )
 from conda_lock.conda_solver import solve_conda
 from conda_lock.errors import MissingEnvVarError, PlatformValidationError
+from conda_lock.export_lock_spec import render_pixi_toml
 from conda_lock.invoke_conda import (
     PathLike,
     _invoke_conda,
@@ -1664,6 +1665,290 @@ def render(
         extras=set(extras),
         override_platform=platform,
     )
+
+
+@main.command("render-lock-spec", context_settings={"show_default": True})
+@click.option(
+    "--conda",
+    default=None,
+    help="path (or name) of the conda/mamba executable to use.",
+    hidden=True,
+)
+@click.option(
+    "--mamba/--no-mamba",
+    default=None,
+    help="don't attempt to use or install mamba.",
+    hidden=True,
+)
+@click.option(
+    "--micromamba/--no-micromamba",
+    default=None,
+    help="don't attempt to use or install micromamba.",
+    hidden=True,
+)
+@click.option(
+    "-p",
+    "--platform",
+    multiple=True,
+    help="render lock files for the following platforms",
+)
+@click.option(
+    "-c",
+    "--channel",
+    "channel_overrides",
+    multiple=True,
+    help="""Override the channels to use when solving the environment. These will replace the channels as listed in the various source files.""",
+)
+@click.option(
+    "--dev-dependencies/--no-dev-dependencies",
+    is_flag=True,
+    default=True,
+    help="include dev dependencies in the lockfile spec (where applicable)",
+)
+@click.option(
+    "-f",
+    "--file",
+    "files",
+    default=DEFAULT_FILES,
+    type=click.Path(),
+    multiple=True,
+    help="path to a conda environment specification(s)",
+)
+@click.option(
+    "-k",
+    "--kind",
+    type=click.Choice(["pixi.toml"]),
+    multiple=True,
+    help="Kind of lock file(s) to generate. Must be pixi.toml.",
+)
+@click.option(
+    "--filename-template",
+    default=None,
+    help="Template for single-platform (explicit, env) lock file names. Filename must include {platform} token, and must not end in '.yml'. For a full list and description of available tokens, see the command help text.",
+    hidden=True,
+)
+@click.option(
+    "--lockfile",
+    default=None,
+    help="Path to a conda-lock.yml which references source files to be used.",
+)
+@click.option(
+    "--strip-auth",
+    is_flag=True,
+    default=None,
+    help="Strip the basic auth credentials from the lockfile.",
+    hidden=True,
+)
+@click.option(
+    "-e",
+    "--extras",
+    "--category",
+    default=[],
+    type=str,
+    multiple=True,
+    help="When used in conjunction with input sources that support extras/categories (pyproject.toml) will add the deps from those extras to the render specification",
+)
+@click.option(
+    "--filter-categories",
+    "--filter-extras",
+    is_flag=True,
+    default=False,
+    help="In conjunction with extras this will prune out dependencies that do not have the extras specified when loading files.",
+)
+@click.option(
+    "--check-input-hash",
+    is_flag=True,
+    default=None,
+    help="Check existing input hashes in lockfiles before regenerating lock files.  If no files were updated exit with exit code 4.  Incompatible with --strip-auth",
+    hidden=True,
+)
+@click.option(
+    "--stdout",
+    is_flag=True,
+    help="Print the lock specification to stdout.",
+)
+@click.option(
+    "--log-level",
+    help="Log level.",
+    default="INFO",
+    type=click.Choice(["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]),
+)
+@click.option(
+    "--pdb", is_flag=True, help="Drop into a postmortem debugger if conda-lock crashes"
+)
+@click.option(
+    "--virtual-package-spec",
+    type=click.Path(),
+    help="Specify a set of virtual packages to use.",
+    hidden=True,
+)
+@click.option(
+    "--update",
+    multiple=True,
+    help="Packages to update to their latest versions. If empty, update all.",
+    hidden=True,
+)
+@click.option(
+    "--pypi_to_conda_lookup_file",
+    type=str,
+    help="Location of the lookup file containing Pypi package names to conda names.",
+)
+@click.option(
+    "--md",
+    "--metadata",
+    "metadata_choices",
+    default=[],
+    multiple=True,
+    type=click.Choice([md.value for md in MetadataOption]),
+    hidden=True,
+)
+@click.option(
+    "--with-cuda",
+    "with_cuda",
+    type=str,
+    default=None,
+    help="Specify cuda version to use in virtual packages. Avoids warning about implicit acceptance of cuda dependencies. Ignored if virtual packages are specified.",
+)
+@click.option(
+    "--without-cuda",
+    "with_cuda",
+    flag_value="",
+    default=None,
+    help="Disable cuda in virtual packages. Prevents accepting cuda variants of packages. Ignored if virtual packages are specified.",
+    hidden=True,
+)
+@click.option(
+    "--mdy",
+    "--metadata-yaml",
+    "--metadata-json",
+    "metadata_yamls",
+    default=[],
+    multiple=True,
+    type=click.Path(),
+    help="YAML or JSON file(s) containing structured metadata to add to metadata section of the lockfile.",
+    hidden=True,
+)
+@click.pass_context
+def render_lock_spec(  # noqa: C901
+    ctx: click.Context,
+    conda: Optional[str],
+    mamba: Optional[bool],
+    micromamba: Optional[bool],
+    platform: List[str],
+    channel_overrides: List[str],
+    dev_dependencies: bool,
+    files: List[pathlib.Path],
+    kind: List[Literal["pixi.toml"]],
+    filename_template: Optional[str],
+    lockfile: Optional[PathLike],
+    strip_auth: bool,
+    extras: List[str],
+    filter_categories: bool,
+    check_input_hash: Optional[bool],
+    log_level: TLogLevel,
+    pdb: bool,
+    virtual_package_spec: Optional[pathlib.Path],
+    pypi_to_conda_lookup_file: Optional[str],
+    with_cuda: Optional[str],
+    update: Optional[List[str]],
+    metadata_choices: Sequence[str],
+    metadata_yamls: Sequence[pathlib.Path],
+    stdout: bool,
+) -> None:
+    if set(kind) != {"pixi.toml"}:
+        raise NotImplementedError(
+            "Only 'pixi.toml' is supported at the moment. Add `--kind=pixi.toml`."
+        )
+    if not stdout:
+        raise NotImplementedError(
+            "Only stdout is supported at the moment. Add `--stdout`."
+        )
+    if len(metadata_choices) > 0:
+        logger.warning(f"Metadata options {metadata_choices} will be ignored.")
+        del metadata_choices
+    if len(metadata_yamls) > 0:
+        logger.warning(f"Metadata files {metadata_yamls} will be ignored.")
+        del metadata_yamls
+    if virtual_package_spec:
+        logger.warning(
+            f"Virtual package spec {virtual_package_spec} will be ignored. "
+            f"Please add virtual packages by hand to the [system-requirements] table."
+        )
+        del virtual_package_spec
+    if with_cuda is not None:
+        logger.warning(
+            f"CUDA option {with_cuda} will be ignored. Please configure it by hand "
+            f"in the [system-requirements] table."
+        )
+        del with_cuda
+    if update:
+        logger.warning(f"Update packages {update} will be ignored.")
+        del update
+    if conda is not None:
+        logger.warning(f"Conda executable {conda} will be ignored.")
+        del conda
+    if mamba is not None:
+        logger.warning(f"Mamba option {mamba} will be ignored.")
+        del mamba
+    if micromamba is not None:
+        logger.warning(f"Micromamba option {micromamba} will be ignored.")
+        del micromamba
+    if filename_template is not None:
+        logger.warning(f"Filename template {filename_template} will be ignored.")
+        del filename_template
+    if strip_auth:
+        logger.warning(f"Strip auth {strip_auth} will be ignored.")
+        del strip_auth
+    if check_input_hash is not None:
+        logger.warning(f"Check input hash {check_input_hash} will be ignored.")
+        del check_input_hash
+    if lockfile is not None:
+        logger.warning(
+            f"It is recommended to specify lockfile sources explicitly "
+            f"instead of via {lockfile}."
+        )
+    else:
+        lockfile = DEFAULT_LOCKFILE_NAME
+
+    logging.basicConfig(level=log_level)
+
+    # Set Pypi <--> Conda lookup file location
+    if pypi_to_conda_lookup_file:
+        set_lookup_location(pypi_to_conda_lookup_file)
+
+    # bail out if we do not encounter the default file if no files were passed
+    if ctx.get_parameter_source("files") == click.core.ParameterSource.DEFAULT:  # type: ignore
+        candidates = list(files)
+        candidates += [f.with_name(f.name.replace(".yml", ".yaml")) for f in candidates]
+        for f in candidates:
+            if f.exists():
+                break
+        else:
+            logger.error("No source files provided.")
+            print(ctx.get_help())
+            sys.exit(1)
+
+    if pdb:
+        sys.excepthook = _handle_exception_post_mortem
+
+    src_files = [pathlib.Path(file) for file in files]
+    if src_files == DEFAULT_FILES:
+        src_files = reconstruct_environment_files_from_lockfile(pathlib.Path(lockfile))
+
+    required_categories = {"main"}
+    if dev_dependencies:
+        required_categories.add("dev")
+    if extras is not None:
+        required_categories.update(extras)
+    lock_spec = make_lock_spec(
+        src_files=src_files,
+        channel_overrides=channel_overrides,
+        platform_overrides=platform,
+        required_categories=required_categories if filter_categories else None,
+    )
+
+    pixi_toml = render_pixi_toml(lock_spec=lock_spec)
+    print("\n".join(pixi_toml))
 
 
 def _handle_exception_post_mortem(
