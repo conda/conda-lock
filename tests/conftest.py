@@ -2,6 +2,8 @@ import os
 import pathlib
 import platform
 import re
+import shutil
+import sys
 import typing
 
 from pathlib import Path
@@ -15,6 +17,7 @@ import requests
 from docker.models.containers import Container
 from ensureconda.resolve import platform_subdir
 
+from conda_lock._vendor.poetry.locations import DEFAULT_CACHE_DIR
 from conda_lock.invoke_conda import PathLike, _ensureconda
 
 
@@ -179,3 +182,37 @@ def install_lock():
     """Limit concurrent install operations."""
     with filelock.FileLock(str(TESTS_DIR.joinpath("install.lock"))):
         yield
+
+
+@pytest.fixture()
+def cleared_poetry_cache(tmp_path_factory, testrun_uid: str):
+    """Ensure no concurrency for tests that rely on the cache being cleared"""
+    # testrun_uid comes from xdist <https://stackoverflow.com/a/62765653>
+    # The idea for using FileLock with the base temp directory comes from
+    # <https://pytest-xdist.readthedocs.io/en/latest/how-to.html#making-session-scoped-fixtures-execute-only-once>
+    root_tmp_dir = tmp_path_factory.getbasetemp().parent
+    testrun_lockfile = root_tmp_dir / f".conda_lock_pytest_{testrun_uid}.lock"
+    with filelock.FileLock(testrun_lockfile):
+        # Use `pytest -s` to see these messages
+        print(
+            f"Clearing {DEFAULT_CACHE_DIR} based on lock {testrun_lockfile}",
+            file=sys.stderr,
+        )
+        clear_poetry_cache()
+        yield
+        print(f"Releasing lock {testrun_lockfile}", file=sys.stderr)
+
+
+def clear_poetry_cache() -> None:
+    # We are going to rmtree the cache directory. Let's be extra careful to make
+    # sure we only delete a directory named "pypoetry-conda-lock" or one of its
+    # subdirectories.
+    to_delete = DEFAULT_CACHE_DIR.resolve()
+    assert to_delete.name == "pypoetry-conda-lock" or (
+        to_delete.parent.name == "pypoetry-conda-lock" and to_delete.name == "Cache"
+    )
+    # Do another independent check that triggers even if we're in optimized mode
+    if "pypoetry-conda-lock" in to_delete.parts:
+        shutil.rmtree(DEFAULT_CACHE_DIR, ignore_errors=True)
+    else:
+        raise RuntimeError(f"Refusing to delete {to_delete} as it does not look right")
