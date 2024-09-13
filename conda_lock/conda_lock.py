@@ -1208,7 +1208,6 @@ TLogLevel = Union[
     "-f",
     "--file",
     "files",
-    default=DEFAULT_FILES,
     type=click.Path(),
     multiple=True,
     help="path to a conda environment specification(s)",
@@ -1366,7 +1365,7 @@ def lock(
     metadata_enum_choices = set(MetadataOption(md) for md in metadata_choices)
 
     # bail out if we do not encounter the default file if no files were passed
-    if ctx.get_parameter_source("files") == click.core.ParameterSource.DEFAULT:  # type: ignore
+    if len(files) == 0:
         candidates = DEFAULT_FILES.copy()
         candidates += [f.with_name(f.name.replace(".yml", ".yaml")) for f in candidates]
         for f in candidates:
@@ -1376,6 +1375,7 @@ def lock(
             logger.error("No source files provided.")
             print(ctx.get_help())
             sys.exit(1)
+        files = DEFAULT_FILES.copy()
 
     if pdb:
         sys.excepthook = _handle_exception_post_mortem
