@@ -1619,6 +1619,7 @@ def render(
     # bail out if we do not encounter the lockfile
     lock_file = pathlib.Path(lock_file)
     if not lock_file.exists():
+        print(f"ERROR: Lockfile {lock_file} does not exist.\n\n", file=sys.stderr)
         print(ctx.get_help())
         sys.exit(1)
 
