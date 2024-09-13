@@ -1057,13 +1057,23 @@ def _detect_lockfile_kind(path: pathlib.Path) -> TKindAll:
         )
 
 
-def reconstruct_environment_files_from_lockfile(
+def handle_no_specified_source_files(
     lockfile_path: Optional[pathlib.Path],
 ) -> List[pathlib.Path]:
     """No sources were specified on the CLI, so try to read them from the lockfile.
 
     If none are found, then fall back to the default files.
     """
+    # bail out if we do not encounter the default file if no files were passed
+    candidates = DEFAULT_FILES.copy()
+    candidates += [f.with_name(f.name.replace(".yml", ".yaml")) for f in candidates]
+    for f in candidates:
+        if f.exists():
+            break
+    else:
+        logger.error("No source files provided.")
+        sys.exit(1)
+
     is_lockfile_specified = lockfile_path is not None
     if lockfile_path is None:
         lockfile_path = pathlib.Path(DEFAULT_LOCKFILE_NAME)
@@ -1132,7 +1142,7 @@ def run_lock(
     strip_auth: bool = False,
 ) -> None:
     if len(environment_files) == 0:
-        environment_files = reconstruct_environment_files_from_lockfile(lockfile_path)
+        environment_files = handle_no_specified_source_files(lockfile_path)
 
     _conda_exe = determine_conda_executable(
         conda_exe, mamba=mamba, micromamba=micromamba
@@ -1368,17 +1378,6 @@ def lock(
 
     metadata_enum_choices = set(MetadataOption(md) for md in metadata_choices)
 
-    # bail out if we do not encounter the default file if no files were passed
-    if len(files) == 0:
-        candidates = DEFAULT_FILES.copy()
-        candidates += [f.with_name(f.name.replace(".yml", ".yaml")) for f in candidates]
-        for f in candidates:
-            if f.exists():
-                break
-        else:
-            logger.error("No source files provided.")
-            print(ctx.get_help())
-            sys.exit(1)
     environment_files = [pathlib.Path(file) for file in files]
 
     if pdb:
