@@ -1718,7 +1718,7 @@ def render(
     "--kind",
     type=click.Choice(["pixi.toml"]),
     multiple=True,
-    help="Kind of lock file(s) to generate. Must be pixi.toml.",
+    help="Kind of lock specification to generate. Must be 'pixi.toml'.",
 )
 @click.option(
     "--filename-template",
@@ -1806,7 +1806,7 @@ def render(
     "with_cuda",
     type=str,
     default=None,
-    help="Specify cuda version to use in virtual packages. Avoids warning about implicit acceptance of cuda dependencies. Ignored if virtual packages are specified.",
+    help="Specify cuda version to use in the system requirements.",
 )
 @click.option(
     "--without-cuda",
@@ -1827,7 +1827,13 @@ def render(
     help="YAML or JSON file(s) containing structured metadata to add to metadata section of the lockfile.",
     hidden=True,
 )
-def render_lock_spec(
+@click.option(
+    "--pixi-project-name",
+    type=str,
+    default=None,
+    help="Name of the Pixi project",
+)
+def render_lock_spec(  # noqa: C901
     conda: Optional[str],
     mamba: Optional[bool],
     micromamba: Optional[bool],
@@ -1851,12 +1857,15 @@ def render_lock_spec(
     metadata_choices: Sequence[str],
     metadata_yamls: Sequence[PathLike],
     stdout: bool,
+    pixi_project_name: Optional[str],
 ) -> None:
     kinds = set(kind)
     if kinds != {"pixi.toml"}:
         raise NotImplementedError(
             "Only 'pixi.toml' is supported at the moment. Add `--kind=pixi.toml`."
         )
+    if pixi_project_name is not None and "pixi.toml" not in kinds:
+        raise ValueError("The --pixi-project-name option is only valid for pixi.toml")
     if not stdout:
         raise NotImplementedError(
             "Only stdout is supported at the moment. Add `--stdout`."
@@ -1874,11 +1883,10 @@ def render_lock_spec(
         )
     del virtual_package_spec
     if with_cuda is not None:
-        logger.warning(
-            f"CUDA option {with_cuda} will be ignored. Please configure it by hand "
-            f"in the [system-requirements] table."
-        )
-    del with_cuda
+        if not isinstance(with_cuda, str) or with_cuda == "":
+            raise NotImplementedError(
+                "Please specify an explicit version to --with-cuda."
+            )
     if update:
         logger.warning(f"Update packages {update} will be ignored.")
     del update
@@ -1901,6 +1909,11 @@ def render_lock_spec(
         logger.warning(f"Check input hash {check_input_hash} will be ignored.")
     del check_input_hash
     if lockfile is not None:
+        if len(files) > 0:
+            raise ValueError(
+                f"Don't specify the lockfile if source files {files} are "
+                f"specified explicitly."
+            )
         logger.warning(
             f"It is recommended to specify lockfile sources explicitly "
             f"instead of via {lockfile}."
@@ -1931,6 +1944,8 @@ def render_lock_spec(
         extras=set(extras),
         filter_categories=filter_categories,
         lockfile_path=lockfile_path,
+        with_cuda=with_cuda,
+        pixi_project_name=pixi_project_name,
     )
 
 
@@ -1945,6 +1960,8 @@ def do_render_lockspec(
     extras: Optional[AbstractSet[str]] = None,
     filter_categories: bool = False,
     lockfile_path: Optional[pathlib.Path] = None,
+    with_cuda: Optional[str] = None,
+    pixi_project_name: Optional[str] = None,
 ) -> None:
     if len(src_files) == 0:
         src_files = handle_no_specified_source_files(lockfile_path)
@@ -1961,7 +1978,9 @@ def do_render_lockspec(
         required_categories=required_categories if filter_categories else None,
     )
     if "pixi.toml" in kinds:
-        pixi_toml_lines = render_pixi_toml(lock_spec=lock_spec)
+        pixi_toml_lines = render_pixi_toml(
+            lock_spec=lock_spec, with_cuda=with_cuda, project_name=pixi_project_name
+        )
         if stdout:
             print("\n".join(pixi_toml_lines))
         else:

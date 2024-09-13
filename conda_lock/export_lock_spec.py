@@ -33,9 +33,14 @@ class TomlTableKey(NamedTuple):
 
 
 def render_pixi_toml(
-    *, lock_spec: LockSpecification, project_name: str = "project-name-placeholder"
+    *,
+    lock_spec: LockSpecification,
+    project_name: Optional[str] = None,
+    with_cuda: Optional[str] = None,
 ) -> List[str]:
     """Render a pixi.toml from a LockSpecification as a list of lines."""
+    if project_name is None:
+        project_name = "project-name-placeholder"
     all_platforms = lock_spec.dependencies.keys()
     all_categories: Set[str] = set()
     for platform in all_platforms:
@@ -90,6 +95,9 @@ def render_pixi_toml(
     if len(all_categories) > 1:
         lines.extend(define_environments(all_categories))
 
+    # The system requirements table
+    if with_cuda:
+        lines.extend(["[system-requirements]", f'cuda = "{with_cuda}"', ""])
     return lines
 
 
