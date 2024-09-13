@@ -12,7 +12,6 @@ import sys
 import tempfile
 import typing
 import uuid
-import warnings
 
 from glob import glob
 from pathlib import Path
@@ -34,6 +33,7 @@ from conda_lock.conda_lock import (
     _add_auth_to_line,
     _add_auth_to_lockfile,
     _extract_domain,
+    _solve_for_arch,
     _strip_auth_from_line,
     _strip_auth_from_lockfile,
     create_lockfile_from_spec,
@@ -394,10 +394,10 @@ def test_lock_poetry_ibis(
     )
     lockfile = parse_conda_lock_file(pyproject.parent / DEFAULT_LOCKFILE_NAME)
 
-    all_categories = set()
+    all_categories: Set[str] = set()
 
     for pkg in lockfile.package:
-        all_categories.add(pkg.category)
+        all_categories.update(pkg.categories)
 
     for desired_category in extra_categories:
         assert (
@@ -607,6 +607,7 @@ def test_choose_wheel() -> None:
         platform="linux-64",
     )
     assert len(solution) == 1
+    assert solution["fastavro"].categories == {"main"}
     assert solution["fastavro"].hash == HashModel(
         sha256="a111a384a786b7f1fd6a8a8307da07ccf4d4c425084e2d61bae33ecfb60de405"
     )
@@ -1821,6 +1822,61 @@ def test_aggregate_lock_specs_invalid_pip_repos():
         aggregate_lock_specs([base_spec, spec_a, spec_a_b], platforms=[])
 
 
+def test_solve_arch_multiple_categories():
+    _conda_exe = determine_conda_executable(None, mamba=False, micromamba=False)
+    channels = [Channel.from_string("conda-forge")]
+
+    with tempfile.NamedTemporaryFile(dir=".") as tf:
+        spec = LockSpecification(
+            dependencies={
+                "linux-64": [
+                    VersionedDependency(
+                        name="python",
+                        version="=3.10.9",
+                        manager="conda",
+                        category="main",
+                        extras=[],
+                    ),
+                    VersionedDependency(
+                        name="pandas",
+                        version="=1.5.3",
+                        manager="conda",
+                        category="test",
+                        extras=[],
+                    ),
+                    VersionedDependency(
+                        name="pyarrow",
+                        version="=9.0.0",
+                        manager="conda",
+                        category="dev",
+                        extras=[],
+                    ),
+                ],
+            },
+            channels=channels,
+            # NB: this file must exist for relative path resolution to work
+            # in create_lockfile_from_spec
+            sources=[Path(tf.name)],
+        )
+
+        vpr = default_virtual_package_repodata()
+        with vpr:
+            locked_deps = _solve_for_arch(
+                conda=_conda_exe,
+                spec=spec,
+                platform="linux-64",
+                channels=channels,
+                pip_repositories=[],
+                virtual_package_repo=vpr,
+            )
+        python_deps = [dep for dep in locked_deps if dep.name == "python"]
+        assert len(python_deps) == 1
+        assert python_deps[0].categories == {"main"}
+        numpy_deps = [dep for dep in locked_deps if dep.name == "numpy"]
+        assert len(numpy_deps) == 1
+        assert numpy_deps[0].categories == {"test", "dev"}
+
+
 def _check_package_installed(package: str, prefix: str):
     import glob
 
@@ -1967,7 +2023,6 @@ def test_install_with_pip_deps(
     tmp_path: Path,
     conda_exe: str,
     install_with_pip_deps_lockfile: Path,
-    monkeypatch: "pytest.MonkeyPatch",
     caplog,
     install_lock,
 ):
@@ -1999,6 +2054,56 @@ def test_install_with_pip_deps(
     if sys.platform.lower().startswith("linux"):
         python = prefix / "bin" / "python"
         subprocess.check_call([str(python), "-c", "import requests"])
+
+
+@pytest.fixture
+def install_multiple_categories_lockfile(tmp_path: Path):
+    return clone_test_dir("test-multiple-categories", tmp_path).joinpath(
+        "conda-lock.yml"
+    )
+
+
+@pytest.mark.parametrize("categories", [[], ["dev"], ["test"], ["dev", "test"]])
+def test_install_multiple_subcategories(
+    tmp_path: Path,
+    conda_exe: str,
+    install_multiple_categories_lockfile: Path,
+    categories: List[str],
+    install_lock,
+):
+    root_prefix = tmp_path / "root_prefix"
+    root_prefix.mkdir(exist_ok=True)
+    prefix = root_prefix / "test_env"
+
+    context: ContextManager
+    if sys.platform.lower().startswith("linux"):
+        context = contextlib.nullcontext()
+    else:
+        # since by default we do platform validation we would expect this to fail
+        context = pytest.raises(PlatformValidationError)
+
+    with context:
+        install(
+            conda=str(conda_exe),
+            prefix=str(prefix),
+            lock_file=install_multiple_categories_lockfile,
+            extras=categories,
+        )
+
+    if sys.platform.lower().startswith("linux"):
+        packages_to_check = ["python"]
+        if "dev" in categories or "test" in categories:
+            packages_to_check += ["numpy", "pandas"]
+        if "dev" in categories:
+            packages_to_check.append("astropy")
+        if "test" in categories:
+            packages_to_check.append("pyspark")
+
+        for package in packages_to_check:
+            assert _check_package_installed(
+                package=package,
+                prefix=str(prefix),
+            ), f"Package {package} does not exist in {prefix} environment"
 
 
 @pytest.mark.parametrize("kind", ["explicit", "env"])
