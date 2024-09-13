@@ -83,7 +83,7 @@ from conda_lock.virtual_package import (
 
 
 logger = logging.getLogger(__name__)
-DEFAULT_FILES = [pathlib.Path("environment.yml")]
+DEFAULT_FILES = [pathlib.Path("environment.yml"), pathlib.Path("environment.yaml")]
 
 # Captures basic auth credentials, if they exists, in the third capture group.
 AUTH_PATTERN = re.compile(r"^(# pip .* @ )?(https?:\/\/)(.*:.*@)?(.*)")
@@ -1064,17 +1064,6 @@ def handle_no_specified_source_files(
 
     If none are found, then fall back to the default files.
     """
-    # bail out if we do not encounter the default file if no files were passed
-    candidates = DEFAULT_FILES.copy()
-    candidates += [f.with_name(f.name.replace(".yml", ".yaml")) for f in candidates]
-    for f in candidates:
-        if f.exists():
-            break
-    else:
-        logger.error("No source files provided.")
-        sys.exit(1)
-
-    is_lockfile_specified = lockfile_path is not None
     if lockfile_path is None:
         lockfile_path = pathlib.Path(DEFAULT_LOCKFILE_NAME)
     if lockfile_path.exists():
@@ -1095,12 +1084,10 @@ def handle_no_specified_source_files(
         ]
         if all(p.exists() for p in locked_environment_files):
             environment_files = locked_environment_files
-            if not is_lockfile_specified:
-                logger.warning(
-                    f"Using source files {[str(p) for p in locked_environment_files]} "
-                    f"from implicitly-specified {lockfile_path} to create the "
-                    f"environment."
-                )
+            logger.warning(
+                f"Using source files {[str(p) for p in locked_environment_files]} "
+                f"from {lockfile_path} to create the environment."
+            )
         else:
             missing = [p for p in locked_environment_files if not p.exists()]
             environment_files = DEFAULT_FILES.copy()
@@ -1111,11 +1098,16 @@ def handle_no_specified_source_files(
                 file=sys.stderr,
             )
     else:
-        long_ext_file = pathlib.Path("environment.yaml")
-        if long_ext_file.exists() and not DEFAULT_FILES[0].exists():
-            environment_files = [long_ext_file]
-        else:
-            environment_files = DEFAULT_FILES.copy()
+        # No lockfile provided, so fall back to the default files
+        environment_files = [f for f in DEFAULT_FILES if f.exists()]
+        if len(environment_files) == 0:
+            logger.error(
+                "No source files provided and no default files found. Exiting."
+            )
+            sys.exit(1)
+        elif len(environment_files) > 1:
+            logger.error(f"Multiple default files found: {environment_files}. Exiting.")
+            sys.exit(1)
     return environment_files
 
 
