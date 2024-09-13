@@ -1709,7 +1709,6 @@ def render(
     "-f",
     "--file",
     "files",
-    default=DEFAULT_FILES,
     type=click.Path(),
     multiple=True,
     help="path to a conda environment specification(s)",
@@ -1828,34 +1827,33 @@ def render(
     help="YAML or JSON file(s) containing structured metadata to add to metadata section of the lockfile.",
     hidden=True,
 )
-@click.pass_context
-def render_lock_spec(  # noqa: C901
-    ctx: click.Context,
+def render_lock_spec(
     conda: Optional[str],
     mamba: Optional[bool],
     micromamba: Optional[bool],
-    platform: List[str],
-    channel_overrides: List[str],
+    platform: Sequence[str],
+    channel_overrides: Sequence[str],
     dev_dependencies: bool,
-    files: List[pathlib.Path],
-    kind: List[Literal["pixi.toml"]],
+    files: Sequence[PathLike],
+    kind: Sequence[Literal["pixi.toml"]],
     filename_template: Optional[str],
     lockfile: Optional[PathLike],
     strip_auth: bool,
-    extras: List[str],
+    extras: Sequence[str],
     filter_categories: bool,
     check_input_hash: Optional[bool],
     log_level: TLogLevel,
     pdb: bool,
-    virtual_package_spec: Optional[pathlib.Path],
+    virtual_package_spec: Optional[PathLike],
     pypi_to_conda_lookup_file: Optional[str],
     with_cuda: Optional[str],
-    update: Optional[List[str]],
+    update: Sequence[str],
     metadata_choices: Sequence[str],
-    metadata_yamls: Sequence[pathlib.Path],
+    metadata_yamls: Sequence[PathLike],
     stdout: bool,
 ) -> None:
-    if set(kind) != {"pixi.toml"}:
+    kinds = set(kind)
+    if kinds != {"pixi.toml"}:
         raise NotImplementedError(
             "Only 'pixi.toml' is supported at the moment. Add `--kind=pixi.toml`."
         )
@@ -1865,50 +1863,52 @@ def render_lock_spec(  # noqa: C901
         )
     if len(metadata_choices) > 0:
         logger.warning(f"Metadata options {metadata_choices} will be ignored.")
-        del metadata_choices
+    del metadata_choices
     if len(metadata_yamls) > 0:
         logger.warning(f"Metadata files {metadata_yamls} will be ignored.")
-        del metadata_yamls
+    del metadata_yamls
     if virtual_package_spec:
         logger.warning(
             f"Virtual package spec {virtual_package_spec} will be ignored. "
             f"Please add virtual packages by hand to the [system-requirements] table."
         )
-        del virtual_package_spec
+    del virtual_package_spec
     if with_cuda is not None:
         logger.warning(
             f"CUDA option {with_cuda} will be ignored. Please configure it by hand "
             f"in the [system-requirements] table."
         )
-        del with_cuda
+    del with_cuda
     if update:
         logger.warning(f"Update packages {update} will be ignored.")
-        del update
+    del update
     if conda is not None:
         logger.warning(f"Conda executable {conda} will be ignored.")
-        del conda
+    del conda
     if mamba is not None:
         logger.warning(f"Mamba option {mamba} will be ignored.")
-        del mamba
+    del mamba
     if micromamba is not None:
         logger.warning(f"Micromamba option {micromamba} will be ignored.")
-        del micromamba
+    del micromamba
     if filename_template is not None:
         logger.warning(f"Filename template {filename_template} will be ignored.")
-        del filename_template
+    del filename_template
     if strip_auth:
         logger.warning(f"Strip auth {strip_auth} will be ignored.")
-        del strip_auth
+    del strip_auth
     if check_input_hash is not None:
         logger.warning(f"Check input hash {check_input_hash} will be ignored.")
-        del check_input_hash
+    del check_input_hash
     if lockfile is not None:
         logger.warning(
             f"It is recommended to specify lockfile sources explicitly "
             f"instead of via {lockfile}."
         )
+        lockfile_path = pathlib.Path(lockfile)
     else:
-        lockfile = DEFAULT_LOCKFILE_NAME
+        lockfile_path = None
+    del lockfile
 
     logging.basicConfig(level=log_level)
 
@@ -1916,39 +1916,56 @@ def render_lock_spec(  # noqa: C901
     if pypi_to_conda_lookup_file:
         set_lookup_location(pypi_to_conda_lookup_file)
 
-    # bail out if we do not encounter the default file if no files were passed
-    if ctx.get_parameter_source("files") == click.core.ParameterSource.DEFAULT:  # type: ignore
-        candidates = list(files)
-        candidates += [f.with_name(f.name.replace(".yml", ".yaml")) for f in candidates]
-        for f in candidates:
-            if f.exists():
-                break
-        else:
-            logger.error("No source files provided.")
-            print(ctx.get_help())
-            sys.exit(1)
+    src_files = [pathlib.Path(file) for file in files]
 
     if pdb:
         sys.excepthook = _handle_exception_post_mortem
 
-    src_files = [pathlib.Path(file) for file in files]
-    if src_files == DEFAULT_FILES:
-        src_files = reconstruct_environment_files_from_lockfile(pathlib.Path(lockfile))
+    do_render_lockspec(
+        src_files=src_files,
+        kinds=kinds,
+        stdout=stdout,
+        platform_overrides=platform,
+        channel_overrides=channel_overrides,
+        include_dev_dependencies=dev_dependencies,
+        extras=set(extras),
+        filter_categories=filter_categories,
+        lockfile_path=lockfile_path,
+    )
+
+
+def do_render_lockspec(
+    src_files: List[pathlib.Path],
+    *,
+    kinds: AbstractSet[Literal["pixi.toml"]],
+    stdout: bool,
+    platform_overrides: Optional[Sequence[str]] = None,
+    channel_overrides: Optional[Sequence[str]] = None,
+    include_dev_dependencies: bool = True,
+    extras: Optional[AbstractSet[str]] = None,
+    filter_categories: bool = False,
+    lockfile_path: Optional[pathlib.Path] = None,
+) -> None:
+    if len(src_files) == 0:
+        src_files = handle_no_specified_source_files(lockfile_path)
 
     required_categories = {"main"}
-    if dev_dependencies:
+    if include_dev_dependencies:
         required_categories.add("dev")
     if extras is not None:
         required_categories.update(extras)
     lock_spec = make_lock_spec(
         src_files=src_files,
         channel_overrides=channel_overrides,
-        platform_overrides=platform,
+        platform_overrides=platform_overrides,
         required_categories=required_categories if filter_categories else None,
     )
-
-    pixi_toml = render_pixi_toml(lock_spec=lock_spec)
-    print("\n".join(pixi_toml))
+    if "pixi.toml" in kinds:
+        pixi_toml_lines = render_pixi_toml(lock_spec=lock_spec)
+        if stdout:
+            print("\n".join(pixi_toml_lines))
+        else:
+            raise NotImplementedError("Only stdout is supported at the moment.")
 
 
 def _handle_exception_post_mortem(
