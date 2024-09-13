@@ -1060,6 +1060,10 @@ def _detect_lockfile_kind(path: pathlib.Path) -> TKindAll:
 def reconstruct_environment_files_from_lockfile(
     lockfile_path: Optional[pathlib.Path],
 ) -> List[pathlib.Path]:
+    """No sources were specified on the CLI, so try to read them from the lockfile.
+
+    If none are found, then fall back to the default files.
+    """
     is_lockfile_specified = lockfile_path is not None
     if lockfile_path is None:
         lockfile_path = pathlib.Path(DEFAULT_LOCKFILE_NAME)
@@ -1127,7 +1131,7 @@ def run_lock(
     metadata_yamls: Sequence[pathlib.Path] = (),
     strip_auth: bool = False,
 ) -> None:
-    if environment_files == DEFAULT_FILES:
+    if len(environment_files) == 0:
         environment_files = reconstruct_environment_files_from_lockfile(lockfile_path)
 
     _conda_exe = determine_conda_executable(
@@ -1375,7 +1379,7 @@ def lock(
             logger.error("No source files provided.")
             print(ctx.get_help())
             sys.exit(1)
-        files = DEFAULT_FILES.copy()
+    environment_files = [pathlib.Path(file) for file in files]
 
     if pdb:
         sys.excepthook = _handle_exception_post_mortem
@@ -1396,7 +1400,7 @@ def lock(
     extras_ = set(extras)
     lock_func = partial(
         run_lock,
-        environment_files=[pathlib.Path(file) for file in files],
+        environment_files=environment_files,
         conda_exe=conda,
         platforms=platform,
         mamba=mamba,
