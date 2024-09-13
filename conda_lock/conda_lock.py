@@ -83,7 +83,7 @@ from conda_lock.virtual_package import (
 
 
 logger = logging.getLogger(__name__)
-DEFAULT_FILES = [pathlib.Path("environment.yml")]
+DEFAULT_FILES = [pathlib.Path("environment.yml"), pathlib.Path("environment.yaml")]
 
 # Captures basic auth credentials, if they exists, in the third capture group.
 AUTH_PATTERN = re.compile(r"^(# pip .* @ )?(https?:\/\/)(.*:.*@)?(.*)")
@@ -256,11 +256,11 @@ def make_lock_files(  # noqa: C901
     conda: PathLike,
     src_files: List[pathlib.Path],
     kinds: Sequence[TKindAll],
-    lockfile_path: pathlib.Path = pathlib.Path(DEFAULT_LOCKFILE_NAME),
+    lockfile_path: Optional[pathlib.Path] = None,
     platform_overrides: Optional[Sequence[str]] = None,
     channel_overrides: Optional[Sequence[str]] = None,
     virtual_package_spec: Optional[pathlib.Path] = None,
-    update: Optional[List[str]] = None,
+    update: Optional[Sequence[str]] = None,
     include_dev_dependencies: bool = True,
     filename_template: Optional[str] = None,
     filter_categories: bool = False,
@@ -328,6 +328,8 @@ def make_lock_files(  # noqa: C901
 
     # Load existing lockfile if it exists
     original_lock_content: Optional[Lockfile] = None
+    if lockfile_path is None:
+        lockfile_path = pathlib.Path(DEFAULT_LOCKFILE_NAME)
     if lockfile_path.exists():
         try:
             original_lock_content = parse_conda_lock_file(lockfile_path)
@@ -356,6 +358,9 @@ def make_lock_files(  # noqa: C901
         platforms_already_locked: List[str] = []
         if original_lock_content is not None:
             platforms_already_locked = list(original_lock_content.metadata.platforms)
+            if update is not None:
+                # Narrow `update` sequence to list for mypy
+                update = list(update)
             update_spec = UpdateSpecification(
                 locked=original_lock_content.package, update=update
             )
@@ -1052,59 +1057,84 @@ def _detect_lockfile_kind(path: pathlib.Path) -> TKindAll:
         )
 
 
+def handle_no_specified_source_files(
+    lockfile_path: Optional[pathlib.Path],
+) -> List[pathlib.Path]:
+    """No sources were specified on the CLI, so try to read them from the lockfile.
+
+    If none are found, then fall back to the default files.
+    """
+    if lockfile_path is None:
+        lockfile_path = pathlib.Path(DEFAULT_LOCKFILE_NAME)
+    if lockfile_path.exists():
+        lock_content = parse_conda_lock_file(lockfile_path)
+        # reconstruct native paths
+        locked_environment_files = [
+            (
+                pathlib.Path(p)
+                # absolute paths could be locked for both flavours
+                if pathlib.PurePosixPath(p).is_absolute()
+                or pathlib.PureWindowsPath(p).is_absolute()
+                else pathlib.Path(
+                    pathlib.PurePosixPath(lockfile_path).parent
+                    / pathlib.PurePosixPath(p)
+                )
+            )
+            for p in lock_content.metadata.sources
+        ]
+        if all(p.exists() for p in locked_environment_files):
+            environment_files = locked_environment_files
+            logger.warning(
+                f"Using source files {[str(p) for p in locked_environment_files]} "
+                f"from {lockfile_path} to create the environment."
+            )
+        else:
+            missing = [p for p in locked_environment_files if not p.exists()]
+            environment_files = DEFAULT_FILES.copy()
+            print(
+                f"{lockfile_path} was created from {[str(p) for p in locked_environment_files]},"
+                f" but some files ({[str(p) for p in missing]}) do not exist. Falling back to"
+                f" {[str(p) for p in environment_files]}.",
+                file=sys.stderr,
+            )
+    else:
+        # No lockfile provided, so fall back to the default files
+        environment_files = [f for f in DEFAULT_FILES if f.exists()]
+        if len(environment_files) == 0:
+            logger.error(
+                "No source files provided and no default files found. Exiting."
+            )
+            sys.exit(1)
+        elif len(environment_files) > 1:
+            logger.error(f"Multiple default files found: {environment_files}. Exiting.")
+            sys.exit(1)
+    return environment_files
+
+
 def run_lock(
     environment_files: List[pathlib.Path],
     *,
     conda_exe: Optional[PathLike],
-    platforms: Optional[List[str]] = None,
+    platforms: Optional[Sequence[str]] = None,
     mamba: bool = False,
     micromamba: bool = False,
     include_dev_dependencies: bool = True,
     channel_overrides: Optional[Sequence[str]] = None,
     filename_template: Optional[str] = None,
     kinds: Optional[Sequence[TKindAll]] = None,
-    lockfile_path: pathlib.Path = pathlib.Path(DEFAULT_LOCKFILE_NAME),
+    lockfile_path: Optional[pathlib.Path] = None,
     check_input_hash: bool = False,
     extras: Optional[AbstractSet[str]] = None,
     virtual_package_spec: Optional[pathlib.Path] = None,
     with_cuda: Optional[str] = None,
-    update: Optional[List[str]] = None,
+    update: Optional[Sequence[str]] = None,
     filter_categories: bool = False,
     metadata_choices: AbstractSet[MetadataOption] = frozenset(),
     metadata_yamls: Sequence[pathlib.Path] = (),
     strip_auth: bool = False,
 ) -> None:
-    if environment_files == DEFAULT_FILES:
-        if lockfile_path.exists():
-            lock_content = parse_conda_lock_file(lockfile_path)
-            # reconstruct native paths
-            locked_environment_files = [
-                (
-                    pathlib.Path(p)
-                    # absolute paths could be locked for both flavours
-                    if pathlib.PurePosixPath(p).is_absolute()
-                    or pathlib.PureWindowsPath(p).is_absolute()
-                    else pathlib.Path(
-                        pathlib.PurePosixPath(lockfile_path).parent
-                        / pathlib.PurePosixPath(p)
-                    )
-                )
-                for p in lock_content.metadata.sources
-            ]
-            if all(p.exists() for p in locked_environment_files):
-                environment_files = locked_environment_files
-            else:
-                missing = [p for p in locked_environment_files if not p.exists()]
-                print(
-                    f"{lockfile_path} was created from {[str(p) for p in locked_environment_files]},"
-                    f" but some files ({[str(p) for p in missing]}) do not exist. Falling back to"
-                    f" {[str(p) for p in environment_files]}.",
-                    file=sys.stderr,
-                )
-        else:
-            long_ext_file = pathlib.Path("environment.yaml")
-            if long_ext_file.exists() and not environment_files[0].exists():
-                environment_files = [long_ext_file]
+    if len(environment_files) == 0:
+        environment_files = handle_no_specified_source_files(lockfile_path)
 
     _conda_exe = determine_conda_executable(
         conda_exe, mamba=mamba, micromamba=micromamba
@@ -1184,7 +1214,6 @@ TLogLevel = Union[
     "-f",
     "--file",
     "files",
-    default=DEFAULT_FILES,
     type=click.Path(),
     multiple=True,
     help="path to a conda environment specification(s)",
@@ -1204,7 +1233,7 @@ TLogLevel = Union[
 )
 @click.option(
     "--lockfile",
-    default=DEFAULT_LOCKFILE_NAME,
+    default=None,
     help="Path to a conda-lock.yml to create or update",
 )
 @click.option(
@@ -1298,25 +1327,25 @@ def lock(
     conda: Optional[str],
     mamba: bool,
     micromamba: bool,
-    platform: List[str],
-    channel_overrides: List[str],
+    platform: Sequence[str],
+    channel_overrides: Sequence[str],
     dev_dependencies: bool,
-    files: List[pathlib.Path],
-    kind: List[Union[Literal["lock"], Literal["env"], Literal["explicit"]]],
+    files: Sequence[PathLike],
+    kind: Sequence[Union[Literal["lock"], Literal["env"], Literal["explicit"]]],
     filename_template: str,
-    lockfile: PathLike,
+    lockfile: Optional[PathLike],
     strip_auth: bool,
-    extras: List[str],
+    extras: Sequence[str],
     filter_categories: bool,
     check_input_hash: bool,
     log_level: TLogLevel,
     pdb: bool,
-    virtual_package_spec: Optional[pathlib.Path],
+    virtual_package_spec: Optional[PathLike],
     pypi_to_conda_lookup_file: Optional[str],
     with_cuda: Optional[str] = None,
-    update: Optional[List[str]] = None,
+    update: Optional[Sequence[str]] = None,
     metadata_choices: Sequence[str] = (),
-    metadata_yamls: Sequence[pathlib.Path] = (),
+    metadata_yamls: Sequence[PathLike] = (),
 ) -> None:
     """Generate fully reproducible lock files for conda environments.
 
@@ -1341,23 +1370,12 @@ def lock(
 
     metadata_enum_choices = set(MetadataOption(md) for md in metadata_choices)
 
-    metadata_yamls = [pathlib.Path(path) for path in metadata_yamls]
-
-    # bail out if we do not encounter the default file if no files were passed
-    if ctx.get_parameter_source("files") == click.core.ParameterSource.DEFAULT:  # type: ignore
-        candidates = list(files)
-        candidates += [f.with_name(f.name.replace(".yml", ".yaml")) for f in candidates]
-        for f in candidates:
-            if f.exists():
-                break
-        else:
-            print(ctx.get_help())
-            sys.exit(1)
+    environment_files = [pathlib.Path(file) for file in files]
 
     if pdb:
         sys.excepthook = _handle_exception_post_mortem
 
-    if not virtual_package_spec:
+    if virtual_package_spec is None:
         candidates = [
             pathlib.Path("virtual-packages.yml"),
             pathlib.Path("virtual-packages.yaml"),
@@ -1370,11 +1388,10 @@ def lock(
     else:
         virtual_package_spec = pathlib.Path(virtual_package_spec)
 
-    files = [pathlib.Path(file) for file in files]
     extras_ = set(extras)
     lock_func = partial(
         run_lock,
-        environment_files=files,
+        environment_files=environment_files,
         conda_exe=conda,
         platforms=platform,
         mamba=mamba,
@@ -1382,14 +1399,14 @@ def lock(
         include_dev_dependencies=dev_dependencies,
         channel_overrides=channel_overrides,
         kinds=kind,
-        lockfile_path=pathlib.Path(lockfile),
+        lockfile_path=None if lockfile is None else pathlib.Path(lockfile),
         extras=extras_,
         virtual_package_spec=virtual_package_spec,
         with_cuda=with_cuda,
         update=update,
         filter_categories=filter_categories,
         metadata_choices=metadata_enum_choices,
-        metadata_yamls=metadata_yamls,
+        metadata_yamls=[pathlib.Path(path) for path in metadata_yamls],
         strip_auth=strip_auth,
     )
     if strip_auth:
@@ -1619,6 +1636,7 @@ def render(
     # bail out if we do not encounter the lockfile
     lock_file = pathlib.Path(lock_file)
     if not lock_file.exists():
+        print(f"ERROR: Lockfile {lock_file} does not exist.\n\n", file=sys.stderr)
         print(ctx.get_help())
         sys.exit(1)
 

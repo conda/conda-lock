@@ -30,7 +30,6 @@ from freezegun import freeze_time
 
 from conda_lock import __version__, pypi_solver
 from conda_lock.conda_lock import (
-    DEFAULT_FILES,
     DEFAULT_LOCKFILE_NAME,
     _add_auth_to_line,
     _add_auth_to_lockfile,
@@ -1446,7 +1445,7 @@ def test_run_lock_with_locked_environment_files(
     run_lock([pre_environment], conda_exe="mamba")
     make_lock_files = MagicMock()
     monkeypatch.setattr("conda_lock.conda_lock.make_lock_files", make_lock_files)
-    run_lock(DEFAULT_FILES, conda_exe=conda_exe, update=["pydantic"])
+    run_lock([], conda_exe=conda_exe, update=["pydantic"])
     src_files = make_lock_files.call_args.kwargs["src_files"]
 
     assert [p.resolve() for p in src_files] == [
@@ -1473,9 +1472,7 @@ def test_run_lock_relative_source_path(
     assert Path(locked_environment) == Path("../sources/environment.yaml")
     make_lock_files = MagicMock()
     monkeypatch.setattr("conda_lock.conda_lock.make_lock_files", make_lock_files)
-    run_lock(
-        DEFAULT_FILES, lockfile_path=lockfile, conda_exe=conda_exe, update=["pydantic"]
-    )
+    run_lock([], lockfile_path=lockfile, conda_exe=conda_exe, update=["pydantic"])
     src_files = make_lock_files.call_args.kwargs["src_files"]
     assert [p.resolve() for p in src_files] == [environment.resolve()]
 
