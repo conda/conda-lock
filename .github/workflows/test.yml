@@ -44,6 +44,8 @@ jobs:
           # Prune the indices so that we only run the splits up to the group size
           # defined below in "include". (This is ugly but effective.)
           - os: ubuntu
+            pytest-split-group-index: 4
+          - os: ubuntu
             pytest-split-group-index: 5
           - os: ubuntu
             pytest-split-group-index: 6
@@ -55,6 +57,8 @@ jobs:
             pytest-split-group-index: 9
           - os: ubuntu
             pytest-split-group-index: 10
+          - os: macos
+            pytest-split-group-index: 4
           - os: macos
             pytest-split-group-index: 5
           - os: macos
@@ -69,9 +73,9 @@ jobs:
             pytest-split-group-index: 10
         include:
           - os: ubuntu
-            pytest-split-group-size: 4
+            pytest-split-group-size: 3
           - os: macos
-            pytest-split-group-size: 4
+            pytest-split-group-size: 3
           - os: windows
             pytest-split-group-size: 10
 
