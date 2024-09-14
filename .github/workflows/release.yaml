@@ -43,6 +43,7 @@ jobs:
 
   publish:
     runs-on: ubuntu-latest
+    if: ${{ github.event_name == 'release' }}
     needs: build
     # Run this job in an isolated GHA environment containing the OIDC credentials.
     environment: release
@@ -54,5 +55,4 @@ jobs:
         name: dist-files
         path: dist
     - name: Publish a Python distribution to PyPI
-      if: ${{ github.event_name == 'release' }}
-      uses: pypa/gh-action-pypi-publish@v1.8.14
+      uses: pypa/gh-action-pypi-publish@v1.10.1
