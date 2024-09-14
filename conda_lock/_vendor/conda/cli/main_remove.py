@@ -1,32 +1,165 @@
-# -*- coding: utf-8 -*-
 # Copyright (C) 2012 Anaconda, Inc
 # SPDX-License-Identifier: BSD-3-Clause
-from __future__ import absolute_import, division, print_function, unicode_literals
+"""CLI implementation for `conda remove`.
+
+Removes the specified packages from an existing environment.
+"""
 
 import logging
+from argparse import ArgumentParser, Namespace, _SubParsersAction
 from os.path import isfile, join
-import sys
 
-from .common import check_non_admin, specs_from_args
-from .install import handle_txn
-from ..base.context import context
-from ..core.envs_manager import unregister_env
-from ..core.link import PrefixSetup, UnlinkLinkTransaction
-from ..core.prefix_data import PrefixData
-from ..core.solve import _get_solver_class
-from ..exceptions import CondaEnvironmentError, CondaValueError, DirectoryNotACondaEnvironmentError
-from ..gateways.disk.delete import rm_rf, path_is_clean
-from ..models.match_spec import MatchSpec
-from ..exceptions import PackagesNotFoundError
+from .common import confirm_yn
 
 log = logging.getLogger(__name__)
 
 
-def execute(args, parser):
+def configure_parser(sub_parsers: _SubParsersAction, **kwargs) -> ArgumentParser:
+    from ..auxlib.ish import dals
+    from ..common.constants import NULL
+    from .actions import NullCountAction
+    from .helpers import (
+        add_output_and_prompt_options,
+        add_parser_channels,
+        add_parser_networking,
+        add_parser_prefix,
+        add_parser_prune,
+        add_parser_pscheck,
+        add_parser_solver,
+    )
+
+    summary = "Remove a list of packages from a specified conda environment. "
+    description = dals(
+        f"""
+        {summary}
+
+        Use `--all` flag to remove all packages and the environment itself.
+
+        This command will also remove any package that depends on any of the
+        specified packages as well---unless a replacement can be found without
+        that dependency. If you wish to skip this dependency checking and remove
+        just the requested packages, add the '--force' option. Note however that
+        this may result in a broken environment, so use this with caution.
+        """
+    )
+    epilog = dals(
+        """
+        Examples:
+
+        Remove the package 'scipy' from the currently-active environment::
+
+            conda remove scipy
+
+        Remove a list of packages from an environment 'myenv'::
+
+            conda remove -n myenv scipy curl wheel
+
+        Remove all packages from environment `myenv` and the environment itself::
+
+            conda remove -n myenv --all
+
+        Remove all packages from the environment `myenv` but retain the environment::
+
+            conda remove -n myenv --all --keep-env
+
+        """
+    )
+
+    p = sub_parsers.add_parser(
+        "remove",
+        help=summary,
+        description=description,
+        epilog=epilog,
+        **kwargs,
+    )
+    add_parser_pscheck(p)
+
+    add_parser_prefix(p)
+    add_parser_channels(p)
+
+    solver_mode_options = p.add_argument_group("Solver Mode Modifiers")
+    solver_mode_options.add_argument(
+        "--features",
+        action="store_true",
+        help="Remove features (instead of packages).",
+    )
+    solver_mode_options.add_argument(
+        "--force-remove",
+        "--force",
+        action="store_true",
+        help="Forces removal of a package without removing packages that depend on it. "
+        "Using this option will usually leave your environment in a broken and "
+        "inconsistent state.",
+        dest="force_remove",
+    )
+    solver_mode_options.add_argument(
+        "--no-pin",
+        action="store_true",
+        dest="ignore_pinned",
+        default=NULL,
+        help="Ignore pinned package(s) that apply to the current operation. "
+        "These pinned packages might come from a .condarc file or a file in "
+        "<TARGET_ENVIRONMENT>/conda-meta/pinned.",
+    )
+    add_parser_prune(solver_mode_options)
+    add_parser_solver(solver_mode_options)
+
+    add_parser_networking(p)
+    add_output_and_prompt_options(p)
+
+    p.add_argument(
+        "--all",
+        action="store_true",
+        help="Remove all packages, i.e., the entire environment.",
+    )
+    p.add_argument(
+        "--keep-env",
+        action="store_true",
+        help="Used with `--all`, delete all packages but keep the environment.",
+    )
+    p.add_argument(
+        "package_names",
+        metavar="package_name",
+        action="store",
+        nargs="*",
+        help="Package names to remove from the environment.",
+    )
+    p.add_argument(
+        "--dev",
+        action=NullCountAction,
+        help="Use `sys.executable -m conda` in wrapper scripts instead of CONDA_EXE. "
+        "This is mainly for use during tests where we test new conda sources "
+        "against old Python versions.",
+        dest="dev",
+        default=NULL,
+    )
+
+    p.set_defaults(func="conda.cli.main_remove.execute")
+
+    return p
+
+
+def execute(args: Namespace, parser: ArgumentParser) -> int:
+    from ..base.context import context
+    from ..core.envs_manager import unregister_env
+    from ..core.link import PrefixSetup, UnlinkLinkTransaction
+    from ..core.prefix_data import PrefixData
+    from ..exceptions import (
+        CondaEnvironmentError,
+        CondaValueError,
+        DirectoryNotACondaEnvironmentError,
+        PackagesNotFoundError,
+    )
+    from ..gateways.disk.delete import path_is_clean, rm_rf
+    from ..models.match_spec import MatchSpec
+    from .common import check_non_admin, specs_from_args
+    from .install import handle_txn
 
     if not (args.all or args.package_names):
-        raise CondaValueError('no package names supplied,\n'
-                              '       try "conda remove -h" for more details')
+        raise CondaValueError(
+            "no package names supplied,\n"
+            '       try "conda remove -h" for more details'
+        )
 
     prefix = context.target_prefix
     check_non_admin()
@@ -53,13 +186,15 @@ def execute(args, parser):
 
     if args.all:
         if prefix == context.root_prefix:
-            raise CondaEnvironmentError('cannot remove root environment,\n'
-                                        '       add -n NAME or -p PREFIX option')
-        if not isfile(join(prefix, 'conda-meta', 'history')):
+            raise CondaEnvironmentError(
+                "cannot remove root environment, add -n NAME or -p PREFIX option"
+            )
+        if not isfile(join(prefix, "conda-meta", "history")):
             raise DirectoryNotACondaEnvironmentError(prefix)
-        print("\nRemove all packages in environment %s:\n" % prefix, file=sys.stderr)
+        if not args.json:
+            print(f"\nRemove all packages in environment {prefix}:\n")
 
-        if 'package_names' in args:
+        if "package_names" in args:
             stp = PrefixSetup(
                 target_prefix=prefix,
                 unlink_precs=tuple(PrefixData(prefix).iter_records()),
@@ -72,12 +207,22 @@ def execute(args, parser):
             try:
                 handle_txn(txn, prefix, args, False, True)
             except PackagesNotFoundError:
-                print("No packages found in %s. Continuing environment removal" % prefix)
+                if not args.json:
+                    print(
+                        f"No packages found in {prefix}. Continuing environment removal"
+                    )
         if not context.dry_run:
-            rm_rf(prefix, clean_empty_parents=True)
-            unregister_env(prefix)
+            if not args.keep_env:
+                if not args.json:
+                    confirm_yn(
+                        f"Everything found within the environment ({prefix}), including any conda environment configurations and any non-conda files, will be deleted. Do you wish to continue?\n",
+                        default="no",
+                        dry_run=False,
+                    )
+                rm_rf(prefix, clean_empty_parents=True)
+                unregister_env(prefix)
 
-        return
+        return 0
 
     else:
         if args.features:
@@ -86,115 +231,8 @@ def execute(args, parser):
             specs = specs_from_args(args.package_names)
         channel_urls = ()
         subdirs = ()
-        solver = _get_solver_class()(prefix, channel_urls, subdirs, specs_to_remove=specs)
+        solver_backend = context.plugin_manager.get_cached_solver_backend()
+        solver = solver_backend(prefix, channel_urls, subdirs, specs_to_remove=specs)
         txn = solver.solve_for_transaction()
         handle_txn(txn, prefix, args, False, True)
-
-    # Keep this code for dev reference until private envs can be re-enabled in
-    # Solver.solve_for_transaction
-
-    # specs = None
-    # if args.features:
-    #     specs = [MatchSpec(track_features=f) for f in set(args.package_names)]
-    #     actions = remove_actions(prefix, specs, index, pinned=not context.ignore_pinned)
-    #     actions['ACTION'] = 'REMOVE_FEATURE'
-    #     action_groups = (actions, index),
-    # elif args.all:
-    #     if prefix == context.root_prefix:
-    #         raise CondaEnvironmentError('cannot remove root environment,\n'
-    #                                     '       add -n NAME or -p PREFIX option')
-    #     actions = defaultdict(list)
-    #     actions[PREFIX] = prefix
-    #     for dist in sorted(iter(index.keys())):
-    #         add_unlink(actions, dist)
-    #     actions['ACTION'] = 'REMOVE_ALL'
-    #     action_groups = (actions, index),
-    # elif prefix == context.root_prefix and not context.prefix_specified:
-    #     from ..core.envs_manager import EnvsDirectory
-    #     ed = EnvsDirectory(join(context.root_prefix, 'envs'))
-    #     get_env = lambda s: ed.get_registered_preferred_env(MatchSpec(s).name)
-    #     specs = specs_from_args(args.package_names)
-    #     env_spec_map = groupby(get_env, specs)
-    #     action_groups = []
-    #     for env_name, spcs in env_spec_map.items():
-    #         pfx = ed.to_prefix(env_name)
-    #         r = get_resolve_object(index.copy(), pfx)
-    #         specs_to_remove = tuple(MatchSpec(s) for s in spcs)
-    #         prune = pfx != context.root_prefix
-    #         dists_for_unlinking, dists_for_linking = solve_for_actions(
-    #             pfx, r,
-    #             specs_to_remove=specs_to_remove, prune=prune,
-    #         )
-    #         actions = get_blank_actions(pfx)
-    #         actions['UNLINK'].extend(dists_for_unlinking)
-    #         actions['LINK'].extend(dists_for_linking)
-    #         actions['SPECS'].extend(str(s) for s in specs_to_remove)
-    #         actions['ACTION'] = 'REMOVE'
-    #         action_groups.append((actions, r.index))
-    #     action_groups = tuple(action_groups)
-    # else:
-    #     specs = specs_from_args(args.package_names)
-    #     if sys.prefix == abspath(prefix) and names_in_specs(ROOT_NO_RM, specs) and not args.force:  # NOQA
-    #         raise CondaEnvironmentError('cannot remove %s from root environment' %
-    #                                     ', '.join(ROOT_NO_RM))
-    #     action_groups = (remove_actions(prefix, list(specs), index=index,
-    #                                     force=args.force,
-    #                                     pinned=not context.ignore_pinned,
-    #                                     ), index),
-    #
-    #
-    # delete_trash()
-    # if any(nothing_to_do(x[0]) for x in action_groups):
-    #     if args.all:
-    #         print("\nRemove all packages in environment %s:\n" % prefix, file=sys.stderr)
-    #         if not context.json:
-    #             confirm_yn(args)
-    #         rm_rf(prefix)
-    #
-    #         if context.json:
-    #             stdout_json({
-    #                 'success': True,
-    #                 'actions': tuple(x[0] for x in action_groups)
-    #             })
-    #         return
-    #
-    #     pkg = str(args.package_names).replace("['", "")
-    #     pkg = pkg.replace("']", "")
-    #
-    #     error_message = "No packages named '%s' found to remove from environment." % pkg
-    #     raise PackageNotFoundError(error_message)
-    # if not context.json:
-    #     for actions, ndx in action_groups:
-    #         print()
-    #         print("Package plan for package removal in environment %s:" % actions["PREFIX"])
-    #         display_actions(actions, ndx)
-    # elif context.json and args.dry_run:
-    #     stdout_json({
-    #         'success': True,
-    #         'dry_run': True,
-    #         'actions': tuple(x[0] for x in action_groups),
-    #     })
-    #     return
-    #
-    # if not context.json:
-    #     confirm_yn(args)
-    #
-    # for actions, ndx in action_groups:
-    #     if context.json and not context.quiet:
-    #         with json_progress_bars():
-    #             execute_actions(actions, ndx, verbose=not context.quiet)
-    #     else:
-    #         execute_actions(actions, ndx, verbose=not context.quiet)
-    #
-    #     target_prefix = actions["PREFIX"]
-    #     if is_private_env_path(target_prefix) and linked_data(target_prefix) == {}:
-    #         rm_rf(target_prefix)
-    #
-    # if args.all:
-    #     rm_rf(prefix)
-    #
-    # if context.json:
-    #     stdout_json({
-    #         'success': True,
-    #         'actions': tuple(x[0] for x in action_groups),
-    #     })
+        return 0

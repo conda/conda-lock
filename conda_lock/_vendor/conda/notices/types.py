@@ -1,42 +1,75 @@
-# -*- coding: utf-8 -*-
 # Copyright (C) 2012 Anaconda, Inc
 # SPDX-License-Identifier: BSD-3-Clause
+"""Implements all conda.notices types."""
 
-from datetime import datetime
+from __future__ import annotations
+
 import hashlib
-from pathlib import Path
-from typing import NamedTuple, Optional, Sequence
+from datetime import datetime
+from typing import TYPE_CHECKING, NamedTuple
 
 from ..base.constants import NoticeLevel
 
+if TYPE_CHECKING:
+    from pathlib import Path
+    from typing import Sequence
+
+#: Value to use for message ID when it is not provided
+UNDEFINED_MESSAGE_ID = "undefined"
+
 
 class ChannelNotice(NamedTuple):
+    """Represents an individual channel notice."""
+
+    id: str
+    channel_name: str | None
+    message: str | None
+    level: NoticeLevel
+    created_at: datetime | None
+    expired_at: datetime | None
+    interval: int | None
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "channel_name": self.channel_name,
+            "message": self.message,
+            "level": self.level.name.lower(),
+            "created_at": self.created_at.isoformat(),
+            "expired_at": self.expired_at.isoformat(),
+            "interval": self.interval,
+        }
+
+
+class ChannelNoticeResultSet(NamedTuple):
     """
-    Represents an individual channel notice
+    Represents a list of a channel notices, plus some accompanying
+    metadata such as `viewed_channel_notices`.
     """
 
-    id: Optional[str]
-    channel_name: Optional[str]
-    message: Optional[str]
-    level: NoticeLevel
-    created_at: Optional[datetime]
-    expired_at: Optional[datetime]
-    interval: Optional[int]
+    #: Channel notices that are included in this particular set
+    channel_notices: Sequence[ChannelNotice]
+
+    #: Total number of channel notices; not just the ones that will be displayed
+    total_number_channel_notices: int
+
+    #: The number of channel notices that have already been viewed
+    viewed_channel_notices: int
 
 
 class ChannelNoticeResponse(NamedTuple):
     url: str
     name: str
-    json_data: Optional[dict]
+    json_data: dict | None
 
     @property
     def notices(self) -> Sequence[ChannelNotice]:
         if self.json_data:
-            notices = self.json_data.get("notices", tuple())
+            notices = self.json_data.get("notices", ())
 
             return tuple(
                 ChannelNotice(
-                    id=notice.get("id"),
+                    id=str(notice.get("id", UNDEFINED_MESSAGE_ID)),
                     channel_name=self.name,
                     message=notice.get("message"),
                     level=self._parse_notice_level(notice.get("level")),
@@ -48,10 +81,10 @@ class ChannelNoticeResponse(NamedTuple):
             )
 
         # Default value
-        return tuple()
+        return ()
 
     @staticmethod
-    def _parse_notice_level(level: Optional[str]) -> NoticeLevel:
+    def _parse_notice_level(level: str | None) -> NoticeLevel:
         """
         We use this to validate notice levels and provide reasonable defaults
         if any are invalid.
@@ -63,10 +96,8 @@ class ChannelNoticeResponse(NamedTuple):
             return NoticeLevel(NoticeLevel.INFO)
 
     @staticmethod
-    def _parse_iso_timestamp(iso_timestamp: Optional[str]) -> Optional[datetime]:
-        """
-        We try to parse this as a valid ISO timestamp and fail over to a default value of none.
-        """
+    def _parse_iso_timestamp(iso_timestamp: str | None) -> datetime | None:
+        """Parse ISO timestamp and fail over to a default value of none."""
         if iso_timestamp is None:
             return None
         try:
@@ -76,9 +107,7 @@ class ChannelNoticeResponse(NamedTuple):
 
     @classmethod
     def get_cache_key(cls, url: str, cache_dir: Path) -> Path:
-        """
-        Returns the place where this channel response will be stored as cache by hashing the url.
-        """
+        """Returns where this channel response will be cached by hashing the URL."""
         bytes_filename = url.encode()
         sha256_hash = hashlib.sha256(bytes_filename)
         cache_filename = f"{sha256_hash.hexdigest()}.json"
