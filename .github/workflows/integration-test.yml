@@ -26,7 +26,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ ubuntu-latest, macos-latest, windows-latest ]
-        python-version: [ "3.8" ]
+        python-version: [ "3.8", "3.12" ]
     defaults:
       run:
         shell: bash -el {0}
@@ -50,7 +50,8 @@ jobs:
           python-version: ${{ matrix.python-version }}
       - name: install conda-lock
         run: |
-          pip install -e .
+          pip install pipx
+          pipx install -e .
       - name: run-test
         run: |
           conda-lock --log-level=DEBUG --mamba -f tests/gdal/environment.yml -p $CONDA_PLATFORM
@@ -114,7 +115,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ ubuntu-latest, macos-latest, windows-latest ]
-        python-version: [ "3.8" ]
+        python-version: [ "3.8", "3.12" ]
     defaults:
       run:
         shell: bash -el {0}
@@ -126,7 +127,8 @@ jobs:
           python-version: ${{ matrix.python-version }}
       - name: install conda-lock
         run: |
-          pip install -e .
+          pip install pipx
+          pipx install -e .
       - name: Download lockfiles
         uses: actions/download-artifact@v4
         with:
