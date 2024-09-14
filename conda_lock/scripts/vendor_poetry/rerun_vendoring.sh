@@ -23,15 +23,17 @@ vendoring sync -vvv .
 echo Fixing CRLF line endings...
 dos2unix conda_lock/_vendor/poetry/core/_vendor/lark/grammars/*
 dos2unix conda_lock/_vendor/poetry/core/_vendor/fastjsonschema/*
-dos2unix conda_lock/_vendor/conda/_vendor/boltons/LICENSE
 dos2unix conda_lock/_vendor/poetry/core/_vendor/lark/LICENSE
 
 echo Downloading missing licenses...
 for package in poetry poetry-core cleo; do
   curl -s "https://raw.githubusercontent.com/python-poetry/${package}/master/LICENSE" > "conda_lock/_vendor/${package}.LICENSE"
 done
+curl -s "https://raw.githubusercontent.com/conda/conda/master/LICENSE" > "conda_lock/_vendor/conda.LICENSE"
 
 echo Removing duplicate licenses...
+diff conda_lock/_vendor/conda/LICENSE.txt conda_lock/_vendor/conda/_vendor/frozendict/LICENSE.txt
+rm conda_lock/_vendor/conda/LICENSE.txt
 # This one is actually correct, but we downloaded it to poetry-core.LICENSE above.
 diff conda_lock/_vendor/poetry_core.LICENSE conda_lock/_vendor/poetry-core.LICENSE
 rm conda_lock/_vendor/poetry-core.LICENSE
