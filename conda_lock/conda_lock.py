@@ -1978,11 +1978,11 @@ def do_render_lockspec(
         required_categories=required_categories if filter_categories else None,
     )
     if "pixi.toml" in kinds:
-        pixi_toml_lines = render_pixi_toml(
+        pixi_toml = render_pixi_toml(
             lock_spec=lock_spec, with_cuda=with_cuda, project_name=pixi_project_name
         )
         if stdout:
-            print("\n".join(pixi_toml_lines))
+            print(pixi_toml.as_string())
         else:
             raise NotImplementedError("Only stdout is supported at the moment.")
 
