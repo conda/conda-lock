@@ -70,7 +70,15 @@ POETRY_OPTIONAL_NOT_MAIN = (
 )
 
 
-def normalize_pypi_name(name: str) -> str:
+def pypi_name_to_conda_name(name: str) -> str:
+    """Convert a PyPI package name to a conda package name.
+
+    >>> pypi_name_to_conda_name("build")
+    'python-build'
+
+    >>> pypi_name_to_conda_name("zpfqzvrj")
+    'zpfqzvrj'
+    """
     cname = canonicalize_pypi_name(name)
     if cname in get_lookup():
         lookup = get_lookup()[cname]
@@ -292,7 +300,7 @@ def parse_poetry_pyproject_toml(
                 )
 
             if manager == "conda":
-                name = normalize_pypi_name(depname)
+                name = pypi_name_to_conda_name(depname)
                 version = poetry_version_to_conda_version(poetry_version_spec)
             else:
                 name = depname
@@ -506,7 +514,7 @@ def parse_python_requirement(
         conda_version = ",".join(sorted(conda_version.split(",")))
 
     if normalize_name:
-        conda_dep_name = normalize_pypi_name(name)
+        conda_dep_name = pypi_name_to_conda_name(name)
     else:
         conda_dep_name = name
     extras = list(parsed_req.extras)
