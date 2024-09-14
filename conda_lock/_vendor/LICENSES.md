@@ -4,12 +4,12 @@ Conda lock vendors (and subvendors) several Python packages to reduce the number
 
 ## Conda
 
-* conda, licensed as [BSD-3-Clause](conda.LICENSE.txt), Copyright (c) 2012, Anaconda, Inc.
+* conda, licensed as [BSD-3-Clause](conda.LICENSE), Copyright (c) 2012, Anaconda, Inc.
+  * appdirs, licensed as [MIT](conda/_vendor/appdirs.LICENSE.txt), Copyright (c) 2010 ActiveState Software Inc.
   * auxlib, licensed as [ISC](conda/auxlib/LICENSE), Copyright (c) 2015, Kale Franz
-  * boltons, licensed as [BSD-3-Clause](conda/_vendor/boltons/LICENSE), Copyright (c) 2013, Mahmoud Hashemi
-  * pytoolz, licensed as [BSD-3-Clause](conda/_vendor/toolz/LICENSE.txt), Copyright (c) 2013 Matthew Rocklin
-  * tqdm, licensed as [MIT](conda/_vendor/tqdm/LICENSE), Copyright (c) 2013 noamraph
-  * urllib3, licensed as [MIT](conda/_vendor/urllib3/LICENSE.txt), Copyright 2008-2016 Andrey Petrov and contributors
+  * py-cpuinfo, licensed as [MIT](conda/_vendor/py_cpuinfo.LICENSE), Copyright (c) 2014-2022 Matthew Brennan Jones
+  * distro, licensed as [Apache-2.0](conda/_vendor/distro.LICENSE.txt), Copyright 2015,2016 Nir Cohen
+  * frozendict, licensed as [LGPL-3.0](conda/_vendor/frozendict/LICENSE.txt), Copyright (c) 2012 Santiago Lezica
 
 ## Poetry
 
