@@ -5,4 +5,4 @@ poetry-core==1.9.0
 git+https://github.com/maresb/grayskull.git@d367c1605f320bae345b441b81ba38f5f72dc17e
 
 # install conda from github
-git+https://github.com/conda/conda.git@22.9.0
+git+https://github.com/conda/conda.git@24.7.1

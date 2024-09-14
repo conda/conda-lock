@@ -1,9 +1,8 @@
 
 import sys
+from .cpuinfo import *
 
-if sys.version_info[0] == 2:
-	from conda_lock._vendor.conda._vendor.cpuinfo import *
-else:
-	from conda_lock._vendor.conda._vendor.cpuinfo.cpuinfo import *
+from ...deprecations import deprecated
 
+deprecated.module("24.3", "24.9")
 
