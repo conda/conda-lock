@@ -132,26 +132,25 @@ def cached_download_file(url: str) -> bytes:
     destination_etag = destination_mapping.with_suffix(".etag")
     destination_lock = destination_mapping.with_suffix(".lock")
 
-    # Return the contents immediately if the file is fresh
-    try:
-        mtime = destination_mapping.stat().st_mtime
-        age = current_time - mtime
-        if age < DONT_CHECK_IF_NEWER_THAN_SECONDS:
-            contents = destination_mapping.read_bytes()
-            logger.debug(
-                f"Using cached mapping {destination_mapping} without "
-                f"checking for updates"
-            )
-            return contents
-    except FileNotFoundError:
-        pass
-
     # Wait for any other process to finish downloading the file.
     # Use the ETag to avoid downloading the file if it hasn't changed.
     # Otherwise, download the file and cache the contents and ETag.
     while True:
         try:
             with FileLock(destination_lock, timeout=5):
+                # Return the contents immediately if the file is fresh
+                try:
+                    mtime = destination_mapping.stat().st_mtime
+                    age = current_time - mtime
+                    if age < DONT_CHECK_IF_NEWER_THAN_SECONDS:
+                        contents = destination_mapping.read_bytes()
+                        logger.debug(
+                            f"Using cached mapping {destination_mapping} without "
+                            f"checking for updates"
+                        )
+                        return contents
+                except FileNotFoundError:
+                    pass
                 # Get the ETag from the last download, if it exists
                 if destination_mapping.exists() and destination_etag.exists():
                     logger.debug(f"Old ETag found at {destination_etag}")
