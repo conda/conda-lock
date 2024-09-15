@@ -103,12 +103,6 @@ def conda_name_to_pypi_name(name: str) -> NormalizedName:
     return lookup.get(cname, {"pypi_name": cname})["pypi_name"]
 
 
-def pypi_name_to_conda_name(name: str) -> str:
-    """return the conda name for a pypi package"""
-    cname = canonicalize_name(name)
-    return get_forward_lookup().get(cname, {"conda_name": cname})["conda_name"]
-
-
 def cached_download_file(url: str) -> bytes:
     """Download a file and cache it in the user cache directory.
 
