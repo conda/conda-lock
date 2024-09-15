@@ -71,7 +71,7 @@ def _parse_environment_file_for_platform(
                 continue
 
             dependency = parse_python_requirement(
-                spec, manager="pip", category=category, normalize_name=False
+                spec, manager="pip", category=category
             )
             if evaluate_marker(dependency.markers, platform):
                 # The above condition will skip adding the dependency if a
