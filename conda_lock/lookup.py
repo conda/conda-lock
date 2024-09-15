@@ -11,6 +11,7 @@ import ruamel.yaml
 
 from filelock import FileLock, Timeout
 from packaging.utils import NormalizedName, canonicalize_name
+from packaging.utils import canonicalize_name as canonicalize_pypi_name
 from platformdirs import user_cache_path
 from typing_extensions import TypedDict
 
@@ -28,7 +29,7 @@ class MappingEntry(TypedDict):
 
 
 @lru_cache(maxsize=None)
-def get_pypi_lookup(mapping_url: str) -> Dict[NormalizedName, MappingEntry]:
+def _get_pypi_lookup(mapping_url: str) -> Dict[NormalizedName, MappingEntry]:
     url = mapping_url
     if url.startswith("http://") or url.startswith("https://"):
         content = cached_download_file(url)
@@ -52,13 +53,39 @@ def get_pypi_lookup(mapping_url: str) -> Dict[NormalizedName, MappingEntry]:
     return lookup
 
 
+def pypi_name_to_conda_name(name: str, mapping_url: str) -> str:
+    """Convert a PyPI package name to a conda package name.
+
+    >>> from conda_lock.lookup import DEFAULT_MAPPING_URL
+    >>> pypi_name_to_conda_name("build", mapping_url=DEFAULT_MAPPING_URL)
+    'python-build'
+
+    >>> pypi_name_to_conda_name("zpfqzvrj", mapping_url=DEFAULT_MAPPING_URL)
+    'zpfqzvrj'
+    """
+    cname = canonicalize_pypi_name(name)
+    if cname in _get_pypi_lookup(mapping_url):
+        lookup = _get_pypi_lookup(mapping_url)[cname]
+        res = lookup.get("conda_name") or lookup.get("conda_forge")
+        if res is not None:
+            return res
+        else:
+            logging.warning(
+                f"Could not find conda name for {cname}. Assuming identity."
+            )
+            return cname
+    else:
+        return cname
+
+
 @lru_cache(maxsize=None)
 def _get_conda_lookup(mapping_url: str) -> Dict[str, MappingEntry]:
     """
     Reverse grayskull name mapping to map conda names onto PyPI
     """
     return {
-        record["conda_name"]: record for record in get_pypi_lookup(mapping_url).values()
+        record["conda_name"]: record
+        for record in _get_pypi_lookup(mapping_url).values()
     }
 
 
