@@ -5,9 +5,14 @@ do with the logic for exporting a lock specification, and the logic is a bit inv
 """
 
 from collections import defaultdict
-from typing import Dict, List, NamedTuple, Optional
+from typing import Dict, List, NamedTuple, Optional, Union
 
 from conda_lock.models.lock_spec import Dependency
+
+
+class EditableDependency(NamedTuple):
+    name: str
+    path: str
 
 
 class DepKey(NamedTuple):
@@ -36,7 +41,8 @@ class DepKey(NamedTuple):
 
 def unify_platform_independent_deps(
     dependencies: Dict[str, List[Dependency]],
-) -> Dict[DepKey, Dependency]:
+    editables: Optional[List[EditableDependency]],
+) -> Dict[DepKey, Union[Dependency, EditableDependency]]:
     """Combine identical dependencies for all platforms into a single dependency.
 
     Returns a tuple of two dictionaries:
@@ -109,6 +115,16 @@ def unify_platform_independent_deps(
     for key, dep in indexed_deps.items():
         collected_deps[key.drop_platform()].append(dep)
 
+    editable_deps: Dict[DepKey, EditableDependency] = {}
+    for editable in editables or []:
+        key = DepKey(name=editable.name, category="main", platform=None, manager="pip")
+        if key in collected_deps:
+            raise ValueError(
+                f"Editable dependency {editable.name} conflicts with existing "
+                f"dependency {collected_deps[key][0]}"
+            )
+        editable_deps[key] = editable
+
     # Check for platform-independent dependencies
     num_platforms = len(dependencies.keys())
     platform_independent_deps: Dict[DepKey, Dependency] = {
@@ -128,5 +144,5 @@ def unify_platform_independent_deps(
     }
     assert all(key.platform is not None for key in platform_specific_deps)
 
-    combined = {**platform_independent_deps, **platform_specific_deps}
+    combined = {**platform_independent_deps, **editable_deps, **platform_specific_deps}
     return combined

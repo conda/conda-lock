@@ -7,6 +7,7 @@ from tomlkit import TOMLDocument, comment, document, inline_table, item, table
 from tomlkit.items import InlineTable, Table
 
 from conda_lock._export_lock_spec_compute_platform_indep import (
+    EditableDependency,
     unify_platform_independent_deps,
 )
 from conda_lock.models.lock_spec import (
@@ -39,6 +40,7 @@ def render_pixi_toml(
     lock_spec: LockSpecification,
     project_name: Optional[str] = None,
     with_cuda: Optional[str] = None,
+    editables: Optional[List[EditableDependency]] = None,
 ) -> TOMLDocument:
     """Render a pixi.toml from a LockSpecification as a tomlkit TOMLDocument."""
     pixi_toml = document()
@@ -87,7 +89,7 @@ def render_pixi_toml(
             )
 
     # The dependency tables
-    arranged_deps = arrange_for_toml(lock_spec)
+    arranged_deps = arrange_for_toml(lock_spec, editables=editables)
     for key, deps_by_name in arranged_deps.items():
         header_sequence: List[str] = toml_header_sequence(key)
 
@@ -119,7 +121,9 @@ def render_pixi_toml(
     return pixi_toml
 
 
-def toml_dependency_value(dep: Dependency) -> Union[str, InlineTable]:
+def toml_dependency_value(
+    dep: Union[Dependency, EditableDependency],
+) -> Union[str, InlineTable]:
     """Render a conda-lock Dependency as a pixi.toml line as VersionSpec or matchspec.
 
     The result is suitable for the values used in the `dependencies` or
@@ -174,6 +178,8 @@ def toml_dependency_value(dep: Dependency) -> Union[str, InlineTable]:
         raise NotImplementedError(f"URL not yet supported in {dep}")
     elif isinstance(dep, VCSDependency):
         raise NotImplementedError(f"VCS not yet supported in {dep}")
+    elif isinstance(dep, EditableDependency):
+        return _dict_to_inline_table(dict(path=dep.path, editable=True))
     else:
         raise ValueError(f"Unknown dependency type {dep}")
 
@@ -187,12 +193,18 @@ def _dict_to_inline_table(d: Dict[str, Any]) -> InlineTable:
 
 def arrange_for_toml(
     lock_spec: LockSpecification,
-) -> Dict[TomlTableKey, Dict[str, Dependency]]:
+    *,
+    editables: Optional[List[EditableDependency]] = None,
+) -> Dict[TomlTableKey, Dict[str, Union[Dependency, EditableDependency]]]:
     """Arrange dependencies into a structured dictionary for TOML generation."""
-    unified_deps = unify_platform_independent_deps(lock_spec.dependencies)
+    unified_deps = unify_platform_independent_deps(
+        lock_spec.dependencies, editables=editables
+    )
 
     # Stick all the dependencies into the correct TOML table
-    unsorted_result: Dict[TomlTableKey, Dict[str, Dependency]] = defaultdict(dict)
+    unsorted_result: Dict[
+        TomlTableKey, Dict[str, Union[Dependency, EditableDependency]]
+    ] = defaultdict(dict)
     for dep_key, dep in unified_deps.items():
         toml_key = TomlTableKey(
             category=dep_key.category,

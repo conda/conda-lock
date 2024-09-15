@@ -49,7 +49,7 @@ from conda_lock.common import (
 )
 from conda_lock.conda_solver import solve_conda
 from conda_lock.errors import MissingEnvVarError, PlatformValidationError
-from conda_lock.export_lock_spec import render_pixi_toml
+from conda_lock.export_lock_spec import EditableDependency, render_pixi_toml
 from conda_lock.invoke_conda import (
     PathLike,
     _invoke_conda,
@@ -1833,6 +1833,12 @@ def render(
     default=None,
     help="Name of the Pixi project",
 )
+@click.option(
+    "--editable",
+    type=str,
+    multiple=True,
+    help="Add an editable pip dependency as name=path, e.g. --editable mypkg=./src/mypkg",
+)
 def render_lock_spec(  # noqa: C901
     conda: Optional[str],
     mamba: Optional[bool],
@@ -1858,6 +1864,7 @@ def render_lock_spec(  # noqa: C901
     metadata_yamls: Sequence[PathLike],
     stdout: bool,
     pixi_project_name: Optional[str],
+    editable: Sequence[str],
 ) -> None:
     """Combine source files into a single lock specification"""
     kinds = set(kind)
@@ -1923,6 +1930,21 @@ def render_lock_spec(  # noqa: C901
     else:
         lockfile_path = None
     del lockfile
+    editables: List[EditableDependency] = []
+    for ed in editable:
+        name_path = ed.split("=", maxsplit=1)
+        if len(name_path) != 2:
+            raise ValueError(
+                f"Editable dependency must contain '=' to specify name=path, "
+                f"but got {ed}."
+            )
+        name, path = name_path
+        if not path.startswith("."):
+            logger.warning(
+                f"Editable dependency path {path} should be relative to the project "
+                f"root, but it does not start with '.'"
+            )
+        editables.append(EditableDependency(name=name, path=path))
 
     logging.basicConfig(level=log_level)
 
@@ -1951,6 +1973,7 @@ def render_lock_spec(  # noqa: C901
         with_cuda=with_cuda,
         pixi_project_name=pixi_project_name,
         mapping_url=mapping_url,
+        editables=editables,
     )
 
 
@@ -1968,6 +1991,7 @@ def do_render_lockspec(
     with_cuda: Optional[str] = None,
     pixi_project_name: Optional[str] = None,
     mapping_url: str,
+    editables: Optional[List[EditableDependency]] = None,
 ) -> None:
     if len(src_files) == 0:
         src_files = handle_no_specified_source_files(lockfile_path)
@@ -1986,7 +2010,10 @@ def do_render_lockspec(
     )
     if "pixi.toml" in kinds:
         pixi_toml = render_pixi_toml(
-            lock_spec=lock_spec, with_cuda=with_cuda, project_name=pixi_project_name
+            lock_spec=lock_spec,
+            with_cuda=with_cuda,
+            project_name=pixi_project_name,
+            editables=editables,
         )
         if stdout:
             print(pixi_toml.as_string())
