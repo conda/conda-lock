@@ -13,6 +13,7 @@ import requests_mock
 
 from conda_lock.conda_lock import DEFAULT_LOCKFILE_NAME, run_lock
 from conda_lock.lockfile import parse_conda_lock_file
+from conda_lock.lookup import DEFAULT_MAPPING_URL
 from tests.test_conda_lock import clone_test_dir
 
 
@@ -143,7 +144,7 @@ def test_it_uses_pip_repositories_with_env_var_substitution(
     assert environment_file.exists(), list(directory.iterdir())
 
     # WHEN I create the lockfile
-    run_lock([directory / "environment.yaml"], conda_exe=conda_exe)
+    run_lock([directory / "environment.yaml"], conda_exe=conda_exe, mapping_url=DEFAULT_MAPPING_URL)
 
     # THEN the lockfile is generated correctly
     lockfile_path = directory / DEFAULT_LOCKFILE_NAME

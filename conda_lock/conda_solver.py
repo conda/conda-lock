@@ -115,6 +115,7 @@ def solve_conda(
     update: List[str],
     platform: str,
     channels: List[Channel],
+    mapping_url: str,
 ) -> Dict[str, LockedDependency]:
     """
     Solve (or update a previous solution of) conda specs for the given platform
@@ -205,6 +206,7 @@ def solve_conda(
     apply_categories(
         requested={k: v for k, v in specs.items() if v.manager == "conda"},
         planned=planned,
+        mapping_url=mapping_url,
     )
 
     return planned

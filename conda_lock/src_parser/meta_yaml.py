@@ -85,6 +85,7 @@ class UndefinedNeverFail(jinja2.Undefined):
 
 def parse_meta_yaml_file(
     meta_yaml_file: pathlib.Path,
+    *,
     platforms: List[str],
 ) -> LockSpecification:
     """Parse a simple meta-yaml file for dependencies assuming the target platforms.
