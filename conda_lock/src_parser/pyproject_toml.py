@@ -445,7 +445,6 @@ def parse_python_requirement(
     mapping_url: str,
     manager: Literal["conda", "pip"] = "conda",
     category: str = "main",
-    normalize_name: bool = True,
 ) -> Dependency:
     """Parse a requirements.txt like requirement to a conda spec.
 
@@ -500,7 +499,7 @@ def parse_python_requirement(
     if conda_version:
         conda_version = ",".join(sorted(conda_version.split(",")))
 
-    if normalize_name:
+    if manager == "conda":
         conda_dep_name = pypi_name_to_conda_name(name, mapping_url=mapping_url)
     else:
         conda_dep_name = name
