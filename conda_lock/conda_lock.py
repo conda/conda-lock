@@ -1711,7 +1711,7 @@ def render(
     "files",
     type=click.Path(),
     multiple=True,
-    help="path to a conda environment specification(s)",
+    help="path to a dependency specification, can be repeated",
 )
 @click.option(
     "-k",
@@ -1859,6 +1859,7 @@ def render_lock_spec(  # noqa: C901
     stdout: bool,
     pixi_project_name: Optional[str],
 ) -> None:
+    """Combine source files into a single lock specification"""
     kinds = set(kind)
     if kinds != {"pixi.toml"}:
         raise NotImplementedError(
