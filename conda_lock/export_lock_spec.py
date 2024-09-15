@@ -157,6 +157,8 @@ def toml_dependency_value(
     matchspec: Dict[str, Any] = {}
     if isinstance(dep, VersionedDependency):
         matchspec["version"] = dep.version or "*"
+        if dep.manager == "pip" and matchspec["version"][0].isdigit():
+            matchspec["version"] = f"=={matchspec['version']}"
         if dep.build is not None:
             matchspec["build"] = dep.build
         if dep.hash is not None:
