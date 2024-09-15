@@ -30,7 +30,7 @@ from typing_extensions import Literal
 
 from conda_lock.common import get_in
 from conda_lock.interfaces.vendored_grayskull import encode_poetry_version
-from conda_lock.lookup import get_pypi_lookup as get_lookup
+from conda_lock.lookup import pypi_name_to_conda_name
 from conda_lock.models.lock_spec import (
     Dependency,
     LockSpecification,
@@ -68,31 +68,6 @@ POETRY_OPTIONAL_NOT_MAIN = (
     "Conda-Lock will follows Poetry behavior and ignore the flag. "
     "It will be treated as part of the `{category}` category."
 )
-
-
-def pypi_name_to_conda_name(name: str, mapping_url: str) -> str:
-    """Convert a PyPI package name to a conda package name.
-
-    >>> from conda_lock.lookup import DEFAULT_MAPPING_URL
-    >>> pypi_name_to_conda_name("build", mapping_url=DEFAULT_MAPPING_URL)
-    'python-build'
-
-    >>> pypi_name_to_conda_name("zpfqzvrj", mapping_url=DEFAULT_MAPPING_URL)
-    'zpfqzvrj'
-    """
-    cname = canonicalize_pypi_name(name)
-    if cname in get_lookup(mapping_url):
-        lookup = get_lookup(mapping_url)[cname]
-        res = lookup.get("conda_name") or lookup.get("conda_forge")
-        if res is not None:
-            return res
-        else:
-            logging.warning(
-                f"Could not find conda name for {cname}. Assuming identity."
-            )
-            return cname
-    else:
-        return cname
 
 
 def poetry_version_to_conda_version(version_string: Optional[str]) -> Optional[str]:
