@@ -76,7 +76,6 @@ def _parse_environment_file_for_platform(
                 spec,
                 manager="pip",
                 category=category,
-                normalize_name=False,
                 mapping_url=mapping_url,
             )
             if evaluate_marker(dependency.markers, platform):

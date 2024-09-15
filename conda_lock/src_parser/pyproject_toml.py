@@ -445,7 +445,6 @@ def parse_python_requirement(
     mapping_url: str,
     manager: Literal["conda", "pip"] = "conda",
     category: str = "main",
-    normalize_name: bool = True,
 ) -> Dependency:
     """Parse a requirements.txt like requirement to a conda spec.
 
@@ -456,6 +455,23 @@ def parse_python_requirement(
     ... )  # doctest: +NORMALIZE_WHITESPACE
     VersionedDependency(name='my-package', manager='conda', category='main', extras=[],
         markers=None, version='*', build=None, conda_channel=None, hash=None)
+
+    The PyPI name `build` will be translated to `python-build` for conda.
+    >>> parse_python_requirement(
+    ...     "build",
+    ...     mapping_url=DEFAULT_MAPPING_URL,
+    ... )  # doctest: +NORMALIZE_WHITESPACE
+    VersionedDependency(name='python-build', manager='conda', category='main',
+        extras=[], markers=None, version='*', build=None, conda_channel=None, hash=None)
+
+    No translation is done for `manager="pip"`.
+    >>> parse_python_requirement(
+    ...     "build",
+    ...     manager="pip",
+    ...     mapping_url=DEFAULT_MAPPING_URL,
+    ... )  # doctest: +NORMALIZE_WHITESPACE
+    VersionedDependency(name='build', manager='pip', category='main',
+        extras=[], markers=None, version='*', build=None, conda_channel=None, hash=None)
 
     >>> parse_python_requirement(
     ...     "My_Package[extra]==1.23",
@@ -500,7 +516,7 @@ def parse_python_requirement(
     if conda_version:
         conda_version = ",".join(sorted(conda_version.split(",")))
 
-    if normalize_name:
+    if manager == "conda":
         conda_dep_name = pypi_name_to_conda_name(name, mapping_url=mapping_url)
     else:
         conda_dep_name = name
