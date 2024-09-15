@@ -53,7 +53,7 @@ def render_pixi_toml(
 
     if project_name is None:
         project_name = "project-name-placeholder"
-    all_platforms = lock_spec.dependencies.keys()
+    all_platforms = sorted(lock_spec.dependencies.keys())
     all_categories: Set[str] = set()
     for platform in all_platforms:
         for dep in lock_spec.dependencies[platform]:
