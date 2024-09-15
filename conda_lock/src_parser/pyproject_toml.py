@@ -276,12 +276,12 @@ def parse_poetry_pyproject_toml(
                     f"Unsupported type for dependency: {depname}: {depattrs}"
                 )
 
-            if manager == "conda":
-                name = pypi_name_to_conda_name(depname, mapping_url=mapping_url)
-                version = poetry_version_to_conda_version(poetry_version_spec)
-            else:
-                name = depname
-                version = poetry_version_spec
+            name = (
+                pypi_name_to_conda_name(depname, mapping_url=mapping_url)
+                if manager == "conda"
+                else depname
+            )
+            version = poetry_version_to_conda_version(poetry_version_spec)
 
             if "git" in depattrs and url is not None:
                 url, rev = unpack_git_url(url)
