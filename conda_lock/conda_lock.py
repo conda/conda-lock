@@ -1926,8 +1926,11 @@ def render_lock_spec(  # noqa: C901
     logging.basicConfig(level=log_level)
 
     # Set Pypi <--> Conda lookup file location
-    if pypi_to_conda_lookup_file:
-        set_lookup_location(pypi_to_conda_lookup_file)
+    mapping_url = (
+        DEFAULT_MAPPING_URL
+        if pypi_to_conda_lookup_file is None
+        else pypi_to_conda_lookup_file
+    )
 
     src_files = [pathlib.Path(file) for file in files]
 
@@ -1946,6 +1949,7 @@ def render_lock_spec(  # noqa: C901
         lockfile_path=lockfile_path,
         with_cuda=with_cuda,
         pixi_project_name=pixi_project_name,
+        mapping_url=mapping_url,
     )
 
 
@@ -1962,6 +1966,7 @@ def do_render_lockspec(
     lockfile_path: Optional[pathlib.Path] = None,
     with_cuda: Optional[str] = None,
     pixi_project_name: Optional[str] = None,
+    mapping_url: str,
 ) -> None:
     if len(src_files) == 0:
         src_files = handle_no_specified_source_files(lockfile_path)
@@ -1976,6 +1981,7 @@ def do_render_lockspec(
         channel_overrides=channel_overrides,
         platform_overrides=platform_overrides,
         required_categories=required_categories if filter_categories else None,
+        mapping_url=mapping_url,
     )
     if "pixi.toml" in kinds:
         pixi_toml = render_pixi_toml(
