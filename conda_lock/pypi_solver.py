@@ -433,6 +433,7 @@ def _compute_hash(link: Link, lock_spec_hash: Optional[str]) -> HashModel:
 
 
 def solve_pypi(
+    *,
     pip_specs: Dict[str, lock_spec.Dependency],
     use_latest: List[str],
     pip_locked: Dict[str, LockedDependency],
@@ -444,6 +445,7 @@ def solve_pypi(
     allow_pypi_requests: bool = True,
     verbose: bool = False,
     strip_auth: bool = False,
+    mapping_url: str,
 ) -> Dict[str, LockedDependency]:
     """
     Solve pip dependencies for the given platform
@@ -503,7 +505,7 @@ def solve_pypi(
         if locked_dep.manager != "pip" and "python" not in locked_dep.dependencies:
             continue
         try:
-            pypi_name = conda_name_to_pypi_name(locked_dep.name).lower()
+            pypi_name = conda_name_to_pypi_name(locked_dep.name, mapping_url=mapping_url).lower()
         except KeyError:
             continue
         # Prefer the Python package when its name collides with the Conda package
@@ -572,13 +574,13 @@ def solve_pypi(
     # is essentially a dictionary of:
     #  - pip package name -> list of LockedDependency that are needed for this package
     for conda_name, locked_dep in conda_locked.items():
-        pypi_name = conda_name_to_pypi_name(conda_name)
+        pypi_name = conda_name_to_pypi_name(conda_name, mapping_url=mapping_url)
         if pypi_name in planned:
             planned[pypi_name].append(locked_dep)
         else:
             planned[pypi_name] = [locked_dep]
 
-    apply_categories(requested=pip_specs, planned=planned, convert_to_pip_names=True)
+    apply_categories(requested=pip_specs, planned=planned, convert_to_pip_names=True, mapping_url=mapping_url)
 
     return {dep.name: dep for dep in requirements}
 

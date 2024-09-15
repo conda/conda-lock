@@ -2,6 +2,7 @@ from pathlib import Path
 
 import pytest
 
+from conda_lock.lookup import DEFAULT_MAPPING_URL
 from conda_lock.src_parser import make_lock_spec
 
 
@@ -77,7 +78,9 @@ def cowsay_src_file(request, tmp_path: Path):
 
 
 def test_sys_platform_marker(cowsay_src_file):
-    lock_spec = make_lock_spec(src_files=[cowsay_src_file])
+    lock_spec = make_lock_spec(
+        src_files=[cowsay_src_file], mapping_url=DEFAULT_MAPPING_URL
+    )
     dependencies = lock_spec.dependencies
     platform_has_cowsay = {
         platform: any(dep.name == "cowsay" for dep in platform_deps)

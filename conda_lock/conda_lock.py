@@ -69,7 +69,7 @@ from conda_lock.lockfile.v2prelim.models import (
     TimeMeta,
     UpdateSpecification,
 )
-from conda_lock.lookup import set_lookup_location
+from conda_lock.lookup import DEFAULT_MAPPING_URL
 from conda_lock.models.channel import Channel
 from conda_lock.models.lock_spec import LockSpecification
 from conda_lock.models.pip_repository import PipRepository
@@ -270,6 +270,7 @@ def make_lock_files(  # noqa: C901
     metadata_yamls: Sequence[pathlib.Path] = (),
     with_cuda: Optional[str] = None,
     strip_auth: bool = False,
+    mapping_url: str,
 ) -> None:
     """
     Generate a lock file from the src files provided
@@ -324,6 +325,7 @@ def make_lock_files(  # noqa: C901
         channel_overrides=channel_overrides,
         platform_overrides=platform_overrides,
         required_categories=required_categories if filter_categories else None,
+        mapping_url=mapping_url,
     )
 
     # Load existing lockfile if it exists
@@ -403,6 +405,7 @@ def make_lock_files(  # noqa: C901
                 metadata_yamls=metadata_yamls,
                 strip_auth=strip_auth,
                 virtual_package_repo=virtual_package_repo,
+                mapping_url=mapping_url,
             )
 
             if not original_lock_content:
@@ -733,6 +736,7 @@ def _solve_for_arch(
     virtual_package_repo: FakeRepoData,
     update_spec: Optional[UpdateSpecification] = None,
     strip_auth: bool = False,
+    mapping_url: str,
 ) -> List[LockedDependency]:
     """
     Solve specification for a single platform
@@ -758,13 +762,14 @@ def _solve_for_arch(
         update=update_spec.update,
         platform=platform,
         channels=channels,
+        mapping_url=mapping_url,
     )
 
     if requested_deps_by_name["pip"]:
         if "python" not in conda_deps:
             raise ValueError("Got pip specs without Python")
         pip_deps = solve_pypi(
-            requested_deps_by_name["pip"],
+            pip_specs=requested_deps_by_name["pip"],
             use_latest=update_spec.update,
             pip_locked={
                 dep.name: dep for dep in update_spec.locked if dep.manager == "pip"
@@ -782,6 +787,7 @@ def _solve_for_arch(
             pip_repositories=pip_repositories,
             allow_pypi_requests=spec.allow_pypi_requests,
             strip_auth=strip_auth,
+            mapping_url=mapping_url,
         )
     else:
         pip_deps = {}
@@ -828,6 +834,7 @@ def create_lockfile_from_spec(
     metadata_yamls: Sequence[pathlib.Path] = (),
     strip_auth: bool = False,
     virtual_package_repo: FakeRepoData,
+    mapping_url: str,
 ) -> Lockfile:
     """
     Solve or update specification
@@ -847,6 +854,7 @@ def create_lockfile_from_spec(
             virtual_package_repo=virtual_package_repo,
             update_spec=update_spec,
             strip_auth=strip_auth,
+            mapping_url=mapping_url,
         )
 
         for dep in deps:
@@ -1132,6 +1140,7 @@ def run_lock(
     metadata_choices: AbstractSet[MetadataOption] = frozenset(),
     metadata_yamls: Sequence[pathlib.Path] = (),
     strip_auth: bool = False,
+    mapping_url: str,
 ) -> None:
     if len(environment_files) == 0:
         environment_files = handle_no_specified_source_files(lockfile_path)
@@ -1158,6 +1167,7 @@ def run_lock(
         metadata_choices=metadata_choices,
         metadata_yamls=metadata_yamls,
         strip_auth=strip_auth,
+        mapping_url=mapping_url,
     )
 
 
@@ -1365,8 +1375,7 @@ def lock(
     logging.basicConfig(level=log_level)
 
     # Set Pypi <--> Conda lookup file location
-    if pypi_to_conda_lookup_file:
-        set_lookup_location(pypi_to_conda_lookup_file)
+    mapping_url = DEFAULT_MAPPING_URL if pypi_to_conda_lookup_file is None else pypi_to_conda_lookup_file
 
     metadata_enum_choices = set(MetadataOption(md) for md in metadata_choices)
 
@@ -1408,6 +1417,7 @@ def lock(
         metadata_choices=metadata_enum_choices,
         metadata_yamls=[pathlib.Path(path) for path in metadata_yamls],
         strip_auth=strip_auth,
+        mapping_url=mapping_url,
     )
     if strip_auth:
         with tempfile.TemporaryDirectory() as tempdir:
