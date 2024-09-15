@@ -598,7 +598,10 @@ def parse_requirements_pyproject_toml(
         for dep in get_in(list(path), contents, []):
             dependencies.append(
                 parse_python_requirement(
-                    dep, manager=default_non_conda_source, category=category, mapping_url=mapping_url
+                    dep,
+                    manager=default_non_conda_source,
+                    category=category,
+                    mapping_url=mapping_url,
                 )
             )
 
@@ -637,7 +640,10 @@ def parse_pdm_pyproject_toml(
         dev_reqs.extend(
             [
                 parse_python_requirement(
-                    dep, manager=default_non_conda_source, category="dev", mapping_url=mapping_url
+                    dep,
+                    manager=default_non_conda_source,
+                    category="dev",
+                    mapping_url=mapping_url,
                 )
                 for dep in deps
             ]
@@ -721,4 +727,6 @@ def parse_pyproject_toml(
             "Could not detect build-system in pyproject.toml.  Assuming poetry"
         )
 
-    return parse(pyproject_toml, platforms=platforms, contents=contents, mapping_url=mapping_url)
+    return parse(
+        pyproject_toml, platforms=platforms, contents=contents, mapping_url=mapping_url
+    )

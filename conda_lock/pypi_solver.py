@@ -505,7 +505,9 @@ def solve_pypi(
         if locked_dep.manager != "pip" and "python" not in locked_dep.dependencies:
             continue
         try:
-            pypi_name = conda_name_to_pypi_name(locked_dep.name, mapping_url=mapping_url).lower()
+            pypi_name = conda_name_to_pypi_name(
+                locked_dep.name, mapping_url=mapping_url
+            ).lower()
         except KeyError:
             continue
         # Prefer the Python package when its name collides with the Conda package
@@ -580,7 +582,12 @@ def solve_pypi(
         else:
             planned[pypi_name] = [locked_dep]
 
-    apply_categories(requested=pip_specs, planned=planned, convert_to_pip_names=True, mapping_url=mapping_url)
+    apply_categories(
+        requested=pip_specs,
+        planned=planned,
+        convert_to_pip_names=True,
+        mapping_url=mapping_url,
+    )
 
     return {dep.name: dep for dep in requirements}
 

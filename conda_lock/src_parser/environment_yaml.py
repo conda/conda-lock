@@ -82,7 +82,9 @@ def _parse_environment_file_for_platform(
                 dependencies.append(dependency)
 
         # ensure pip is in target env
-        dependencies.append(parse_python_requirement("pip", manager="conda", mapping_url=mapping_url))
+        dependencies.append(
+            parse_python_requirement("pip", manager="conda", mapping_url=mapping_url)
+        )
 
     return dependencies
 
@@ -134,7 +136,9 @@ def parse_environment_file(
 
     # Parse with selectors for each target platform
     dep_map = {
-        platform: _parse_environment_file_for_platform(content, category=category, platform=platform, mapping_url=mapping_url)
+        platform: _parse_environment_file_for_platform(
+            content, category=category, platform=platform, mapping_url=mapping_url
+        )
         for platform in platforms
     }
 
