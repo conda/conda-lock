@@ -100,7 +100,8 @@ def apply_categories(
         return [
             item
             for item in planned_items
-            if dep_name(manager=item.manager, dep=item.name, mapping_url=mapping_url) not in deps
+            if dep_name(manager=item.manager, dep=item.name, mapping_url=mapping_url)
+            not in deps
         ]
 
     def dep_name(*, manager: str, dep: str, mapping_url: str) -> str:
@@ -125,7 +126,9 @@ def apply_categories(
 
             for planned_item in planned_items:
                 todo.extend(
-                    dep_name(manager=planned_item.manager, dep=dep, mapping_url=mapping_url)
+                    dep_name(
+                        manager=planned_item.manager, dep=dep, mapping_url=mapping_url
+                    )
                     for dep in planned_item.dependencies
                     # exclude virtual packages
                     if not (dep in deps or dep.startswith("__"))

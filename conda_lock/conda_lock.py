@@ -1375,7 +1375,11 @@ def lock(
     logging.basicConfig(level=log_level)
 
     # Set Pypi <--> Conda lookup file location
-    mapping_url = DEFAULT_MAPPING_URL if pypi_to_conda_lookup_file is None else pypi_to_conda_lookup_file
+    mapping_url = (
+        DEFAULT_MAPPING_URL
+        if pypi_to_conda_lookup_file is None
+        else pypi_to_conda_lookup_file
+    )
 
     metadata_enum_choices = set(MetadataOption(md) for md in metadata_choices)
 

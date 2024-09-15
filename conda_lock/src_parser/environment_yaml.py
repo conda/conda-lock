@@ -73,7 +73,11 @@ def _parse_environment_file_for_platform(
                 continue
 
             dependency = parse_python_requirement(
-                spec, manager="pip", category=category, normalize_name=False, mapping_url=mapping_url
+                spec,
+                manager="pip",
+                category=category,
+                normalize_name=False,
+                mapping_url=mapping_url,
             )
             if evaluate_marker(dependency.markers, platform):
                 # The above condition will skip adding the dependency if a
@@ -82,7 +86,9 @@ def _parse_environment_file_for_platform(
                 dependencies.append(dependency)
 
         # ensure pip is in target env
-        dependencies.append(parse_python_requirement("pip", manager="conda", mapping_url=mapping_url))
+        dependencies.append(
+            parse_python_requirement("pip", manager="conda", mapping_url=mapping_url)
+        )
 
     return dependencies
 
@@ -134,7 +140,9 @@ def parse_environment_file(
 
     # Parse with selectors for each target platform
     dep_map = {
-        platform: _parse_environment_file_for_platform(content, category=category, platform=platform, mapping_url=mapping_url)
+        platform: _parse_environment_file_for_platform(
+            content, category=category, platform=platform, mapping_url=mapping_url
+        )
         for platform in platforms
     }
 
