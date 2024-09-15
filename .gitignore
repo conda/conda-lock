@@ -20,5 +20,3 @@ filelock
 .micromamba/
 .pixi/
 # Make ad-hoc experimentation easier; remove these once we settle on a config
-pixi.lock
-pixi.toml
