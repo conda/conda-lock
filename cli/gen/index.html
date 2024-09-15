@@ -617,6 +617,15 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#conda-lock-render-lock-spec" class="md-nav__link">
+    <span class="md-ellipsis">
+      render-lock-spec
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -696,6 +705,15 @@
   <a href="#conda-lock-render" class="md-nav__link">
     <span class="md-ellipsis">
       render
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#conda-lock-render-lock-spec" class="md-nav__link">
+    <span class="md-ellipsis">
+      render-lock-spec
     </span>
   </a>
   
@@ -1080,6 +1098,186 @@ timestamp: The approximate timestamp of the output file in ISO8601 basic format.
 <td><code>-p</code>, <code>--platform</code></td>
 <td>text</td>
 <td>render lock files for the following platforms</td>
+<td>None</td>
+</tr>
+<tr>
+<td><code>--help</code></td>
+<td>boolean</td>
+<td>Show this message and exit.</td>
+<td><code>False</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="conda-lock-render-lock-spec">conda-lock render-lock-spec</h3>
+<p>Combine source files into a single lock specification</p>
+<p><strong>Usage:</strong></p>
+<div class="highlight"><pre><span></span><code>conda-lock render-lock-spec [OPTIONS]
+</code></pre></div>
+<p><strong>Options:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--conda</code></td>
+<td>text</td>
+<td>path (or name) of the conda/mamba executable to use.</td>
+<td>None</td>
+</tr>
+<tr>
+<td><code>--mamba</code> / <code>--no-mamba</code></td>
+<td>boolean</td>
+<td>don't attempt to use or install mamba.</td>
+<td>None</td>
+</tr>
+<tr>
+<td><code>--micromamba</code> / <code>--no-micromamba</code></td>
+<td>boolean</td>
+<td>don't attempt to use or install micromamba.</td>
+<td>None</td>
+</tr>
+<tr>
+<td><code>-p</code>, <code>--platform</code></td>
+<td>text</td>
+<td>render lock files for the following platforms</td>
+<td>None</td>
+</tr>
+<tr>
+<td><code>-c</code>, <code>--channel</code></td>
+<td>text</td>
+<td>Override the channels to use when solving the environment. These will replace the channels as listed in the various source files.</td>
+<td>None</td>
+</tr>
+<tr>
+<td><code>--dev-dependencies</code> / <code>--no-dev-dependencies</code></td>
+<td>boolean</td>
+<td>include dev dependencies in the lockfile spec (where applicable)</td>
+<td><code>True</code></td>
+</tr>
+<tr>
+<td><code>-f</code>, <code>--file</code></td>
+<td>path</td>
+<td>path to a dependency specification, can be repeated</td>
+<td>None</td>
+</tr>
+<tr>
+<td><code>-k</code>, <code>--kind</code></td>
+<td>choice (<code>pixi.toml</code>)</td>
+<td>Kind of lock specification to generate. Must be 'pixi.toml'.</td>
+<td>None</td>
+</tr>
+<tr>
+<td><code>--filename-template</code></td>
+<td>text</td>
+<td>Template for single-platform (explicit, env) lock file names. Filename must include {platform} token, and must not end in '.yml'. For a full list and description of available tokens, see the command help text.</td>
+<td>None</td>
+</tr>
+<tr>
+<td><code>--lockfile</code></td>
+<td>text</td>
+<td>Path to a conda-lock.yml which references source files to be used.</td>
+<td>None</td>
+</tr>
+<tr>
+<td><code>--strip-auth</code></td>
+<td>boolean</td>
+<td>Strip the basic auth credentials from the lockfile.</td>
+<td>None</td>
+</tr>
+<tr>
+<td><code>-e</code>, <code>--extras</code>, <code>--category</code></td>
+<td>text</td>
+<td>When used in conjunction with input sources that support extras/categories (pyproject.toml) will add the deps from those extras to the render specification</td>
+<td><code>[]</code></td>
+</tr>
+<tr>
+<td><code>--filter-categories</code>, <code>--filter-extras</code></td>
+<td>boolean</td>
+<td>In conjunction with extras this will prune out dependencies that do not have the extras specified when loading files.</td>
+<td><code>False</code></td>
+</tr>
+<tr>
+<td><code>--check-input-hash</code></td>
+<td>boolean</td>
+<td>Check existing input hashes in lockfiles before regenerating lock files.  If no files were updated exit with exit code 4.  Incompatible with --strip-auth</td>
+<td>None</td>
+</tr>
+<tr>
+<td><code>--stdout</code></td>
+<td>boolean</td>
+<td>Print the lock specification to stdout.</td>
+<td><code>False</code></td>
+</tr>
+<tr>
+<td><code>--log-level</code></td>
+<td>choice (<code>DEBUG</code> &#x7C; <code>INFO</code> &#x7C; <code>WARNING</code> &#x7C; <code>ERROR</code> &#x7C; <code>CRITICAL</code>)</td>
+<td>Log level.</td>
+<td><code>INFO</code></td>
+</tr>
+<tr>
+<td><code>--pdb</code></td>
+<td>boolean</td>
+<td>Drop into a postmortem debugger if conda-lock crashes</td>
+<td><code>False</code></td>
+</tr>
+<tr>
+<td><code>--virtual-package-spec</code></td>
+<td>path</td>
+<td>Specify a set of virtual packages to use.</td>
+<td>None</td>
+</tr>
+<tr>
+<td><code>--update</code></td>
+<td>text</td>
+<td>Packages to update to their latest versions. If empty, update all.</td>
+<td>None</td>
+</tr>
+<tr>
+<td><code>--pypi_to_conda_lookup_file</code></td>
+<td>text</td>
+<td>Location of the lookup file containing Pypi package names to conda names.</td>
+<td>None</td>
+</tr>
+<tr>
+<td><code>--md</code>, <code>--metadata</code></td>
+<td>choice (<code>timestamp</code> &#x7C; <code>git_sha</code> &#x7C; <code>git_user_name</code> &#x7C; <code>git_user_email</code> &#x7C; <code>input_md5</code> &#x7C; <code>input_sha</code>)</td>
+<td>N/A</td>
+<td><code>[]</code></td>
+</tr>
+<tr>
+<td><code>--with-cuda</code></td>
+<td>text</td>
+<td>Specify cuda version to use in the system requirements.</td>
+<td>None</td>
+</tr>
+<tr>
+<td><code>--without-cuda</code></td>
+<td>text</td>
+<td>Disable cuda in virtual packages. Prevents accepting cuda variants of packages. Ignored if virtual packages are specified.</td>
+<td>None</td>
+</tr>
+<tr>
+<td><code>--mdy</code>, <code>--metadata-yaml</code>, <code>--metadata-json</code></td>
+<td>path</td>
+<td>YAML or JSON file(s) containing structured metadata to add to metadata section of the lockfile.</td>
+<td><code>[]</code></td>
+</tr>
+<tr>
+<td><code>--pixi-project-name</code></td>
+<td>text</td>
+<td>Name of the Pixi project</td>
+<td>None</td>
+</tr>
+<tr>
+<td><code>--editable</code></td>
+<td>text</td>
+<td>Add an editable pip dependency as name=path, e.g. --editable mypkg=./src/mypkg</td>
 <td>None</td>
 </tr>
 <tr>
