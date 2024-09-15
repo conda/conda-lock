@@ -473,6 +473,16 @@ def parse_python_requirement(
     VersionedDependency(name='my-package', manager='conda', category='main', extras=[],
         markers=None, version='*', build=None, conda_channel=None, hash=None)
 
+    The PyPI name `build` will be translated to `python-build` for conda.
+    >>> parse_python_requirement("build")  # doctest: +NORMALIZE_WHITESPACE
+    VersionedDependency(name='python-build', manager='conda', category='main',
+        extras=[], markers=None, version='*', build=None, conda_channel=None, hash=None)
+
+    No translation is done for `manager="pip"`.
+    >>> parse_python_requirement("build", manager="pip")  # doctest: +NORMALIZE_WHITESPACE
+    VersionedDependency(name='build', manager='pip', category='main',
+        extras=[], markers=None, version='*', build=None, conda_channel=None, hash=None)
+
     >>> parse_python_requirement(
     ...     "My_Package[extra]==1.23"
     ... )  # doctest: +NORMALIZE_WHITESPACE
