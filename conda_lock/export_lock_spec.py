@@ -90,15 +90,23 @@ def render_pixi_toml(
     arranged_deps = arrange_for_toml(lock_spec)
     for key, deps_by_name in arranged_deps.items():
         header_sequence: List[str] = toml_header_sequence(key)
+
+        # Keys are package names, values are version numbers or matchspecs.
         inner_dict = {
             name: toml_dependency_value(dep) for name, dep in deps_by_name.items()
         }
-        # Construct the outer dictionary by nesting the inner dictionary within
-        # the header sequence.
-        outer_dict = inner_dict
-        for header in reversed(header_sequence):
-            outer_dict = {header: outer_dict}
-        pixi_toml.update(outer_dict)
+
+        # Using the nested sequence of headers, walk down the tree of tomlkit tables
+        # towards the leaf where the inner_dict should be inserted.
+        node: Union[TOMLDocument, Table] = pixi_toml
+        for header in header_sequence:
+            if header not in node:
+                node.add(header, table())
+            next_node = node[header]
+            assert isinstance(next_node, Table)
+            node = next_node
+        # Now `node` is the leaf table where the inner table should be inserted.
+        node.update(inner_dict)
 
     # The environments table
     if len(all_categories) > 1:
