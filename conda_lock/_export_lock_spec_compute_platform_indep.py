@@ -41,7 +41,8 @@ class DepKey(NamedTuple):
 
 def unify_platform_independent_deps(
     dependencies: Dict[str, List[Dependency]],
-    editables: Optional[List[EditableDependency]],
+    *,
+    editables: Optional[List[EditableDependency]] = None,
 ) -> Dict[DepKey, Union[Dependency, EditableDependency]]:
     """Combine identical dependencies for all platforms into a single dependency.
 
