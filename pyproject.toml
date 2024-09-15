@@ -46,6 +46,8 @@ dependencies = [
     "setuptools",
     # constraint on version comes from poetry
     'tomli >=2.0.1,<3.0.0 ; python_version <"3.11"',
+    # constraint on version comes from poetry
+    "tomlkit >=0.11.4,<1.0.0",
     "typing-extensions",
     # conda dependencies
     "boltons >=23.0.0",
@@ -65,7 +67,6 @@ dependencies = [
     "pyproject-hooks >=1.0.0,<2.0.0",
     "requests-toolbelt >=1.0.0,<2.0.0",
     "shellingham >=1.5,<2.0",
-    "tomlkit >=0.11.4,<1.0.0",
     "trove-classifiers >= 2022.5.19",
     "virtualenv >=20.23.0,<21.0.0",
     'xattr >=1.0.0,<2.0.0 ; sys_platform == "darwin"',

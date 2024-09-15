@@ -3,6 +3,7 @@ import os
 import pathlib
 import tempfile
 import typing
+import warnings
 
 from contextlib import contextmanager
 from itertools import chain
@@ -86,3 +87,7 @@ def relative_path(source: pathlib.Path, target: pathlib.Path) -> str:
     up = [".."] * len(source.resolve().relative_to(common).parents)
     down = target.resolve().relative_to(common).parts
     return str(pathlib.PurePosixPath(*up) / pathlib.PurePosixPath(*down))
+
+
+def warn(msg: str) -> None:
+    warnings.warn(msg, stacklevel=2)

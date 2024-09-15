@@ -45,10 +45,12 @@ from conda_lock.common import (
     read_json,
     relative_path,
     temporary_file_with_contents,
+    warn,
     write_file,
 )
 from conda_lock.conda_solver import solve_conda
 from conda_lock.errors import MissingEnvVarError, PlatformValidationError
+from conda_lock.export_lock_spec import EditableDependency, render_pixi_toml
 from conda_lock.invoke_conda import (
     PathLike,
     _invoke_conda,
@@ -1664,6 +1666,360 @@ def render(
         extras=set(extras),
         override_platform=platform,
     )
+
+
+@main.command("render-lock-spec", context_settings={"show_default": True})
+@click.option(
+    "--conda",
+    default=None,
+    help="path (or name) of the conda/mamba executable to use.",
+    hidden=True,
+)
+@click.option(
+    "--mamba/--no-mamba",
+    default=None,
+    help="don't attempt to use or install mamba.",
+    hidden=True,
+)
+@click.option(
+    "--micromamba/--no-micromamba",
+    default=None,
+    help="don't attempt to use or install micromamba.",
+    hidden=True,
+)
+@click.option(
+    "-p",
+    "--platform",
+    multiple=True,
+    help="render lock files for the following platforms",
+)
+@click.option(
+    "-c",
+    "--channel",
+    "channel_overrides",
+    multiple=True,
+    help="""Override the channels to use when solving the environment. These will replace the channels as listed in the various source files.""",
+)
+@click.option(
+    "--dev-dependencies/--no-dev-dependencies",
+    is_flag=True,
+    default=True,
+    help="include dev dependencies in the lockfile spec (where applicable)",
+)
+@click.option(
+    "-f",
+    "--file",
+    "files",
+    type=click.Path(),
+    multiple=True,
+    help="path to a dependency specification, can be repeated",
+)
+@click.option(
+    "-k",
+    "--kind",
+    type=click.Choice(["pixi.toml"]),
+    multiple=True,
+    help="Kind of lock specification to generate. Must be 'pixi.toml'.",
+)
+@click.option(
+    "--filename-template",
+    default=None,
+    help="Template for single-platform (explicit, env) lock file names. Filename must include {platform} token, and must not end in '.yml'. For a full list and description of available tokens, see the command help text.",
+    hidden=True,
+)
+@click.option(
+    "--lockfile",
+    default=None,
+    help="Path to a conda-lock.yml which references source files to be used.",
+)
+@click.option(
+    "--strip-auth",
+    is_flag=True,
+    default=None,
+    help="Strip the basic auth credentials from the lockfile.",
+    hidden=True,
+)
+@click.option(
+    "-e",
+    "--extras",
+    "--category",
+    default=[],
+    type=str,
+    multiple=True,
+    help="When used in conjunction with input sources that support extras/categories (pyproject.toml) will add the deps from those extras to the render specification",
+)
+@click.option(
+    "--filter-categories",
+    "--filter-extras",
+    is_flag=True,
+    default=False,
+    help="In conjunction with extras this will prune out dependencies that do not have the extras specified when loading files.",
+)
+@click.option(
+    "--check-input-hash",
+    is_flag=True,
+    default=None,
+    help="Check existing input hashes in lockfiles before regenerating lock files.  If no files were updated exit with exit code 4.  Incompatible with --strip-auth",
+    hidden=True,
+)
+@click.option(
+    "--stdout",
+    is_flag=True,
+    help="Print the lock specification to stdout.",
+)
+@click.option(
+    "--log-level",
+    help="Log level.",
+    default="INFO",
+    type=click.Choice(["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]),
+)
+@click.option(
+    "--pdb", is_flag=True, help="Drop into a postmortem debugger if conda-lock crashes"
+)
+@click.option(
+    "--virtual-package-spec",
+    type=click.Path(),
+    help="Specify a set of virtual packages to use.",
+    hidden=True,
+)
+@click.option(
+    "--update",
+    multiple=True,
+    help="Packages to update to their latest versions. If empty, update all.",
+    hidden=True,
+)
+@click.option(
+    "--pypi_to_conda_lookup_file",
+    type=str,
+    help="Location of the lookup file containing Pypi package names to conda names.",
+)
+@click.option(
+    "--md",
+    "--metadata",
+    "metadata_choices",
+    default=[],
+    multiple=True,
+    type=click.Choice([md.value for md in MetadataOption]),
+    hidden=True,
+)
+@click.option(
+    "--with-cuda",
+    "with_cuda",
+    type=str,
+    default=None,
+    help="Specify cuda version to use in the system requirements.",
+)
+@click.option(
+    "--without-cuda",
+    "with_cuda",
+    flag_value="",
+    default=None,
+    help="Disable cuda in virtual packages. Prevents accepting cuda variants of packages. Ignored if virtual packages are specified.",
+    hidden=True,
+)
+@click.option(
+    "--mdy",
+    "--metadata-yaml",
+    "--metadata-json",
+    "metadata_yamls",
+    default=[],
+    multiple=True,
+    type=click.Path(),
+    help="YAML or JSON file(s) containing structured metadata to add to metadata section of the lockfile.",
+    hidden=True,
+)
+@click.option(
+    "--pixi-project-name",
+    type=str,
+    default=None,
+    help="Name of the Pixi project",
+)
+@click.option(
+    "--editable",
+    type=str,
+    multiple=True,
+    help="Add an editable pip dependency as name=path, e.g. --editable mypkg=./src/mypkg",
+)
+def render_lock_spec(  # noqa: C901
+    conda: Optional[str],
+    mamba: Optional[bool],
+    micromamba: Optional[bool],
+    platform: Sequence[str],
+    channel_overrides: Sequence[str],
+    dev_dependencies: bool,
+    files: Sequence[PathLike],
+    kind: Sequence[Literal["pixi.toml"]],
+    filename_template: Optional[str],
+    lockfile: Optional[PathLike],
+    strip_auth: bool,
+    extras: Sequence[str],
+    filter_categories: bool,
+    check_input_hash: Optional[bool],
+    log_level: TLogLevel,
+    pdb: bool,
+    virtual_package_spec: Optional[PathLike],
+    pypi_to_conda_lookup_file: Optional[str],
+    with_cuda: Optional[str],
+    update: Sequence[str],
+    metadata_choices: Sequence[str],
+    metadata_yamls: Sequence[PathLike],
+    stdout: bool,
+    pixi_project_name: Optional[str],
+    editable: Sequence[str],
+) -> None:
+    """Combine source files into a single lock specification"""
+    kinds = set(kind)
+    if kinds != {"pixi.toml"}:
+        raise NotImplementedError(
+            "Only 'pixi.toml' is supported at the moment. Add `--kind=pixi.toml`."
+        )
+    if pixi_project_name is not None and "pixi.toml" not in kinds:
+        raise ValueError("The --pixi-project-name option is only valid for pixi.toml")
+    if not stdout:
+        raise NotImplementedError(
+            "Only stdout is supported at the moment. Add `--stdout`."
+        )
+    if len(metadata_choices) > 0:
+        warn(f"Metadata options {metadata_choices} will be ignored.")
+    del metadata_choices
+    if len(metadata_yamls) > 0:
+        warn(f"Metadata files {metadata_yamls} will be ignored.")
+    del metadata_yamls
+    if virtual_package_spec:
+        warn(
+            f"Virtual package spec {virtual_package_spec} will be ignored. "
+            f"Please add virtual packages by hand to the [system-requirements] table."
+        )
+    del virtual_package_spec
+    if with_cuda is not None:
+        if not isinstance(with_cuda, str) or with_cuda == "":
+            raise NotImplementedError(
+                "Please specify an explicit version to --with-cuda."
+            )
+    if update:
+        warn(f"Update packages {update} will be ignored.")
+    del update
+    if conda is not None:
+        warn(f"Conda executable {conda} will be ignored.")
+    del conda
+    if mamba is not None:
+        warn(f"Mamba option {mamba} will be ignored.")
+    del mamba
+    if micromamba is not None:
+        warn(f"Micromamba option {micromamba} will be ignored.")
+    del micromamba
+    if filename_template is not None:
+        warn(f"Filename template {filename_template} will be ignored.")
+    del filename_template
+    if strip_auth:
+        warn(f"Strip auth {strip_auth} will be ignored.")
+    del strip_auth
+    if check_input_hash is not None:
+        warn(f"Check input hash {check_input_hash} will be ignored.")
+    del check_input_hash
+    if lockfile is not None:
+        if len(files) > 0:
+            raise ValueError(
+                f"Don't specify the lockfile if source files {files} are "
+                f"specified explicitly."
+            )
+        warn(
+            f"It is recommended to specify lockfile sources explicitly "
+            f"instead of via {lockfile}."
+        )
+        lockfile_path = pathlib.Path(lockfile)
+    else:
+        lockfile_path = None
+    del lockfile
+    editables: List[EditableDependency] = []
+    for ed in editable:
+        name_path = ed.split("=", maxsplit=1)
+        if len(name_path) != 2:
+            raise ValueError(
+                f"Editable dependency must contain '=' to specify name=path, "
+                f"but got {ed}."
+            )
+        name, path = name_path
+        if not path.startswith("."):
+            warn(
+                f"Editable dependency path {path} should be relative to the project "
+                f"root, but it does not start with '.'"
+            )
+        editables.append(EditableDependency(name=name, path=path))
+
+    logging.basicConfig(level=log_level)
+
+    # Set Pypi <--> Conda lookup file location
+    mapping_url = (
+        DEFAULT_MAPPING_URL
+        if pypi_to_conda_lookup_file is None
+        else pypi_to_conda_lookup_file
+    )
+
+    src_files = [pathlib.Path(file) for file in files]
+
+    if pdb:
+        sys.excepthook = _handle_exception_post_mortem
+
+    do_render_lockspec(
+        src_files=src_files,
+        kinds=kinds,
+        stdout=stdout,
+        platform_overrides=platform,
+        channel_overrides=channel_overrides,
+        include_dev_dependencies=dev_dependencies,
+        extras=set(extras),
+        filter_categories=filter_categories,
+        lockfile_path=lockfile_path,
+        with_cuda=with_cuda,
+        pixi_project_name=pixi_project_name,
+        mapping_url=mapping_url,
+        editables=editables,
+    )
+
+
+def do_render_lockspec(
+    src_files: List[pathlib.Path],
+    *,
+    kinds: AbstractSet[Literal["pixi.toml"]],
+    stdout: bool,
+    platform_overrides: Optional[Sequence[str]] = None,
+    channel_overrides: Optional[Sequence[str]] = None,
+    include_dev_dependencies: bool = True,
+    extras: Optional[AbstractSet[str]] = None,
+    filter_categories: bool = False,
+    lockfile_path: Optional[pathlib.Path] = None,
+    with_cuda: Optional[str] = None,
+    pixi_project_name: Optional[str] = None,
+    mapping_url: str,
+    editables: Optional[List[EditableDependency]] = None,
+) -> None:
+    if len(src_files) == 0:
+        src_files = handle_no_specified_source_files(lockfile_path)
+
+    required_categories = {"main"}
+    if include_dev_dependencies:
+        required_categories.add("dev")
+    if extras is not None:
+        required_categories.update(extras)
+    lock_spec = make_lock_spec(
+        src_files=src_files,
+        channel_overrides=channel_overrides,
+        platform_overrides=platform_overrides,
+        required_categories=required_categories if filter_categories else None,
+        mapping_url=mapping_url,
+    )
+    if "pixi.toml" in kinds:
+        pixi_toml = render_pixi_toml(
+            lock_spec=lock_spec,
+            with_cuda=with_cuda,
+            project_name=pixi_project_name,
+            editables=editables,
+        )
+        if stdout:
+            print(pixi_toml.as_string(), end="")
+        else:
+            raise NotImplementedError("Only stdout is supported at the moment.")
 
 
 def _handle_exception_post_mortem(
