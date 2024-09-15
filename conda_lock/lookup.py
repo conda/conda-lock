@@ -2,7 +2,7 @@ import hashlib
 import logging
 import time
 
-from functools import cached_property
+from functools import lru_cache
 from pathlib import Path
 from typing import Dict
 
@@ -11,11 +11,14 @@ import ruamel.yaml
 
 from filelock import FileLock, Timeout
 from packaging.utils import NormalizedName, canonicalize_name
+from packaging.utils import canonicalize_name as canonicalize_pypi_name
 from platformdirs import user_cache_path
 from typing_extensions import TypedDict
 
 
 logger = logging.getLogger(__name__)
+
+DEFAULT_MAPPING_URL = "https://raw.githubusercontent.com/regro/cf-graph-countyfair/master/mappings/pypi/grayskull_pypi_mapping.yaml"
 
 
 class MappingEntry(TypedDict):
@@ -25,88 +28,72 @@ class MappingEntry(TypedDict):
     pypi_name: NormalizedName
 
 
-class _LookupLoader:
-    _mapping_url: str = "https://raw.githubusercontent.com/regro/cf-graph-countyfair/master/mappings/pypi/grayskull_pypi_mapping.yaml"
-
-    @property
-    def mapping_url(self) -> str:
-        return self._mapping_url
-
-    @mapping_url.setter
-    def mapping_url(self, value: str) -> None:
-        if self._mapping_url != value:
-            self._mapping_url = value
-            # Invalidate cache
-            try:
-                del self.pypi_lookup
-            except AttributeError:
-                pass
-            try:
-                del self.conda_lookup
-            except AttributeError:
-                pass
-
-    @cached_property
-    def pypi_lookup(self) -> Dict[NormalizedName, MappingEntry]:
-        url = self.mapping_url
-        if url.startswith("http://") or url.startswith("https://"):
-            content = cached_download_file(url)
+@lru_cache(maxsize=None)
+def _get_pypi_lookup(mapping_url: str) -> Dict[NormalizedName, MappingEntry]:
+    url = mapping_url
+    if url.startswith("http://") or url.startswith("https://"):
+        content = cached_download_file(url)
+    else:
+        if url.startswith("file://"):
+            path = url[len("file://") :]
         else:
-            if url.startswith("file://"):
-                path = url[len("file://") :]
-            else:
-                path = url
-            content = Path(path).read_bytes()
-        logger.debug("Parsing PyPI mapping")
-        load_start = time.monotonic()
-        yaml = ruamel.yaml.YAML(typ="safe")
-        lookup = yaml.load(content)
-        load_duration = time.monotonic() - load_start
-        logger.debug(f"Loaded {len(lookup)} entries in {load_duration:.2f}s")
-        # lowercase and kebabcase the pypi names
-        assert lookup is not None
-        lookup = {canonicalize_name(k): v for k, v in lookup.items()}
-        for v in lookup.values():
-            v["pypi_name"] = canonicalize_name(v["pypi_name"])
-        return lookup
-
-    @cached_property
-    def conda_lookup(self) -> Dict[str, MappingEntry]:
-        return {record["conda_name"]: record for record in self.pypi_lookup.values()}
+            path = url
+        content = Path(path).read_bytes()
+    logger.debug("Parsing PyPI mapping")
+    load_start = time.monotonic()
+    yaml = ruamel.yaml.YAML(typ="safe")
+    lookup = yaml.load(content)
+    load_duration = time.monotonic() - load_start
+    logger.debug(f"Loaded {len(lookup)} entries in {load_duration:.2f}s")
+    # lowercase and kebabcase the pypi names
+    assert lookup is not None
+    lookup = {canonicalize_name(k): v for k, v in lookup.items()}
+    for v in lookup.values():
+        v["pypi_name"] = canonicalize_name(v["pypi_name"])
+    return lookup
 
 
-LOOKUP_OBJECT = _LookupLoader()
+def pypi_name_to_conda_name(name: str, mapping_url: str) -> str:
+    """Convert a PyPI package name to a conda package name.
+
+    >>> from conda_lock.lookup import DEFAULT_MAPPING_URL
+    >>> pypi_name_to_conda_name("build", mapping_url=DEFAULT_MAPPING_URL)
+    'python-build'
+
+    >>> pypi_name_to_conda_name("zpfqzvrj", mapping_url=DEFAULT_MAPPING_URL)
+    'zpfqzvrj'
+    """
+    cname = canonicalize_pypi_name(name)
+    if cname in _get_pypi_lookup(mapping_url):
+        lookup = _get_pypi_lookup(mapping_url)[cname]
+        res = lookup.get("conda_name") or lookup.get("conda_forge")
+        if res is not None:
+            return res
+        else:
+            logging.warning(
+                f"Could not find conda name for {cname}. Assuming identity."
+            )
+            return cname
+    else:
+        return cname
 
 
-def get_forward_lookup() -> Dict[NormalizedName, MappingEntry]:
-    global LOOKUP_OBJECT
-    return LOOKUP_OBJECT.pypi_lookup
-
-
-def get_lookup() -> Dict[str, MappingEntry]:
+@lru_cache(maxsize=None)
+def _get_conda_lookup(mapping_url: str) -> Dict[str, MappingEntry]:
     """
     Reverse grayskull name mapping to map conda names onto PyPI
     """
-    global LOOKUP_OBJECT
-    return LOOKUP_OBJECT.conda_lookup
+    return {
+        record["conda_name"]: record
+        for record in _get_pypi_lookup(mapping_url).values()
+    }
 
 
-def set_lookup_location(lookup_url: str) -> None:
-    global LOOKUP_OBJECT
-    LOOKUP_OBJECT.mapping_url = lookup_url
-
-
-def conda_name_to_pypi_name(name: str) -> NormalizedName:
+def conda_name_to_pypi_name(name: str, mapping_url: str) -> NormalizedName:
     """return the pypi name for a conda package"""
-    lookup = get_lookup()
+    lookup = _get_conda_lookup(mapping_url=mapping_url)
     cname = canonicalize_name(name)
     return lookup.get(cname, {"pypi_name": cname})["pypi_name"]
-
-
-def pypi_name_to_conda_name(name: str) -> str:
-    """return the conda name for a pypi package"""
-    cname = canonicalize_name(name)
-    return get_forward_lookup().get(cname, {"conda_name": cname})["conda_name"]
 
 
 def cached_download_file(url: str) -> bytes:
@@ -138,26 +125,25 @@ def cached_download_file(url: str) -> bytes:
     destination_etag = destination_mapping.with_suffix(".etag")
     destination_lock = destination_mapping.with_suffix(".lock")
 
-    # Return the contents immediately if the file is fresh
-    try:
-        mtime = destination_mapping.stat().st_mtime
-        age = current_time - mtime
-        if age < DONT_CHECK_IF_NEWER_THAN_SECONDS:
-            contents = destination_mapping.read_bytes()
-            logger.debug(
-                f"Using cached mapping {destination_mapping} without "
-                f"checking for updates"
-            )
-            return contents
-    except FileNotFoundError:
-        pass
-
     # Wait for any other process to finish downloading the file.
     # Use the ETag to avoid downloading the file if it hasn't changed.
     # Otherwise, download the file and cache the contents and ETag.
     while True:
         try:
             with FileLock(destination_lock, timeout=5):
+                # Return the contents immediately if the file is fresh
+                try:
+                    mtime = destination_mapping.stat().st_mtime
+                    age = current_time - mtime
+                    if age < DONT_CHECK_IF_NEWER_THAN_SECONDS:
+                        contents = destination_mapping.read_bytes()
+                        logger.debug(
+                            f"Using cached mapping {destination_mapping} without "
+                            f"checking for updates"
+                        )
+                        return contents
+                except FileNotFoundError:
+                    pass
                 # Get the ETag from the last download, if it exists
                 if destination_mapping.exists() and destination_etag.exists():
                     logger.debug(f"Old ETag found at {destination_etag}")

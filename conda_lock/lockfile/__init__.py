@@ -66,10 +66,12 @@ def _truncate_main_category(
 
 
 def apply_categories(
+    *,
     requested: Dict[str, Dependency],
     planned: Mapping[str, Union[List[LockedDependency], LockedDependency]],
     categories: Sequence[str] = ("main", "dev"),
     convert_to_pip_names: bool = False,
+    mapping_url: str,
 ) -> None:
     """map each package onto the root request the with the highest-priority category"""
 
@@ -98,14 +100,15 @@ def apply_categories(
         return [
             item
             for item in planned_items
-            if dep_name(item.manager, item.name) not in deps
+            if dep_name(manager=item.manager, dep=item.name, mapping_url=mapping_url)
+            not in deps
         ]
 
-    def dep_name(manager: str, dep: str) -> str:
+    def dep_name(*, manager: str, dep: str, mapping_url: str) -> str:
         # If we operate on lists of pip names and this is a conda dependency, we
         # convert the name to a pip name.
         if convert_to_pip_names and manager == "conda":
-            return conda_name_to_pypi_name(dep)
+            return conda_name_to_pypi_name(dep, mapping_url=mapping_url)
         return dep
 
     for name, request in requested.items():
@@ -123,7 +126,9 @@ def apply_categories(
 
             for planned_item in planned_items:
                 todo.extend(
-                    dep_name(planned_item.manager, dep)
+                    dep_name(
+                        manager=planned_item.manager, dep=dep, mapping_url=mapping_url
+                    )
                     for dep in planned_item.dependencies
                     # exclude virtual packages
                     if not (dep in deps or dep.startswith("__"))

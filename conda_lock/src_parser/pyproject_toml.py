@@ -30,7 +30,7 @@ from typing_extensions import Literal
 
 from conda_lock.common import get_in
 from conda_lock.interfaces.vendored_grayskull import encode_poetry_version
-from conda_lock.lookup import get_forward_lookup as get_lookup
+from conda_lock.lookup import pypi_name_to_conda_name
 from conda_lock.models.lock_spec import (
     Dependency,
     LockSpecification,
@@ -68,22 +68,6 @@ POETRY_OPTIONAL_NOT_MAIN = (
     "Conda-Lock will follows Poetry behavior and ignore the flag. "
     "It will be treated as part of the `{category}` category."
 )
-
-
-def normalize_pypi_name(name: str) -> str:
-    cname = canonicalize_pypi_name(name)
-    if cname in get_lookup():
-        lookup = get_lookup()[cname]
-        res = lookup.get("conda_name") or lookup.get("conda_forge")
-        if res is not None:
-            return res
-        else:
-            logging.warning(
-                f"Could not find conda name for {cname}. Assuming identity."
-            )
-            return cname
-    else:
-        return cname
 
 
 def poetry_version_to_conda_version(version_string: Optional[str]) -> Optional[str]:
@@ -191,6 +175,7 @@ def parse_poetry_pyproject_toml(
     path: pathlib.Path,
     platforms: List[str],
     contents: Mapping[str, Any],
+    mapping_url: str,
 ) -> LockSpecification:
     """
     Parse dependencies from a poetry pyproject.toml file
@@ -292,7 +277,7 @@ def parse_poetry_pyproject_toml(
                 )
 
             if manager == "conda":
-                name = normalize_pypi_name(depname)
+                name = pypi_name_to_conda_name(depname, mapping_url=mapping_url)
                 version = poetry_version_to_conda_version(poetry_version_spec)
             else:
                 name = depname
@@ -456,39 +441,49 @@ def unpack_git_url(url: str) -> Tuple[str, Optional[str]]:
 
 def parse_python_requirement(
     requirement: str,
+    *,
+    mapping_url: str,
     manager: Literal["conda", "pip"] = "conda",
     category: str = "main",
     normalize_name: bool = True,
 ) -> Dependency:
     """Parse a requirements.txt like requirement to a conda spec.
 
-    >>> parse_python_requirement("my_package")  # doctest: +NORMALIZE_WHITESPACE
+    >>> from conda_lock.lookup import DEFAULT_MAPPING_URL
+    >>> parse_python_requirement(
+    ...     "my_package",
+    ...     mapping_url=DEFAULT_MAPPING_URL,
+    ... )  # doctest: +NORMALIZE_WHITESPACE
     VersionedDependency(name='my-package', manager='conda', category='main', extras=[],
         markers=None, version='*', build=None, conda_channel=None, hash=None)
 
     >>> parse_python_requirement(
-    ...     "My_Package[extra]==1.23"
+    ...     "My_Package[extra]==1.23",
+    ...     mapping_url=DEFAULT_MAPPING_URL,
     ... )  # doctest: +NORMALIZE_WHITESPACE
     VersionedDependency(name='my-package', manager='conda', category='main',
         extras=['extra'], markers=None, version='==1.23', build=None,
         conda_channel=None, hash=None)
 
     >>> parse_python_requirement(
-    ...     "conda-lock @ git+https://github.com/conda/conda-lock.git@v2.4.1"
+    ...     "conda-lock @ git+https://github.com/conda/conda-lock.git@v2.4.1",
+    ...     mapping_url=DEFAULT_MAPPING_URL,
     ... )  # doctest: +NORMALIZE_WHITESPACE
     VCSDependency(name='conda-lock', manager='conda', category='main', extras=[],
         markers=None, source='https://github.com/conda/conda-lock.git', vcs='git',
         rev='v2.4.1')
 
     >>> parse_python_requirement(
-    ...     "some-package @ https://some-repository.org/some-package-1.2.3.tar.gz"
+    ...     "some-package @ https://some-repository.org/some-package-1.2.3.tar.gz",
+    ...     mapping_url=DEFAULT_MAPPING_URL,
     ... )  # doctest: +NORMALIZE_WHITESPACE
     URLDependency(name='some-package', manager='conda', category='main', extras=[],
         markers=None, url='https://some-repository.org/some-package-1.2.3.tar.gz',
         hashes=[''])
 
     >>> parse_python_requirement(
-    ...     "some-package ; sys_platform == 'darwin'"
+    ...     "some-package ; sys_platform == 'darwin'",
+    ...     mapping_url=DEFAULT_MAPPING_URL,
     ... )  # doctest: +NORMALIZE_WHITESPACE
     VersionedDependency(name='some-package', manager='conda', category='main',
         extras=[], markers="sys_platform == 'darwin'", version='*', build=None,
@@ -506,7 +501,7 @@ def parse_python_requirement(
         conda_version = ",".join(sorted(conda_version.split(",")))
 
     if normalize_name:
-        conda_dep_name = normalize_pypi_name(name)
+        conda_dep_name = pypi_name_to_conda_name(name, mapping_url=mapping_url)
     else:
         conda_dep_name = name
     extras = list(parsed_req.extras)
@@ -548,11 +543,13 @@ def parse_python_requirement(
 
 def parse_requirements_pyproject_toml(
     pyproject_toml_path: pathlib.Path,
+    *,
     platforms: List[str],
     contents: Mapping[str, Any],
     prefix: Sequence[str],
     main_tag: str,
     optional_tag: str,
+    mapping_url: str,
     dev_tags: AbstractSet[str] = {"dev", "test"},
 ) -> LockSpecification:
     """
@@ -577,7 +574,10 @@ def parse_requirements_pyproject_toml(
         for dep in get_in(list(path), contents, []):
             dependencies.append(
                 parse_python_requirement(
-                    dep, manager=default_non_conda_source, category=category
+                    dep,
+                    manager=default_non_conda_source,
+                    category=category,
+                    mapping_url=mapping_url,
                 )
             )
 
@@ -590,6 +590,7 @@ def parse_pdm_pyproject_toml(
     path: pathlib.Path,
     platforms: List[str],
     contents: Mapping[str, Any],
+    mapping_url: str,
 ) -> LockSpecification:
     """
     PDM support. First, a regular PEP621 pass; then, add all dependencies listed
@@ -597,8 +598,9 @@ def parse_pdm_pyproject_toml(
     """
     res = parse_requirements_pyproject_toml(
         path,
-        platforms,
-        contents,
+        platforms=platforms,
+        contents=contents,
+        mapping_url=mapping_url,
         prefix=("project",),
         main_tag="dependencies",
         optional_tag="optional-dependencies",
@@ -614,7 +616,10 @@ def parse_pdm_pyproject_toml(
         dev_reqs.extend(
             [
                 parse_python_requirement(
-                    dep, manager=default_non_conda_source, category="dev"
+                    dep,
+                    manager=default_non_conda_source,
+                    category="dev",
+                    mapping_url=mapping_url,
                 )
                 for dep in deps
             ]
@@ -636,7 +641,9 @@ def parse_platforms_from_pyproject_toml(
 
 def parse_pyproject_toml(
     pyproject_toml: pathlib.Path,
+    *,
     platforms: List[str],
+    mapping_url: str,
 ) -> LockSpecification:
     with pyproject_toml.open("rb") as fp:
         contents = toml_load(fp)
@@ -696,4 +703,6 @@ def parse_pyproject_toml(
             "Could not detect build-system in pyproject.toml.  Assuming poetry"
         )
 
-    return parse(pyproject_toml, platforms, contents)
+    return parse(
+        pyproject_toml, platforms=platforms, contents=contents, mapping_url=mapping_url
+    )
