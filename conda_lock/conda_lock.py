@@ -2017,7 +2017,7 @@ def do_render_lockspec(
             editables=editables,
         )
         if stdout:
-            print(pixi_toml.as_string())
+            print(pixi_toml.as_string(), end="")
         else:
             raise NotImplementedError("Only stdout is supported at the moment.")
 
