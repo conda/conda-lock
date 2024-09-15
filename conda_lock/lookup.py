@@ -53,7 +53,7 @@ def get_pypi_lookup(mapping_url: str) -> Dict[NormalizedName, MappingEntry]:
 
 
 @lru_cache(maxsize=None)
-def get_conda_lookup(mapping_url: str) -> Dict[str, MappingEntry]:
+def _get_conda_lookup(mapping_url: str) -> Dict[str, MappingEntry]:
     """
     Reverse grayskull name mapping to map conda names onto PyPI
     """
@@ -64,7 +64,7 @@ def get_conda_lookup(mapping_url: str) -> Dict[str, MappingEntry]:
 
 def conda_name_to_pypi_name(name: str, mapping_url: str) -> NormalizedName:
     """return the pypi name for a conda package"""
-    lookup = get_conda_lookup(mapping_url=mapping_url)
+    lookup = _get_conda_lookup(mapping_url=mapping_url)
     cname = canonicalize_name(name)
     return lookup.get(cname, {"pypi_name": cname})["pypi_name"]
 

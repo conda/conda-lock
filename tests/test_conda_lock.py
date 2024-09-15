@@ -61,7 +61,7 @@ from conda_lock.lockfile.v2prelim.models import (
     LockedDependency,
     MetadataOption,
 )
-from conda_lock.lookup import DEFAULT_MAPPING_URL, get_conda_lookup
+from conda_lock.lookup import DEFAULT_MAPPING_URL, conda_name_to_pypi_name
 from conda_lock.models.channel import Channel
 from conda_lock.models.lock_spec import Dependency, VCSDependency, VersionedDependency
 from conda_lock.models.pip_repository import PipRepository
@@ -2691,18 +2691,15 @@ def test_lookup_sources():
         Path(__file__).parent / "test-lookup" / "emoji-to-python-dateutil-lookup.yml"
     )
     url = f"file://{lookup.absolute()}"
-    conda_lookup = get_conda_lookup(url)
-    assert conda_lookup["emoji"]["pypi_name"] == "python-dateutil"
+    assert conda_name_to_pypi_name("emoji", url) == "python-dateutil"
 
     # Test that the lookup can be read from a straight filename
     url = str(lookup.absolute())
-    conda_lookup = get_conda_lookup(url)
-    assert conda_lookup["emoji"]["pypi_name"] == "python-dateutil"
+    assert conda_name_to_pypi_name("emoji", url) == "python-dateutil"
 
     # Test that the default remote lookup contains expected nontrivial mappings
     url = DEFAULT_MAPPING_URL
-    conda_lookup = get_conda_lookup(url)
-    assert conda_lookup["python-build"]["pypi_name"] == "build"
+    assert conda_name_to_pypi_name("python-build", url) == "build"
 
 
 @pytest.fixture
