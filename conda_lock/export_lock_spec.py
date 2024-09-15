@@ -1,5 +1,3 @@
-import warnings
-
 from collections import defaultdict
 from typing import Any, Dict, List, NamedTuple, Optional, Set, Tuple, Union
 
@@ -10,6 +8,7 @@ from conda_lock._export_lock_spec_compute_platform_indep import (
     EditableDependency,
     unify_platform_independent_deps,
 )
+from conda_lock.common import warn
 from conda_lock.models.lock_spec import (
     Dependency,
     LockSpecification,
@@ -77,13 +76,13 @@ def render_pixi_toml(
         ),
     )
     if len(lock_spec.channels) == 0:
-        warnings.warn(
+        warn(
             "No channels defined in the lock file! Consider defining channels, e.g. "
             "via the command line by adding `--channel conda-forge`."
         )
     for channel in lock_spec.channels:
         if channel.used_env_vars:
-            warnings.warn(
+            warn(
                 f"Channel {channel.url} uses environment variables, which will "
                 "be dropped in the pixi.toml."
             )
@@ -166,7 +165,7 @@ def toml_dependency_value(
             matchspec["channel"] = dep.conda_channel
         if dep.extras:
             if dep.extras and dep.manager == "conda":
-                warnings.warn(f"Extras not supported in Conda dep {dep}")
+                warn(f"Extras not supported in Conda dep {dep}")
             else:
                 matchspec["extras"] = dep.extras
         if len(matchspec) == 1:
@@ -351,7 +350,7 @@ def toml_environments_table(all_categories: Set[str]) -> Table:
         (name for name in MINIMAL_ENVIRONMENT_NAMES if name not in all_categories), None
     )
     if minimal_category_name is None:
-        warnings.warn(
+        warn(
             "Can't find a name for the 'minimal' environment since categories for '"
             + "', '".join(MINIMAL_ENVIRONMENT_NAMES)
             + "' are already defined. Skipping."

@@ -6,10 +6,9 @@ be attached to dependency specifications.
 <https://www.python.org/dev/peps/pep-0508/#environment-markers>
 """
 
-import warnings
-
 from typing import Set, Union
 
+from conda_lock.common import warn
 from conda_lock.interfaces.vendored_poetry_markers import (
     AnyMarker,
     BaseMarker,
@@ -70,7 +69,7 @@ def evaluate_marker(marker: Union[BaseMarker, str, None], platform: str) -> bool
     names = get_names(marker)
     supported_names = set(marker_env.keys())
     if not names <= supported_names:
-        warnings.warn(
+        warn(
             f"Marker '{marker}' contains environment markers: "
             f"{names - supported_names}. Only {supported_names} are supported."
         )

@@ -45,6 +45,7 @@ from conda_lock.common import (
     read_json,
     relative_path,
     temporary_file_with_contents,
+    warn,
     write_file,
 )
 from conda_lock.conda_solver import solve_conda
@@ -1879,13 +1880,13 @@ def render_lock_spec(  # noqa: C901
             "Only stdout is supported at the moment. Add `--stdout`."
         )
     if len(metadata_choices) > 0:
-        logger.warning(f"Metadata options {metadata_choices} will be ignored.")
+        warn(f"Metadata options {metadata_choices} will be ignored.")
     del metadata_choices
     if len(metadata_yamls) > 0:
-        logger.warning(f"Metadata files {metadata_yamls} will be ignored.")
+        warn(f"Metadata files {metadata_yamls} will be ignored.")
     del metadata_yamls
     if virtual_package_spec:
-        logger.warning(
+        warn(
             f"Virtual package spec {virtual_package_spec} will be ignored. "
             f"Please add virtual packages by hand to the [system-requirements] table."
         )
@@ -1896,25 +1897,25 @@ def render_lock_spec(  # noqa: C901
                 "Please specify an explicit version to --with-cuda."
             )
     if update:
-        logger.warning(f"Update packages {update} will be ignored.")
+        warn(f"Update packages {update} will be ignored.")
     del update
     if conda is not None:
-        logger.warning(f"Conda executable {conda} will be ignored.")
+        warn(f"Conda executable {conda} will be ignored.")
     del conda
     if mamba is not None:
-        logger.warning(f"Mamba option {mamba} will be ignored.")
+        warn(f"Mamba option {mamba} will be ignored.")
     del mamba
     if micromamba is not None:
-        logger.warning(f"Micromamba option {micromamba} will be ignored.")
+        warn(f"Micromamba option {micromamba} will be ignored.")
     del micromamba
     if filename_template is not None:
-        logger.warning(f"Filename template {filename_template} will be ignored.")
+        warn(f"Filename template {filename_template} will be ignored.")
     del filename_template
     if strip_auth:
-        logger.warning(f"Strip auth {strip_auth} will be ignored.")
+        warn(f"Strip auth {strip_auth} will be ignored.")
     del strip_auth
     if check_input_hash is not None:
-        logger.warning(f"Check input hash {check_input_hash} will be ignored.")
+        warn(f"Check input hash {check_input_hash} will be ignored.")
     del check_input_hash
     if lockfile is not None:
         if len(files) > 0:
@@ -1922,7 +1923,7 @@ def render_lock_spec(  # noqa: C901
                 f"Don't specify the lockfile if source files {files} are "
                 f"specified explicitly."
             )
-        logger.warning(
+        warn(
             f"It is recommended to specify lockfile sources explicitly "
             f"instead of via {lockfile}."
         )
@@ -1940,7 +1941,7 @@ def render_lock_spec(  # noqa: C901
             )
         name, path = name_path
         if not path.startswith("."):
-            logger.warning(
+            warn(
                 f"Editable dependency path {path} should be relative to the project "
                 f"root, but it does not start with '.'"
             )
