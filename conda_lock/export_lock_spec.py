@@ -48,7 +48,7 @@ def render_pixi_toml(
         "For more information, see <https://github.com/conda/conda-lock> "
         "and <https://pixi.sh>.",
         "Source files:",
-        *(f"- {src_file}" for src_file in lock_spec.sources),
+        *(f"- {src_file.as_posix()}" for src_file in lock_spec.sources),
     ):
         pixi_toml.add(comment(line))
 
