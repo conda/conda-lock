@@ -7,6 +7,33 @@ Perhaps "migration" is the wrong word, because pixi is an option, not a replacem
 It will not override existing workflows.
 Removing pixi from your project is as simple as deleting the files indicated in step 2 below.
 
+## Quick example
+
+Use conda-lock and pixi to make a development environment for ibis.
+
+```sh
+pipx upgrade conda-lock || pipx install --force "conda-lock>=3"
+cd /tmp
+git clone https://github.com/ibis-project/ibis.git
+cd ibis
+git checkout -b add-pixi
+echo .pixi >> .gitignore
+git add .gitignore
+git commit -m "Ignore pixi cache directory"
+conda-lock render-lock-spec --kind=pixi.toml --stdout \
+    --file=pyproject.toml \
+    --channel=conda-forge \
+    --pixi-project-name=ibis \
+    --editable ibis=. \
+    > pixi.toml
+git add pixi.toml
+git commit -m "Add pixi.toml configuration"
+pixi update
+git add pixi.lock
+git commit -m "Add pixi.lock lock file"
+pixi shell
+```
+
 ## The steps to get started
 
 1. Visit <https://pixi.sh> and install pixi if you haven't already.
