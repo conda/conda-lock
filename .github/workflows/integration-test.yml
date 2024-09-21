@@ -129,8 +129,13 @@ jobs:
           conda-lock install --log-level=DEBUG -n gdal-test-cl-explicit lockfiles/conda-*.lock
           conda-lock install --log-level=DEBUG -n gdal-test-cl-env lockfiles/conda-*.lock.yml
 
+          conda list -n gdal-test-cl-lock
           conda run -n gdal-test-cl-lock gdalinfo --version
+
+          conda list -n gdal-test-cl-explicit
           conda run -n gdal-test-cl-explicit gdalinfo --version
+
+          conda list -n gdal-test-cl-env
           conda run -n gdal-test-cl-env gdalinfo --version
 
           conda run -n gdal-test-cl-lock python -c 'import toolz; print(toolz.__version__)'
