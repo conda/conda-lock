@@ -19,6 +19,10 @@ concurrency:
 env:
   MICROMAMBA_VERSION: 'latest'
 
+defaults:
+  run:
+    shell: bash -elx {0}
+
 jobs:
   lock-gdal:
     runs-on: ${{ matrix.os }}
@@ -27,9 +31,6 @@ jobs:
       matrix:
         os: [ ubuntu-latest, macos-latest, windows-latest ]
         python-version: [ "3.8", "3.12" ]
-    defaults:
-      run:
-        shell: bash -el {0}
     steps:
       - name: Set Conda platform
         run: |
@@ -57,14 +58,8 @@ jobs:
           conda-lock --log-level=DEBUG --mamba -f tests/gdal/environment.yml -p $CONDA_PLATFORM
           conda-lock render -p $CONDA_PLATFORM
           conda-lock render -p $CONDA_PLATFORM --kind=env
-          echo
-          echo
           cat conda-$CONDA_PLATFORM.lock
-          echo
-          echo
           cat conda-$CONDA_PLATFORM.lock.yml
-          echo
-          echo
           cat conda-lock.yml
           mkdir lockfiles
           mv conda-$CONDA_PLATFORM.lock conda-$CONDA_PLATFORM.lock.yml conda-lock.yml lockfiles
@@ -81,9 +76,6 @@ jobs:
       matrix:
         os: [ ubuntu-latest, macos-latest, windows-latest ]
         python-version: [ "3.8" ]
-    defaults:
-      run:
-        shell: bash -el {0}
     steps:
       - name: Install Conda environment with Micromamba
         uses: mamba-org/setup-micromamba@v1
@@ -116,9 +108,6 @@ jobs:
       matrix:
         os: [ ubuntu-latest, macos-latest, windows-latest ]
         python-version: [ "3.8", "3.12" ]
-    defaults:
-      run:
-        shell: bash -el {0}
     steps:
       - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4
       - uses: conda-incubator/setup-miniconda@v3
@@ -140,8 +129,13 @@ jobs:
           conda-lock install --log-level=DEBUG -n gdal-test-cl-explicit lockfiles/conda-*.lock
           conda-lock install --log-level=DEBUG -n gdal-test-cl-env lockfiles/conda-*.lock.yml
 
+          conda list -n gdal-test-cl-lock
           conda run -n gdal-test-cl-lock gdalinfo --version
+
+          conda list -n gdal-test-cl-explicit
           conda run -n gdal-test-cl-explicit gdalinfo --version
+
+          conda list -n gdal-test-cl-env
           conda run -n gdal-test-cl-env gdalinfo --version
 
           conda run -n gdal-test-cl-lock python -c 'import toolz; print(toolz.__version__)'
@@ -156,9 +150,6 @@ jobs:
       matrix:
         os: [ ubuntu-latest, macos-latest, windows-latest ]
         python-version: [ "3.8" ]
-    defaults:
-      run:
-        shell: bash -el {0}
     steps:
       - uses: conda-incubator/setup-miniconda@v3
         with:
