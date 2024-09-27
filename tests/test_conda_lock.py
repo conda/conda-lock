@@ -825,7 +825,7 @@ def test_parse_poetry_path(poetry_pyproject_toml_path: Path):
     specs = {dep.name: dep for dep in res.dependencies["linux-64"]}
 
     assert isinstance(specs["fake-private-package"], PathDependency)
-    assert specs["fake-private-package"].path == "./fake-private-package-1.0.0"
+    assert specs["fake-private-package"].path == "fake-private-package-1.0.0"
 
 
 def test_parse_poetry_no_pypi(poetry_pyproject_toml_no_pypi: Path):

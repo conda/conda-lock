@@ -516,7 +516,15 @@ def parse_python_requirement(
     ... )  # doctest: +NORMALIZE_WHITESPACE
     VCSDependency(name='conda-lock', manager='conda', category='main', extras=[],
         markers=None, source='https://github.com/conda/conda-lock.git', vcs='git',
-        rev='v2.4.1')
+        rev='v2.4.1', subdirectory=None)
+
+    >>> parse_python_requirement(
+    ...     "conda-lock @ git+https://github.com/conda/conda-lock.git@v2.4.1#subdirectory=src",
+    ...     mapping_url=DEFAULT_MAPPING_URL,
+    ... )  # doctest: +NORMALIZE_WHITESPACE
+    VCSDependency(name='conda-lock', manager='conda', category='main', extras=[],
+        markers=None, source='https://github.com/conda/conda-lock.git', vcs='git',
+        rev='v2.4.1', subdirectory='src')
 
     >>> parse_python_requirement(
     ...     "some-package @ https://some-repository.org/some-package-1.2.3.tar.gz",
