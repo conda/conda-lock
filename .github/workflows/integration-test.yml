@@ -80,7 +80,10 @@ jobs:
       - name: Install Conda environment with Micromamba
         uses: mamba-org/setup-micromamba@v1
         with:
-          micromamba-version: ${{ env.MICROMAMBA_VERSION }}
+          # # Temporarily pin the version due to
+          # # <https://github.com/mamba-org/mamba/issues/3467>
+          # micromamba-version: ${{ env.MICROMAMBA_VERSION }}
+          micromamba-version: 1.5.10-0
           init-shell: bash
       - name: Download lockfiles
         uses: actions/download-artifact@v4
