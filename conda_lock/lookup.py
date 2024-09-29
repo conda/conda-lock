@@ -5,7 +5,7 @@ import time
 
 from functools import lru_cache
 from pathlib import Path
-from typing import Dict
+from typing import Dict, TypedDict
 
 import requests
 
@@ -13,7 +13,6 @@ from filelock import FileLock, Timeout
 from packaging.utils import NormalizedName, canonicalize_name
 from packaging.utils import canonicalize_name as canonicalize_pypi_name
 from platformdirs import user_cache_path
-from typing_extensions import TypedDict
 
 
 logger = logging.getLogger(__name__)
