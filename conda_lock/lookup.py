@@ -8,7 +8,6 @@ from pathlib import Path
 from typing import Dict
 
 import requests
-import ruamel.yaml
 
 from filelock import FileLock, Timeout
 from packaging.utils import NormalizedName, canonicalize_name
@@ -45,6 +44,8 @@ def _get_pypi_lookup(mapping_url: str) -> Dict[NormalizedName, MappingEntry]:
     if url.endswith(".json"):
         lookup = json.loads(content)
     else:
+        import ruamel.yaml
+
         yaml = ruamel.yaml.YAML(typ="safe")
         lookup = yaml.load(content)
     load_duration = time.monotonic() - load_start
