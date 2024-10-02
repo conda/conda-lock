@@ -541,6 +541,22 @@ def parse_python_requirement(
     VersionedDependency(name='some-package', manager='conda', category='main',
         extras=[], markers="sys_platform == 'darwin'", version='*', build=None,
         conda_channel=None, hash=None)
+
+    >>> parse_python_requirement(
+    ...     "mypkg @ /path/to/some-package",
+    ...     manager="pip",
+    ...     mapping_url=DEFAULT_MAPPING_URL,
+    ... )  # doctest: +NORMALIZE_WHITESPACE
+    PathDependency(name='mypkg', manager='pip', category='main',
+        extras=[], markers=None, path='/path/to/some-package', is_directory=False)
+
+    >>> parse_python_requirement(
+    ...     "mypkg @ file:///path/to/some-package",
+    ...     manager="pip",
+    ...     mapping_url=DEFAULT_MAPPING_URL,
+    ... )  # doctest: +NORMALIZE_WHITESPACE
+    PathDependency(name='mypkg', manager='pip', category='main',
+        extras=[], markers=None, path='/path/to/some-package', is_directory=False)
     """
     if ";" in requirement:
         requirement, markers = (s.strip() for s in requirement.rsplit(";", 1))
@@ -573,14 +589,35 @@ def parse_python_requirement(
         )
     elif parsed_req.url:
         assert conda_version in {"", "*", None}
-        url, frag = urldefrag(parsed_req.url)
-        return URLDependency(
+        if (
+            parsed_req.url.startswith("git+")
+            or parsed_req.url.startswith("https://")
+            or parsed_req.url.startswith("ssh://")
+        ):
+            url, frag = urldefrag(parsed_req.url)
+            return URLDependency(
+                name=conda_dep_name,
+                manager=manager,
+                category=category,
+                extras=extras,
+                url=url,
+                hashes=[frag.replace("=", ":")],
+                markers=markers,
+            )
+        # Local file/directory URL
+        url = parsed_req.url
+        if url.startswith("file://"):
+            url = url[7:]
+        path = pathlib.Path(url)
+        path.resolve()
+        is_dir = path.is_dir()
+        return PathDependency(
             name=conda_dep_name,
             manager=manager,
             category=category,
             extras=extras,
-            url=url,
-            hashes=[frag.replace("=", ":")],
+            path=path.as_posix(),
+            is_directory=is_dir,
             markers=markers,
         )
     else:
