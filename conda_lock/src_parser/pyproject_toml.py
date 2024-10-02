@@ -548,7 +548,8 @@ def parse_python_requirement(
     ...     mapping_url=DEFAULT_MAPPING_URL,
     ... )  # doctest: +NORMALIZE_WHITESPACE
     PathDependency(name='mypkg', manager='pip', category='main',
-        extras=[], markers=None, path='/path/to/some-package', is_directory=False)
+        extras=[], markers=None, path='/path/to/some-package', is_directory=False,
+        subdirectory=None)
 
     >>> parse_python_requirement(
     ...     "mypkg @ file:///path/to/some-package",
@@ -556,7 +557,8 @@ def parse_python_requirement(
     ...     mapping_url=DEFAULT_MAPPING_URL,
     ... )  # doctest: +NORMALIZE_WHITESPACE
     PathDependency(name='mypkg', manager='pip', category='main',
-        extras=[], markers=None, path='/path/to/some-package', is_directory=False)
+        extras=[], markers=None, path='/path/to/some-package', is_directory=False,
+        subdirectory=None)
     """
     if ";" in requirement:
         requirement, markers = (s.strip() for s in requirement.rsplit(";", 1))
