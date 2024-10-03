@@ -17,8 +17,8 @@ conda/infrastructure:
   # - .github/workflows/lock.yml
 
   # [optional] general processes for the conda org
-  - src: templates/HOW_WE_USE_GITHUB.md
-    dst: HOW_WE_USE_GITHUB.md
+  # - src: templates/HOW_WE_USE_GITHUB.md
+  #   dst: HOW_WE_USE_GITHUB.md
 
   # [optional] standard issue templates
   - src: templates/issues/bug.yml
