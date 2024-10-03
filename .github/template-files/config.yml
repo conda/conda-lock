@@ -13,8 +13,8 @@ conda/infrastructure:
   # - .github/workflows/project.yml
 
   # [optional] stale bot workflows
-  - .github/workflows/stale.yml
-  - .github/workflows/lock.yml
+  # - .github/workflows/stale.yml
+  # - .github/workflows/lock.yml
 
   # [optional] general processes for the conda org
   - src: templates/HOW_WE_USE_GITHUB.md
