@@ -16,7 +16,10 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  MICROMAMBA_VERSION: 'latest'
+  # # Temporarily pin the version due to
+  # # <https://github.com/mamba-org/mamba/issues/3467>
+  # MICROMAMBA_VERSION: 'latest'
+  MICROMAMBA_VERSION: '1.5.10-0'
 
 jobs:
   test:
