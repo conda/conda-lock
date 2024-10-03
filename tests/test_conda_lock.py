@@ -2594,20 +2594,13 @@ def test_fake_conda_env(conda_exe: str, conda_lock_yaml: Path):
             expected_channel = "conda-forge"
             expected_base_url = "https://conda.anaconda.org/conda-forge"
             if is_micromamba(conda_exe):
-                dist_name = env_package["dist_name"]
                 assert env_package["base_url"] in {
                     f"{expected_base_url}/{platform}",
                     expected_base_url,
-                    # <https://github.com/mamba-org/mamba/issues/3480>
-                    f"{expected_base_url}/{platform}/{dist_name}.conda",
-                    f"{expected_base_url}/{platform}/{dist_name}.tar.bz2",
                 }
                 assert env_package["channel"] in {
                     f"{expected_channel}/{platform}",
                     expected_channel,
-                    # <https://github.com/mamba-org/mamba/issues/3480>
-                    f"{expected_channel}/{platform}/{dist_name}.conda",
-                    f"{expected_channel}/{platform}/{dist_name}.tar.bz2",
                 }
             else:
                 assert env_package["base_url"] == expected_base_url
