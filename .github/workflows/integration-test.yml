@@ -78,7 +78,7 @@ jobs:
         python-version: [ "3.8" ]
     steps:
       - name: Install Conda environment with Micromamba
-        uses: mamba-org/setup-micromamba@v1
+        uses: mamba-org/setup-micromamba@v2
         with:
           # # Temporarily pin the version due to
           # # <https://github.com/mamba-org/mamba/issues/3467>
