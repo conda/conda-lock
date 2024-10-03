@@ -21,17 +21,17 @@ conda/infrastructure:
   #   dst: HOW_WE_USE_GITHUB.md
 
   # [optional] standard issue templates
-  - src: templates/issues/bug.yml
-    dst: .github/ISSUE_TEMPLATE/0_bug.yml
+  # - src: templates/issues/bug.yml
+  #   dst: .github/ISSUE_TEMPLATE/0_bug.yml
 
-  - src: templates/issues/feature.yml
-    dst: .github/ISSUE_TEMPLATE/1_feature.yml
+  # - src: templates/issues/feature.yml
+  #   dst: .github/ISSUE_TEMPLATE/1_feature.yml
 
-  - src: templates/issues/documentation.yml
-    dst: .github/ISSUE_TEMPLATE/2_documentation.yml
+  # - src: templates/issues/documentation.yml
+  #   dst: .github/ISSUE_TEMPLATE/2_documentation.yml
 
-  - src: templates/issues/epic.yml
-    dst: .github/ISSUE_TEMPLATE/epic.yml
+  # - src: templates/issues/epic.yml
+  #   dst: .github/ISSUE_TEMPLATE/epic.yml
 
   # [optional] standard PR template
   # - src: templates/pull_requests/news_tests_docs.md
