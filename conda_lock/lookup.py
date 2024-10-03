@@ -1,24 +1,23 @@
 import hashlib
+import json
 import logging
 import time
 
 from functools import lru_cache
 from pathlib import Path
-from typing import Dict
+from typing import Dict, TypedDict
 
 import requests
-import ruamel.yaml
 
 from filelock import FileLock, Timeout
 from packaging.utils import NormalizedName, canonicalize_name
 from packaging.utils import canonicalize_name as canonicalize_pypi_name
 from platformdirs import user_cache_path
-from typing_extensions import TypedDict
 
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_MAPPING_URL = "https://raw.githubusercontent.com/regro/cf-graph-countyfair/master/mappings/pypi/grayskull_pypi_mapping.yaml"
+DEFAULT_MAPPING_URL = "https://raw.githubusercontent.com/regro/cf-graph-countyfair/master/mappings/pypi/grayskull_pypi_mapping.json"
 
 
 class MappingEntry(TypedDict):
@@ -41,8 +40,13 @@ def _get_pypi_lookup(mapping_url: str) -> Dict[NormalizedName, MappingEntry]:
         content = Path(path).read_bytes()
     logger.debug("Parsing PyPI mapping")
     load_start = time.monotonic()
-    yaml = ruamel.yaml.YAML(typ="safe")
-    lookup = yaml.load(content)
+    if url.endswith(".json"):
+        lookup = json.loads(content)
+    else:
+        import ruamel.yaml
+
+        yaml = ruamel.yaml.YAML(typ="safe")
+        lookup = yaml.load(content)
     load_duration = time.monotonic() - load_start
     logger.debug(f"Loaded {len(lookup)} entries in {load_duration:.2f}s")
     # lowercase and kebabcase the pypi names
