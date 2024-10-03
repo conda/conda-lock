@@ -34,6 +34,7 @@ from conda_lock.lookup import pypi_name_to_conda_name
 from conda_lock.models.lock_spec import (
     Dependency,
     LockSpecification,
+    PathDependency,
     PoetryMappedDependencySpec,
     URLDependency,
     VCSDependency,
@@ -127,6 +128,17 @@ def handle_mapping(
     """Handle a dependency in mapping form from a pyproject.toml file"""
     if "git" in depattrs:
         url: Optional[str] = depattrs.get("git", None)
+        manager = "pip"
+        # Order is the same as the one used by poetry
+        branch_ident = depattrs.get(
+            "branch", depattrs.get("tag", depattrs.get("rev", None))
+        )
+        if branch_ident is not None:
+            url += "@" + branch_ident
+        if "subdirectory" in depattrs:
+            url += "#subdirectory=" + depattrs["subdirectory"]
+    elif "path" in depattrs:
+        url = depattrs.get("path", None)
         manager = "pip"
     else:
         poetry_version_spec = depattrs.get("version", None)
@@ -284,7 +296,7 @@ def parse_poetry_pyproject_toml(
             version = poetry_version_to_conda_version(poetry_version_spec)
 
             if "git" in depattrs and url is not None:
-                url, rev = unpack_git_url(url)
+                url, rev, subdir = unpack_git_url(url)
                 dependencies.append(
                     VCSDependency(
                         name=name,
@@ -293,6 +305,20 @@ def parse_poetry_pyproject_toml(
                         manager=manager,
                         vcs="git",
                         rev=rev,
+                        subdirectory=subdir,
+                    )
+                )
+            elif "path" in depattrs and url is not None:
+                path = pathlib.Path(url)
+                path.resolve()
+                is_dir = path.is_dir()
+                dependencies.append(
+                    PathDependency(
+                        name=name,
+                        markers=markers,
+                        path=path.as_posix(),
+                        is_directory=is_dir,
+                        manager=manager,
                     )
                 )
             elif version is None:
@@ -423,12 +449,13 @@ def parse_requirement_specifier(
         return RequirementWithHash(requirement)
 
 
-def unpack_git_url(url: str) -> Tuple[str, Optional[str]]:
+def unpack_git_url(url: str) -> Tuple[str, Optional[str], Optional[str]]:
     if url.endswith(".git"):
         url = url[:-4]
     if url.startswith("git+"):
         url = url[4:]
     rev = None
+    subdir = None
     if "@" in url:
         try:
             url, rev = url.split("@")
@@ -436,7 +463,9 @@ def unpack_git_url(url: str) -> Tuple[str, Optional[str]]:
             # SSH URLs can have multiple @s
             url1, url2, rev = url.split("@")
             url = f"{url1}@{url2}"
-    return url, rev
+    if rev and "#subdirectory=" in rev:
+        rev, subdir = rev.split("#subdirectory=")
+    return url, rev, subdir
 
 
 def parse_python_requirement(
@@ -487,7 +516,15 @@ def parse_python_requirement(
     ... )  # doctest: +NORMALIZE_WHITESPACE
     VCSDependency(name='conda-lock', manager='conda', category='main', extras=[],
         markers=None, source='https://github.com/conda/conda-lock.git', vcs='git',
-        rev='v2.4.1')
+        rev='v2.4.1', subdirectory=None)
+
+    >>> parse_python_requirement(
+    ...     "conda-lock @ git+https://github.com/conda/conda-lock.git@v2.4.1#subdirectory=src",
+    ...     mapping_url=DEFAULT_MAPPING_URL,
+    ... )  # doctest: +NORMALIZE_WHITESPACE
+    VCSDependency(name='conda-lock', manager='conda', category='main', extras=[],
+        markers=None, source='https://github.com/conda/conda-lock.git', vcs='git',
+        rev='v2.4.1', subdirectory='src')
 
     >>> parse_python_requirement(
     ...     "some-package @ https://some-repository.org/some-package-1.2.3.tar.gz",
@@ -504,6 +541,24 @@ def parse_python_requirement(
     VersionedDependency(name='some-package', manager='conda', category='main',
         extras=[], markers="sys_platform == 'darwin'", version='*', build=None,
         conda_channel=None, hash=None)
+
+    >>> parse_python_requirement(
+    ...     "mypkg @ /path/to/some-package",
+    ...     manager="pip",
+    ...     mapping_url=DEFAULT_MAPPING_URL,
+    ... )  # doctest: +NORMALIZE_WHITESPACE
+    PathDependency(name='mypkg', manager='pip', category='main',
+        extras=[], markers=None, path='/path/to/some-package', is_directory=False,
+        subdirectory=None)
+
+    >>> parse_python_requirement(
+    ...     "mypkg @ file:///path/to/some-package",
+    ...     manager="pip",
+    ...     mapping_url=DEFAULT_MAPPING_URL,
+    ... )  # doctest: +NORMALIZE_WHITESPACE
+    PathDependency(name='mypkg', manager='pip', category='main',
+        extras=[], markers=None, path='/path/to/some-package', is_directory=False,
+        subdirectory=None)
     """
     if ";" in requirement:
         requirement, markers = (s.strip() for s in requirement.rsplit(";", 1))
@@ -523,7 +578,7 @@ def parse_python_requirement(
     extras = list(parsed_req.extras)
 
     if parsed_req.url and parsed_req.url.startswith("git+"):
-        url, rev = unpack_git_url(parsed_req.url)
+        url, rev, subdir = unpack_git_url(parsed_req.url)
         return VCSDependency(
             name=conda_dep_name,
             source=url,
@@ -532,17 +587,39 @@ def parse_python_requirement(
             vcs="git",
             rev=rev,
             markers=markers,
+            subdirectory=subdir,
         )
     elif parsed_req.url:
         assert conda_version in {"", "*", None}
-        url, frag = urldefrag(parsed_req.url)
-        return URLDependency(
+        if (
+            parsed_req.url.startswith("git+")
+            or parsed_req.url.startswith("https://")
+            or parsed_req.url.startswith("ssh://")
+        ):
+            url, frag = urldefrag(parsed_req.url)
+            return URLDependency(
+                name=conda_dep_name,
+                manager=manager,
+                category=category,
+                extras=extras,
+                url=url,
+                hashes=[frag.replace("=", ":")],
+                markers=markers,
+            )
+        # Local file/directory URL
+        url = parsed_req.url
+        if url.startswith("file://"):
+            url = url[7:]
+        path = pathlib.Path(url)
+        path.resolve()
+        is_dir = path.is_dir()
+        return PathDependency(
             name=conda_dep_name,
             manager=manager,
             category=category,
             extras=extras,
-            url=url,
-            hashes=[frag.replace("=", ":")],
+            path=path.as_posix(),
+            is_directory=is_dir,
             markers=markers,
         )
     else:
