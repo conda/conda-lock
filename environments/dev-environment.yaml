@@ -15,7 +15,7 @@ dependencies:
 - flaky
 - freezegun
 - gitpython
-- mamba
+- mamba <2
 - mkdocs
 - mkdocs-click
 - mkdocs-material
