@@ -45,10 +45,12 @@ from conda_lock.common import (
     read_json,
     relative_path,
     temporary_file_with_contents,
+    warn,
     write_file,
 )
 from conda_lock.conda_solver import solve_conda
 from conda_lock.errors import MissingEnvVarError, PlatformValidationError
+from conda_lock.export_lock_spec import EditableDependency, render_pixi_toml
 from conda_lock.invoke_conda import (
     PathLike,
     _invoke_conda,
@@ -69,20 +71,21 @@ from conda_lock.lockfile.v2prelim.models import (
     TimeMeta,
     UpdateSpecification,
 )
-from conda_lock.lookup import set_lookup_location
+from conda_lock.lookup import DEFAULT_MAPPING_URL
 from conda_lock.models.channel import Channel
 from conda_lock.models.lock_spec import LockSpecification
 from conda_lock.models.pip_repository import PipRepository
 from conda_lock.pypi_solver import solve_pypi
 from conda_lock.src_parser import make_lock_spec
 from conda_lock.virtual_package import (
+    FakeRepoData,
     default_virtual_package_repodata,
     virtual_package_repo_from_specification,
 )
 
 
 logger = logging.getLogger(__name__)
-DEFAULT_FILES = [pathlib.Path("environment.yml")]
+DEFAULT_FILES = [pathlib.Path("environment.yml"), pathlib.Path("environment.yaml")]
 
 # Captures basic auth credentials, if they exists, in the third capture group.
 AUTH_PATTERN = re.compile(r"^(# pip .* @ )?(https?:\/\/)(.*:.*@)?(.*)")
@@ -255,11 +258,11 @@ def make_lock_files(  # noqa: C901
     conda: PathLike,
     src_files: List[pathlib.Path],
     kinds: Sequence[TKindAll],
-    lockfile_path: pathlib.Path = pathlib.Path(DEFAULT_LOCKFILE_NAME),
+    lockfile_path: Optional[pathlib.Path] = None,
     platform_overrides: Optional[Sequence[str]] = None,
     channel_overrides: Optional[Sequence[str]] = None,
     virtual_package_spec: Optional[pathlib.Path] = None,
-    update: Optional[List[str]] = None,
+    update: Optional[Sequence[str]] = None,
     include_dev_dependencies: bool = True,
     filename_template: Optional[str] = None,
     filter_categories: bool = False,
@@ -269,6 +272,7 @@ def make_lock_files(  # noqa: C901
     metadata_yamls: Sequence[pathlib.Path] = (),
     with_cuda: Optional[str] = None,
     strip_auth: bool = False,
+    mapping_url: str,
 ) -> None:
     """
     Generate a lock file from the src files provided
@@ -312,6 +316,33 @@ def make_lock_files(  # noqa: C901
         YAML or JSON file(s) containing structured metadata to add to metadata section of the lockfile.
     """
 
+    # Compute lock specification
+    required_categories = {"main"}
+    if include_dev_dependencies:
+        required_categories.add("dev")
+    if extras is not None:
+        required_categories.update(extras)
+    lock_spec = make_lock_spec(
+        src_files=src_files,
+        channel_overrides=channel_overrides,
+        platform_overrides=platform_overrides,
+        required_categories=required_categories if filter_categories else None,
+        mapping_url=mapping_url,
+    )
+
+    # Load existing lockfile if it exists
+    original_lock_content: Optional[Lockfile] = None
+    if lockfile_path is None:
+        lockfile_path = pathlib.Path(DEFAULT_LOCKFILE_NAME)
+    if lockfile_path.exists():
+        try:
+            original_lock_content = parse_conda_lock_file(lockfile_path)
+        except (yaml.error.YAMLError, FileNotFoundError):
+            logger.warning("Failed to parse existing lock.  Regenerating from scratch")
+            original_lock_content = None
+    else:
+        original_lock_content = None
+
     # initialize virtual packages
     if virtual_package_spec and virtual_package_spec.exists():
         virtual_package_repo = virtual_package_repo_from_specification(
@@ -324,42 +355,16 @@ def make_lock_files(  # noqa: C901
             with_cuda = "11.4"
         else:
             cuda_specified = True
-
         virtual_package_repo = default_virtual_package_repodata(cuda_version=with_cuda)
 
-    required_categories = {"main"}
-    if include_dev_dependencies:
-        required_categories.add("dev")
-    if extras is not None:
-        required_categories.update(extras)
-
     with virtual_package_repo:
-        lock_spec = make_lock_spec(
-            src_files=src_files,
-            channel_overrides=channel_overrides,
-            platform_overrides=platform_overrides,
-            virtual_package_repo=virtual_package_repo,
-            required_categories=required_categories if filter_categories else None,
-        )
-        original_lock_content: Optional[Lockfile] = None
-
-        if lockfile_path.exists():
-            import yaml
-
-            try:
-                original_lock_content = parse_conda_lock_file(lockfile_path)
-            except (yaml.error.YAMLError, FileNotFoundError):
-                logger.warning(
-                    "Failed to parse existing lock.  Regenerating from scratch"
-                )
-                original_lock_content = None
-        else:
-            original_lock_content = None
-
         platforms_to_lock: List[str] = []
         platforms_already_locked: List[str] = []
         if original_lock_content is not None:
             platforms_already_locked = list(original_lock_content.metadata.platforms)
+            if update is not None:
+                # Narrow `update` sequence to list for mypy
+                update = list(update)
             update_spec = UpdateSpecification(
                 locked=original_lock_content.package, update=update
             )
@@ -368,7 +373,9 @@ def make_lock_files(  # noqa: C901
                     update
                     or platform not in platforms_already_locked
                     or not check_input_hash
-                    or lock_spec.content_hash_for_platform(platform)
+                    or lock_spec.content_hash_for_platform(
+                        platform, virtual_package_repo
+                    )
                     != original_lock_content.metadata.content_hash[platform]
                 ):
                     platforms_to_lock.append(platform)
@@ -399,6 +406,8 @@ def make_lock_files(  # noqa: C901
                 metadata_choices=metadata_choices,
                 metadata_yamls=metadata_yamls,
                 strip_auth=strip_auth,
+                virtual_package_repo=virtual_package_repo,
+                mapping_url=mapping_url,
             )
 
             if not original_lock_content:
@@ -598,7 +607,7 @@ def render_lockfile_for_platform(  # noqa: C901
         f"# input_hash: {lockfile.metadata.content_hash.get(platform)}\n",
     ]
 
-    categories = {
+    categories_to_install: Set[str] = {
         "main",
         *(extras or []),
         *(["dev"] if include_dev_dependencies else []),
@@ -616,7 +625,7 @@ def render_lockfile_for_platform(  # noqa: C901
     lockfile.filter_virtual_packages_inplace()
 
     for p in lockfile.package:
-        if p.platform == platform and p.category in categories:
+        if p.platform == platform and len(p.categories & categories_to_install) > 0:
             if p.manager == "pip":
                 pip_deps.append(p)
             elif p.manager == "conda":
@@ -635,7 +644,7 @@ def render_lockfile_for_platform(  # noqa: C901
                 s += f"#sha256={spec.hash.sha256}"
             return s
         else:
-            s = f"{spec.name} === {spec.version}"
+            s = f"{spec.name} == {spec.version}"
             if spec.hash.sha256:
                 s += f" --hash=sha256:{spec.hash.sha256}"
             return s
@@ -720,13 +729,16 @@ def render_lockfile_for_platform(  # noqa: C901
 
 
 def _solve_for_arch(
+    *,
     conda: PathLike,
     spec: LockSpecification,
     platform: str,
     channels: List[Channel],
     pip_repositories: List[PipRepository],
+    virtual_package_repo: FakeRepoData,
     update_spec: Optional[UpdateSpecification] = None,
     strip_auth: bool = False,
+    mapping_url: str,
 ) -> List[LockedDependency]:
     """
     Solve specification for a single platform
@@ -752,13 +764,14 @@ def _solve_for_arch(
         update=update_spec.update,
         platform=platform,
         channels=channels,
+        mapping_url=mapping_url,
     )
 
     if requested_deps_by_name["pip"]:
         if "python" not in conda_deps:
             raise ValueError("Got pip specs without Python")
         pip_deps = solve_pypi(
-            requested_deps_by_name["pip"],
+            pip_specs=requested_deps_by_name["pip"],
             use_latest=update_spec.update,
             pip_locked={
                 dep.name: dep for dep in update_spec.locked if dep.manager == "pip"
@@ -767,15 +780,16 @@ def _solve_for_arch(
             python_version=conda_deps["python"].version,
             platform=platform,
             platform_virtual_packages=(
-                spec.virtual_package_repo.all_repodata.get(
-                    platform, {"packages": None}
-                )["packages"]
-                if spec.virtual_package_repo
+                virtual_package_repo.all_repodata.get(platform, {"packages": None})[
+                    "packages"
+                ]
+                if virtual_package_repo
                 else None
             ),
             pip_repositories=pip_repositories,
             allow_pypi_requests=spec.allow_pypi_requests,
             strip_auth=strip_auth,
+            mapping_url=mapping_url,
         )
     else:
         pip_deps = {}
@@ -821,14 +835,14 @@ def create_lockfile_from_spec(
     metadata_choices: AbstractSet[MetadataOption] = frozenset(),
     metadata_yamls: Sequence[pathlib.Path] = (),
     strip_auth: bool = False,
+    virtual_package_repo: FakeRepoData,
+    mapping_url: str,
 ) -> Lockfile:
     """
     Solve or update specification
     """
     if platforms is None:
         platforms = []
-    assert spec.virtual_package_repo is not None
-    virtual_package_channel = spec.virtual_package_repo.channel
 
     locked: Dict[Tuple[str, str, str], LockedDependency] = {}
 
@@ -837,10 +851,12 @@ def create_lockfile_from_spec(
             conda=conda,
             spec=spec,
             platform=platform,
-            channels=[*spec.channels, virtual_package_channel],
+            channels=[*spec.channels, virtual_package_repo.channel],
             pip_repositories=spec.pip_repositories,
+            virtual_package_repo=virtual_package_repo,
             update_spec=update_spec,
             strip_auth=strip_auth,
+            mapping_url=mapping_url,
         )
 
         for dep in deps:
@@ -888,11 +904,12 @@ def create_lockfile_from_spec(
         inputs_metadata = None
 
     custom_metadata = get_custom_metadata(metadata_yamls=metadata_yamls)
+    content_hash = spec.content_hash(virtual_package_repo)
 
     return Lockfile(
         package=[locked[k] for k in locked],
         metadata=LockMeta(
-            content_hash=spec.content_hash(),
+            content_hash=content_hash,
             channels=[c for c in spec.channels],
             platforms=spec.platforms,
             sources=list(meta_sources.keys()),
@@ -1050,59 +1067,85 @@ def _detect_lockfile_kind(path: pathlib.Path) -> TKindAll:
         )
 
 
+def handle_no_specified_source_files(
+    lockfile_path: Optional[pathlib.Path],
+) -> List[pathlib.Path]:
+    """No sources were specified on the CLI, so try to read them from the lockfile.
+
+    If none are found, then fall back to the default files.
+    """
+    if lockfile_path is None:
+        lockfile_path = pathlib.Path(DEFAULT_LOCKFILE_NAME)
+    if lockfile_path.exists():
+        lock_content = parse_conda_lock_file(lockfile_path)
+        # reconstruct native paths
+        locked_environment_files = [
+            (
+                pathlib.Path(p)
+                # absolute paths could be locked for both flavours
+                if pathlib.PurePosixPath(p).is_absolute()
+                or pathlib.PureWindowsPath(p).is_absolute()
+                else pathlib.Path(
+                    pathlib.PurePosixPath(lockfile_path).parent
+                    / pathlib.PurePosixPath(p)
+                )
+            )
+            for p in lock_content.metadata.sources
+        ]
+        if all(p.exists() for p in locked_environment_files):
+            environment_files = locked_environment_files
+            logger.warning(
+                f"Using source files {[str(p) for p in locked_environment_files]} "
+                f"from {lockfile_path} to create the environment."
+            )
+        else:
+            missing = [p for p in locked_environment_files if not p.exists()]
+            environment_files = DEFAULT_FILES.copy()
+            print(
+                f"{lockfile_path} was created from {[str(p) for p in locked_environment_files]},"
+                f" but some files ({[str(p) for p in missing]}) do not exist. Falling back to"
+                f" {[str(p) for p in environment_files]}.",
+                file=sys.stderr,
+            )
+    else:
+        # No lockfile provided, so fall back to the default files
+        environment_files = [f for f in DEFAULT_FILES if f.exists()]
+        if len(environment_files) == 0:
+            logger.error(
+                "No source files provided and no default files found. Exiting."
+            )
+            sys.exit(1)
+        elif len(environment_files) > 1:
+            logger.error(f"Multiple default files found: {environment_files}. Exiting.")
+            sys.exit(1)
+    return environment_files
+
+
 def run_lock(
     environment_files: List[pathlib.Path],
     *,
     conda_exe: Optional[PathLike],
-    platforms: Optional[List[str]] = None,
+    platforms: Optional[Sequence[str]] = None,
     mamba: bool = False,
     micromamba: bool = False,
     include_dev_dependencies: bool = True,
     channel_overrides: Optional[Sequence[str]] = None,
     filename_template: Optional[str] = None,
     kinds: Optional[Sequence[TKindAll]] = None,
-    lockfile_path: pathlib.Path = pathlib.Path(DEFAULT_LOCKFILE_NAME),
+    lockfile_path: Optional[pathlib.Path] = None,
     check_input_hash: bool = False,
     extras: Optional[AbstractSet[str]] = None,
     virtual_package_spec: Optional[pathlib.Path] = None,
     with_cuda: Optional[str] = None,
-    update: Optional[List[str]] = None,
+    update: Optional[Sequence[str]] = None,
     filter_categories: bool = False,
     metadata_choices: AbstractSet[MetadataOption] = frozenset(),
     metadata_yamls: Sequence[pathlib.Path] = (),
     strip_auth: bool = False,
+    mapping_url: str,
 ) -> None:
-    if environment_files == DEFAULT_FILES:
-        if lockfile_path.exists():
-            lock_content = parse_conda_lock_file(lockfile_path)
-            # reconstruct native paths
-            locked_environment_files = [
-                (
-                    pathlib.Path(p)
-                    # absolute paths could be locked for both flavours
-                    if pathlib.PurePosixPath(p).is_absolute()
-                    or pathlib.PureWindowsPath(p).is_absolute()
-                    else pathlib.Path(
-                        pathlib.PurePosixPath(lockfile_path).parent
-                        / pathlib.PurePosixPath(p)
-                    )
-                )
-                for p in lock_content.metadata.sources
-            ]
-            if all(p.exists() for p in locked_environment_files):
-                environment_files = locked_environment_files
-            else:
-                missing = [p for p in locked_environment_files if not p.exists()]
-                print(
-                    f"{lockfile_path} was created from {[str(p) for p in locked_environment_files]},"
-                    f" but some files ({[str(p) for p in missing]}) do not exist. Falling back to"
-                    f" {[str(p) for p in environment_files]}.",
-                    file=sys.stderr,
-                )
-        else:
-            long_ext_file = pathlib.Path("environment.yaml")
-            if long_ext_file.exists() and not environment_files[0].exists():
-                environment_files = [long_ext_file]
+    if len(environment_files) == 0:
+        environment_files = handle_no_specified_source_files(lockfile_path)
 
     _conda_exe = determine_conda_executable(
         conda_exe, mamba=mamba, micromamba=micromamba
@@ -1126,6 +1169,7 @@ def run_lock(
         metadata_choices=metadata_choices,
         metadata_yamls=metadata_yamls,
         strip_auth=strip_auth,
+        mapping_url=mapping_url,
     )
 
 
@@ -1145,7 +1189,7 @@ TLogLevel = Union[
 ]
 
 
-@main.command("lock")
+@main.command("lock", context_settings={"show_default": True})
 @click.option(
     "--conda", default=None, help="path (or name) of the conda/mamba executable to use."
 )
@@ -1182,7 +1226,6 @@ TLogLevel = Union[
     "-f",
     "--file",
     "files",
-    default=DEFAULT_FILES,
     type=click.Path(),
     multiple=True,
     help="path to a conda environment specification(s)",
@@ -1202,7 +1245,7 @@ TLogLevel = Union[
 )
 @click.option(
     "--lockfile",
-    default=DEFAULT_LOCKFILE_NAME,
+    default=None,
     help="Path to a conda-lock.yml to create or update",
 )
 @click.option(
@@ -1296,25 +1339,25 @@ def lock(
     conda: Optional[str],
     mamba: bool,
     micromamba: bool,
-    platform: List[str],
-    channel_overrides: List[str],
+    platform: Sequence[str],
+    channel_overrides: Sequence[str],
     dev_dependencies: bool,
-    files: List[pathlib.Path],
-    kind: List[Union[Literal["lock"], Literal["env"], Literal["explicit"]]],
+    files: Sequence[PathLike],
+    kind: Sequence[Union[Literal["lock"], Literal["env"], Literal["explicit"]]],
     filename_template: str,
-    lockfile: PathLike,
+    lockfile: Optional[PathLike],
     strip_auth: bool,
-    extras: List[str],
+    extras: Sequence[str],
     filter_categories: bool,
     check_input_hash: bool,
     log_level: TLogLevel,
     pdb: bool,
-    virtual_package_spec: Optional[pathlib.Path],
+    virtual_package_spec: Optional[PathLike],
     pypi_to_conda_lookup_file: Optional[str],
     with_cuda: Optional[str] = None,
-    update: Optional[List[str]] = None,
+    update: Optional[Sequence[str]] = None,
     metadata_choices: Sequence[str] = (),
-    metadata_yamls: Sequence[pathlib.Path] = (),
+    metadata_yamls: Sequence[PathLike] = (),
 ) -> None:
     """Generate fully reproducible lock files for conda environments.
 
@@ -1334,28 +1377,20 @@ def lock(
     logging.basicConfig(level=log_level)
 
     # Set Pypi <--> Conda lookup file location
-    if pypi_to_conda_lookup_file:
-        set_lookup_location(pypi_to_conda_lookup_file)
+    mapping_url = (
+        DEFAULT_MAPPING_URL
+        if pypi_to_conda_lookup_file is None
+        else pypi_to_conda_lookup_file
+    )
 
     metadata_enum_choices = set(MetadataOption(md) for md in metadata_choices)
 
-    metadata_yamls = [pathlib.Path(path) for path in metadata_yamls]
-
-    # bail out if we do not encounter the default file if no files were passed
-    if ctx.get_parameter_source("files") == click.core.ParameterSource.DEFAULT:  # type: ignore
-        candidates = list(files)
-        candidates += [f.with_name(f.name.replace(".yml", ".yaml")) for f in candidates]
-        for f in candidates:
-            if f.exists():
-                break
-        else:
-            print(ctx.get_help())
-            sys.exit(1)
+    environment_files = [pathlib.Path(file) for file in files]
 
     if pdb:
         sys.excepthook = _handle_exception_post_mortem
 
-    if not virtual_package_spec:
+    if virtual_package_spec is None:
         candidates = [
             pathlib.Path("virtual-packages.yml"),
             pathlib.Path("virtual-packages.yaml"),
@@ -1368,11 +1403,10 @@ def lock(
     else:
         virtual_package_spec = pathlib.Path(virtual_package_spec)
 
-    files = [pathlib.Path(file) for file in files]
     extras_ = set(extras)
     lock_func = partial(
         run_lock,
-        environment_files=files,
+        environment_files=environment_files,
         conda_exe=conda,
         platforms=platform,
         mamba=mamba,
@@ -1380,15 +1414,16 @@ def lock(
         include_dev_dependencies=dev_dependencies,
         channel_overrides=channel_overrides,
         kinds=kind,
-        lockfile_path=pathlib.Path(lockfile),
+        lockfile_path=None if lockfile is None else pathlib.Path(lockfile),
         extras=extras_,
         virtual_package_spec=virtual_package_spec,
         with_cuda=with_cuda,
         update=update,
         filter_categories=filter_categories,
         metadata_choices=metadata_enum_choices,
-        metadata_yamls=metadata_yamls,
+        metadata_yamls=[pathlib.Path(path) for path in metadata_yamls],
         strip_auth=strip_auth,
+        mapping_url=mapping_url,
     )
     if strip_auth:
         with tempfile.TemporaryDirectory() as tempdir:
@@ -1414,7 +1449,7 @@ DEFAULT_INSTALL_OPT_DEV = True
 DEFAULT_INSTALL_OPT_LOCK_FILE = pathlib.Path(DEFAULT_LOCKFILE_NAME)
 
 
-@main.command("install")
+@main.command("install", context_settings={"show_default": True})
 @click.option(
     "--conda", default=None, help="path (or name) of the conda/mamba executable to use."
 )
@@ -1552,7 +1587,7 @@ def install(
             install_func(file=lockfile)
 
 
-@main.command("render")
+@main.command("render", context_settings={"show_default": True})
 @click.option(
     "--dev-dependencies/--no-dev-dependencies",
     is_flag=True,
@@ -1617,6 +1652,7 @@ def render(
     # bail out if we do not encounter the lockfile
     lock_file = pathlib.Path(lock_file)
     if not lock_file.exists():
+        print(f"ERROR: Lockfile {lock_file} does not exist.\n\n", file=sys.stderr)
         print(ctx.get_help())
         sys.exit(1)
 
@@ -1630,6 +1666,360 @@ def render(
         extras=set(extras),
         override_platform=platform,
     )
+
+
+@main.command("render-lock-spec", context_settings={"show_default": True})
+@click.option(
+    "--conda",
+    default=None,
+    help="path (or name) of the conda/mamba executable to use.",
+    hidden=True,
+)
+@click.option(
+    "--mamba/--no-mamba",
+    default=None,
+    help="don't attempt to use or install mamba.",
+    hidden=True,
+)
+@click.option(
+    "--micromamba/--no-micromamba",
+    default=None,
+    help="don't attempt to use or install micromamba.",
+    hidden=True,
+)
+@click.option(
+    "-p",
+    "--platform",
+    multiple=True,
+    help="render lock files for the following platforms",
+)
+@click.option(
+    "-c",
+    "--channel",
+    "channel_overrides",
+    multiple=True,
+    help="""Override the channels to use when solving the environment. These will replace the channels as listed in the various source files.""",
+)
+@click.option(
+    "--dev-dependencies/--no-dev-dependencies",
+    is_flag=True,
+    default=True,
+    help="include dev dependencies in the lockfile spec (where applicable)",
+)
+@click.option(
+    "-f",
+    "--file",
+    "files",
+    type=click.Path(),
+    multiple=True,
+    help="path to a dependency specification, can be repeated",
+)
+@click.option(
+    "-k",
+    "--kind",
+    type=click.Choice(["pixi.toml"]),
+    multiple=True,
+    help="Kind of lock specification to generate. Must be 'pixi.toml'.",
+)
+@click.option(
+    "--filename-template",
+    default=None,
+    help="Template for single-platform (explicit, env) lock file names. Filename must include {platform} token, and must not end in '.yml'. For a full list and description of available tokens, see the command help text.",
+    hidden=True,
+)
+@click.option(
+    "--lockfile",
+    default=None,
+    help="Path to a conda-lock.yml which references source files to be used.",
+)
+@click.option(
+    "--strip-auth",
+    is_flag=True,
+    default=None,
+    help="Strip the basic auth credentials from the lockfile.",
+    hidden=True,
+)
+@click.option(
+    "-e",
+    "--extras",
+    "--category",
+    default=[],
+    type=str,
+    multiple=True,
+    help="When used in conjunction with input sources that support extras/categories (pyproject.toml) will add the deps from those extras to the render specification",
+)
+@click.option(
+    "--filter-categories",
+    "--filter-extras",
+    is_flag=True,
+    default=False,
+    help="In conjunction with extras this will prune out dependencies that do not have the extras specified when loading files.",
+)
+@click.option(
+    "--check-input-hash",
+    is_flag=True,
+    default=None,
+    help="Check existing input hashes in lockfiles before regenerating lock files.  If no files were updated exit with exit code 4.  Incompatible with --strip-auth",
+    hidden=True,
+)
+@click.option(
+    "--stdout",
+    is_flag=True,
+    help="Print the lock specification to stdout.",
+)
+@click.option(
+    "--log-level",
+    help="Log level.",
+    default="INFO",
+    type=click.Choice(["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]),
+)
+@click.option(
+    "--pdb", is_flag=True, help="Drop into a postmortem debugger if conda-lock crashes"
+)
+@click.option(
+    "--virtual-package-spec",
+    type=click.Path(),
+    help="Specify a set of virtual packages to use.",
+    hidden=True,
+)
+@click.option(
+    "--update",
+    multiple=True,
+    help="Packages to update to their latest versions. If empty, update all.",
+    hidden=True,
+)
+@click.option(
+    "--pypi_to_conda_lookup_file",
+    type=str,
+    help="Location of the lookup file containing Pypi package names to conda names.",
+)
+@click.option(
+    "--md",
+    "--metadata",
+    "metadata_choices",
+    default=[],
+    multiple=True,
+    type=click.Choice([md.value for md in MetadataOption]),
+    hidden=True,
+)
+@click.option(
+    "--with-cuda",
+    "with_cuda",
+    type=str,
+    default=None,
+    help="Specify cuda version to use in the system requirements.",
+)
+@click.option(
+    "--without-cuda",
+    "with_cuda",
+    flag_value="",
+    default=None,
+    help="Disable cuda in virtual packages. Prevents accepting cuda variants of packages. Ignored if virtual packages are specified.",
+    hidden=True,
+)
+@click.option(
+    "--mdy",
+    "--metadata-yaml",
+    "--metadata-json",
+    "metadata_yamls",
+    default=[],
+    multiple=True,
+    type=click.Path(),
+    help="YAML or JSON file(s) containing structured metadata to add to metadata section of the lockfile.",
+    hidden=True,
+)
+@click.option(
+    "--pixi-project-name",
+    type=str,
+    default=None,
+    help="Name of the Pixi project",
+)
+@click.option(
+    "--editable",
+    type=str,
+    multiple=True,
+    help="Add an editable pip dependency as name=path, e.g. --editable mypkg=./src/mypkg",
+)
+def render_lock_spec(  # noqa: C901
+    conda: Optional[str],
+    mamba: Optional[bool],
+    micromamba: Optional[bool],
+    platform: Sequence[str],
+    channel_overrides: Sequence[str],
+    dev_dependencies: bool,
+    files: Sequence[PathLike],
+    kind: Sequence[Literal["pixi.toml"]],
+    filename_template: Optional[str],
+    lockfile: Optional[PathLike],
+    strip_auth: bool,
+    extras: Sequence[str],
+    filter_categories: bool,
+    check_input_hash: Optional[bool],
+    log_level: TLogLevel,
+    pdb: bool,
+    virtual_package_spec: Optional[PathLike],
+    pypi_to_conda_lookup_file: Optional[str],
+    with_cuda: Optional[str],
+    update: Sequence[str],
+    metadata_choices: Sequence[str],
+    metadata_yamls: Sequence[PathLike],
+    stdout: bool,
+    pixi_project_name: Optional[str],
+    editable: Sequence[str],
+) -> None:
+    """Combine source files into a single lock specification"""
+    kinds = set(kind)
+    if kinds != {"pixi.toml"}:
+        raise NotImplementedError(
+            "Only 'pixi.toml' is supported at the moment. Add `--kind=pixi.toml`."
+        )
+    if pixi_project_name is not None and "pixi.toml" not in kinds:
+        raise ValueError("The --pixi-project-name option is only valid for pixi.toml")
+    if not stdout:
+        raise NotImplementedError(
+            "Only stdout is supported at the moment. Add `--stdout`."
+        )
+    if len(metadata_choices) > 0:
+        warn(f"Metadata options {metadata_choices} will be ignored.")
+    del metadata_choices
+    if len(metadata_yamls) > 0:
+        warn(f"Metadata files {metadata_yamls} will be ignored.")
+    del metadata_yamls
+    if virtual_package_spec:
+        warn(
+            f"Virtual package spec {virtual_package_spec} will be ignored. "
+            f"Please add virtual packages by hand to the [system-requirements] table."
+        )
+    del virtual_package_spec
+    if with_cuda is not None:
+        if not isinstance(with_cuda, str) or with_cuda == "":
+            raise NotImplementedError(
+                "Please specify an explicit version to --with-cuda."
+            )
+    if update:
+        warn(f"Update packages {update} will be ignored.")
+    del update
+    if conda is not None:
+        warn(f"Conda executable {conda} will be ignored.")
+    del conda
+    if mamba is not None:
+        warn(f"Mamba option {mamba} will be ignored.")
+    del mamba
+    if micromamba is not None:
+        warn(f"Micromamba option {micromamba} will be ignored.")
+    del micromamba
+    if filename_template is not None:
+        warn(f"Filename template {filename_template} will be ignored.")
+    del filename_template
+    if strip_auth:
+        warn(f"Strip auth {strip_auth} will be ignored.")
+    del strip_auth
+    if check_input_hash is not None:
+        warn(f"Check input hash {check_input_hash} will be ignored.")
+    del check_input_hash
+    if lockfile is not None:
+        if len(files) > 0:
+            raise ValueError(
+                f"Don't specify the lockfile if source files {files} are "
+                f"specified explicitly."
+            )
+        warn(
+            f"It is recommended to specify lockfile sources explicitly "
+            f"instead of via {lockfile}."
+        )
+        lockfile_path = pathlib.Path(lockfile)
+    else:
+        lockfile_path = None
+    del lockfile
+    editables: List[EditableDependency] = []
+    for ed in editable:
+        name_path = ed.split("=", maxsplit=1)
+        if len(name_path) != 2:
+            raise ValueError(
+                f"Editable dependency must contain '=' to specify name=path, "
+                f"but got {ed}."
+            )
+        name, path = name_path
+        if not path.startswith("."):
+            warn(
+                f"Editable dependency path {path} should be relative to the project "
+                f"root, but it does not start with '.'"
+            )
+        editables.append(EditableDependency(name=name, path=path))
+
+    logging.basicConfig(level=log_level)
+
+    # Set Pypi <--> Conda lookup file location
+    mapping_url = (
+        DEFAULT_MAPPING_URL
+        if pypi_to_conda_lookup_file is None
+        else pypi_to_conda_lookup_file
+    )
+
+    src_files = [pathlib.Path(file) for file in files]
+
+    if pdb:
+        sys.excepthook = _handle_exception_post_mortem
+
+    do_render_lockspec(
+        src_files=src_files,
+        kinds=kinds,
+        stdout=stdout,
+        platform_overrides=platform,
+        channel_overrides=channel_overrides,
+        include_dev_dependencies=dev_dependencies,
+        extras=set(extras),
+        filter_categories=filter_categories,
+        lockfile_path=lockfile_path,
+        with_cuda=with_cuda,
+        pixi_project_name=pixi_project_name,
+        mapping_url=mapping_url,
+        editables=editables,
+    )
+
+
+def do_render_lockspec(
+    src_files: List[pathlib.Path],
+    *,
+    kinds: AbstractSet[Literal["pixi.toml"]],
+    stdout: bool,
+    platform_overrides: Optional[Sequence[str]] = None,
+    channel_overrides: Optional[Sequence[str]] = None,
+    include_dev_dependencies: bool = True,
+    extras: Optional[AbstractSet[str]] = None,
+    filter_categories: bool = False,
+    lockfile_path: Optional[pathlib.Path] = None,
+    with_cuda: Optional[str] = None,
+    pixi_project_name: Optional[str] = None,
+    mapping_url: str,
+    editables: Optional[List[EditableDependency]] = None,
+) -> None:
+    if len(src_files) == 0:
+        src_files = handle_no_specified_source_files(lockfile_path)
+
+    required_categories = {"main"}
+    if include_dev_dependencies:
+        required_categories.add("dev")
+    if extras is not None:
+        required_categories.update(extras)
+    lock_spec = make_lock_spec(
+        src_files=src_files,
+        channel_overrides=channel_overrides,
+        platform_overrides=platform_overrides,
+        required_categories=required_categories if filter_categories else None,
+        mapping_url=mapping_url,
+    )
+    if "pixi.toml" in kinds:
+        pixi_toml = render_pixi_toml(
+            lock_spec=lock_spec,
+            with_cuda=with_cuda,
+            project_name=pixi_project_name,
+            editables=editables,
+        )
+        if stdout:
+            print(pixi_toml.as_string(), end="")
+        else:
+            raise NotImplementedError("Only stdout is supported at the moment.")
 
 
 def _handle_exception_post_mortem(

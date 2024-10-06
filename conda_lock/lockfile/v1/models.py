@@ -4,7 +4,6 @@ import hashlib
 import json
 import logging
 import pathlib
-import typing
 
 from collections import namedtuple
 from typing import (
@@ -22,7 +21,7 @@ from typing import (
 if TYPE_CHECKING:
     from hashlib import _Hash
 
-from pydantic import Field, validator
+from pydantic import Field, ValidationInfo, field_validator
 from typing_extensions import Literal
 
 from conda_lock.common import ordered_union, relative_path
@@ -54,21 +53,22 @@ class BaseLockedDependency(StrictModel):
     dependencies: Dict[str, str] = {}
     url: str
     hash: HashModel
-    category: str = "main"
     source: Optional[DependencySource] = None
     build: Optional[str] = None
 
     def key(self) -> LockKey:
         return LockKey(self.manager, self.name, self.platform)
 
-    @validator("hash")
-    def validate_hash(cls, v: HashModel, values: Dict[str, typing.Any]) -> HashModel:
-        if (values["manager"] == "conda") and (v.md5 is None):
+    @field_validator("hash")
+    @classmethod
+    def validate_hash(cls, v: HashModel, info: ValidationInfo) -> HashModel:
+        if (info.data["manager"] == "conda") and (v.md5 is None):
             raise ValueError("conda package hashes must use MD5")
         return v
 
 
 class LockedDependency(BaseLockedDependency):
+    category: str = "main"
     optional: bool
 
 
@@ -125,9 +125,9 @@ class GitMeta(StrictModel):
         except ImportError:
             return None
 
-        git_sha: "str | None" = None
-        git_user_name: "str | None" = None
-        git_user_email: "str | None" = None
+        git_sha: str | None = None
+        git_user_name: str | None = None
+        git_user_email: str | None = None
 
         try:
             repo = git.Repo(search_parent_directories=True)
@@ -217,7 +217,7 @@ class LockMeta(StrictModel):
         ..., description="Hash of dependencies for each target platform"
     )
     channels: List[Channel] = Field(
-        ..., description="Channels used to resolve dependencies"
+        ..., description="Channels used to resolve dependencies", validate_default=True
     )
     platforms: List[str] = Field(..., description="Target platforms")
     sources: List[str] = Field(
@@ -282,7 +282,8 @@ class LockMeta(StrictModel):
             custom_metadata=new_custom_metadata,
         )
 
-    @validator("channels", pre=True, always=True)
+    @field_validator("channels", mode="before")
+    @classmethod
     def ensure_channels(cls, v: List[Union[str, Channel]]) -> List[Channel]:
         res: List[Channel] = []
         for e in v:
@@ -304,10 +305,12 @@ class Lockfile(StrictModel):
         return {
             "version": Lockfile.version,
             "metadata": json.loads(
-                self.metadata.json(by_alias=True, exclude_unset=True, exclude_none=True)
+                self.metadata.model_dump_json(
+                    by_alias=True, exclude_unset=True, exclude_none=True
+                )
             ),
             "package": [
-                package.dict(by_alias=True, exclude_unset=True, exclude_none=True)
+                package.model_dump(by_alias=True, exclude_unset=True, exclude_none=True)
                 for package in self.package
             ],
         }

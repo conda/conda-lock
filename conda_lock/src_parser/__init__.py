@@ -48,8 +48,7 @@ def _parse_platforms_from_srcs(src_files: List[pathlib.Path]) -> List[str]:
 
 
 def _parse_source_files(
-    src_files: List[pathlib.Path],
-    platforms: List[str],
+    src_files: List[pathlib.Path], *, platforms: List[str], mapping_url: str
 ) -> List[LockSpecification]:
     """
     Parse a sequence of dependency specifications from source files
@@ -64,22 +63,30 @@ def _parse_source_files(
     desired_envs: List[LockSpecification] = []
     for src_file in src_files:
         if src_file.name == "meta.yaml":
-            desired_envs.append(parse_meta_yaml_file(src_file, platforms))
+            desired_envs.append(parse_meta_yaml_file(src_file, platforms=platforms))
         elif src_file.name == "pyproject.toml":
-            desired_envs.append(parse_pyproject_toml(src_file, platforms))
+            desired_envs.append(
+                parse_pyproject_toml(
+                    src_file, platforms=platforms, mapping_url=mapping_url
+                )
+            )
         else:
-            desired_envs.append(parse_environment_file(src_file, platforms))
+            desired_envs.append(
+                parse_environment_file(
+                    src_file, platforms=platforms, mapping_url=mapping_url
+                )
+            )
     return desired_envs
 
 
 def make_lock_spec(
     *,
     src_files: List[pathlib.Path],
-    virtual_package_repo: FakeRepoData,
     channel_overrides: Optional[Sequence[str]] = None,
     pip_repository_overrides: Optional[Sequence[str]] = None,
     platform_overrides: Optional[Sequence[str]] = None,
     required_categories: Optional[AbstractSet[str]] = None,
+    mapping_url: str,
 ) -> LockSpecification:
     """Generate the lockfile specs from a set of input src_files.  If required_categories is set filter out specs that do not match those"""
     platforms = (
@@ -88,7 +95,9 @@ def make_lock_spec(
         else _parse_platforms_from_srcs(src_files)
     ) or DEFAULT_PLATFORMS
 
-    lock_specs = _parse_source_files(src_files, platforms)
+    lock_specs = _parse_source_files(
+        src_files, platforms=platforms, mapping_url=mapping_url
+    )
 
     aggregated_lock_spec = aggregate_lock_specs(lock_specs, platforms)
 
@@ -131,6 +140,5 @@ def make_lock_spec(
         channels=channels,
         pip_repositories=pip_repositories,
         sources=aggregated_lock_spec.sources,
-        virtual_package_repo=virtual_package_repo,
         allow_pypi_requests=aggregated_lock_spec.allow_pypi_requests,
     )

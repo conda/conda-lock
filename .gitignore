@@ -1,3 +1,4 @@
+**.DS_Store
 *.egg-info
 *.eggs
 *.pyc
@@ -17,3 +18,5 @@ site/
 filelock
 .coverage
 .micromamba/
+.pixi/
+# Make ad-hoc experimentation easier; remove these once we settle on a config

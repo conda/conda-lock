@@ -8,6 +8,7 @@ import yaml
 
 from conda_lock.models.lock_spec import Dependency, LockSpecification
 from conda_lock.src_parser.conda_common import conda_spec_to_versioned_dep
+from conda_lock.src_parser.markers import evaluate_marker
 from conda_lock.src_parser.selectors import filter_platform_selectors
 
 from .pyproject_toml import parse_python_requirement
@@ -27,8 +28,10 @@ def parse_conda_requirement(req: str) -> Tuple[str, str]:
 
 def _parse_environment_file_for_platform(
     content: str,
+    *,
     category: str,
     platform: str,
+    mapping_url: str,
 ) -> List[Dependency]:
     """
     Parse dependencies from a conda environment specification for an
@@ -69,17 +72,22 @@ def _parse_environment_file_for_platform(
                 )
                 continue
 
-            dependencies.append(
-                parse_python_requirement(
-                    spec,
-                    manager="pip",
-                    category=category,
-                    normalize_name=False,
-                )
+            dependency = parse_python_requirement(
+                spec,
+                manager="pip",
+                category=category,
+                mapping_url=mapping_url,
             )
+            if evaluate_marker(dependency.markers, platform):
+                # The above condition will skip adding the dependency if a
+                # marker specifies a platform that doesn't match the target,
+                # e.g. sys_platform == 'win32' for a linux target.
+                dependencies.append(dependency)
 
         # ensure pip is in target env
-        dependencies.append(parse_python_requirement("pip", manager="conda"))
+        dependencies.append(
+            parse_python_requirement("pip", manager="conda", mapping_url=mapping_url)
+        )
 
     return dependencies
 
@@ -101,6 +109,7 @@ def parse_platforms_from_env_file(environment_file: pathlib.Path) -> List[str]:
 def parse_environment_file(
     environment_file: pathlib.Path,
     platforms: List[str],
+    mapping_url: str,
 ) -> LockSpecification:
     """Parse a simple environment-yaml file for dependencies assuming the target platforms.
 
@@ -130,7 +139,9 @@ def parse_environment_file(
 
     # Parse with selectors for each target platform
     dep_map = {
-        platform: _parse_environment_file_for_platform(content, category, platform)
+        platform: _parse_environment_file_for_platform(
+            content, category=category, platform=platform, mapping_url=mapping_url
+        )
         for platform in platforms
     }
 

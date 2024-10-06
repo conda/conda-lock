@@ -1,85 +1,63 @@
+from __future__ import annotations
+
 from typing import TYPE_CHECKING
-from typing import FrozenSet
-from typing import List
-from typing import Union
+from urllib.parse import urlparse
 
-from conda_lock._vendor.poetry.core.utils._compat import urlparse
-
-from .dependency import Dependency
+from conda_lock._vendor.poetry.core.packages.dependency import Dependency
 
 
 if TYPE_CHECKING:
-    from .constraints import BaseConstraint
+    from collections.abc import Iterable
 
 
 class URLDependency(Dependency):
     def __init__(
         self,
-        name,  # type: str
-        url,  # type: str
-        category="main",  # type: str
-        optional=False,  # type: bool
-        extras=None,  # type: Union[List[str], FrozenSet[str]]
-    ):
+        name: str,
+        url: str,
+        *,
+        directory: str | None = None,
+        groups: Iterable[str] | None = None,
+        optional: bool = False,
+        extras: Iterable[str] | None = None,
+    ) -> None:
+        # Attributes must be immutable for clone() to be safe!
+        # (For performance reasons, clone only creates a copy instead of a deep copy).
         self._url = url
+        self._directory = directory
 
-        parsed = urlparse.urlparse(url)
+        parsed = urlparse(url)
         if not parsed.scheme or not parsed.netloc:
-            raise ValueError("{} does not seem like a valid url".format(url))
+            raise ValueError(f"{url} does not seem like a valid url")
 
-        super(URLDependency, self).__init__(
+        super().__init__(
             name,
             "*",
-            category=category,
+            groups=groups,
             optional=optional,
             allows_prereleases=True,
             source_type="url",
             source_url=self._url,
+            source_subdirectory=directory,
             extras=extras,
         )
 
     @property
-    def url(self):  # type: () -> str
+    def url(self) -> str:
         return self._url
 
     @property
-    def base_pep_508_name(self):  # type: () -> str
-        requirement = self.pretty_name
+    def directory(self) -> str | None:
+        return self._directory
 
-        if self.extras:
-            requirement += "[{}]".format(",".join(self.extras))
+    @property
+    def base_pep_508_name(self) -> str:
+        requirement = f"{self.complete_pretty_name} @ {self._url}"
 
-        requirement += " @ {}".format(self._url)
+        if self.directory:
+            requirement += f"#subdirectory={self.directory}"
 
         return requirement
 
-    def is_url(self):  # type: () -> bool
+    def is_url(self) -> bool:
         return True
-
-    def with_constraint(self, constraint):  # type: ("BaseConstraint") -> URLDependency
-        new = URLDependency(
-            self.pretty_name,
-            url=self._url,
-            optional=self.is_optional(),
-            category=self.category,
-            extras=self._extras,
-        )
-
-        new._constraint = constraint
-        new._pretty_constraint = str(constraint)
-
-        new.is_root = self.is_root
-        new.python_versions = self.python_versions
-        new.marker = self.marker
-        new.transitive_marker = self.transitive_marker
-
-        for in_extra in self.in_extras:
-            new.in_extras.append(in_extra)
-
-        return new
-
-    def __str__(self):  # type: () -> str
-        return "{} ({} url)".format(self._pretty_name, self._pretty_constraint)
-
-    def __hash__(self):  # type: () -> int
-        return hash((self._name, self._url))

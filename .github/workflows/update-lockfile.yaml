@@ -17,9 +17,9 @@ jobs:
         shell: bash -l {0}
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@0ad4b8fadaa221de15dcec353f45205ec38ea70b # v4
+    - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4
     - name: Install Micromamba
-      uses: mamba-org/setup-micromamba@v1
+      uses: mamba-org/setup-micromamba@v2
       with:
         environment-file: environments/conda-lock.yml
         environment-name: conda-lock-dev
@@ -36,7 +36,7 @@ jobs:
             --lockfile=environments/conda-lock.yml
 
     - name: Open a pull request
-      uses: peter-evans/create-pull-request@v6
+      uses: peter-evans/create-pull-request@v7
       with:
         # # The default GITHUB_TOKEN doesn't allow other workflows to trigger.
         # # Thus if there are tests to be run, they won't be run. For more info,

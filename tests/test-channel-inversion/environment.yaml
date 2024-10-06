@@ -4,9 +4,8 @@ channels:
   # In this case we have the channel order as recommended by rapids ai for
   # installing cudf, but we want to force getting cuda-python from conda-forge
   # instead of from the nvidia channel which would normally have higher priority
-  - rapidsai
-  - nvidia
   - conda-forge
+  - defaults
 dependencies:
-  - cudf
-  - conda-forge::cuda-python
+  - zlib
+  - defaults::libgomp

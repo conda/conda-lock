@@ -12,6 +12,7 @@ import pytest
 
 from conda_lock.conda_lock import run_lock
 from conda_lock.invoke_conda import is_micromamba
+from conda_lock.lookup import DEFAULT_MAPPING_URL
 from conda_lock.models.lock_spec import VersionedDependency
 from conda_lock.src_parser import DEFAULT_PLATFORMS
 from conda_lock.src_parser.environment_yaml import parse_environment_file
@@ -47,7 +48,12 @@ def test_pr_436(
     )
     (tmp_path / "environment.yml").write_text(spec)
     monkeypatch.chdir(tmp_path)
-    run_lock([tmp_path / "environment.yml"], conda_exe=mamba_exe, platforms=[platform])
+    run_lock(
+        [tmp_path / "environment.yml"],
+        conda_exe=mamba_exe,
+        platforms=[platform],
+        mapping_url=DEFAULT_MAPPING_URL,
+    )
 
 
 @pytest.mark.parametrize(
@@ -68,7 +74,7 @@ def test_conda_pip_regressions_gh290(
     """Simple test that asserts that these engieonments can be locked"""
     spec = clone_test_dir(test_dir, tmp_path).joinpath(filename)
     monkeypatch.chdir(spec.parent)
-    run_lock([spec], conda_exe=mamba_exe)
+    run_lock([spec], conda_exe=mamba_exe, mapping_url=DEFAULT_MAPPING_URL)
 
 
 @pytest.fixture
@@ -86,7 +92,11 @@ def test_run_lock_regression_gh155(
     monkeypatch.chdir(pip_environment_regression_gh155.parent)
     if is_micromamba(conda_exe):
         monkeypatch.setenv("CONDA_FLAGS", "-v")
-    run_lock([pip_environment_regression_gh155], conda_exe=conda_exe)
+    run_lock(
+        [pip_environment_regression_gh155],
+        conda_exe=conda_exe,
+        mapping_url=DEFAULT_MAPPING_URL,
+    )
 
 
 @pytest.fixture
@@ -97,7 +107,11 @@ def pip_environment_regression_gh449(tmp_path: Path):
 
 
 def test_pip_environment_regression_gh449(pip_environment_regression_gh449: Path):
-    res = parse_environment_file(pip_environment_regression_gh449, DEFAULT_PLATFORMS)
+    res = parse_environment_file(
+        pip_environment_regression_gh449,
+        DEFAULT_PLATFORMS,
+        mapping_url=DEFAULT_MAPPING_URL,
+    )
     for plat in DEFAULT_PLATFORMS:
         assert [dep for dep in res.dependencies[plat] if dep.manager == "pip"] == [
             VersionedDependency(
@@ -105,6 +119,6 @@ def test_pip_environment_regression_gh449(pip_environment_regression_gh449: Path
                 manager="pip",
                 category="main",
                 extras=["dotenv", "email"],
-                version="=1.10.10",
+                version="==1.10.10",
             )
         ]

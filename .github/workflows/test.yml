@@ -16,89 +16,147 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  MICROMAMBA_VERSION: 'latest'
+  # # Temporarily pin the version due to
+  # # <https://github.com/mamba-org/mamba/issues/3467>
+  # MICROMAMBA_VERSION: 'latest'
+  MICROMAMBA_VERSION: '1.5.10-0'
 
 jobs:
-  test-windows:
-    env:
-      PYTHONUNBUFFERED: "1"
-      FORCE_COLOR: "1"
-    runs-on: windows-latest
-    steps:
-      - uses: actions/checkout@0ad4b8fadaa221de15dcec353f45205ec38ea70b # v4
-
-      - name: Install Conda environment with Micromamba
-        uses: mamba-org/setup-micromamba@v1
-        with:
-          micromamba-version: ${{ env.MICROMAMBA_VERSION }}
-          environment-file: environments/dev-environment.yaml
-          init-shell: powershell
-          create-args: >-
-            python=3.12
-
-      - name: install conda-lock
-        run: |
-          pip install -e . --force-reinstall
-
-      - name: run-test
-        run: |
-          copy pyproject.toml "%RUNNER_TEMP%"
-          Xcopy /E /I tests "%RUNNER_TEMP%\\tests"
-          pushd "${RUNNER_TEMP}"
-          set TMPDIR="%RUNNER_TEMP%"
-          dir
-          pytest --cov=conda_lock --cov-branch --cov-report=xml --cov-report=term tests
-          copy coverage.xml %GITHUB_WORKSPACE%
-      - uses: codecov/codecov-action@v4
-
   test:
-    runs-on: ${{ matrix.os }}
+    name: pytest py${{ matrix.python-version }} on ${{ matrix.os }} (${{ matrix.pytest-split-group-index }}/${{ matrix.pytest-split-group-size }})
+    runs-on: ${{ matrix.os }}-latest
     strategy:
       fail-fast: false
       matrix:
-        os: [ ubuntu-latest, macos-latest ]
+        os: [ ubuntu, macos, windows ]
         python-version: [ "3.8", "3.12" ]
+
+        # pytest-split handles dividing the tests into n groups indexed 1...n.
+        # The tests are automatically split so that the expected duration of each
+        # group is roughly the same.
+        # See the "exclude" section below for pruning to the group sizes,
+        # and the "include" section for defining the group sizes.
+        pytest-split-group-index: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+
+        exclude:
+          - os: windows
+            python-version: "3.8"
+          - os: macos
+            python-version: "3.8"
+
+          # Prune the indices so that we only run the splits up to the group size
+          # defined below in "include". (This is ugly but effective.)
+          - os: ubuntu
+            pytest-split-group-index: 4
+          - os: ubuntu
+            pytest-split-group-index: 5
+          - os: ubuntu
+            pytest-split-group-index: 6
+          - os: ubuntu
+            pytest-split-group-index: 7
+          - os: ubuntu
+            pytest-split-group-index: 8
+          - os: ubuntu
+            pytest-split-group-index: 9
+          - os: ubuntu
+            pytest-split-group-index: 10
+          - os: macos
+            pytest-split-group-index: 4
+          - os: macos
+            pytest-split-group-index: 5
+          - os: macos
+            pytest-split-group-index: 6
+          - os: macos
+            pytest-split-group-index: 7
+          - os: macos
+            pytest-split-group-index: 8
+          - os: macos
+            pytest-split-group-index: 9
+          - os: macos
+            pytest-split-group-index: 10
+        include:
+          - os: ubuntu
+            pytest-split-group-size: 3
+          - os: macos
+            pytest-split-group-size: 3
+          - os: windows
+            pytest-split-group-size: 10
+
     defaults:
       run:
-        shell: bash -l {0}
+        shell: bash -eo pipefail -l {0}
     env:
       PYTHONUNBUFFERED: "1"
       FORCE_COLOR: "1"
     steps:
-      - uses: actions/checkout@0ad4b8fadaa221de15dcec353f45205ec38ea70b # v4
+      - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4
 
-      - uses: mamba-org/setup-micromamba@v1
+      - uses: mamba-org/setup-micromamba@v2
         with:
           micromamba-version: ${{ env.MICROMAMBA_VERSION }}
-          environment-file: environments/dev-environment.yaml
+          environment-file: environments/conda-lock.yml
+          environment-name: conda-lock-dev
           init-shell: bash
+          cache-environment: true
           create-args: >-
-            python=${{ matrix.python-version }}
+            python=${{ matrix.python-version }} --category=main --category=dev
 
       - name: install conda-lock
-        shell: bash -eo pipefail -l {0}
         run: |
           which pip
-          pip install -e . --force-reinstall
+          pip install -e . --no-deps
+          pip check
 
       - name: run-test
-        shell: bash -eo pipefail -l {0}
         run: |
-          cp pyproject.toml "${RUNNER_TEMP}/"
-          cp -a tests "${RUNNER_TEMP}/"
-          pushd "${RUNNER_TEMP}"
-          export TMPDIR="${RUNNER_TEMP}"
-          ls -lah
+          mkdir -p tests/durations
           set -x
           which pytest
-          pytest --cov=conda_lock --cov-branch --cov-report=xml --cov-report=term tests
-          cp coverage.xml "${GITHUB_WORKSPACE}"
+          pytest \
+            --cov=conda_lock --cov-branch --cov-report=xml --cov-report=term \
+            --store-durations \
+            --clean-durations \
+            --durations-path "tests/durations/${{ matrix.os }}-py${{ matrix.python-version }}.json" \
+            --splits="${{ matrix.pytest-split-group-size }}" \
+            --group="${{ matrix.pytest-split-group-index }}"
+
       - uses: codecov/codecov-action@v4
 
-      - name: test-gdal
-        shell: bash -eo pipefail -l {0}
+      - name: Print test durations
         run: |
-          pushd "${RUNNER_TEMP}/tests/gdal"
-          export TMPDIR="${RUNNER_TEMP}"
-          ls -lah
-          conda-lock --mamba  -f environment.yml -p linux-64
+          ls -al tests/durations
+          cat tests/durations/${{ matrix.os }}-py${{ matrix.python-version }}.json
+
+      - name: Store test durations
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-durations-${{ matrix.os }}-py${{ matrix.python-version }}-${{ matrix.pytest-split-group-index }}
+          path: tests/durations/${{ matrix.os }}-py${{ matrix.python-version }}.json
+
+  aggregate-durations:
+    name: Aggregate test durations
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - name: Download test durations
+        uses: actions/download-artifact@v4
+      # All the artifacts are downloaded into various subdirectories.
+      # For each filename that occurs, we need to find all the files in the
+      # subdirectories with the same name, group those, and merge them.
+      - name: Construct the list of filenames to aggregate and write them to temp/filenames.txt
+        id: construct-filenames
+        run: |
+          mkdir temp
+          find . -type f -name '*.json' | xargs -n1 basename | sort | uniq > temp/filenames.txt
+          cat temp/filenames.txt
+      - name: Aggregate test durations and sort by key (test name)
+        run: |
+          mkdir aggregated
+          while read -r filename; do
+            jq -s 'add | to_entries | sort_by(.key) | from_entries' $(find . -type f -name "$filename") > "aggregated/$filename"
+          done < temp/filenames.txt
+      - name: Upload aggregated test durations
+        uses: actions/upload-artifact@v4
+        with:
+          name: aggregated-test-durations
+          path: aggregated

@@ -12,7 +12,6 @@ import sys
 import tempfile
 import typing
 import uuid
-import warnings
 
 from glob import glob
 from pathlib import Path
@@ -30,11 +29,11 @@ from freezegun import freeze_time
 
 from conda_lock import __version__, pypi_solver
 from conda_lock.conda_lock import (
-    DEFAULT_FILES,
     DEFAULT_LOCKFILE_NAME,
     _add_auth_to_line,
     _add_auth_to_lockfile,
     _extract_domain,
+    _solve_for_arch,
     _strip_auth_from_line,
     _strip_auth_from_lockfile,
     create_lockfile_from_spec,
@@ -55,9 +54,6 @@ from conda_lock.errors import (
     PlatformValidationError,
 )
 from conda_lock.interfaces.vendored_conda import MatchSpec
-from conda_lock.interfaces.vendored_poetry import (
-    CalledProcessError as PoetryCalledProcessError,
-)
 from conda_lock.invoke_conda import is_micromamba, reset_conda_pkgs_dir
 from conda_lock.lockfile import parse_conda_lock_file
 from conda_lock.lockfile.v2prelim.models import (
@@ -65,9 +61,14 @@ from conda_lock.lockfile.v2prelim.models import (
     LockedDependency,
     MetadataOption,
 )
-from conda_lock.lookup import _LookupLoader
+from conda_lock.lookup import DEFAULT_MAPPING_URL, conda_name_to_pypi_name
 from conda_lock.models.channel import Channel
-from conda_lock.models.lock_spec import Dependency, VCSDependency, VersionedDependency
+from conda_lock.models.lock_spec import (
+    Dependency,
+    PathDependency,
+    VCSDependency,
+    VersionedDependency,
+)
 from conda_lock.models.pip_repository import PipRepository
 from conda_lock.pypi_solver import (
     MANYLINUX_TAGS,
@@ -226,6 +227,16 @@ def poetry_pyproject_toml_skip_non_conda_lock(tmp_path: Path):
 @pytest.fixture
 def poetry_pyproject_toml_git(tmp_path: Path):
     return clone_test_dir("test-poetry-git", tmp_path).joinpath("pyproject.toml")
+
+
+@pytest.fixture
+def poetry_pyproject_toml_git_subdir(tmp_path: Path):
+    return clone_test_dir("test-poetry-git-subdir", tmp_path).joinpath("pyproject.toml")
+
+
+@pytest.fixture
+def poetry_pyproject_toml_path(tmp_path: Path):
+    return clone_test_dir("test-poetry-path", tmp_path).joinpath("pyproject.toml")
 
 
 @pytest.fixture
@@ -395,13 +406,14 @@ def test_lock_poetry_ibis(
         platforms=["linux-64"],
         extras={"test", "dev", "docs"},
         filter_categories=True,
+        mapping_url=DEFAULT_MAPPING_URL,
     )
     lockfile = parse_conda_lock_file(pyproject.parent / DEFAULT_LOCKFILE_NAME)
 
-    all_categories = set()
+    all_categories: Set[str] = set()
 
     for pkg in lockfile.package:
-        all_categories.add(pkg.category)
+        all_categories.update(pkg.categories)
 
     for desired_category in extra_categories:
         assert (
@@ -410,14 +422,16 @@ def test_lock_poetry_ibis(
 
 
 def test_parse_environment_file(gdal_environment: Path):
-    res = parse_environment_file(gdal_environment, DEFAULT_PLATFORMS)
+    res = parse_environment_file(
+        gdal_environment, platforms=DEFAULT_PLATFORMS, mapping_url=DEFAULT_MAPPING_URL
+    )
     assert all(
         x in res.dependencies[plat]
         for x in [
             VersionedDependency(
                 name="python",
                 manager="conda",
-                version=">=3.7,<3.8",
+                version=">=3.8,<3.9",
             ),
             VersionedDependency(
                 name="gdal",
@@ -442,7 +456,9 @@ def test_parse_environment_file(gdal_environment: Path):
 
 
 def test_parse_environment_file_with_pip(pip_environment: Path):
-    res = parse_environment_file(pip_environment, DEFAULT_PLATFORMS)
+    res = parse_environment_file(
+        pip_environment, platforms=DEFAULT_PLATFORMS, mapping_url=DEFAULT_MAPPING_URL
+    )
     for plat in DEFAULT_PLATFORMS:
         assert [dep for dep in res.dependencies[plat] if dep.manager == "pip"] == [
             VersionedDependency(
@@ -450,13 +466,15 @@ def test_parse_environment_file_with_pip(pip_environment: Path):
                 manager="pip",
                 category="main",
                 extras=[],
-                version="=0.9.1",
+                version="==0.9.1",
             )
         ]
 
 
 def test_parse_environment_file_with_git(git_environment: Path):
-    res = parse_environment_file(git_environment, DEFAULT_PLATFORMS)
+    res = parse_environment_file(
+        git_environment, platforms=DEFAULT_PLATFORMS, mapping_url=DEFAULT_MAPPING_URL
+    )
     for plat in DEFAULT_PLATFORMS:
         assert [dep for dep in res.dependencies[plat] if dep.manager == "pip"] == [
             VCSDependency(
@@ -471,7 +489,11 @@ def test_parse_environment_file_with_git(git_environment: Path):
 
 
 def test_parse_environment_file_with_git_tag(git_tag_environment: Path):
-    res = parse_environment_file(git_tag_environment, DEFAULT_PLATFORMS)
+    res = parse_environment_file(
+        git_tag_environment,
+        platforms=DEFAULT_PLATFORMS,
+        mapping_url=DEFAULT_MAPPING_URL,
+    )
     for plat in DEFAULT_PLATFORMS:
         assert [dep for dep in res.dependencies[plat] if dep.manager == "pip"] == [
             VCSDependency(
@@ -487,13 +509,19 @@ def test_parse_environment_file_with_git_tag(git_tag_environment: Path):
 
 
 def test_parse_env_file_with_no_defaults(nodefaults_environment: Path):
-    res = parse_environment_file(nodefaults_environment, DEFAULT_PLATFORMS)
+    res = parse_environment_file(
+        nodefaults_environment,
+        platforms=DEFAULT_PLATFORMS,
+        mapping_url=DEFAULT_MAPPING_URL,
+    )
     assert res.channels == [Channel.from_string("conda-forge")]
 
 
 def test_parse_env_file_with_filters_no_args(filter_conda_environment: Path):
     platforms = parse_platforms_from_env_file(filter_conda_environment)
-    res = parse_environment_file(filter_conda_environment, platforms)
+    res = parse_environment_file(
+        filter_conda_environment, platforms=platforms, mapping_url=DEFAULT_MAPPING_URL
+    )
     assert all(x in res.platforms for x in ["osx-arm64", "osx-64", "linux-64"])
     assert res.channels == [Channel.from_string("conda-forge")]
 
@@ -538,7 +566,11 @@ def test_parse_env_file_with_filters_no_args(filter_conda_environment: Path):
 
 
 def test_parse_env_file_with_filters_defaults(filter_conda_environment: Path):
-    res = parse_environment_file(filter_conda_environment, DEFAULT_PLATFORMS)
+    res = parse_environment_file(
+        filter_conda_environment,
+        platforms=DEFAULT_PLATFORMS,
+        mapping_url=DEFAULT_MAPPING_URL,
+    )
     assert all(x in res.platforms for x in DEFAULT_PLATFORMS)
     assert res.channels == [Channel.from_string("conda-forge")]
 
@@ -581,7 +613,7 @@ def test_parse_platforms_from_multi_sources(multi_source_env):
 
 def test_choose_wheel() -> None:
     solution = solve_pypi(
-        {
+        pip_specs={
             "fastavro": VersionedDependency(
                 name="fastavro",
                 manager="pip",
@@ -609,8 +641,10 @@ def test_choose_wheel() -> None:
         },
         python_version="3.9.7",
         platform="linux-64",
+        mapping_url=DEFAULT_MAPPING_URL,
     )
     assert len(solution) == 1
+    assert solution["fastavro"].categories == {"main"}
     assert solution["fastavro"].hash == HashModel(
         sha256="a111a384a786b7f1fd6a8a8307da07ccf4d4c425084e2d61bae33ecfb60de405"
     )
@@ -692,7 +726,7 @@ def test_parse_pip_requirement(
 
 def test_parse_meta_yaml_file(meta_yaml_environment: Path):
     platforms = ["linux-64", "osx-64"]
-    res = parse_meta_yaml_file(meta_yaml_environment, platforms)
+    res = parse_meta_yaml_file(meta_yaml_environment, platforms=platforms)
     for plat in platforms:
         specs = {dep.name: dep for dep in res.dependencies[plat]}
         assert all(x in specs for x in ["python", "numpy"])
@@ -704,7 +738,9 @@ def test_parse_meta_yaml_file(meta_yaml_environment: Path):
 
 
 def test_parse_poetry(poetry_pyproject_toml: Path):
-    res = parse_pyproject_toml(poetry_pyproject_toml, ["linux-64"])
+    res = parse_pyproject_toml(
+        poetry_pyproject_toml, platforms=["linux-64"], mapping_url=DEFAULT_MAPPING_URL
+    )
 
     specs = {
         dep.name: typing.cast(VersionedDependency, dep)
@@ -712,7 +748,7 @@ def test_parse_poetry(poetry_pyproject_toml: Path):
     }
 
     assert specs["python"].manager == "conda"
-    assert specs["python"].version == ">=3.7,<4.0"
+    assert specs["python"].version == ">=3.7.0,<4.0.0"
     assert specs["requests"].version == ">=2.13.0,<3.0.0"
     assert specs["toml"].version == ">=0.10"
     assert specs["sqlite"].version == ">=3.34"
@@ -726,7 +762,11 @@ def test_parse_poetry(poetry_pyproject_toml: Path):
 
 
 def test_parse_poetry_default_pip(poetry_pyproject_toml_default_pip: Path):
-    res = parse_pyproject_toml(poetry_pyproject_toml_default_pip, ["linux-64"])
+    res = parse_pyproject_toml(
+        poetry_pyproject_toml_default_pip,
+        platforms=["linux-64"],
+        mapping_url=DEFAULT_MAPPING_URL,
+    )
 
     specs = {
         dep.name: typing.cast(VersionedDependency, dep)
@@ -734,7 +774,7 @@ def test_parse_poetry_default_pip(poetry_pyproject_toml_default_pip: Path):
     }
 
     assert specs["python"].manager == "conda"
-    assert specs["python"].version == ">=3.7,<4.0"
+    assert specs["python"].version == ">=3.7.0,<4.0.0"
     assert specs["sqlite"].manager == "conda"
     assert specs["certifi"].manager == "conda"
     assert specs["requests"].manager == "pip"
@@ -746,7 +786,11 @@ def test_parse_poetry_default_pip(poetry_pyproject_toml_default_pip: Path):
 def test_parse_poetry_skip_non_conda_lock(
     poetry_pyproject_toml_skip_non_conda_lock: Path,
 ):
-    res = parse_pyproject_toml(poetry_pyproject_toml_skip_non_conda_lock, ["linux-64"])
+    res = parse_pyproject_toml(
+        poetry_pyproject_toml_skip_non_conda_lock,
+        platforms=["linux-64"],
+        mapping_url=DEFAULT_MAPPING_URL,
+    )
 
     specs = {
         dep.name: typing.cast(VersionedDependency, dep)
@@ -763,18 +807,55 @@ def test_parse_poetry_skip_non_conda_lock(
 
 
 def test_parse_poetry_git(poetry_pyproject_toml_git: Path):
-    res = parse_pyproject_toml(poetry_pyproject_toml_git, ["linux-64"])
+    res = parse_pyproject_toml(
+        poetry_pyproject_toml_git,
+        platforms=["linux-64"],
+        mapping_url=DEFAULT_MAPPING_URL,
+    )
 
     specs = {dep.name: dep for dep in res.dependencies["linux-64"]}
 
     assert isinstance(specs["pydantic"], VCSDependency)
     assert specs["pydantic"].vcs == "git"
     assert specs["pydantic"].rev == "v2.0b2"
+    assert specs["pydantic"].subdirectory is None
+
+
+def test_parse_poetry_git_subdir(poetry_pyproject_toml_git_subdir: Path):
+    res = parse_pyproject_toml(
+        poetry_pyproject_toml_git_subdir,
+        platforms=["linux-64"],
+        mapping_url=DEFAULT_MAPPING_URL,
+    )
+
+    specs = {dep.name: dep for dep in res.dependencies["linux-64"]}
+
+    assert isinstance(specs["tensorflow"], VCSDependency)
+    assert specs["tensorflow"].vcs == "git"
+    assert specs["tensorflow"].subdirectory == "tensorflow/tools/pip_package"
+    assert specs["tensorflow"].rev == "v2.17.0"
+
+
+def test_parse_poetry_path(poetry_pyproject_toml_path: Path):
+    res = parse_pyproject_toml(
+        poetry_pyproject_toml_path,
+        platforms=["linux-64"],
+        mapping_url=DEFAULT_MAPPING_URL,
+    )
+
+    specs = {dep.name: dep for dep in res.dependencies["linux-64"]}
+
+    assert isinstance(specs["fake-private-package"], PathDependency)
+    assert specs["fake-private-package"].path == "fake-private-package-1.0.0"
 
 
 def test_parse_poetry_no_pypi(poetry_pyproject_toml_no_pypi: Path):
     platforms = parse_platforms_from_pyproject_toml(poetry_pyproject_toml_no_pypi)
-    res = parse_pyproject_toml(poetry_pyproject_toml_no_pypi, platforms)
+    res = parse_pyproject_toml(
+        poetry_pyproject_toml_no_pypi,
+        platforms=platforms,
+        mapping_url=DEFAULT_MAPPING_URL,
+    )
     assert res.allow_pypi_requests is False
 
 
@@ -782,25 +863,23 @@ def test_poetry_no_pypi_multiple_pyprojects(
     poetry_pyproject_toml_no_pypi: Path,
     poetry_pyproject_toml_no_pypi_other_projects: List[Path],
 ):
-    virtual_package_repo = default_virtual_package_repodata()
-    with virtual_package_repo:
-        spec = make_lock_spec(
-            src_files=poetry_pyproject_toml_no_pypi_other_projects,
-            virtual_package_repo=virtual_package_repo,
-        )
-        assert (
-            spec.allow_pypi_requests is True
-        ), "PyPI requests should be allowed when all pyprojects.toml allow PyPI requests"
-        spec = make_lock_spec(
-            src_files=[
-                *poetry_pyproject_toml_no_pypi_other_projects,
-                poetry_pyproject_toml_no_pypi,
-            ],
-            virtual_package_repo=virtual_package_repo,
-        )
-        assert (
-            spec.allow_pypi_requests is False
-        ), "PyPI requests should be forbidden when at least one pyproject.toml forbids PyPI requests"
+    spec = make_lock_spec(
+        src_files=poetry_pyproject_toml_no_pypi_other_projects,
+        mapping_url=DEFAULT_MAPPING_URL,
+    )
+    assert (
+        spec.allow_pypi_requests is True
+    ), "PyPI requests should be allowed when all pyprojects.toml allow PyPI requests"
+    spec = make_lock_spec(
+        src_files=[
+            *poetry_pyproject_toml_no_pypi_other_projects,
+            poetry_pyproject_toml_no_pypi,
+        ],
+        mapping_url=DEFAULT_MAPPING_URL,
+    )
+    assert (
+        spec.allow_pypi_requests is False
+    ), "PyPI requests should be forbidden when at least one pyproject.toml forbids PyPI requests"
 
 
 def test_prepare_repositories_pool():
@@ -816,42 +895,42 @@ def test_prepare_repositories_pool():
 
 
 def test_spec_poetry(poetry_pyproject_toml: Path):
-    virtual_package_repo = default_virtual_package_repodata()
-    with virtual_package_repo:
-        spec = make_lock_spec(
-            src_files=[poetry_pyproject_toml], virtual_package_repo=virtual_package_repo
-        )
-        for plat in spec.platforms:
-            deps = {d.name for d in spec.dependencies[plat]}
-            assert "tomlkit" in deps
-            assert "pytest" in deps
-            assert "requests" in deps
+    spec = make_lock_spec(
+        src_files=[poetry_pyproject_toml], mapping_url=DEFAULT_MAPPING_URL
+    )
+    for plat in spec.platforms:
+        deps = {d.name for d in spec.dependencies[plat]}
+        assert "tomlkit" in deps
+        assert "pytest" in deps
+        assert "requests" in deps
 
-        spec = make_lock_spec(
-            src_files=[poetry_pyproject_toml],
-            virtual_package_repo=virtual_package_repo,
-            required_categories={"main", "dev"},
-        )
-        for plat in spec.platforms:
-            deps = {d.name for d in spec.dependencies[plat]}
-            assert "tomlkit" not in deps
-            assert "pytest" in deps
-            assert "requests" in deps
+    spec = make_lock_spec(
+        src_files=[poetry_pyproject_toml],
+        required_categories={"main", "dev"},
+        mapping_url=DEFAULT_MAPPING_URL,
+    )
+    for plat in spec.platforms:
+        deps = {d.name for d in spec.dependencies[plat]}
+        assert "tomlkit" not in deps
+        assert "pytest" in deps
+        assert "requests" in deps
 
-        spec = make_lock_spec(
-            src_files=[poetry_pyproject_toml],
-            virtual_package_repo=virtual_package_repo,
-            required_categories={"main"},
-        )
-        for plat in spec.platforms:
-            deps = {d.name for d in spec.dependencies[plat]}
-            assert "tomlkit" not in deps
-            assert "pytest" not in deps
-            assert "requests" in deps
+    spec = make_lock_spec(
+        src_files=[poetry_pyproject_toml],
+        required_categories={"main"},
+        mapping_url=DEFAULT_MAPPING_URL,
+    )
+    for plat in spec.platforms:
+        deps = {d.name for d in spec.dependencies[plat]}
+        assert "tomlkit" not in deps
+        assert "pytest" not in deps
+        assert "requests" in deps
 
 
 def test_parse_flit(flit_pyproject_toml: Path):
-    res = parse_pyproject_toml(flit_pyproject_toml, ["linux-64"])
+    res = parse_pyproject_toml(
+        flit_pyproject_toml, platforms=["linux-64"], mapping_url=DEFAULT_MAPPING_URL
+    )
 
     specs = {
         dep.name: typing.cast(VersionedDependency, dep)
@@ -871,7 +950,11 @@ def test_parse_flit(flit_pyproject_toml: Path):
 
 
 def test_parse_flit_default_pip(flit_pyproject_toml_default_pip: Path):
-    res = parse_pyproject_toml(flit_pyproject_toml_default_pip, ["linux-64"])
+    res = parse_pyproject_toml(
+        flit_pyproject_toml_default_pip,
+        platforms=["linux-64"],
+        mapping_url=DEFAULT_MAPPING_URL,
+    )
 
     specs = {
         dep.name: typing.cast(VersionedDependency, dep)
@@ -889,7 +972,11 @@ def test_parse_flit_default_pip(flit_pyproject_toml_default_pip: Path):
 def test_parse_flit_skip_non_conda_lock(
     flit_pyproject_toml_skip_non_conda_lock: Path,
 ):
-    res = parse_pyproject_toml(flit_pyproject_toml_skip_non_conda_lock, ["linux-64"])
+    res = parse_pyproject_toml(
+        flit_pyproject_toml_skip_non_conda_lock,
+        platforms=["linux-64"],
+        mapping_url=DEFAULT_MAPPING_URL,
+    )
 
     specs = {
         dep.name: typing.cast(VersionedDependency, dep)
@@ -906,7 +993,9 @@ def test_parse_flit_skip_non_conda_lock(
 
 
 def test_parse_pdm(pdm_pyproject_toml: Path):
-    res = parse_pyproject_toml(pdm_pyproject_toml, ["linux-64"])
+    res = parse_pyproject_toml(
+        pdm_pyproject_toml, platforms=["linux-64"], mapping_url=DEFAULT_MAPPING_URL
+    )
 
     specs = {
         dep.name: typing.cast(VersionedDependency, dep)
@@ -930,7 +1019,11 @@ def test_parse_pdm(pdm_pyproject_toml: Path):
 
 
 def test_parse_pdm_default_pip(pdm_pyproject_toml_default_pip: Path):
-    res = parse_pyproject_toml(pdm_pyproject_toml_default_pip, ["linux-64"])
+    res = parse_pyproject_toml(
+        pdm_pyproject_toml_default_pip,
+        platforms=["linux-64"],
+        mapping_url=DEFAULT_MAPPING_URL,
+    )
 
     specs = {
         dep.name: typing.cast(VersionedDependency, dep)
@@ -949,7 +1042,11 @@ def test_parse_pdm_default_pip(pdm_pyproject_toml_default_pip: Path):
 def test_parse_pdm_skip_non_conda_lock(
     pdm_pyproject_toml_skip_non_conda_lock: Path,
 ):
-    res = parse_pyproject_toml(pdm_pyproject_toml_skip_non_conda_lock, ["linux-64"])
+    res = parse_pyproject_toml(
+        pdm_pyproject_toml_skip_non_conda_lock,
+        platforms=["linux-64"],
+        mapping_url=DEFAULT_MAPPING_URL,
+    )
 
     specs = {
         dep.name: typing.cast(VersionedDependency, dep)
@@ -967,7 +1064,9 @@ def test_parse_pdm_skip_non_conda_lock(
 
 
 def test_parse_pyproject_channel_toml(pyproject_channel_toml: Path):
-    res = parse_pyproject_toml(pyproject_channel_toml, ["linux-64"])
+    res = parse_pyproject_toml(
+        pyproject_channel_toml, platforms=["linux-64"], mapping_url=DEFAULT_MAPPING_URL
+    )
 
     specs = {
         dep.name: typing.cast(VersionedDependency, dep)
@@ -981,7 +1080,11 @@ def test_parse_poetry_invalid_optionals(pyproject_optional_toml: Path):
     filename = pyproject_optional_toml.name
 
     with pytest.warns(Warning) as record:
-        _ = parse_pyproject_toml(pyproject_optional_toml, ["linux-64"])
+        _ = parse_pyproject_toml(
+            pyproject_optional_toml,
+            platforms=["linux-64"],
+            mapping_url=DEFAULT_MAPPING_URL,
+        )
 
     assert len(record) >= 4
     messages = [str(w.message) for w in record]
@@ -1073,7 +1176,7 @@ def test_run_lock(
     monkeypatch.chdir(zlib_environment.parent)
     if is_micromamba(conda_exe):
         monkeypatch.setenv("CONDA_FLAGS", "-v")
-    run_lock([zlib_environment], conda_exe=conda_exe)
+    run_lock([zlib_environment], conda_exe=conda_exe, mapping_url=DEFAULT_MAPPING_URL)
 
 
 def test_run_lock_channel_toml(
@@ -1082,7 +1185,9 @@ def test_run_lock_channel_toml(
     monkeypatch.chdir(pyproject_channel_toml.parent)
     if is_micromamba(conda_exe):
         monkeypatch.setenv("CONDA_FLAGS", "-v")
-    run_lock([pyproject_channel_toml], conda_exe=conda_exe)
+    run_lock(
+        [pyproject_channel_toml], conda_exe=conda_exe, mapping_url=DEFAULT_MAPPING_URL
+    )
 
 
 def test_run_lock_with_input_metadata(
@@ -1100,6 +1205,7 @@ def test_run_lock_with_input_metadata(
                 MetadataOption.InputSha,
             ]
         ),
+        mapping_url=DEFAULT_MAPPING_URL,
     )
     lockfile = parse_conda_lock_file(zlib_environment.parent / DEFAULT_LOCKFILE_NAME)
 
@@ -1136,7 +1242,7 @@ def test_msys2_channel_included_in_defaults_on_windows(
     monkeypatch.chdir(msys2_environment.parent)
     if is_micromamba(conda_exe):
         monkeypatch.setenv("CONDA_FLAGS", "-v")
-    run_lock([msys2_environment], conda_exe=conda_exe)
+    run_lock([msys2_environment], conda_exe=conda_exe, mapping_url=DEFAULT_MAPPING_URL)
     lockfile = parse_conda_lock_file(msys2_environment.parent / DEFAULT_LOCKFILE_NAME)
     m2_zlib_packages = [
         package for package in lockfile.package if package.name == "m2-zlib"
@@ -1167,6 +1273,7 @@ def test_run_lock_with_time_metadata(
                     MetadataOption.TimeStamp,
                 ]
             ),
+            mapping_url=DEFAULT_MAPPING_URL,
         )
     lockfile = parse_conda_lock_file(TIME_DIR / DEFAULT_LOCKFILE_NAME)
 
@@ -1222,6 +1329,7 @@ def test_run_lock_with_git_metadata(
                 MetadataOption.GitUserEmail,
             ]
         ),
+        mapping_url=DEFAULT_MAPPING_URL,
     )
     lockfile = parse_conda_lock_file(
         git_metadata_zlib_environment.parent / DEFAULT_LOCKFILE_NAME
@@ -1260,6 +1368,7 @@ def test_run_lock_with_custom_metadata(
         [custom_metadata_environment / "environment.yml"],
         conda_exe=conda_exe,
         metadata_yamls=[custom_json_metadata, custom_yaml_metadata],
+        mapping_url=DEFAULT_MAPPING_URL,
     )
     lockfile = parse_conda_lock_file(
         custom_yaml_metadata.parent / DEFAULT_LOCKFILE_NAME
@@ -1281,6 +1390,7 @@ def test_run_lock_blas_mkl(
         [blas_mkl_environment],
         conda_exe=conda_exe,
         platforms=["linux-64", "win-64", "osx-64"],
+        mapping_url=DEFAULT_MAPPING_URL,
     )
 
 
@@ -1346,16 +1456,26 @@ def test_run_lock_with_update(
     if is_micromamba(conda_exe):
         monkeypatch.setenv("CONDA_FLAGS", "-v")
     pre_environment = update_environment.parent / "environment-preupdate.yml"
-    run_lock([pre_environment], conda_exe="mamba")
+    run_lock([pre_environment], conda_exe="mamba", mapping_url=DEFAULT_MAPPING_URL)
     # files should be ready now
-    run_lock([pre_environment], conda_exe=conda_exe, update=["pydantic"])
+    run_lock(
+        [pre_environment],
+        conda_exe=conda_exe,
+        update=["pydantic"],
+        mapping_url=DEFAULT_MAPPING_URL,
+    )
     pre_lock = {
         p.name: p
         for p in parse_conda_lock_file(
             update_environment.parent / DEFAULT_LOCKFILE_NAME
         ).package
     }
-    run_lock([update_environment], conda_exe=conda_exe, update=["pydantic"])
+    run_lock(
+        [update_environment],
+        conda_exe=conda_exe,
+        update=["pydantic"],
+        mapping_url=DEFAULT_MAPPING_URL,
+    )
     post_lock = {
         p.name: p
         for p in parse_conda_lock_file(
@@ -1397,6 +1517,7 @@ def test_run_lock_with_update_filter_platform(
         conda_exe=conda_exe,
         update=["zlib"],
         platforms=["linux-64"],
+        mapping_url=DEFAULT_MAPPING_URL,
     )
     post_lock = {
         (p.name, p.platform): p for p in parse_conda_lock_file(lockfile_path).package
@@ -1418,8 +1539,8 @@ def test_remove_dependency(
     environment_dir = pre_env.parent
     monkeypatch.chdir(environment_dir)
 
-    run_lock([pre_env], conda_exe=conda_exe)
-    run_lock([post_env], conda_exe=conda_exe)
+    run_lock([pre_env], conda_exe=conda_exe, mapping_url=DEFAULT_MAPPING_URL)
+    run_lock([post_env], conda_exe=conda_exe, mapping_url=DEFAULT_MAPPING_URL)
     post_lock = [
         p.name
         for p in parse_conda_lock_file(environment_dir / DEFAULT_LOCKFILE_NAME).package
@@ -1440,8 +1561,8 @@ def test_move_dependency_from_pip_section(
     environment_dir = pre_env.parent
     monkeypatch.chdir(environment_dir)
 
-    run_lock([pre_env], conda_exe=conda_exe)
-    run_lock([post_env], conda_exe=conda_exe)
+    run_lock([pre_env], conda_exe=conda_exe, mapping_url=DEFAULT_MAPPING_URL)
+    run_lock([post_env], conda_exe=conda_exe, mapping_url=DEFAULT_MAPPING_URL)
     post_lock = [
         p.name
         for p in parse_conda_lock_file(environment_dir / DEFAULT_LOCKFILE_NAME).package
@@ -1456,10 +1577,12 @@ def test_run_lock_with_locked_environment_files(
     """run_lock() with default args uses source files from lock"""
     monkeypatch.chdir(update_environment.parent)
     pre_environment = update_environment.parent / "environment-preupdate.yml"
-    run_lock([pre_environment], conda_exe="mamba")
+    run_lock([pre_environment], conda_exe="mamba", mapping_url=DEFAULT_MAPPING_URL)
     make_lock_files = MagicMock()
     monkeypatch.setattr("conda_lock.conda_lock.make_lock_files", make_lock_files)
-    run_lock(DEFAULT_FILES, conda_exe=conda_exe, update=["pydantic"])
+    run_lock(
+        [], conda_exe=conda_exe, update=["pydantic"], mapping_url=DEFAULT_MAPPING_URL
+    )
     src_files = make_lock_files.call_args.kwargs["src_files"]
 
     assert [p.resolve() for p in src_files] == [
@@ -1480,14 +1603,23 @@ def test_run_lock_relative_source_path(
     monkeypatch.chdir(source_paths)
     environment = Path("sources/environment.yaml")
     lockfile = Path("lockfile/conda-lock.yml")
-    run_lock([environment], lockfile_path=lockfile, conda_exe="mamba")
+    run_lock(
+        [environment],
+        lockfile_path=lockfile,
+        conda_exe="mamba",
+        mapping_url=DEFAULT_MAPPING_URL,
+    )
     lock_content = parse_conda_lock_file(lockfile)
     locked_environment = lock_content.metadata.sources[0]
     assert Path(locked_environment) == Path("../sources/environment.yaml")
     make_lock_files = MagicMock()
     monkeypatch.setattr("conda_lock.conda_lock.make_lock_files", make_lock_files)
     run_lock(
-        DEFAULT_FILES, lockfile_path=lockfile, conda_exe=conda_exe, update=["pydantic"]
+        [],
+        lockfile_path=lockfile,
+        conda_exe=conda_exe,
+        update=["pydantic"],
+        mapping_url=DEFAULT_MAPPING_URL,
     )
     src_files = make_lock_files.call_args.kwargs["src_files"]
     assert [p.resolve() for p in src_files] == [environment.resolve()]
@@ -1504,7 +1636,11 @@ def test_git_gh_408(
     monkeypatch.chdir(test_git_package_environment.parent)
     if is_micromamba(conda_exe):
         monkeypatch.setenv("CONDA_FLAGS", "-v")
-    run_lock([test_git_package_environment], conda_exe=conda_exe)
+    run_lock(
+        [test_git_package_environment],
+        conda_exe=conda_exe,
+        mapping_url=DEFAULT_MAPPING_URL,
+    )
 
 
 def test_run_lock_with_pip(
@@ -1513,7 +1649,7 @@ def test_run_lock_with_pip(
     monkeypatch.chdir(pip_environment.parent)
     if is_micromamba(conda_exe):
         monkeypatch.setenv("CONDA_FLAGS", "-v")
-    run_lock([pip_environment], conda_exe=conda_exe)
+    run_lock([pip_environment], conda_exe=conda_exe, mapping_url=DEFAULT_MAPPING_URL)
 
 
 @pytest.fixture
@@ -1527,7 +1663,11 @@ def test_os_name_marker(
     monkeypatch.chdir(os_name_marker_environment.parent)
     if is_micromamba(conda_exe):
         monkeypatch.setenv("CONDA_FLAGS", "-v")
-    run_lock([os_name_marker_environment], conda_exe=conda_exe)
+    run_lock(
+        [os_name_marker_environment],
+        conda_exe=conda_exe,
+        mapping_url=DEFAULT_MAPPING_URL,
+    )
     lockfile = parse_conda_lock_file(
         os_name_marker_environment.parent / DEFAULT_LOCKFILE_NAME
     )
@@ -1543,7 +1683,11 @@ def test_run_lock_with_pip_environment_different_names_same_deps(
     monkeypatch.chdir(pip_environment_different_names_same_deps.parent)
     if is_micromamba(conda_exe):
         monkeypatch.setenv("CONDA_FLAGS", "-v")
-    run_lock([pip_environment_different_names_same_deps], conda_exe=conda_exe)
+    run_lock(
+        [pip_environment_different_names_same_deps],
+        conda_exe=conda_exe,
+        mapping_url=DEFAULT_MAPPING_URL,
+    )
 
 
 def test_run_lock_with_pip_hash_checking(
@@ -1555,7 +1699,11 @@ def test_run_lock_with_pip_hash_checking(
     monkeypatch.chdir(work_dir)
     if is_micromamba(conda_exe):
         monkeypatch.setenv("CONDA_FLAGS", "-v")
-    run_lock([pip_hash_checking_environment], conda_exe=conda_exe)
+    run_lock(
+        [pip_hash_checking_environment],
+        conda_exe=conda_exe,
+        mapping_url=DEFAULT_MAPPING_URL,
+    )
 
     lockfile = parse_conda_lock_file(work_dir / DEFAULT_LOCKFILE_NAME)
     hashes = {package.name: package.hash for package in lockfile.package}
@@ -1570,7 +1718,9 @@ def test_run_lock_uppercase_pip(
     monkeypatch.chdir(env_with_uppercase_pip.parent)
     if is_micromamba(conda_exe):
         monkeypatch.setenv("CONDA_FLAGS", "-v")
-    run_lock([env_with_uppercase_pip], conda_exe=conda_exe)
+    run_lock(
+        [env_with_uppercase_pip], conda_exe=conda_exe, mapping_url=DEFAULT_MAPPING_URL
+    )
 
 
 def test_run_lock_with_local_package(
@@ -1581,13 +1731,10 @@ def test_run_lock_with_local_package(
     monkeypatch.chdir(pip_local_package_environment.parent)
     if is_micromamba(conda_exe):
         monkeypatch.setenv("CONDA_FLAGS", "-v")
-    virtual_package_repo = default_virtual_package_repodata()
 
-    with virtual_package_repo:
-        lock_spec = make_lock_spec(
-            src_files=[pip_local_package_environment],
-            virtual_package_repo=virtual_package_repo,
-        )
+    lock_spec = make_lock_spec(
+        src_files=[pip_local_package_environment], mapping_url=DEFAULT_MAPPING_URL
+    )
     assert not any(
         p.manager == "pip"
         for platform in lock_spec.platforms
@@ -1613,6 +1760,7 @@ def test_run_lock_with_input_hash_check(
         platforms=["linux-64"],
         conda_exe=conda_exe,
         check_input_hash=True,
+        mapping_url=DEFAULT_MAPPING_URL,
     )
     stat = lockfile.stat()
     created = stat.st_mtime_ns
@@ -1628,6 +1776,7 @@ def test_run_lock_with_input_hash_check(
         platforms=["linux-64"],
         conda_exe=conda_exe,
         check_input_hash=True,
+        mapping_url=DEFAULT_MAPPING_URL,
     )
     stat = lockfile.stat()
     assert stat.st_mtime_ns == created
@@ -1667,13 +1816,14 @@ def test_poetry_version_parsing_constraints(
                 # NB: this file must exist for relative path resolution to work
                 # in create_lockfile_from_spec
                 sources=[Path(tf.name)],
-                virtual_package_repo=vpr,
             )
             lockfile_contents = create_lockfile_from_spec(
                 conda=_conda_exe,
                 spec=spec,
                 lockfile_path=Path(DEFAULT_LOCKFILE_NAME),
                 metadata_yamls=(),
+                virtual_package_repo=vpr,
+                mapping_url=DEFAULT_MAPPING_URL,
             )
 
         python = next(p for p in lockfile_contents.package if p.name == "python")
@@ -1683,22 +1833,35 @@ def test_poetry_version_parsing_constraints(
 def test_run_with_channel_inversion(
     monkeypatch: "pytest.MonkeyPatch", channel_inversion: Path, mamba_exe: str
 ):
-    """Given that the cuda_python package is available from a few channels
-    and three of those channels listed
-    and with conda-forge listed as the lowest priority channel
-    and with the cuda_python dependency listed as "conda-forge::cuda_python",
-    ensure that the lock file parse picks up conda-forge as the channel and not one of the higher priority channels
+    """Given that the libgomp package is available from a few channels
+    and two of those channels listed
+    and with defaults listed as the lowest priority channel
+    and with the libgomp dependency listed as "defaults::libgomp",
+    ensure that the lock file parse picks up "defaults" as the channel and not
+    the higher priority conda-forge channel.
     """
     monkeypatch.chdir(channel_inversion.parent)
-    run_lock([channel_inversion], conda_exe=mamba_exe, platforms=["linux-64"])
+    run_lock(
+        [channel_inversion],
+        conda_exe=mamba_exe,
+        platforms=["linux-64"],
+        mapping_url=DEFAULT_MAPPING_URL,
+    )
     lockfile = parse_conda_lock_file(channel_inversion.parent / DEFAULT_LOCKFILE_NAME)
     for package in lockfile.package:
-        if package.name == "cuda-python":
+        if package.name == "zlib":
             ms = MatchSpec(package.url)  # pyright: ignore
             assert ms.get("channel") == "conda-forge"
             break
     else:
-        raise ValueError("cuda-python not found!")
+        raise ValueError("zlib not found!")
+    for package in lockfile.package:
+        if package.name == "libgomp":
+            ms = MatchSpec(package.url)  # pyright: ignore
+            assert ms.get("channel") == "defaults"
+            break
+    else:
+        raise ValueError("libgomp not found!")
 
 
 def _make_spec(name: str, constraint: str = "*"):
@@ -1737,8 +1900,10 @@ def test_aggregate_lock_specs():
         ],
         sources=[],
     )
-    assert actual.dict(exclude={"sources"}) == expected.dict(exclude={"sources"})
-    assert actual.content_hash() == expected.content_hash()
+    assert actual.model_dump(exclude={"sources"}) == expected.model_dump(
+        exclude={"sources"}
+    )
+    assert actual.content_hash(None) == expected.content_hash(None)
 
 
 def test_aggregate_lock_specs_override_version():
@@ -1834,6 +1999,62 @@ def test_aggregate_lock_specs_invalid_pip_repos():
         aggregate_lock_specs([base_spec, spec_a, spec_a_b], platforms=[])
 
 
+def test_solve_arch_multiple_categories():
+    _conda_exe = determine_conda_executable(None, mamba=False, micromamba=False)
+    channels = [Channel.from_string("conda-forge")]
+
+    with tempfile.NamedTemporaryFile(dir=".") as tf:
+        spec = LockSpecification(
+            dependencies={
+                "linux-64": [
+                    VersionedDependency(
+                        name="python",
+                        version="=3.10.9",
+                        manager="conda",
+                        category="main",
+                        extras=[],
+                    ),
+                    VersionedDependency(
+                        name="pandas",
+                        version="=1.5.3",
+                        manager="conda",
+                        category="test",
+                        extras=[],
+                    ),
+                    VersionedDependency(
+                        name="pyarrow",
+                        version="=9.0.0",
+                        manager="conda",
+                        category="dev",
+                        extras=[],
+                    ),
+                ],
+            },
+            channels=channels,
+            # NB: this file must exist for relative path resolution to work
+            # in create_lockfile_from_spec
+            sources=[Path(tf.name)],
+        )
+
+        vpr = default_virtual_package_repodata()
+        with vpr:
+            locked_deps = _solve_for_arch(
+                conda=_conda_exe,
+                spec=spec,
+                platform="linux-64",
+                channels=channels,
+                pip_repositories=[],
+                virtual_package_repo=vpr,
+                mapping_url=DEFAULT_MAPPING_URL,
+            )
+        python_deps = [dep for dep in locked_deps if dep.name == "python"]
+        assert len(python_deps) == 1
+        assert python_deps[0].categories == {"main"}
+        numpy_deps = [dep for dep in locked_deps if dep.name == "numpy"]
+        assert len(numpy_deps) == 1
+        assert numpy_deps[0].categories == {"test", "dev"}
+
+
 def _check_package_installed(package: str, prefix: str):
     import glob
 
@@ -1852,7 +2073,7 @@ def conda_supports_env(conda_exe: str):
         subprocess.check_call(
             [conda_exe, "env"], stdout=subprocess.PIPE, stderr=subprocess.PIPE
         )
-    except (subprocess.CalledProcessError, PoetryCalledProcessError):
+    except subprocess.CalledProcessError:
         return False
     return True
 
@@ -1980,7 +2201,6 @@ def test_install_with_pip_deps(
     tmp_path: Path,
     conda_exe: str,
     install_with_pip_deps_lockfile: Path,
-    monkeypatch: "pytest.MonkeyPatch",
     caplog,
     install_lock,
 ):
@@ -2012,6 +2232,56 @@ def test_install_with_pip_deps(
     if sys.platform.lower().startswith("linux"):
         python = prefix / "bin" / "python"
         subprocess.check_call([str(python), "-c", "import requests"])
+
+
+@pytest.fixture
+def install_multiple_categories_lockfile(tmp_path: Path):
+    return clone_test_dir("test-multiple-categories", tmp_path).joinpath(
+        "conda-lock.yml"
+    )
+
+
+@pytest.mark.parametrize("categories", [[], ["dev"], ["test"], ["dev", "test"]])
+def test_install_multiple_subcategories(
+    tmp_path: Path,
+    conda_exe: str,
+    install_multiple_categories_lockfile: Path,
+    categories: List[str],
+    install_lock,
+):
+    root_prefix = tmp_path / "root_prefix"
+    root_prefix.mkdir(exist_ok=True)
+    prefix = root_prefix / "test_env"
+
+    context: ContextManager
+    if sys.platform.lower().startswith("linux"):
+        context = contextlib.nullcontext()
+    else:
+        # since by default we do platform validation we would expect this to fail
+        context = pytest.raises(PlatformValidationError)
+
+    with context:
+        install(
+            conda=str(conda_exe),
+            prefix=str(prefix),
+            lock_file=install_multiple_categories_lockfile,
+            extras=categories,
+        )
+
+    if sys.platform.lower().startswith("linux"):
+        packages_to_check = ["python"]
+        if "dev" in categories or "test" in categories:
+            packages_to_check += ["numpy", "pandas"]
+        if "dev" in categories:
+            packages_to_check.append("astropy")
+        if "test" in categories:
+            packages_to_check.append("pyspark")
+
+        for package in packages_to_check:
+            assert _check_package_installed(
+                package=package,
+                prefix=str(prefix),
+            ), f"Package {package} does not exist in {prefix} environment"
 
 
 @pytest.mark.parametrize("kind", ["explicit", "env"])
@@ -2282,24 +2552,22 @@ def test_virtual_packages(
 def test_virtual_package_input_hash_stability():
     from conda_lock.virtual_package import virtual_package_repo_from_specification
 
-    test_dir = TESTS_DIR.joinpath("test-cuda")
-    vspec = test_dir / "virtual-packages-old-glibc.yaml"
-
-    vpr = virtual_package_repo_from_specification(vspec)
     spec = LockSpecification(
         dependencies={"linux-64": []},
         channels=[],
         sources=[],
-        virtual_package_repo=vpr,
     )
+
+    test_dir = TESTS_DIR.joinpath("test-cuda")
+    vspec = test_dir / "virtual-packages-old-glibc.yaml"
+    vpr = virtual_package_repo_from_specification(vspec)
+
     expected = "8ee5fc79fca4cb7732d2e88443209e0a3a354da9899cb8899d94f9b1dcccf975"
-    assert spec.content_hash() == {"linux-64": expected}
+    assert spec.content_hash(vpr) == {"linux-64": expected}
 
 
 def test_default_virtual_package_input_hash_stability():
     from conda_lock.virtual_package import default_virtual_package_repodata
-
-    vpr = default_virtual_package_repodata()
 
     expected = {
         "linux-64": "a949aac83da089258ce729fcd54dc0a3a1724ea325d67680d7a6d7cc9c0f1d1b",
@@ -2314,9 +2582,9 @@ def test_default_virtual_package_input_hash_stability():
         dependencies={platform: [] for platform in expected.keys()},
         channels=[],
         sources=[],
-        virtual_package_repo=vpr,
     )
-    assert spec.content_hash() == expected
+    vpr = default_virtual_package_repodata()
+    assert spec.content_hash(vpr) == expected
 
 
 @pytest.fixture
@@ -2467,19 +2735,15 @@ def test_lookup_sources():
         Path(__file__).parent / "test-lookup" / "emoji-to-python-dateutil-lookup.yml"
     )
     url = f"file://{lookup.absolute()}"
-    LOOKUP_OBJECT = _LookupLoader()
-    LOOKUP_OBJECT.mapping_url = url
-    assert LOOKUP_OBJECT.conda_lookup["emoji"]["pypi_name"] == "python-dateutil"
+    assert conda_name_to_pypi_name("emoji", url) == "python-dateutil"
 
     # Test that the lookup can be read from a straight filename
     url = str(lookup.absolute())
-    LOOKUP_OBJECT = _LookupLoader()
-    LOOKUP_OBJECT.mapping_url = url
-    assert LOOKUP_OBJECT.conda_lookup["emoji"]["pypi_name"] == "python-dateutil"
+    assert conda_name_to_pypi_name("emoji", url) == "python-dateutil"
 
     # Test that the default remote lookup contains expected nontrivial mappings
-    LOOKUP_OBJECT = _LookupLoader()
-    assert LOOKUP_OBJECT.conda_lookup["python-build"]["pypi_name"] == "build"
+    url = DEFAULT_MAPPING_URL
+    assert conda_name_to_pypi_name("python-build", url) == "build"
 
 
 @pytest.fixture
@@ -2587,7 +2851,12 @@ def test_pip_finds_recent_manylinux_wheels(
     `conda_lock/pypi_solver.py` is out of date.
     """
     monkeypatch.chdir(lightgbm_environment.parent)
-    run_lock([lightgbm_environment], conda_exe=conda_exe, platforms=["linux-64"])
+    run_lock(
+        [lightgbm_environment],
+        conda_exe=conda_exe,
+        platforms=["linux-64"],
+        mapping_url=DEFAULT_MAPPING_URL,
+    )
     lockfile = parse_conda_lock_file(
         lightgbm_environment.parent / DEFAULT_LOCKFILE_NAME
     )
@@ -2646,6 +2915,7 @@ def test_pip_respects_glibc_version(
         conda_exe=str(conda_exe),
         platforms=["linux-64"],
         virtual_package_spec=env_file.parent / "virtual-packages.yml",
+        mapping_url=DEFAULT_MAPPING_URL,
     )
 
     lockfile = parse_conda_lock_file(env_file.parent / DEFAULT_LOCKFILE_NAME)
@@ -2672,18 +2942,22 @@ def test_platformenv_linux_platforms():
     ] + ["linux_x86_64"]
 
     # Check that we get the default platforms when no virtual packages are specified
-    e = PlatformEnv("3.12", "linux-64")
+    e = PlatformEnv(python_version="3.12", platform="linux-64")
     assert e._platforms == all_expected_platforms
 
     # Check that we get the default platforms when the virtual packages are empty
-    e = PlatformEnv("3.12", "linux-64", platform_virtual_packages={})
+    e = PlatformEnv(
+        python_version="3.12", platform="linux-64", platform_virtual_packages={}
+    )
     assert e._platforms == all_expected_platforms
 
     # Check that we get the default platforms when the virtual packages are nonempty
     # but don't include __glibc
     platform_virtual_packages = {"x.bz2": {"name": "not_glibc"}}
     e = PlatformEnv(
-        "3.12", "linux-64", platform_virtual_packages=platform_virtual_packages
+        python_version="3.12",
+        platform="linux-64",
+        platform_virtual_packages=platform_virtual_packages,
     )
     assert e._platforms == all_expected_platforms
 
@@ -2692,7 +2966,9 @@ def test_platformenv_linux_platforms():
     default_repodata = default_virtual_package_repodata()
     platform_virtual_packages = default_repodata.all_repodata["linux-64"]["packages"]
     e = PlatformEnv(
-        "3.12", "linux-64", platform_virtual_packages=platform_virtual_packages
+        python_version="3.12",
+        platform="linux-64",
+        platform_virtual_packages=platform_virtual_packages,
     )
     assert e._platforms == all_expected_platforms
 
@@ -2704,7 +2980,9 @@ def test_platformenv_linux_platforms():
         if record["name"] != "__glibc"
     }
     e = PlatformEnv(
-        "3.12", "linux-64", platform_virtual_packages=platform_virtual_packages
+        python_version="3.12",
+        platform="linux-64",
+        platform_virtual_packages=platform_virtual_packages,
     )
     assert e._platforms == all_expected_platforms
 
@@ -2721,7 +2999,9 @@ def test_platformenv_linux_platforms():
         name="__glibc", version="2.17"
     )
     e = PlatformEnv(
-        "3.12", "linux-64", platform_virtual_packages=platform_virtual_packages
+        python_version="3.12",
+        platform="linux-64",
+        platform_virtual_packages=platform_virtual_packages,
     )
     assert e._platforms == restricted_platforms
 
@@ -2731,7 +3011,9 @@ def test_platformenv_linux_platforms():
     )
     with pytest.warns(UserWarning):
         e = PlatformEnv(
-            "3.12", "linux-64", platform_virtual_packages=platform_virtual_packages
+            python_version="3.12",
+            platform="linux-64",
+            platform_virtual_packages=platform_virtual_packages,
         )
     assert e._platforms == restricted_platforms
 
@@ -2739,7 +3021,9 @@ def test_platformenv_linux_platforms():
 def test_parse_environment_file_with_pip_and_platform_selector():
     """See https://github.com/conda/conda-lock/pull/564 for the context."""
     env_file = TESTS_DIR / "test-pip-with-platform-selector" / "environment.yml"
-    spec = parse_environment_file(env_file, platforms=["linux-64", "osx-arm64"])
+    spec = parse_environment_file(
+        env_file, platforms=["linux-64", "osx-arm64"], mapping_url=DEFAULT_MAPPING_URL
+    )
     assert spec.platforms == ["linux-64", "osx-arm64"]
     assert spec.dependencies["osx-arm64"] == [
         VersionedDependency(name="tomli", manager="conda", version="")
@@ -2752,7 +3036,12 @@ def test_parse_environment_file_with_pip_and_platform_selector():
 
 
 def test_pip_full_whl_url(
-    tmp_path: Path, conda_exe: str, monkeypatch: "pytest.MonkeyPatch"
+    tmp_path: Path,
+    conda_exe: str,
+    monkeypatch: "pytest.MonkeyPatch",
+    # If the cache is cleared under this test, it can cause an error message:
+    # E       FileNotFoundError: [Errno 2] No such file or directory: '/Users/runner/Library/Caches/pypoetry-conda-lock/artifacts/5a/51/bb/896565e2c84dc024b41e43536c67cef3618b17b0daa532d87a72054dca/requests-2.31.0-py3-none-any.whl'
+    cleared_poetry_cache: None,
 ):
     """Ensure that we can specify full wheel URL in the environment file."""
 
@@ -2762,6 +3051,7 @@ def test_pip_full_whl_url(
         [env_file],
         conda_exe=str(conda_exe),
         platforms=["linux-64"],
+        mapping_url=DEFAULT_MAPPING_URL,
     )
 
     lockfile = parse_conda_lock_file(env_file.parent / DEFAULT_LOCKFILE_NAME)
@@ -2796,6 +3086,7 @@ def test_when_merging_lockfiles_content_hashes_are_updated(
         environment_files=[work_path / "environment-preupdate.yml"],
         conda_exe=str(conda_exe),
         platforms=["linux-64"],
+        mapping_url=DEFAULT_MAPPING_URL,
     )
 
     def get_content_hashes_for_lock_file(lock_file: Path) -> typing.Dict[str, str]:
@@ -2807,6 +3098,7 @@ def test_when_merging_lockfiles_content_hashes_are_updated(
         environment_files=[work_path / "environment-postupdate.yml"],
         conda_exe=str(conda_exe),
         platforms=["linux-64"],
+        mapping_url=DEFAULT_MAPPING_URL,
     )
     postupdate_hashes = get_content_hashes_for_lock_file(work_path / "conda-lock.yml")
     assert preupdate_hashes != postupdate_hashes

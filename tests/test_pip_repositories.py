@@ -13,6 +13,7 @@ import requests_mock
 
 from conda_lock.conda_lock import DEFAULT_LOCKFILE_NAME, run_lock
 from conda_lock.lockfile import parse_conda_lock_file
+from conda_lock.lookup import DEFAULT_MAPPING_URL
 from tests.test_conda_lock import clone_test_dir
 
 
@@ -92,6 +93,7 @@ def mock_private_pypi(private_package_tar: Path, request: pytest.FixtureRequest)
         def _parse_auth(request: requests.Request) -> Tuple[str, str]:
             url = urlparse(request.url)
             if url.username:
+                assert url.password is not None
                 return url.username, url.password
             header = request.headers.get("Authorization")
             if not header or not header.startswith("Basic"):
@@ -133,15 +135,20 @@ def test_it_uses_pip_repositories_with_env_var_substitution(
     monkeypatch: "pytest.MonkeyPatch",
     conda_exe: str,
     tmp_path: Path,
+    cleared_poetry_cache: None,
 ):
-    # GIVEN an environment.yaml with custom pip repositories
+    # GIVEN an environment.yaml with custom pip repositories and clean cache
     directory = clone_test_dir("test-pip-repositories", tmp_path)
     monkeypatch.chdir(directory)
     environment_file = directory / "environment.yaml"
     assert environment_file.exists(), list(directory.iterdir())
 
     # WHEN I create the lockfile
-    run_lock([directory / "environment.yaml"], conda_exe=conda_exe)
+    run_lock(
+        [directory / "environment.yaml"],
+        conda_exe=conda_exe,
+        mapping_url=DEFAULT_MAPPING_URL,
+    )
 
     # THEN the lockfile is generated correctly
     lockfile_path = directory / DEFAULT_LOCKFILE_NAME

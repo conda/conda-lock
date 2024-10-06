@@ -1,5 +1,5 @@
 from collections import defaultdict
-from typing import ClassVar, Dict, List, Optional
+from typing import ClassVar, Dict, List, Optional, Set
 
 from conda_lock.lockfile.v1.models import (
     BaseLockedDependency,
@@ -7,6 +7,7 @@ from conda_lock.lockfile.v1.models import (
     GitMeta,
     HashModel,
     InputMeta,
+    LockKey,
     LockMeta,
     MetadataOption,
     TimeMeta,
@@ -17,20 +18,32 @@ from conda_lock.models import StrictModel
 
 
 class LockedDependency(BaseLockedDependency):
-    def to_v1(self) -> LockedDependencyV1:
-        return LockedDependencyV1(
-            name=self.name,
-            version=self.version,
-            manager=self.manager,
-            platform=self.platform,
-            dependencies=self.dependencies,
-            url=self.url,
-            hash=self.hash,
-            category=self.category,
-            source=self.source,
-            build=self.build,
-            optional=self.category != "main",
-        )
+    categories: Set[str] = set()
+
+    def to_v1(self) -> List[LockedDependencyV1]:
+        """Convert a v2 dependency into a list of v1 dependencies.
+
+        In case a v2 dependency might contain multiple categories, but a v1 dependency
+        can only contain a single category, we represent multiple categories as a list
+        of v1 dependencies that are identical except for the `category` field. The
+        `category` field runs over all categories."""
+        package_entries_per_category = [
+            LockedDependencyV1(
+                name=self.name,
+                version=self.version,
+                manager=self.manager,
+                platform=self.platform,
+                dependencies=self.dependencies,
+                url=self.url,
+                hash=self.hash,
+                category=category,
+                source=self.source,
+                build=self.build,
+                optional=category != "main",
+            )
+            for category in sorted(self.categories)
+        ]
+        return package_entries_per_category
 
 
 class Lockfile(StrictModel):
@@ -71,7 +84,14 @@ class Lockfile(StrictModel):
         self.package = self._toposort(self.package)
 
     def alphasort_inplace(self) -> None:
+        # Sort the packages themselves by key (conda/pip, name, platform)
         self.package.sort(key=lambda d: d.key())
+        for p in self.package:
+            # Also ensure that the dependencies of each package are sorted
+            # <https://github.com/conda/conda-lock/pull/654#issuecomment-2198453427>
+            p.dependencies = {
+                name: spec for name, spec in sorted(p.dependencies.items())
+            }
 
     def filter_virtual_packages_inplace(self) -> None:
         self.package = [
@@ -120,35 +140,71 @@ class Lockfile(StrictModel):
         return final_package
 
     def to_v1(self) -> LockfileV1:
+        # Each v2 package gives a list of v1 packages.
+        # Flatten these into a single list of v1 packages.
+        v1_packages = [
+            package_entry_per_category
+            for p in self.package
+            for package_entry_per_category in p.to_v1()
+        ]
         return LockfileV1(
-            package=[p.to_v1() for p in self.package],
+            package=v1_packages,
             metadata=self.metadata,
         )
 
 
-def _locked_dependency_v1_to_v2(dep: LockedDependencyV1) -> LockedDependency:
+def _locked_dependency_v1_to_v2(
+    package_entries_per_category: List[LockedDependencyV1],
+) -> LockedDependency:
     """Convert a LockedDependency from v1 to v2.
 
-    * Remove the optional field (it is always equal to category != "main")
+    This is an inverse to `LockedDependency.to_v1()`.
     """
+    # Dependencies are parsed from a v1 lockfile, so there will always be
+    # at least one entry corresponding to what was parsed.
+    assert len(package_entries_per_category) > 0
+    # All the package entries should share the same key.
+    assert all(
+        d.key() == package_entries_per_category[0].key()
+        for d in package_entries_per_category
+    )
+
+    categories = {d.category for d in package_entries_per_category}
+
+    # Each entry should correspond to a distinct category
+    assert len(categories) == len(package_entries_per_category)
+
     return LockedDependency(
-        name=dep.name,
-        version=dep.version,
-        manager=dep.manager,
-        platform=dep.platform,
-        dependencies=dep.dependencies,
-        url=dep.url,
-        hash=dep.hash,
-        category=dep.category,
-        source=dep.source,
-        build=dep.build,
+        name=package_entries_per_category[0].name,
+        version=package_entries_per_category[0].version,
+        manager=package_entries_per_category[0].manager,
+        platform=package_entries_per_category[0].platform,
+        dependencies=package_entries_per_category[0].dependencies,
+        url=package_entries_per_category[0].url,
+        hash=package_entries_per_category[0].hash,
+        categories=categories,
+        source=package_entries_per_category[0].source,
+        build=package_entries_per_category[0].build,
     )
 
 
 def lockfile_v1_to_v2(lockfile_v1: LockfileV1) -> Lockfile:
-    """Convert a Lockfile from v1 to v2."""
+    """Convert a Lockfile from v1 to v2.
+
+    Entries may share the same key if they represent a dependency
+    belonging to multiple categories. They must be collected here.
+    """
+    dependencies_for_key: Dict[LockKey, List[LockedDependencyV1]] = defaultdict(list)
+    for dep in lockfile_v1.package:
+        dependencies_for_key[dep.key()].append(dep)
+
+    v2_packages = [
+        _locked_dependency_v1_to_v2(package_entries_per_category)
+        for package_entries_per_category in dependencies_for_key.values()
+    ]
+
     return Lockfile(
-        package=[_locked_dependency_v1_to_v2(p) for p in lockfile_v1.package],
+        package=v2_packages,
         metadata=lockfile_v1.metadata,
     )
 

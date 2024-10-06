@@ -3,7 +3,7 @@ channels:
   - defaults
 dependencies:
   # purposefully using a badly formatted environment.yaml here
-  - python >= 3.7, < 3.8
+  - python >= 3.8, < 3.9
   - gdal
   - pip:
     - toolz

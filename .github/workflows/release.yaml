@@ -11,7 +11,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@0ad4b8fadaa221de15dcec353f45205ec38ea70b # v4
+    - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4
       with:
         fetch-depth: 0
 
@@ -32,7 +32,7 @@ jobs:
 
     - name: Test wheels
       run: |
-        python -m twine check dist/*
+        python -m twine check --strict dist/*
       shell: bash
 
     - name: Upload dist files for publication
@@ -43,6 +43,7 @@ jobs:
 
   publish:
     runs-on: ubuntu-latest
+    if: ${{ github.event_name == 'release' }}
     needs: build
     # Run this job in an isolated GHA environment containing the OIDC credentials.
     environment: release
@@ -54,5 +55,4 @@ jobs:
         name: dist-files
         path: dist
     - name: Publish a Python distribution to PyPI
-      if: ${{ github.event_name == 'release' }}
-      uses: pypa/gh-action-pypi-publish@v1.8.14
+      uses: pypa/gh-action-pypi-publish@v1.10.3

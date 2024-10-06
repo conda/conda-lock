@@ -1,38 +1,37 @@
-# -*- coding: utf-8 -*-
 # Copyright (C) 2012 Anaconda, Inc
 # SPDX-License-Identifier: BSD-3-Clause
-from __future__ import absolute_import, division, print_function, unicode_literals
+"""Disk utility functions for creating new files or directories."""
 
 import codecs
-from errno import EACCES, EPERM, EROFS
-from io import open
-from logging import getLogger
 import os
-from os.path import basename, dirname, isdir, isfile, join, splitext
-from shutil import copyfileobj, copystat
 import sys
 import tempfile
 import warnings as _warnings
+from errno import EACCES, EPERM, EROFS
+from logging import getLogger
+from os.path import dirname, isdir, isfile, join, splitext
+from shutil import copyfileobj, copystat
 
+from ... import CondaError
+from ...auxlib.ish import dals
+from ...base.constants import CONDA_PACKAGE_EXTENSION_V1, PACKAGE_CACHE_MAGIC_FILE
+from ...base.context import context
+from ...common.compat import on_linux, on_win
+from ...common.constants import TRACE
+from ...common.path import ensure_pad, expand, win_path_double_escape, win_path_ok
+from ...common.serialize import json_dump
+from ...exceptions import BasicClobberError, CondaOSError, maybe_raise
+from ...models.enums import LinkType
 from . import mkdir_p
 from .delete import path_is_clean, rm_rf
 from .link import islink, lexists, link, readlink, symlink
 from .permissions import make_executable
 from .update import touch
-from ... import CondaError
-from ...auxlib.ish import dals
-from ...base.constants import CONDA_PACKAGE_EXTENSION_V1, PACKAGE_CACHE_MAGIC_FILE
-from ...base.context import context
-from ...common.compat import on_win
-from ...common.path import ensure_pad, expand, win_path_double_escape, win_path_ok
-from ...common.serialize import json_dump
-from ...exceptions import BasicClobberError, CondaOSError, maybe_raise
-from ...models.enums import LinkType
 
 
 # we have our own TemporaryDirectory implementation both for historical reasons and because
 #     using our rm_rf function is more robust than the shutil equivalent
-class TemporaryDirectory(object):
+class TemporaryDirectory:
     """Create and return a temporary directory.  This has the same
     behavior as mkdtemp but can be used as a context manager.  For
     example:
@@ -48,22 +47,23 @@ class TemporaryDirectory(object):
     name = None
     _closed = False
 
-    def __init__(self, suffix="", prefix='tmp', dir=None):
+    def __init__(self, suffix="", prefix="tmp", dir=None):
         self.name = tempfile.mkdtemp(suffix, prefix, dir)
 
     def __repr__(self):
-        return "<{} {!r}>".format(self.__class__.__name__, self.name)
+        return f"<{self.__class__.__name__} {self.name!r}>"
 
     def __enter__(self):
         return self.name
 
     def cleanup(self, _warn=False, _warnings=_warnings):
         from .delete import rm_rf as _rm_rf
+
         if self.name and not self._closed:
             try:
                 _rm_rf(self.name)
             except (TypeError, AttributeError) as ex:
-                if "None" not in '%s' % (ex,):
+                if "None" not in f"{ex}":
                     raise
                 _rm_rf(self.name)
             self._closed = True
@@ -77,12 +77,13 @@ class TemporaryDirectory(object):
 
 
 log = getLogger(__name__)
-stdoutlog = getLogger('conda.stdoutlog')
+stdoutlog = getLogger("conda.stdoutlog")
 
 # in __init__.py to help with circular imports
 mkdir_p = mkdir_p
 
-python_entry_point_template = dals(r"""
+python_entry_point_template = dals(
+    r"""
 # -*- coding: utf-8 -*-
 import re
 import sys
@@ -92,9 +93,11 @@ from %(module)s import %(import_name)s
 if __name__ == '__main__':
     sys.argv[0] = re.sub(r'(-script\.pyw?|\.exe)?$', '', sys.argv[0])
     sys.exit(%(func)s())
-""")  # NOQA
+"""
+)  # NOQA
 
-application_entry_point_template = dals("""
+application_entry_point_template = dals(
+    """
 # -*- coding: utf-8 -*-
 if __name__ == '__main__':
     import os
@@ -103,29 +106,33 @@ if __name__ == '__main__':
     if len(sys.argv) > 1:
         args += sys.argv[1:]
     os.execv(args[0], args)
-""")
+"""
+)
 
 
 def write_as_json_to_file(file_path, obj):
-    log.trace("writing json to file %s", file_path)
-    with codecs.open(file_path, mode='wb', encoding='utf-8') as fo:
+    log.log(TRACE, "writing json to file %s", file_path)
+    with codecs.open(file_path, mode="wb", encoding="utf-8") as fo:
         json_str = json_dump(obj)
         fo.write(json_str)
 
 
 def create_python_entry_point(target_full_path, python_full_path, module, func):
     if lexists(target_full_path):
-        maybe_raise(BasicClobberError(
-            source_path=None,
-            target_path=target_full_path,
-            context=context,
-        ), context)
+        maybe_raise(
+            BasicClobberError(
+                source_path=None,
+                target_path=target_full_path,
+                context=context,
+            ),
+            context,
+        )
 
-    import_name = func.split('.')[0]
+    import_name = func.split(".")[0]
     pyscript = python_entry_point_template % {
-        'module': module,
-        'func': func,
-        'import_name': import_name,
+        "module": module,
+        "func": func,
+        "import_name": import_name,
     }
     if python_full_path is not None:
         from ...core.portability import generate_shebang_for_entry_point
@@ -134,7 +141,7 @@ def create_python_entry_point(target_full_path, python_full_path, module, func):
     else:
         shebang = None
 
-    with codecs.open(target_full_path, mode='wb', encoding='utf-8') as fo:
+    with codecs.open(target_full_path, mode="wb", encoding="utf-8") as fo:
         if shebang is not None:
             fo.write(shebang)
         fo.write(pyscript)
@@ -145,30 +152,35 @@ def create_python_entry_point(target_full_path, python_full_path, module, func):
     return target_full_path
 
 
-def create_application_entry_point(source_full_path, target_full_path, python_full_path):
+def create_application_entry_point(
+    source_full_path, target_full_path, python_full_path
+):
     # source_full_path: where the entry point file points to
     # target_full_path: the location of the new entry point file being created
     if lexists(target_full_path):
-        maybe_raise(BasicClobberError(
-            source_path=None,
-            target_path=target_full_path,
-            context=context,
-        ), context)
+        maybe_raise(
+            BasicClobberError(
+                source_path=None,
+                target_path=target_full_path,
+                context=context,
+            ),
+            context,
+        )
 
     entry_point = application_entry_point_template % {
         "source_full_path": win_path_double_escape(source_full_path),
     }
     if not isdir(dirname(target_full_path)):
         mkdir_p(dirname(target_full_path))
-    with open(target_full_path, str("w")) as fo:
-        if ' ' in python_full_path:
+    with open(target_full_path, "w") as fo:
+        if " " in python_full_path:
             python_full_path = ensure_pad(python_full_path, '"')
-        fo.write('#!%s\n' % python_full_path)
+        fo.write(f"#!{python_full_path}\n")
         fo.write(entry_point)
     make_executable(target_full_path)
 
 
-class ProgressFileWrapper(object):
+class ProgressFileWrapper:
     def __init__(self, fileobj, progress_update_callback):
         self.progress_file = fileobj
         self.progress_update_callback = progress_update_callback
@@ -180,7 +192,7 @@ class ProgressFileWrapper(object):
 
     def __setattr__(self, name, value):
         if name.startswith("progress_"):
-            super(ProgressFileWrapper, self).__setattr__(name, value)
+            super().__setattr__(name, value)
         else:
             setattr(self.progress_file, name, value)
 
@@ -197,7 +209,9 @@ class ProgressFileWrapper(object):
         self.progress_update_callback(rel_pos)
 
 
-def extract_tarball(tarball_full_path, destination_directory=None, progress_update_callback=None):
+def extract_tarball(
+    tarball_full_path, destination_directory=None, progress_update_callback=None
+):
     import conda_package_handling.api
 
     if destination_directory is None:
@@ -212,12 +226,19 @@ def extract_tarball(tarball_full_path, destination_directory=None, progress_upda
     #    have a .conda_trash extension though, so it's ok to just write into
     #    the same existing folder.
     if not path_is_clean(destination_directory):
-        log.debug("package folder %s was not empty, but we're writing there.",
-                  destination_directory)
+        log.debug(
+            "package folder %s was not empty, but we're writing there.",
+            destination_directory,
+        )
 
-    conda_package_handling.api.extract(tarball_full_path, dest_dir=destination_directory)
+    conda_package_handling.api.extract(
+        tarball_full_path, dest_dir=destination_directory
+    )
 
-    if sys.platform.startswith('linux') and os.getuid() == 0:
+    if hasattr(conda_package_handling.api, "THREADSAFE_EXTRACT"):
+        return  # indicates conda-package-handling 2.x, which implements --no-same-owner
+
+    if on_linux and os.getuid() == 0:  # pragma: no cover
         # When extracting as root, tarfile will by restore ownership
         # of extracted files.  However, we want root to be the owner
         # (our implementation of --no-same-owner).
@@ -234,36 +255,35 @@ def make_menu(prefix, file_path, remove=False):
     Passes all menu config files %PREFIX%/Menu/*.json to ``menuinst.install``.
     ``remove=True`` will remove the menu items.
     """
-    if not on_win:
-        return
-    elif basename(prefix).startswith('_'):
-        log.warn("Environment name starts with underscore '_'. Skipping menu installation.")
-        return
-
     try:
         import menuinst
-        menuinst.install(join(prefix, win_path_ok(file_path)), remove, prefix)
+
+        menuinst.install(
+            join(prefix, win_path_ok(file_path)),
+            remove=remove,
+            prefix=prefix,
+            root_prefix=context.root_prefix,
+        )
     except Exception:
         stdoutlog.error("menuinst Exception", exc_info=True)
 
 
 def create_hard_link_or_copy(src, dst):
     if islink(src):
-        message = dals("""
+        message = dals(
+            f"""
         Cannot hard link a soft link
-          source: %(source_path)s
-          destination: %(destination_path)s
-        """ % {
-            'source_path': src,
-            'destination_path': dst,
-        })
+          source: {src}
+          destination: {dst}
+        """
+        )
         raise CondaOSError(message)
 
     try:
-        log.trace("creating hard link %s => %s", src, dst)
+        log.log(TRACE, "creating hard link %s => %s", src, dst)
         link(src, dst)
-    except (IOError, OSError):
-        log.info('hard link failed, so copying %s => %s', src, dst)
+    except OSError:
+        log.info("hard link failed, so copying %s => %s", src, dst)
         _do_copy(src, dst)
 
 
@@ -282,7 +302,7 @@ def _do_softlink(src, dst):
         # A future optimization will be to copy code from @mingwandroid's virtualenv patch.
         copy(src, dst)
     else:
-        log.trace("soft linking %s => %s", src, dst)
+        log.log(TRACE, "soft linking %s => %s", src, dst)
         symlink(src, dst)
 
 
@@ -290,10 +310,8 @@ def create_fake_executable_softlink(src, dst):
     assert on_win
     src_root, _ = splitext(src)
     # TODO: this open will clobber, consider raising
-    with open(dst, 'w') as f:
-        f.write("@echo off\n"
-                "call \"%s\" %%*\n"
-                "" % src_root)
+    with open(dst, "w") as f:
+        f.write(f'@echo off\ncall "{src_root}" %*\n')
     return dst
 
 
@@ -301,16 +319,16 @@ def copy(src, dst):
     # on unix, make sure relative symlinks stay symlinks
     if not on_win and islink(src):
         src_points_to = readlink(src)
-        if not src_points_to.startswith('/'):
+        if not src_points_to.startswith("/"):
             # copy relative symlinks as symlinks
-            log.trace("soft linking %s => %s", src, dst)
+            log.log(TRACE, "soft linking %s => %s", src, dst)
             symlink(src_points_to, dst)
             return
     _do_copy(src, dst)
 
 
 def _do_copy(src, dst):
-    log.trace("copying %s => %s", src, dst)
+    log.log(TRACE, "copying %s => %s", src, dst)
     # src and dst are always files. So we can bypass some checks that shutil.copy does.
     # Also shutil.copy calls shutil.copymode, which we can skip because we are explicitly
     # calling copystat.
@@ -318,16 +336,16 @@ def _do_copy(src, dst):
     # Same size as used by Linux cp command (has performance advantage).
     # Python's default is 16k.
     buffer_size = 4194304  # 4 * 1024 * 1024  == 4 MB
-    with open(src, 'rb') as fsrc:
-        with open(dst, 'wb') as fdst:
+    with open(src, "rb") as fsrc:
+        with open(dst, "wb") as fdst:
             copyfileobj(fsrc, fdst, buffer_size)
 
     try:
         copystat(src, dst)
-    except (IOError, OSError) as e:  # pragma: no cover
+    except OSError as e:  # pragma: no cover
         # shutil.copystat gives a permission denied when using the os.setxattr function
         # on the security.selinux property.
-        log.debug('%r', e)
+        log.debug("%r", e)
 
 
 def create_link(src, dst, link_type=LinkType.hardlink, force=False):
@@ -337,33 +355,40 @@ def create_link(src, dst, link_type=LinkType.hardlink, force=False):
         if lexists(dst) and not isdir(dst):
             if not force:
                 maybe_raise(BasicClobberError(src, dst, context), context)
-            log.info("file exists, but clobbering for directory: %r" % dst)
+            log.info(f"file exists, but clobbering for directory: {dst!r}")
             rm_rf(dst)
         mkdir_p(dst)
         return
 
     if not lexists(src):
-        raise CondaError("Cannot link a source that does not exist. %s\n"
-                         "Running `conda clean --packages` may resolve your problem." % src)
+        raise CondaError(
+            f"Cannot link a source that does not exist. {src}\n"
+            "Running `conda clean --packages` may resolve your problem."
+        )
 
     if lexists(dst):
         if not force:
             maybe_raise(BasicClobberError(src, dst, context), context)
-        log.info("file exists, but clobbering: %r" % dst)
+        log.info(f"file exists, but clobbering: {dst!r}")
         rm_rf(dst)
 
     if link_type == LinkType.hardlink:
         if isdir(src):
-            raise CondaError("Cannot hard link a directory. %s" % src)
+            raise CondaError(f"Cannot hard link a directory. {src}")
         try:
-            log.trace("hard linking %s => %s", src, dst)
+            log.log(TRACE, "hard linking %s => %s", src, dst)
             link(src, dst)
-        except (IOError, OSError) as e:
+        except OSError as e:
             log.debug("%r", e)
-            log.debug("hard-link failed. falling back to copy\n"
-                      "  error: %r\n"
-                      "  src: %s\n"
-                      "  dst: %s", e, src, dst)
+            log.debug(
+                "hard-link failed. falling back to copy\n"
+                "  error: %r\n"
+                "  src: %s\n"
+                "  dst: %s",
+                e,
+                src,
+                dst,
+            )
 
             copy(src, dst)
     elif link_type == LinkType.softlink:
@@ -371,10 +396,12 @@ def create_link(src, dst, link_type=LinkType.hardlink, force=False):
     elif link_type == LinkType.copy:
         copy(src, dst)
     else:
-        raise CondaError("Did not expect linktype=%r" % link_type)
+        raise CondaError(f"Did not expect linktype={link_type!r}")
 
 
-def compile_multiple_pyc(python_exe_full_path, py_full_paths, pyc_full_paths, prefix, py_ver):
+def compile_multiple_pyc(
+    python_exe_full_path, py_full_paths, pyc_full_paths, prefix, py_ver
+):
     py_full_paths = tuple(py_full_paths)
     pyc_full_paths = tuple(pyc_full_paths)
     if len(py_full_paths) == 0:
@@ -384,22 +411,23 @@ def compile_multiple_pyc(python_exe_full_path, py_full_paths, pyc_full_paths, pr
     try:
         for f in py_full_paths:
             f = os.path.relpath(f, prefix)
-            if hasattr(f, 'encode'):
-                f = f.encode(sys.getfilesystemencoding(), errors='replace')
+            if hasattr(f, "encode"):
+                f = f.encode(sys.getfilesystemencoding(), errors="replace")
             os.write(fd, f + b"\n")
         os.close(fd)
         command = ["-Wi", "-m", "compileall", "-q", "-l", "-i", filename]
         # if the python version in the prefix is 3.5+, we have some extra args.
         #    -j 0 will do the compilation in parallel, with os.cpu_count() cores
-        if int(py_ver[0]) >= 3 and int(py_ver.split('.')[1]) > 5:
+        if int(py_ver[0]) >= 3 and int(py_ver.split(".")[1]) > 5:
             command.extend(["-j", "0"])
         command[0:0] = [python_exe_full_path]
         # command[0:0] = ['--cwd', prefix, '--dev', '-p', prefix, python_exe_full_path]
-        log.trace(command)
-        from conda_lock._vendor.conda.gateways.subprocess import any_subprocess
-        # from conda.common.io import env_vars
+        log.log(TRACE, command)
+        from ..subprocess import any_subprocess
+
+        # from ...common.io import env_vars
         # This stack does not maintain its _argparse_args correctly?
-        # from conda_lock.vendor.conda.base.context import stack_context_default
+        # from ...base.context import stack_context_default
         # with env_vars({}, stack_context_default):
         #     stdout, stderr, rc = run_command(Commands.RUN, *command)
         stdout, stderr, rc = any_subprocess(command, prefix)
@@ -409,7 +437,8 @@ def compile_multiple_pyc(python_exe_full_path, py_full_paths, pyc_full_paths, pr
     created_pyc_paths = []
     for py_full_path, pyc_full_path in zip(py_full_paths, pyc_full_paths):
         if not isfile(pyc_full_path):
-            message = dals("""
+            message = dals(
+                """
             pyc file failed to compile successfully (run_command failed)
             python_exe_full_path: %s
             py_full_path: %s
@@ -417,9 +446,17 @@ def compile_multiple_pyc(python_exe_full_path, py_full_paths, pyc_full_paths, pr
             compile rc: %s
             compile stdout: %s
             compile stderr: %s
-            """)
-            log.info(message, python_exe_full_path, py_full_path, pyc_full_path,
-                     rc, stdout, stderr)
+            """
+            )
+            log.info(
+                message,
+                python_exe_full_path,
+                py_full_path,
+                pyc_full_path,
+                rc,
+                stdout,
+                stderr,
+            )
         else:
             created_pyc_paths.append(pyc_full_path)
 
@@ -429,13 +466,13 @@ def compile_multiple_pyc(python_exe_full_path, py_full_paths, pyc_full_paths, pr
 def create_package_cache_directory(pkgs_dir):
     # returns False if package cache directory cannot be created
     try:
-        log.trace("creating package cache directory '%s'", pkgs_dir)
-        sudo_safe = expand(pkgs_dir).startswith(expand('~'))
+        log.log(TRACE, "creating package cache directory '%s'", pkgs_dir)
+        sudo_safe = expand(pkgs_dir).startswith(expand("~"))
         touch(join(pkgs_dir, PACKAGE_CACHE_MAGIC_FILE), mkdir=True, sudo_safe=sudo_safe)
-        touch(join(pkgs_dir, 'urls'), sudo_safe=sudo_safe)
-    except (IOError, OSError) as e:
+        touch(join(pkgs_dir, "urls"), sudo_safe=sudo_safe)
+    except OSError as e:
         if e.errno in (EACCES, EPERM, EROFS):
-            log.trace("cannot create package cache directory '%s'", pkgs_dir)
+            log.log(TRACE, "cannot create package cache directory '%s'", pkgs_dir)
             return False
         else:
             raise
@@ -448,14 +485,14 @@ def create_envs_directory(envs_dir):
     # The magic file being used here could change in the future.  Don't write programs
     # outside this code base that rely on the presence of this file.
     # This value is duplicated in conda_lock.vendor.conda.base.context._first_writable_envs_dir().
-    envs_dir_magic_file = join(envs_dir, '.conda_envs_dir_test')
+    envs_dir_magic_file = join(envs_dir, ".conda_envs_dir_test")
     try:
-        log.trace("creating envs directory '%s'", envs_dir)
-        sudo_safe = expand(envs_dir).startswith(expand('~'))
+        log.log(TRACE, "creating envs directory '%s'", envs_dir)
+        sudo_safe = expand(envs_dir).startswith(expand("~"))
         touch(join(envs_dir, envs_dir_magic_file), mkdir=True, sudo_safe=sudo_safe)
-    except (IOError, OSError) as e:
+    except OSError as e:
         if e.errno in (EACCES, EPERM, EROFS):
-            log.trace("cannot create envs directory '%s'", envs_dir)
+            log.log(TRACE, "cannot create envs directory '%s'", envs_dir)
             return False
         else:
             raise

@@ -2,6 +2,7 @@ import json
 import logging
 import os
 import pathlib
+import shlex
 import subprocess
 import sys
 import tempfile
@@ -16,9 +17,6 @@ import yaml
 from typing_extensions import TypedDict
 
 from conda_lock.interfaces.vendored_conda import MatchSpec
-from conda_lock.interfaces.vendored_poetry import (
-    CalledProcessError as PoetryCalledProcessError,
-)
 from conda_lock.invoke_conda import (
     PathLike,
     _get_conda_flags,
@@ -117,6 +115,7 @@ def solve_conda(
     update: List[str],
     platform: str,
     channels: List[Channel],
+    mapping_url: str,
 ) -> Dict[str, LockedDependency]:
     """
     Solve (or update a previous solution of) conda specs for the given platform
@@ -207,6 +206,7 @@ def solve_conda(
     apply_categories(
         requested={k: v for k, v in specs.items() if v.manager == "conda"},
         planned=planned,
+        mapping_url=mapping_url,
     )
 
     return planned
@@ -230,12 +230,12 @@ def _get_repodata_record(
                 with open(record) as f:
                     repodata: FetchAction = json.load(f)
                 return repodata
-        logger.warn(
+        logger.warning(
             f"Failed to find repodata_record.json for {dist_name}. "
             f"Retrying in 0.1 seconds ({retry}/{NUM_RETRIES})"
         )
         time.sleep(0.1)
-    logger.warn(f"Failed to find repodata_record.json for {dist_name}. Giving up.")
+    logger.warning(f"Failed to find repodata_record.json for {dist_name}. Giving up.")
     return None
 
 
@@ -340,6 +340,7 @@ def solve_specs_for_arch(
     args.extend(_get_conda_flags(channels=channels, platform=platform))
     args.extend(specs)
     logger.info("%s using specs %s", platform, specs)
+    logger.debug(f"Running command {shlex.join(args)}")
     proc = subprocess.run(  # noqa: UP022  # Poetry monkeypatch breaks capture_output
         [str(arg) for arg in args],
         env=conda_env_override(platform),
@@ -357,7 +358,7 @@ def solve_specs_for_arch(
 
     try:
         proc.check_returncode()
-    except (subprocess.CalledProcessError, PoetryCalledProcessError):
+    except subprocess.CalledProcessError:
         try:
             err_json = json.loads(proc.stdout)
             try:
@@ -476,7 +477,7 @@ def update_specs_for_arch(
 
             try:
                 proc.check_returncode()
-            except (subprocess.CalledProcessError, PoetryCalledProcessError) as exc:
+            except subprocess.CalledProcessError as exc:
                 err_json = json.loads(proc.stdout)
                 raise RuntimeError(
                     f"Could not lock the environment for platform {platform}: {err_json.get('message')}"

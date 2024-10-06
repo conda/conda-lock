@@ -1,0 +1,19 @@
+[tool.poetry]
+name = "conda-lock-test-poetry"
+version = "0.0.1"
+description = ""
+authors = ["conda-lock"]
+
+[tool.poetry.dependencies]
+python = "^3.7"
+requests = "^2.13.0"
+toml = ">=0.10"
+tomlkit = { version = ">=0.7.0,<1.0.0", optional = true }
+
+[tool.poetry.dev-dependencies]
+pytest = "~5.1.0"
+tensorflow = { git = "git+https://github.com/tensorflow/tensorflow@v2.17.0", subdirectory = "tensorflow/tools/pip_package" }
+
+[build-system]
+requires = ["poetry>=0.12"]
+build-backend = "poetry.masonry.api"

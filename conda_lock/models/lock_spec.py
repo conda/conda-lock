@@ -5,7 +5,7 @@ import typing
 
 from typing import Dict, List, Optional, Union
 
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field, field_validator
 from typing_extensions import Literal
 
 from conda_lock.models import StrictModel
@@ -19,8 +19,10 @@ class _BaseDependency(StrictModel):
     manager: Literal["conda", "pip"] = "conda"
     category: str = "main"
     extras: List[str] = []
+    markers: Optional[str] = None
 
-    @validator("extras")
+    @field_validator("extras")
+    @classmethod
     def sorted_extras(cls, v: List[str]) -> List[str]:
         return sorted(v)
 
@@ -41,9 +43,16 @@ class VCSDependency(_BaseDependency):
     source: str
     vcs: str
     rev: Optional[str] = None
+    subdirectory: Optional[str] = None
 
 
-Dependency = Union[VersionedDependency, URLDependency, VCSDependency]
+class PathDependency(_BaseDependency):
+    path: str
+    is_directory: bool
+    subdirectory: Optional[str] = None
+
+
+Dependency = Union[VersionedDependency, URLDependency, VCSDependency, PathDependency]
 
 
 class Package(StrictModel):
@@ -52,10 +61,11 @@ class Package(StrictModel):
 
 
 class PoetryMappedDependencySpec(StrictModel):
-    url: Optional[str]
+    url: Optional[str] = None
     manager: Literal["conda", "pip"]
     extras: List
-    poetry_version_spec: Optional[str]
+    markers: Optional[str] = None
+    poetry_version_spec: Optional[str] = None
 
 
 class LockSpecification(BaseModel):
@@ -64,33 +74,38 @@ class LockSpecification(BaseModel):
     channels: List[Channel]
     sources: List[pathlib.Path]
     pip_repositories: List[PipRepository] = Field(default_factory=list)
-    virtual_package_repo: Optional[FakeRepoData] = None
     allow_pypi_requests: bool = True
 
     @property
     def platforms(self) -> List[str]:
         return list(self.dependencies.keys())
 
-    def content_hash(self) -> Dict[str, str]:
+    def content_hash(
+        self, virtual_package_repo: Optional[FakeRepoData]
+    ) -> Dict[str, str]:
         return {
-            platform: self.content_hash_for_platform(platform)
+            platform: self.content_hash_for_platform(platform, virtual_package_repo)
             for platform in self.platforms
         }
 
-    def content_hash_for_platform(self, platform: str) -> str:
+    def content_hash_for_platform(
+        self, platform: str, virtual_package_repo: Optional[FakeRepoData]
+    ) -> str:
         data = {
-            "channels": [c.json() for c in self.channels],
+            "channels": [c.model_dump_json() for c in self.channels],
             "specs": [
-                p.dict()
+                p.model_dump()
                 for p in sorted(
                     self.dependencies[platform], key=lambda p: (p.manager, p.name)
                 )
             ],
         }
         if self.pip_repositories:
-            data["pip_repositories"] = [repo.json() for repo in self.pip_repositories]
-        if self.virtual_package_repo is not None:
-            vpr_data = self.virtual_package_repo.all_repodata
+            data["pip_repositories"] = [
+                repo.model_dump_json() for repo in self.pip_repositories
+            ]
+        if virtual_package_repo is not None:
+            vpr_data = virtual_package_repo.all_repodata
             data["virtual_package_hash"] = {
                 "noarch": vpr_data.get("noarch", {}),
                 **{platform: vpr_data.get(platform, {})},
@@ -99,7 +114,8 @@ class LockSpecification(BaseModel):
         env_spec = json.dumps(data, sort_keys=True)
         return hashlib.sha256(env_spec.encode("utf-8")).hexdigest()
 
-    @validator("channels", pre=True)
+    @field_validator("channels", mode="before")
+    @classmethod
     def validate_channels(cls, v: List[Union[Channel, str]]) -> List[Channel]:
         for i, e in enumerate(v):
             if isinstance(e, str):
@@ -109,7 +125,8 @@ class LockSpecification(BaseModel):
                 raise ValueError("nodefaults channel is not allowed, ref #418")
         return typing.cast(List[Channel], v)
 
-    @validator("pip_repositories", pre=True)
+    @field_validator("pip_repositories", mode="before")
+    @classmethod
     def validate_pip_repositories(
         cls, value: List[Union[PipRepository, str]]
     ) -> List[PipRepository]:
