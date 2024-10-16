@@ -1,0 +1,104 @@
+{
+    "GID": 127,
+    "UID": 1001,
+    "active_prefix": "/home/runner/miniconda3/envs/esmvaltool-fromlock",
+    "active_prefix_name": "esmvaltool-fromlock",
+    "av_data_dir": "/home/runner/miniconda3/etc/conda",
+    "av_metadata_url_base": null,
+    "channels": [
+      "https://conda.anaconda.org/conda-forge/linux-64",
+      "https://conda.anaconda.org/conda-forge/noarch"
+    ],
+    "conda_build_version": "not installed",
+    "conda_env_version": "24.9.1",
+    "conda_location": "/home/runner/miniconda3/lib/python3.12/site-packages/conda",
+    "conda_prefix": "/home/runner/miniconda3",
+    "conda_shlvl": 2,
+    "conda_version": "24.9.1",
+    "config_files": [
+      "/home/runner/miniconda3/.condarc",
+      "/home/runner/.condarc"
+    ],
+    "default_prefix": "/home/runner/miniconda3/envs/esmvaltool-fromlock",
+    "env_vars": {
+      "CIO_TEST": "<not set>",
+      "CONDA": "/home/runner/miniconda3",
+      "CONDA_DEFAULT_ENV": "esmvaltool-fromlock",
+      "CONDA_EXE": "/home/runner/miniconda3/bin/conda",
+      "CONDA_PKGS_DIR": "/home/runner/conda_pkgs_dir",
+      "CONDA_PREFIX": "/home/runner/miniconda3/envs/esmvaltool-fromlock",
+      "CONDA_PREFIX_1": "/home/runner/miniconda3",
+      "CONDA_PROMPT_MODIFIER": "",
+      "CONDA_PYTHON_EXE": "/home/runner/miniconda3/bin/python",
+      "CONDA_ROOT": "/home/runner/miniconda3",
+      "CONDA_SHLVL": "2",
+      "CURL_CA_BUNDLE": "<not set>",
+      "DEPLOYMENT_BASEPATH": "/opt/runner",
+      "GITHUB_EVENT_PATH": "/home/runner/work/_temp/_github_workflow/event.json",
+      "GITHUB_PATH": "/home/runner/work/_temp/_runner_file_commands/add_path_56b7c011-2784-49f4-8a76-8ec97d34b1bc",
+      "LD_PRELOAD": "<not set>",
+      "PATH": "/home/runner/miniconda3/envs/esmvaltool-fromlock/bin:/home/runner/miniconda3/condabin:/home/runner/miniconda3/condabin:/snap/bin:/home/runner/.local/bin:/opt/pipx_bin:/home/runner/.cargo/bin:/home/runner/.config/composer/vendor/bin:/usr/local/.ghcup/bin:/home/runner/.dotnet/tools:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin:/home/runner/.dotnet/tools",
+      "REQUESTS_CA_BUNDLE": "<not set>",
+      "SELENIUM_JAR_PATH": "/usr/share/java/selenium-server.jar",
+      "SSL_CERT_FILE": "<not set>",
+      "SWIFT_PATH": "/usr/share/swift/usr/bin"
+    },
+    "envs": [
+      "/home/runner/miniconda3",
+      "/home/runner/miniconda3/envs/esmvaltool-fromlock"
+    ],
+    "envs_dirs": [
+      "/home/runner/miniconda3/envs",
+      "/home/runner/.conda/envs"
+    ],
+    "netrc_file": null,
+    "offline": false,
+    "pkgs_dirs": [
+      "/home/runner/conda_pkgs_dir"
+    ],
+    "platform": "linux-64",
+    "python_version": "3.12.6.final.0",
+    "rc_path": "/home/runner/.condarc",
+    "requests_version": "2.32.3",
+    "root_prefix": "/home/runner/miniconda3",
+    "root_writable": true,
+    "site_dirs": [],
+    "solver": {
+      "default": true,
+      "name": "libmamba",
+      "user_agent": "solver/libmamba conda-libmamba-solver/24.7.0 libmambapy/1.5.9"
+    },
+    "sys.executable": "/home/runner/miniconda3/bin/python",
+    "sys.prefix": "/home/runner/miniconda3",
+    "sys.version": "3.12.6 | packaged by conda-forge | (main, Sep 22 2024, 14:16:49) [GCC 13.3.0]",
+    "sys_rc_path": "/home/runner/miniconda3/.condarc",
+    "user_agent": "conda/24.9.1 requests/2.32.3 CPython/3.12.6 Linux/6.5.0-1025-azure ubuntu/22.04.5 glibc/2.35 solver/libmamba conda-libmamba-solver/24.7.0 libmambapy/1.5.9",
+    "user_rc_path": "/home/runner/.condarc",
+    "virtual_pkgs": [
+      [
+        "__archspec",
+        "1",
+        "zen2"
+      ],
+      [
+        "__conda",
+        "24.9.1",
+        "0"
+      ],
+      [
+        "__glibc",
+        "2.35",
+        "0"
+      ],
+      [
+        "__linux",
+        "6.5.0",
+        "0"
+      ],
+      [
+        "__unix",
+        "0",
+        "0"
+      ]
+    ]
+  }

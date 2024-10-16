@@ -1,0 +1,35 @@
+{
+    "base environment": "/home/user/micromamba",
+    "channels": [
+        "https://conda.anaconda.org/conda-forge/linux-64",
+        "https://conda.anaconda.org/conda-forge/noarch",
+        "https://conda.anaconda.org/nodefaults/linux-64",
+        "https://conda.anaconda.org/nodefaults/noarch"
+    ],
+    "curl version": "libcurl/7.88.1 OpenSSL/3.1.1 zlib/1.2.13 zstd/1.5.2 libssh2/1.11.0 nghttp2/1.52.0",
+    "env location": "/home/user/micromamba/envs/esmvaltool-lock-test",
+    "environment": "esmvaltool-lock-test (active)",
+    "envs directories": [
+        "/home/user/micromamba/envs"
+    ],
+    "libarchive version": "libarchive 3.6.2 zlib/1.2.13 bz2lib/1.0.8 libzstd/1.5.2",
+    "libmamba version": "1.4.6",
+    "micromamba version": "1.4.6",
+    "package cache": [
+        "/home/user/micromamba/pkgs",
+        "/home/user/.mamba/pkgs"
+    ],
+    "platform": "linux-64",
+    "populated config files": [
+        "/home/user/.condarc"
+    ],
+    "user config files": [
+        "/home/user/.mambarc"
+    ],
+    "virtual packages": [
+        "__unix=0=0",
+        "__linux=5.15.0=0",
+        "__glibc=2.31=0",
+        "__archspec=1=x86_64"
+    ]
+}

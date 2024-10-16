@@ -1,0 +1,6 @@
+{
+    "pkgs_dirs": [
+        "/home/user/micromamba/pkgs",
+        "/home/user/.mamba/pkgs"
+    ]
+}
