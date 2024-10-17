@@ -9,7 +9,16 @@ import tempfile
 import time
 
 from contextlib import contextmanager
-from typing import Dict, Iterable, Iterator, List, MutableSequence, Optional, Sequence
+from typing import (
+    Dict,
+    Iterable,
+    Iterator,
+    List,
+    Literal,
+    MutableSequence,
+    Optional,
+    Sequence,
+)
 from urllib.parse import urlsplit, urlunsplit
 
 from typing_extensions import TypedDict
@@ -237,11 +246,19 @@ def _get_repodata_record(
     return None
 
 
-def _get_pkgs_dirs(*, conda: PathLike, platform: str) -> List[pathlib.Path]:
+def _get_pkgs_dirs(
+    *,
+    conda: PathLike,
+    platform: str,
+    method: Optional[Literal["config", "info"]] = None,
+) -> List[pathlib.Path]:
     """Extract the package cache directories from the conda configuration."""
-    if is_micromamba(conda):
+    if method is None:
+        method = "config" if is_micromamba(conda) else "info"
+    if method == "config":
+        # 'package cache' was added to 'micromamba info' in v1.4.6.
         args = [str(conda), "config", "--json", "list", "pkgs_dirs"]
-    else:
+    elif method == "info":
         args = [str(conda), "info", "--json"]
     pkgs_dirs = [
         pathlib.Path(d)
