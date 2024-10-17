@@ -254,36 +254,23 @@ def _reconstruct_fetch_actions(
     link_actions = {p["name"]: p for p in dry_run_install["actions"]["LINK"]}
     fetch_actions = {p["name"]: p for p in dry_run_install["actions"]["FETCH"]}
     link_only_names = set(link_actions.keys()).difference(fetch_actions.keys())
-    if is_micromamba(conda):
-        if link_only_names:
+    if link_only_names:
+        if is_micromamba(conda):
             args = [str(conda), "config", "--json", "list", "pkgs_dirs"]
-            pkgs_dirs = [
-                pathlib.Path(d)
-                for d in json.loads(
-                    extract_json_object(
-                        subprocess.check_output(
-                            args, env=conda_env_override(platform)
-                        ).decode()
-                    )
-                )["pkgs_dirs"]
-            ]
         else:
-            pkgs_dirs = []
-    else:
-        if link_only_names:
             args = [str(conda), "info", "--json"]
-            pkgs_dirs = [
-                pathlib.Path(d)
-                for d in json.loads(
-                    extract_json_object(
-                        subprocess.check_output(
-                            args, env=conda_env_override(platform)
-                        ).decode()
-                    )
-                )["pkgs_dirs"]
-            ]
-        else:
-            pkgs_dirs = []
+        pkgs_dirs = [
+            pathlib.Path(d)
+            for d in json.loads(
+                extract_json_object(
+                    subprocess.check_output(
+                        args, env=conda_env_override(platform)
+                    ).decode()
+                )
+            )["pkgs_dirs"]
+        ]
+    else:
+        pkgs_dirs = []
 
     for link_pkg_name in link_only_names:
         link_action = link_actions[link_pkg_name]
