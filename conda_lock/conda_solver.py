@@ -10,6 +10,7 @@ import time
 
 from contextlib import contextmanager
 from typing import (
+    Any,
     Dict,
     Iterable,
     Iterator,
@@ -260,14 +261,12 @@ def _get_pkgs_dirs(
         args = [str(conda), "config", "--json", "list", "pkgs_dirs"]
     elif method == "info":
         args = [str(conda), "info", "--json"]
-    pkgs_dirs = [
-        pathlib.Path(d)
-        for d in json.loads(
-            extract_json_object(
-                subprocess.check_output(args, env=conda_env_override(platform)).decode()
-            )
-        )["pkgs_dirs"]
-    ]
+    env = conda_env_override(platform)
+    output = subprocess.check_output(args, env=env).decode()
+    json_object_str = extract_json_object(output)
+    json_object: dict[str, Any] = json.loads(json_object_str)
+    pkgs_dirs_list: list[str] = json_object["pkgs_dirs"]
+    pkgs_dirs = [pathlib.Path(d) for d in pkgs_dirs_list]
     return pkgs_dirs
 
 
