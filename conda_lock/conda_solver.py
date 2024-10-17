@@ -12,8 +12,6 @@ from contextlib import contextmanager
 from typing import Dict, Iterable, Iterator, List, MutableSequence, Optional, Sequence
 from urllib.parse import urlsplit, urlunsplit
 
-import yaml
-
 from typing_extensions import TypedDict
 
 from conda_lock.interfaces.vendored_conda import MatchSpec
@@ -258,13 +256,15 @@ def _reconstruct_fetch_actions(
     link_only_names = set(link_actions.keys()).difference(fetch_actions.keys())
     if is_micromamba(conda):
         if link_only_names:
-            args = [str(conda), "config", "list", "pkgs_dirs"]
+            args = [str(conda), "config", "--json", "list", "pkgs_dirs"]
             pkgs_dirs = [
                 pathlib.Path(d)
-                for d in yaml.safe_load(
-                    subprocess.check_output(
-                        args, env=conda_env_override(platform)
-                    ).decode()
+                for d in json.loads(
+                    extract_json_object(
+                        subprocess.check_output(
+                            args, env=conda_env_override(platform)
+                        ).decode()
+                    )
                 )["pkgs_dirs"]
             ]
         else:
