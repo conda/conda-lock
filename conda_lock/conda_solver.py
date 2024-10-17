@@ -9,10 +9,18 @@ import tempfile
 import time
 
 from contextlib import contextmanager
-from typing import Dict, Iterable, Iterator, List, MutableSequence, Optional, Sequence
+from typing import (
+    Any,
+    Dict,
+    Iterable,
+    Iterator,
+    List,
+    Literal,
+    MutableSequence,
+    Optional,
+    Sequence,
+)
 from urllib.parse import urlsplit, urlunsplit
-
-import yaml
 
 from typing_extensions import TypedDict
 
@@ -239,6 +247,38 @@ def _get_repodata_record(
     return None
 
 
+def _get_pkgs_dirs(
+    *,
+    conda: PathLike,
+    platform: str,
+    method: Optional[Literal["config", "info"]] = None,
+) -> List[pathlib.Path]:
+    """Extract the package cache directories from the conda configuration."""
+    if method is None:
+        method = "config" if is_micromamba(conda) else "info"
+    if method == "config":
+        # 'package cache' was added to 'micromamba info' in v1.4.6.
+        args = [str(conda), "config", "--json", "list", "pkgs_dirs"]
+    elif method == "info":
+        args = [str(conda), "info", "--json"]
+    env = conda_env_override(platform)
+    output = subprocess.check_output(args, env=env).decode()
+    json_object_str = extract_json_object(output)
+    json_object: dict[str, Any] = json.loads(json_object_str)
+    pkgs_dirs_list: list[str]
+    if "pkgs_dirs" in json_object:
+        pkgs_dirs_list = json_object["pkgs_dirs"]
+    elif "package cache" in json_object:
+        pkgs_dirs_list = json_object["package cache"]
+    else:
+        raise ValueError(
+            f"Unable to extract pkgs_dirs from {json_object}. "
+            "Please report this issue to the conda-lock developers."
+        )
+    pkgs_dirs = [pathlib.Path(d) for d in pkgs_dirs_list]
+    return pkgs_dirs
+
+
 def _reconstruct_fetch_actions(
     conda: PathLike, platform: str, dry_run_install: DryRunInstall
 ) -> DryRunInstall:
@@ -256,34 +296,10 @@ def _reconstruct_fetch_actions(
     link_actions = {p["name"]: p for p in dry_run_install["actions"]["LINK"]}
     fetch_actions = {p["name"]: p for p in dry_run_install["actions"]["FETCH"]}
     link_only_names = set(link_actions.keys()).difference(fetch_actions.keys())
-    if is_micromamba(conda):
-        if link_only_names:
-            args = [str(conda), "config", "list", "pkgs_dirs"]
-            pkgs_dirs = [
-                pathlib.Path(d)
-                for d in yaml.safe_load(
-                    subprocess.check_output(
-                        args, env=conda_env_override(platform)
-                    ).decode()
-                )["pkgs_dirs"]
-            ]
-        else:
-            pkgs_dirs = []
+    if link_only_names:
+        pkgs_dirs = _get_pkgs_dirs(conda=conda, platform=platform)
     else:
-        if link_only_names:
-            args = [str(conda), "info", "--json"]
-            pkgs_dirs = [
-                pathlib.Path(d)
-                for d in json.loads(
-                    extract_json_object(
-                        subprocess.check_output(
-                            args, env=conda_env_override(platform)
-                        ).decode()
-                    )
-                )["pkgs_dirs"]
-            ]
-        else:
-            pkgs_dirs = []
+        pkgs_dirs = []
 
     for link_pkg_name in link_only_names:
         link_action = link_actions[link_pkg_name]
