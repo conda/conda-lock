@@ -237,6 +237,23 @@ def _get_repodata_record(
     return None
 
 
+def _get_pkgs_dirs(*, conda: PathLike, platform: str) -> List[pathlib.Path]:
+    """Extract the package cache directories from the conda configuration."""
+    if is_micromamba(conda):
+        args = [str(conda), "config", "--json", "list", "pkgs_dirs"]
+    else:
+        args = [str(conda), "info", "--json"]
+    pkgs_dirs = [
+        pathlib.Path(d)
+        for d in json.loads(
+            extract_json_object(
+                subprocess.check_output(args, env=conda_env_override(platform)).decode()
+            )
+        )["pkgs_dirs"]
+    ]
+    return pkgs_dirs
+
+
 def _reconstruct_fetch_actions(
     conda: PathLike, platform: str, dry_run_install: DryRunInstall
 ) -> DryRunInstall:
@@ -255,20 +272,7 @@ def _reconstruct_fetch_actions(
     fetch_actions = {p["name"]: p for p in dry_run_install["actions"]["FETCH"]}
     link_only_names = set(link_actions.keys()).difference(fetch_actions.keys())
     if link_only_names:
-        if is_micromamba(conda):
-            args = [str(conda), "config", "--json", "list", "pkgs_dirs"]
-        else:
-            args = [str(conda), "info", "--json"]
-        pkgs_dirs = [
-            pathlib.Path(d)
-            for d in json.loads(
-                extract_json_object(
-                    subprocess.check_output(
-                        args, env=conda_env_override(platform)
-                    ).decode()
-                )
-            )["pkgs_dirs"]
-        ]
+        pkgs_dirs = _get_pkgs_dirs(conda=conda, platform=platform)
     else:
         pkgs_dirs = []
 
