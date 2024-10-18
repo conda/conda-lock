@@ -61,9 +61,13 @@ class Lockfile(StrictModel):
         elif not isinstance(other, Lockfile):
             raise TypeError
 
-        assert (
-            self.metadata.channels == other.metadata.channels
-        ), f"channels must match: {self.metadata.channels} != {other.metadata.channels}"
+        if self.metadata.channels != other.metadata.channels:
+            raise ValueError(
+                f"Cannot merge locked dependencies when the channels are not "
+                f"consistent. {self.metadata.channels} != {other.metadata.channels}. "
+                f"If the channels are indeed different, then you may need to delete "
+                f"the existing lockfile and relock from scratch."
+            )
 
         ours = {d.key(): d for d in self.package}
         theirs = {d.key(): d for d in other.package}

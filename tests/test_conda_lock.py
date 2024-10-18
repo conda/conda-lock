@@ -1937,7 +1937,7 @@ def test_aggregate_lock_specs_invalid_channels():
         sources=[],
     )
 
-    add_conda_forge = base_spec.copy(
+    add_conda_forge = base_spec.model_copy(
         update={
             "channels": [
                 Channel.from_string("conda-forge"),
@@ -1949,7 +1949,7 @@ def test_aggregate_lock_specs_invalid_channels():
     assert agg_spec.channels == add_conda_forge.channels
 
     # swap the order of the two channels, which is an error
-    flipped = base_spec.copy(
+    flipped = base_spec.model_copy(
         update={
             "channels": [
                 Channel.from_string("defaults"),
@@ -1963,7 +1963,7 @@ def test_aggregate_lock_specs_invalid_channels():
             [base_spec, add_conda_forge, flipped], platforms=[]
         )
 
-    add_pytorch = base_spec.copy(
+    add_pytorch = base_spec.model_copy(
         update={
             "channels": [
                 Channel.from_string("pytorch"),
