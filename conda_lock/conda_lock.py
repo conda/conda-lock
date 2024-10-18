@@ -419,7 +419,7 @@ def make_lock_files(  # noqa: C901
                     for dep in original_lock_content.package
                     if dep.platform not in platforms_to_lock
                 ]
-                lock_content_to_persist = original_lock_content.copy(
+                lock_content_to_persist = original_lock_content.model_copy(
                     deep=True,
                     update={"package": packages_not_to_lock},
                 )
