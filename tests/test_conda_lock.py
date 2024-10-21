@@ -15,7 +15,8 @@ import uuid
 
 from glob import glob
 from pathlib import Path
-from typing import Any, ContextManager, Dict, List, Literal, Set, Tuple, Union
+from typing import Any, ContextManager, Dict, List, Literal, Optional, Set, Tuple, Union
+from unittest import mock
 from unittest.mock import MagicMock
 from urllib.parse import urldefrag, urlsplit
 
@@ -47,7 +48,11 @@ from conda_lock.conda_lock import (
     render_lockfile_for_platform,
     run_lock,
 )
-from conda_lock.conda_solver import extract_json_object, fake_conda_environment
+from conda_lock.conda_solver import (
+    _get_pkgs_dirs,
+    extract_json_object,
+    fake_conda_environment,
+)
 from conda_lock.errors import (
     ChannelAggregationError,
     MissingEnvVarError,
@@ -1932,7 +1937,7 @@ def test_aggregate_lock_specs_invalid_channels():
         sources=[],
     )
 
-    add_conda_forge = base_spec.copy(
+    add_conda_forge = base_spec.model_copy(
         update={
             "channels": [
                 Channel.from_string("conda-forge"),
@@ -1944,7 +1949,7 @@ def test_aggregate_lock_specs_invalid_channels():
     assert agg_spec.channels == add_conda_forge.channels
 
     # swap the order of the two channels, which is an error
-    flipped = base_spec.copy(
+    flipped = base_spec.model_copy(
         update={
             "channels": [
                 Channel.from_string("defaults"),
@@ -1958,7 +1963,7 @@ def test_aggregate_lock_specs_invalid_channels():
             [base_spec, add_conda_forge, flipped], platforms=[]
         )
 
-    add_pytorch = base_spec.copy(
+    add_pytorch = base_spec.model_copy(
         update={
             "channels": [
                 Channel.from_string("pytorch"),
@@ -2813,6 +2818,49 @@ def test_extract_json_object():
     """It should remove all the characters after the last }"""
     assert extract_json_object(' ^[0m {"key1": true } ^[0m') == '{"key1": true }'
     assert extract_json_object('{"key1": true }') == '{"key1": true }'
+
+
+def test_get_pkgs_dirs(conda_exe):
+    # If it runs without raising an exception, then it found the package directories.
+    _get_pkgs_dirs(conda=conda_exe, platform="linux-64")
+
+
+@pytest.mark.parametrize(
+    "info_file,expected",
+    [
+        ("conda-info.json", [Path("/home/runner/conda_pkgs_dir")]),
+        ("mamba-info.json", [Path("/home/runner/conda_pkgs_dir")]),
+        ("micromamba-1.4.5-info.json", None),
+        (
+            "micromamba-1.4.6-info.json",
+            [Path("/home/user/micromamba/pkgs"), Path("/home/user/.mamba/pkgs")],
+        ),
+        (
+            "micromamba-config-list-pkgs_dirs.json",
+            [Path("/home/user/micromamba/pkgs"), Path("/home/user/.mamba/pkgs")],
+        ),
+    ],
+)
+def test_get_pkgs_dirs_mocked_output(info_file: str, expected: Optional[List[Path]]):
+    """Test _get_pkgs_dirs with mocked subprocess.check_output."""
+    info_path = TESTS_DIR / "test-get-pkgs-dirs" / info_file
+    command_output = info_path.read_bytes()
+    conda = info_path.stem.split("-")[0]
+    method: Literal["config", "info"]
+    if "config" in info_file:
+        method = "config"
+    elif "info" in info_file:
+        method = "info"
+    else:
+        raise ValueError(f"Unknown method for {info_file}")
+
+    with mock.patch("subprocess.check_output", return_value=command_output):
+        # If expected is None, we expect a ValueError to be raised
+        with pytest.raises(
+            ValueError
+        ) if expected is None else contextlib.nullcontext():
+            result = _get_pkgs_dirs(conda=conda, platform="linux-64", method=method)
+            assert result == expected
 
 
 def test_cli_version(capsys: "pytest.CaptureFixture[str]"):
