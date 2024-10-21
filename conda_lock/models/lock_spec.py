@@ -1,8 +1,12 @@
+from __future__ import annotations
+
+import copy
 import hashlib
 import json
 import pathlib
 import typing
 
+from fnmatch import fnmatchcase
 from typing import Dict, List, Optional, Union
 
 from pydantic import BaseModel, Field, field_validator
@@ -26,6 +30,20 @@ class _BaseDependency(StrictModel):
     def sorted_extras(cls, v: List[str]) -> List[str]:
         return sorted(v)
 
+    def _merge_base(self, other: _BaseDependency) -> _BaseDependency:
+        if other is None:
+            return self
+        if self.name != other.name or self.manager != other.manager:
+            raise ValueError(
+                "Cannot merge incompatible dependencies: {self} != {other}"
+            )
+        return _BaseDependency(
+            name=self.name,
+            manager=self.manager,
+            category=self.category,  # TODO: Merge categories
+            extras=list(set(self.extras + other.extras)),
+        )
+
 
 class VersionedDependency(_BaseDependency):
     version: str
@@ -33,10 +51,91 @@ class VersionedDependency(_BaseDependency):
     conda_channel: Optional[str] = None
     hash: Optional[str] = None
 
+    @staticmethod
+    def _merge_versions(
+        version1: str,
+        version2: str,
+    ) -> str:
+        if version1 == version2:
+            return version1
+        if version1 == "" or version1 == "*":
+            return version2
+        if version2 == "" or version2 == "*":
+            return version1
+        return f"{version1},{version2}"
+
+    @staticmethod
+    def _merge_builds(
+        build1: Optional[str],
+        build2: Optional[str],
+    ) -> Optional[str]:
+        if build1 == build2:
+            return build1
+        if build1 is None or build1 == "":
+            return build2
+        if build2 is None or build2 == "":
+            return build1
+        if fnmatchcase(build1, build2):
+            return build1
+        if fnmatchcase(build2, build1):
+            return build2
+        raise ValueError(f"Found incompatible constraint {build1}, {build2}")
+
+    def merge(self, other: Optional[VersionedDependency]) -> VersionedDependency:
+        if other is None:
+            return self
+
+        if (
+            self.conda_channel is not None
+            and other.conda_channel is not None
+            and self.conda_channel != other.conda_channel
+        ):
+            raise ValueError(
+                f"VersionedDependency has two different conda_channels:\n{self}\n{other}"
+            )
+        merged_base = self._merge_base(other)
+        try:
+            build = self._merge_builds(self.build, other.build)
+        except ValueError as exc:
+            raise ValueError(
+                f"Unsupported usage of two incompatible builds for same dependency {self}, {other}"
+            ) from exc
+
+        return VersionedDependency(
+            name=merged_base.name,
+            manager=merged_base.manager,
+            category=merged_base.category,
+            extras=merged_base.extras,
+            version=self._merge_versions(self.version, other.version),
+            build=build,
+            conda_channel=self.conda_channel or other.conda_channel,
+        )
+
 
 class URLDependency(_BaseDependency):
     url: str
     hashes: List[str]
+
+    def merge(self, other: Optional[URLDependency]) -> URLDependency:
+        if other is None:
+            return self
+        if self.url != other.url:
+            raise ValueError(f"URLDependency has two different urls:\n{self}\n{other}")
+
+        if self.hashes != other.hashes:
+            raise ValueError(
+                f"URLDependency has two different hashess:\n{self}\n{other}"
+            )
+        merged_base = self._merge_base(other)
+
+        return URLDependency(
+            name=merged_base.name,
+            manager=merged_base.manager,
+            category=merged_base.category,
+            extras=merged_base.extras,
+            url=self.url,
+            hashes=self.hashes,
+        )
 
 
 class VCSDependency(_BaseDependency):
@@ -44,6 +143,31 @@ class VCSDependency(_BaseDependency):
     vcs: str
     rev: Optional[str] = None
     subdirectory: Optional[str] = None
+
+    def merge(self, other: Optional[VCSDependency]) -> VCSDependency:
+        if other is None:
+            return self
+        if self.source != other.source:
+            raise ValueError(
+                f"VCSDependency has two different sources:\n{self}\n{other}"
+            )
+
+        if self.vcs != other.vcs:
+            raise ValueError(f"VCSDependency has two different vcss:\n{self}\n{other}")
+
+        if self.rev is not None and other.rev is not None and self.rev != other.rev:
+            raise ValueError(f"VCSDependency has two different revs:\n{self}\n{other}")
+        merged_base = self._merge_base(other)
+
+        return VCSDependency(
+            name=merged_base.name,
+            manager=merged_base.manager,
+            category=merged_base.category,
+            extras=merged_base.extras,
+            source=self.source,
+            vcs=self.vcs,
+            rev=self.rev or other.rev,
+        )
 
 
 class PathDependency(_BaseDependency):
