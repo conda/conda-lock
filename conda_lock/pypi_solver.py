@@ -1,7 +1,10 @@
+from __future__ import annotations
+
 import re
 import sys
 import warnings
 
+from contextlib import contextmanager
 from pathlib import Path
 from posixpath import expandvars
 from typing import (
@@ -65,6 +68,10 @@ MANYLINUX_TAGS = ["1", "2010", "2014", "_2_17", "_2_24", "_2_28"]
 
 # This needs to be updated periodically as new macOS versions are released.
 MACOS_VERSION = (13, 4)
+
+# Specify where to check out sources when resolving pip dependencies from VCS,
+# Set it with the use_vcs_checkout_root() context manager.
+_vcs_checkout_root: Path | None = None
 
 
 class PlatformEnv(Env):
@@ -449,6 +456,18 @@ def _compute_hash(link: Link, lock_spec_hash: Optional[str]) -> HashModel:
         return HashModel(**{algo: value})
 
 
+@contextmanager
+def use_vcs_checkout_root(vcs_checkout_root: Path) -> Iterator[Path]:
+    global _vcs_checkout_root
+    original_checkout_root = _vcs_checkout_root
+    _vcs_checkout_root = vcs_checkout_root
+
+    try:
+        yield _vcs_checkout_root
+    finally:
+        _vcs_checkout_root = original_checkout_root
+
+
 def solve_pypi(
     *,
     pip_specs: Dict[str, lock_spec.Dependency],
@@ -567,7 +586,8 @@ def solve_pypi(
     )
     # find platform-specific solution (e.g. dependencies conditioned on markers)
     with s.use_environment(env):
-        result = s.solve(use_latest=to_update)
+        with s.provider.use_source_root(_vcs_checkout_root):
+            result = s.solve(use_latest=to_update)
 
     requirements = get_requirements(
         result.calculate_operations(with_uninstalls=False),
