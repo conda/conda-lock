@@ -138,7 +138,7 @@ def cached_download_file(url: str) -> bytes:
                 # Return the contents immediately if the file is fresh
                 try:
                     mtime = destination_mapping.stat().st_mtime
-                    age = current_time - mtime
+                    age = time.time() - mtime
                     if age < DONT_CHECK_IF_NEWER_THAN_SECONDS:
                         contents = destination_mapping.read_bytes()
                         logger.debug(
