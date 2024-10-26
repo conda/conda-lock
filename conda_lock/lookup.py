@@ -144,33 +144,24 @@ def cached_download_file(url: str) -> bytes:
 def download_to_or_read_from_cache(url: str, cache: Path) -> bytes:
     destination_mapping = cache / cached_filename_for_url(url)
     destination_etag = destination_mapping.with_suffix(".etag")
+    request_headers = {}
     # Return the contents immediately if the file is fresh
-    try:
+    if destination_mapping.is_file():
         mtime = destination_mapping.stat().st_mtime
         age = time.time() - mtime
         if age < DONT_CHECK_IF_NEWER_THAN_SECONDS:
-            contents = destination_mapping.read_bytes()
             logger.debug(
                 f"Using cached mapping {destination_mapping} without "
                 f"checking for updates"
             )
-            return contents
-    except FileNotFoundError:
-        pass
-    # Get the ETag from the last download, if it exists
-    if destination_mapping.exists() and destination_etag.exists():
-        logger.debug(f"Old ETag found at {destination_etag}")
-        try:
+            return destination_mapping.read_bytes()
+        # Get the ETag from the last download, if it exists
+        if destination_etag.is_file():
             old_etag = destination_etag.read_text().strip()
-            headers = {"If-None-Match": old_etag}
-        except FileNotFoundError:
-            logger.warning("Failed to read ETag")
-            headers = {}
-    else:
-        headers = {}
+            request_headers["If-None-Match"] = old_etag
     # Download the file and cache the result.
     logger.debug(f"Requesting {url}")
-    res = requests.get(url, headers=headers)
+    res = requests.get(url, headers=request_headers)
     if res.status_code == 304:
         logger.debug(
             f"{url} has not changed since last download, "
