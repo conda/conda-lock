@@ -125,8 +125,7 @@ def cached_download_file(url: str) -> bytes:
                 logger.debug("Removing old cache file %s", file)
                 file.unlink()
 
-    url_hash = hashlib.sha256(url.encode()).hexdigest()[:4]
-    destination_mapping = cache / f"pypi-mapping-{url_hash}.yaml"
+    destination_mapping = cache / cached_filename_for_url(url)
     destination_etag = destination_mapping.with_suffix(".etag")
     destination_lock = destination_mapping.with_suffix(".lock")
 
@@ -184,3 +183,9 @@ def cached_download_file(url: str) -> bytes:
                 f"Failed to acquire lock on {destination_lock}, it is likely "
                 f"being downloaded by another process. Retrying..."
             )
+
+
+def cached_filename_for_url(url: str) -> str:
+    url_hash = hashlib.sha256(url.encode()).hexdigest()[:4]
+    extension = "yaml" if url.endswith(".yaml") else "json"
+    return f"pypi-mapping-{url_hash}.{extension}"
