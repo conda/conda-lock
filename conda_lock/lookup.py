@@ -19,6 +19,12 @@ logger = logging.getLogger(__name__)
 
 DEFAULT_MAPPING_URL = "https://raw.githubusercontent.com/regro/cf-graph-countyfair/master/mappings/pypi/grayskull_pypi_mapping.json"
 
+CLEAR_CACHE_AFTER_SECONDS = 60 * 60 * 24 * 2  # 2 days
+"""Cached files older than this will be deleted."""
+
+DONT_CHECK_IF_NEWER_THAN_SECONDS = 60 * 5  # 5 minutes
+"""If the cached file is newer than this, just use it without checking for updates."""
+
 
 class MappingEntry(TypedDict):
     conda_name: str
@@ -109,8 +115,6 @@ def cached_download_file(url: str) -> bytes:
 
     Protect against multiple processes downloading the same file.
     """
-    CLEAR_CACHE_AFTER_SECONDS = 60 * 60 * 24 * 2  # 2 days
-    DONT_CHECK_IF_NEWER_THAN_SECONDS = 60 * 5  # 5 minutes
     current_time = time.time()
     cache = user_cache_path("conda-lock", appauthor=False)
     cache.mkdir(parents=True, exist_ok=True)
