@@ -142,19 +142,18 @@ def cached_download_file(url: str) -> bytes:
 
 
 def download_to_or_read_from_cache(url: str, cache: Path) -> bytes:
-    destination_mapping = cache / cached_filename_for_url(url)
-    destination_etag = destination_mapping.with_suffix(".etag")
+    destination = cache / cached_filename_for_url(url)
+    destination_etag = destination.with_suffix(".etag")
     request_headers = {}
     # Return the contents immediately if the file is fresh
-    if destination_mapping.is_file():
-        mtime = destination_mapping.stat().st_mtime
+    if destination.is_file():
+        mtime = destination.stat().st_mtime
         age = time.time() - mtime
         if age < DONT_CHECK_IF_NEWER_THAN_SECONDS:
             logger.debug(
-                f"Using cached mapping {destination_mapping} without "
-                f"checking for updates"
+                f"Using cached mapping {destination} without checking for updates"
             )
-            return destination_mapping.read_bytes()
+            return destination.read_bytes()
         # Get the ETag from the last download, if it exists
         if destination_etag.is_file():
             old_etag = destination_etag.read_text().strip()
@@ -163,19 +162,16 @@ def download_to_or_read_from_cache(url: str, cache: Path) -> bytes:
     logger.debug(f"Requesting {url}")
     res = requests.get(url, headers=request_headers)
     if res.status_code == 304:
-        logger.debug(
-            f"{url} has not changed since last download, "
-            f"using {destination_mapping}"
-        )
+        logger.debug(f"{url} has not changed since last download, using {destination}")
     else:
         res.raise_for_status()
-        destination_mapping.write_bytes(res.content)
+        destination.write_bytes(res.content)
         if "ETag" in res.headers:
             destination_etag.write_text(res.headers["ETag"])
         else:
             logger.warning("No ETag in response headers")
-    logger.debug(f"Downloaded {url} to {destination_mapping}")
-    return destination_mapping.read_bytes()
+    logger.debug(f"Downloaded {url} to {destination}")
+    return destination.read_bytes()
 
 
 def cached_filename_for_url(url: str) -> str:
