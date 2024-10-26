@@ -74,18 +74,15 @@ def pypi_name_to_conda_name(name: str, mapping_url: str) -> str:
     'zpfqzvrj'
     """
     cname = canonicalize_pypi_name(name)
-    if cname in _get_pypi_lookup(mapping_url):
-        lookup = _get_pypi_lookup(mapping_url)[cname]
-        res = lookup.get("conda_name") or lookup.get("conda_forge")
+    lookup = _get_pypi_lookup(mapping_url)
+    if cname in lookup:
+        entry = lookup[cname]
+        res = entry.get("conda_name") or entry.get("conda_forge")
         if res is not None:
             return res
-        else:
-            logging.warning(
-                f"Could not find conda name for {cname}. Assuming identity."
-            )
-            return cname
-    else:
-        return cname
+
+    logger.warning(f"Could not find conda name for {cname}. Assuming identity.")
+    return cname
 
 
 @lru_cache(maxsize=None)
