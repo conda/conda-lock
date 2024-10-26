@@ -10,7 +10,7 @@ from typing import Dict, TypedDict
 import requests
 
 from filelock import FileLock, Timeout
-from packaging.utils import NormalizedName, canonicalize_name
+from packaging.utils import NormalizedName
 from packaging.utils import canonicalize_name as canonicalize_pypi_name
 from platformdirs import user_cache_path
 
@@ -57,9 +57,9 @@ def _get_pypi_lookup(mapping_url: str) -> Dict[NormalizedName, MappingEntry]:
     logger.debug(f"Loaded {len(lookup)} entries in {load_duration:.2f}s")
     # lowercase and kebabcase the pypi names
     assert lookup is not None
-    lookup = {canonicalize_name(k): v for k, v in lookup.items()}
+    lookup = {canonicalize_pypi_name(k): v for k, v in lookup.items()}
     for v in lookup.values():
-        v["pypi_name"] = canonicalize_name(v["pypi_name"])
+        v["pypi_name"] = canonicalize_pypi_name(v["pypi_name"])
     return lookup
 
 
@@ -102,7 +102,7 @@ def _get_conda_lookup(mapping_url: str) -> Dict[str, MappingEntry]:
 def conda_name_to_pypi_name(name: str, mapping_url: str) -> NormalizedName:
     """return the pypi name for a conda package"""
     lookup = _get_conda_lookup(mapping_url=mapping_url)
-    cname = canonicalize_name(name)
+    cname = canonicalize_pypi_name(name)
     return lookup.get(cname, {"pypi_name": cname})["pypi_name"]
 
 
