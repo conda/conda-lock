@@ -178,7 +178,6 @@ def download_to_or_read_from_cache(url: str, cache: Path) -> bytes:
         )
     else:
         res.raise_for_status()
-        time.sleep(10)
         destination_mapping.write_bytes(res.content)
         if "ETag" in res.headers:
             destination_etag.write_text(res.headers["ETag"])
