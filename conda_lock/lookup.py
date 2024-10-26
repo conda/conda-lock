@@ -125,9 +125,7 @@ def cached_download_file(url: str) -> bytes:
                 logger.debug("Removing old cache file %s", file)
                 file.unlink()
 
-    destination_mapping = cache / cached_filename_for_url(url)
-    destination_etag = destination_mapping.with_suffix(".etag")
-    destination_lock = destination_mapping.with_suffix(".lock")
+    destination_lock = (cache / cached_filename_for_url(url)).with_suffix(".lock")
 
     # Wait for any other process to finish downloading the file.
     # Use the ETag to avoid downloading the file if it hasn't changed.
@@ -135,6 +133,8 @@ def cached_download_file(url: str) -> bytes:
     while True:
         try:
             with FileLock(destination_lock, timeout=5):
+                destination_mapping = cache / cached_filename_for_url(url)
+                destination_etag = destination_mapping.with_suffix(".etag")
                 # Return the contents immediately if the file is fresh
                 try:
                     mtime = destination_mapping.stat().st_mtime
