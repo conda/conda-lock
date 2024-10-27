@@ -79,7 +79,7 @@ def _download_to_or_read_from_cache(
     if destination.is_file():
         mtime = destination.stat().st_mtime
         age = time.time() - mtime
-        if 0 <= age <= DONT_CHECK_IF_NEWER_THAN_SECONDS:
+        if 0 <= age <= dont_check_if_newer_than_seconds:
             logger.debug(
                 f"Using cached mapping {destination} without checking for updates"
             )
