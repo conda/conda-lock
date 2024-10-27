@@ -112,7 +112,6 @@ def cached_download_file(url: str) -> bytes:
 
     Protect against multiple processes downloading the same file.
     """
-    current_time = time.time()
     cache = user_cache_path("conda-lock", appauthor=False)
     cache.mkdir(parents=True, exist_ok=True)
 
@@ -120,7 +119,7 @@ def cached_download_file(url: str) -> bytes:
     for file in cache.iterdir():
         if file.name.startswith("pypi-mapping-"):
             mtime = file.stat().st_mtime
-            age = current_time - mtime
+            age = time.time() - mtime
             if age < 0 or age > CLEAR_CACHE_AFTER_SECONDS:
                 logger.debug("Removing old cache file %s", file)
                 file.unlink()
