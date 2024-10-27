@@ -119,8 +119,8 @@ def cached_download_file(url: str) -> bytes:
     destination_lock = (cache / cached_filename_for_url(url)).with_suffix(".lock")
 
     # Wait for any other process to finish downloading the file.
-    # Use the ETag to avoid downloading the file if it hasn't changed.
-    # Otherwise, download the file and cache the contents and ETag.
+    # This way we can use the result from the current download without
+    # spawning multiple concurrent downloads.
     while True:
         try:
             with FileLock(destination_lock, timeout=5):
@@ -133,6 +133,12 @@ def cached_download_file(url: str) -> bytes:
 
 
 def download_to_or_read_from_cache(url: str, cache: Path) -> bytes:
+    """Download a file to the cache directory and return the contents.
+
+    If the file is newer than DONT_CHECK_IF_NEWER_THAN_SECONDS, then immediately
+    return the cached contents. Otherwise we pass the ETag from the last download
+    in the headers to avoid downloading the file if it hasn't changed remotely.
+    """
     destination = cache / cached_filename_for_url(url)
     destination_etag = destination.with_suffix(".etag")
     request_headers = {}
@@ -145,7 +151,9 @@ def download_to_or_read_from_cache(url: str, cache: Path) -> bytes:
                 f"Using cached mapping {destination} without checking for updates"
             )
             return destination.read_bytes()
-        # Get the ETag from the last download, if it exists
+        # Add the ETag from the last download, if it exists, to the headers.
+        # The ETag is used to avoid downloading the file if it hasn't changed remotely.
+        # Otherwise, download the file and cache the contents and ETag.
         if destination_etag.is_file():
             old_etag = destination_etag.read_text().strip()
             request_headers["If-None-Match"] = old_etag
@@ -166,6 +174,20 @@ def download_to_or_read_from_cache(url: str, cache: Path) -> bytes:
 
 
 def cached_filename_for_url(url: str) -> str:
+    """Return a filename for a URL that is probably unique to the URL.
+
+    The filename is a 4-character hash of the URL, followed by the extension.
+    If the extension is not alphanumeric or too long, it is omitted.
+
+    >>> cached_filename_for_url("https://example.com/foo.json")
+    'a5d7.json'
+    >>> cached_filename_for_url("https://example.com/foo")
+    '5ea6'
+    >>> cached_filename_for_url("https://example.com/foo.bär")
+    '2191'
+    >>> cached_filename_for_url("https://example.com/foo.baaaaaar")
+    '1861'
+    """
     url_hash = hashlib.sha256(url.encode()).hexdigest()[:4]
     extension = "yaml" if url.endswith(".yaml") else "json"
     return f"{url_hash}.{extension}"
