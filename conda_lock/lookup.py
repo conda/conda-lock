@@ -125,7 +125,11 @@ def cached_download_file(url: str) -> bytes:
     while True:
         try:
             with FileLock(destination_lock, timeout=5):
-                return download_to_or_read_from_cache(url, cache)
+                return _download_to_or_read_from_cache(
+                    url,
+                    cache=cache,
+                    dont_check_if_newer_than_seconds=DONT_CHECK_IF_NEWER_THAN_SECONDS,
+                )
         except Timeout:
             logger.warning(
                 f"Failed to acquire lock on {destination_lock}, it is likely "
@@ -133,10 +137,15 @@ def cached_download_file(url: str) -> bytes:
             )
 
 
-def download_to_or_read_from_cache(url: str, cache: Path) -> bytes:
+def _download_to_or_read_from_cache(
+    url: str, *, cache: Path, dont_check_if_newer_than_seconds: float
+) -> bytes:
     """Download a file to the cache directory and return the contents.
 
-    If the file is newer than DONT_CHECK_IF_NEWER_THAN_SECONDS, then immediately
+    This function is designed to be called from within a FileLock context to avoid
+    multiple processes downloading the same file.
+
+    If the file is newer than `dont_check_if_newer_than_seconds`, then immediately
     return the cached contents. Otherwise we pass the ETag from the last download
     in the headers to avoid downloading the file if it hasn't changed remotely.
     """
