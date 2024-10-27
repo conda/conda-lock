@@ -114,14 +114,7 @@ def cached_download_file(url: str) -> bytes:
     """
     cache = user_cache_path("conda-lock", appauthor=False) / "cache" / "pypi-mapping"
     cache.mkdir(parents=True, exist_ok=True)
-
-    # clear out old cache files
-    for file in cache.iterdir():
-        mtime = file.stat().st_mtime
-        age = time.time() - mtime
-        if age < 0 or age > CLEAR_CACHE_AFTER_SECONDS:
-            logger.debug("Removing old cache file %s", file)
-            file.unlink()
+    clear_old_files_from_cache(cache, max_age=CLEAR_CACHE_AFTER_SECONDS)
 
     destination_lock = (cache / cached_filename_for_url(url)).with_suffix(".lock")
 
@@ -176,3 +169,24 @@ def cached_filename_for_url(url: str) -> str:
     url_hash = hashlib.sha256(url.encode()).hexdigest()[:4]
     extension = "yaml" if url.endswith(".yaml") else "json"
     return f"{url_hash}.{extension}"
+
+
+def clear_old_files_from_cache(cache: Path, *, max_age: float) -> None:
+    """Remove files in the cache directory older than max_age seconds.
+
+    Also removes any files that somehow have a modification time in the future.
+
+    For safety, this raises an error if `cache` is not a subdirectory of
+    a directory named `"cache"`.
+    """
+    if not cache.parent.name == "cache":
+        raise ValueError(
+            f"Expected cache directory, got {cache}. Parent should be 'cache' ",
+            f"not '{cache.parent.name}'",
+        )
+    for file in cache.iterdir():
+        mtime = file.stat().st_mtime
+        age = time.time() - mtime
+        if age < 0 or age > max_age:
+            logger.debug("Removing old cache file %s", file)
+            file.unlink()
