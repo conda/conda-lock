@@ -1,6 +1,7 @@
 import hashlib
 import json
 import logging
+import re
 import time
 
 from functools import lru_cache
@@ -189,8 +190,11 @@ def cached_filename_for_url(url: str) -> str:
     '1861'
     """
     url_hash = hashlib.sha256(url.encode()).hexdigest()[:4]
-    extension = "yaml" if url.endswith(".yaml") else "json"
-    return f"{url_hash}.{extension}"
+    extension = url.split(".")[-1]
+    if len(extension) <= 6 and re.match("^[a-zA-Z0-9]+$", extension):
+        return f"{url_hash}.{extension}"
+    else:
+        return f"{url_hash}"
 
 
 def clear_old_files_from_cache(cache: Path, *, max_age: float) -> None:
