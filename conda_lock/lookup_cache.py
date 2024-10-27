@@ -4,6 +4,7 @@ import re
 
 from datetime import datetime
 from pathlib import Path
+from typing import Optional
 
 import requests
 
@@ -32,6 +33,7 @@ def cached_download_file(
     url: str,
     *,
     cache_subdir_name: str,
+    cache_root: Optional[Path] = None,
     max_age_seconds: float = CLEAR_CACHE_AFTER_SECONDS,
     dont_check_if_newer_than_seconds: float = DONT_CHECK_IF_NEWER_THAN_SECONDS,
 ) -> bytes:
@@ -43,7 +45,9 @@ def cached_download_file(
 
     Protect against multiple processes downloading the same file.
     """
-    cache = user_cache_path("conda-lock", appauthor=False) / "cache" / cache_subdir_name
+    if cache_root is None:
+        cache_root = user_cache_path("conda-lock", appauthor=False)
+    cache = cache_root / "cache" / cache_subdir_name
     cache.mkdir(parents=True, exist_ok=True)
     clear_old_files_from_cache(cache, max_age_seconds=max_age_seconds)
 
@@ -54,7 +58,7 @@ def cached_download_file(
     # spawning multiple concurrent downloads.
     while True:
         try:
-            with FileLock(destination_lock, timeout=5):
+            with FileLock(str(destination_lock), timeout=5):
                 return _download_to_or_read_from_cache(
                     url,
                     cache=cache,
