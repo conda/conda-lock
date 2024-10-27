@@ -1,8 +1,8 @@
 import hashlib
 import logging
 import re
-import time
 
+from datetime import datetime
 from pathlib import Path
 
 import requests
@@ -85,7 +85,7 @@ def _download_to_or_read_from_cache(
     # Return the contents immediately if the file is fresh
     if destination.is_file():
         mtime = destination.stat().st_mtime
-        age = time.time() - mtime
+        age = datetime.now().timestamp() - mtime
         if 0 <= age <= dont_check_if_newer_than_seconds:
             logger.debug(
                 f"Using cached mapping {destination} without checking for updates"
@@ -151,7 +151,7 @@ def clear_old_files_from_cache(cache: Path, *, max_age_seconds: float) -> None:
         )
     for file in cache.iterdir():
         mtime = file.stat().st_mtime
-        age = time.time() - mtime
+        age = datetime.now().timestamp() - mtime
         if age < 0 or age > max_age_seconds:
             logger.debug("Removing old cache file %s", file)
             file.unlink()
