@@ -112,7 +112,7 @@ def cached_download_file(url: str) -> bytes:
 
     Protect against multiple processes downloading the same file.
     """
-    cache = user_cache_path("conda-lock", appauthor=False) / "pypi-mapping"
+    cache = user_cache_path("conda-lock", appauthor=False) / "cache" / "pypi-mapping"
     cache.mkdir(parents=True, exist_ok=True)
 
     # clear out old cache files
