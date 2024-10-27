@@ -21,6 +21,13 @@ DONT_CHECK_IF_NEWER_THAN_SECONDS = 60 * 5  # 5 minutes
 """If the cached file is newer than this, just use it without checking for updates."""
 
 
+def uncached_download_file(url: str) -> bytes:
+    """The simple equivalent to cached_download_file."""
+    res = requests.get(url)
+    res.raise_for_status()
+    return res.content
+
+
 def cached_download_file(
     url: str,
     *,
