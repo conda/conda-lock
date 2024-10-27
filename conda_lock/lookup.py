@@ -38,7 +38,7 @@ class MappingEntry(TypedDict):
 def _get_pypi_lookup(mapping_url: str) -> Dict[NormalizedName, MappingEntry]:
     url = mapping_url
     if url.startswith("http://") or url.startswith("https://"):
-        content = cached_download_file(url)
+        content = cached_download_file(url, cache_subdir_name="pypi-mapping")
     else:
         if url.startswith("file://"):
             path = url[len("file://") :]
@@ -104,7 +104,13 @@ def conda_name_to_pypi_name(name: str, mapping_url: str) -> NormalizedName:
     return lookup.get(cname, {"pypi_name": cname})["pypi_name"]
 
 
-def cached_download_file(url: str) -> bytes:
+def cached_download_file(
+    url: str,
+    *,
+    cache_subdir_name: str,
+    max_age_seconds: float = CLEAR_CACHE_AFTER_SECONDS,
+    dont_check_if_newer_than_seconds: float = DONT_CHECK_IF_NEWER_THAN_SECONDS,
+) -> bytes:
     """Download a file and cache it in the user cache directory.
 
     If the file is already cached, return the cached contents.
@@ -113,9 +119,9 @@ def cached_download_file(url: str) -> bytes:
 
     Protect against multiple processes downloading the same file.
     """
-    cache = user_cache_path("conda-lock", appauthor=False) / "cache" / "pypi-mapping"
+    cache = user_cache_path("conda-lock", appauthor=False) / "cache" / cache_subdir_name
     cache.mkdir(parents=True, exist_ok=True)
-    clear_old_files_from_cache(cache, max_age=CLEAR_CACHE_AFTER_SECONDS)
+    clear_old_files_from_cache(cache, max_age_seconds=max_age_seconds)
 
     destination_lock = (cache / cached_filename_for_url(url)).with_suffix(".lock")
 
@@ -128,7 +134,7 @@ def cached_download_file(url: str) -> bytes:
                 return _download_to_or_read_from_cache(
                     url,
                     cache=cache,
-                    dont_check_if_newer_than_seconds=DONT_CHECK_IF_NEWER_THAN_SECONDS,
+                    dont_check_if_newer_than_seconds=dont_check_if_newer_than_seconds,
                 )
         except Timeout:
             logger.warning(
@@ -206,8 +212,8 @@ def cached_filename_for_url(url: str) -> str:
         return f"{url_hash}"
 
 
-def clear_old_files_from_cache(cache: Path, *, max_age: float) -> None:
-    """Remove files in the cache directory older than max_age seconds.
+def clear_old_files_from_cache(cache: Path, *, max_age_seconds: float) -> None:
+    """Remove files in the cache directory older than `max_age_seconds`.
 
     Also removes any files that somehow have a modification time in the future.
 
@@ -222,6 +228,6 @@ def clear_old_files_from_cache(cache: Path, *, max_age: float) -> None:
     for file in cache.iterdir():
         mtime = file.stat().st_mtime
         age = time.time() - mtime
-        if age < 0 or age > max_age:
+        if age < 0 or age > max_age_seconds:
             logger.debug("Removing old cache file %s", file)
             file.unlink()
