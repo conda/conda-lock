@@ -112,17 +112,16 @@ def cached_download_file(url: str) -> bytes:
 
     Protect against multiple processes downloading the same file.
     """
-    cache = user_cache_path("conda-lock", appauthor=False)
+    cache = user_cache_path("conda-lock", appauthor=False) / "pypi-mapping"
     cache.mkdir(parents=True, exist_ok=True)
 
     # clear out old cache files
     for file in cache.iterdir():
-        if file.name.startswith("pypi-mapping-"):
-            mtime = file.stat().st_mtime
-            age = time.time() - mtime
-            if age < 0 or age > CLEAR_CACHE_AFTER_SECONDS:
-                logger.debug("Removing old cache file %s", file)
-                file.unlink()
+        mtime = file.stat().st_mtime
+        age = time.time() - mtime
+        if age < 0 or age > CLEAR_CACHE_AFTER_SECONDS:
+            logger.debug("Removing old cache file %s", file)
+            file.unlink()
 
     destination_lock = (cache / cached_filename_for_url(url)).with_suffix(".lock")
 
@@ -176,4 +175,4 @@ def download_to_or_read_from_cache(url: str, cache: Path) -> bytes:
 def cached_filename_for_url(url: str) -> str:
     url_hash = hashlib.sha256(url.encode()).hexdigest()[:4]
     extension = "yaml" if url.endswith(".yaml") else "json"
-    return f"pypi-mapping-{url_hash}.{extension}"
+    return f"{url_hash}.{extension}"
