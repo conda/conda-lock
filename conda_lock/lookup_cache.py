@@ -23,7 +23,7 @@ DONT_CHECK_IF_NEWER_THAN_SECONDS = 60 * 5  # 5 minutes
 
 def uncached_download_file(url: str) -> bytes:
     """The simple equivalent to cached_download_file."""
-    res = requests.get(url)
+    res = requests.get(url, headers={"User-Agent": "conda-lock"})
     res.raise_for_status()
     return res.content
 
@@ -81,7 +81,7 @@ def _download_to_or_read_from_cache(
     """
     destination = cache / cached_filename_for_url(url)
     destination_etag = destination.with_suffix(".etag")
-    request_headers = {}
+    request_headers = {"User-Agent": "conda-lock"}
     # Return the contents immediately if the file is fresh
     if destination.is_file():
         mtime = destination.stat().st_mtime
