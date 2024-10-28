@@ -1,5 +1,6 @@
 import hashlib
 import logging
+import platform
 import re
 
 from datetime import datetime
@@ -20,6 +21,11 @@ CLEAR_CACHE_AFTER_SECONDS = 60 * 60 * 24 * 2  # 2 days
 
 DONT_CHECK_IF_NEWER_THAN_SECONDS = 60 * 5  # 5 minutes
 """If the cached file is newer than this, just use it without checking for updates."""
+
+WINDOWS_TIME_EPSILON = 0.005
+"""Windows has issues with file timestamps, so we add this small offset
+to ensure that newly created files have a positive age.
+"""
 
 
 def uncached_download_file(url: str) -> bytes:
@@ -88,11 +94,11 @@ def _download_to_or_read_from_cache(
     request_headers = {"User-Agent": "conda-lock"}
     # Return the contents immediately if the file is fresh
     if destination.is_file():
-        mtime = destination.stat().st_mtime
-        age = datetime.now().timestamp() - mtime
-        if 0 <= age <= dont_check_if_newer_than_seconds:
+        age_seconds = get_age_seconds(destination)
+        if 0 <= age_seconds < dont_check_if_newer_than_seconds:
             logger.debug(
-                f"Using cached mapping {destination} without checking for updates"
+                f"Using cached mapping {destination} of age {age_seconds}s "
+                f"without checking for updates"
             )
             return destination.read_bytes()
         # Add the ETag from the last download, if it exists, to the headers.
@@ -154,8 +160,20 @@ def clear_old_files_from_cache(cache: Path, *, max_age_seconds: float) -> None:
             f"not '{cache.parent.name}'",
         )
     for file in cache.iterdir():
-        mtime = file.stat().st_mtime
-        age = datetime.now().timestamp() - mtime
-        if age < 0 or age > max_age_seconds:
+        age_seconds = get_age_seconds(file)
+        if age_seconds < 0 or age_seconds >= max_age_seconds:
             logger.debug("Removing old cache file %s", file)
             file.unlink()
+
+
+def get_age_seconds(path: Path) -> float:
+    """Return the age of a file in seconds.
+
+    On Windows, the age of a new file is sometimes slightly negative, so we add a small
+    offset to ensure that the age is positive.
+    """
+    raw_age = datetime.now().timestamp() - path.stat().st_mtime
+    if platform.system() == "Windows":
+        return raw_age + WINDOWS_TIME_EPSILON
+    else:
+        return raw_age
