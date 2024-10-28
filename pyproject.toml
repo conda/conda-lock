@@ -124,7 +124,6 @@ addopts = [
 ]
 log_level = "DEBUG"
 testpaths = ["tests", "conda_lock"]
-filterwarnings = "ignore::DeprecationWarning"
 
 [tool.vendoring]
 destination = "conda_lock/_vendor"
