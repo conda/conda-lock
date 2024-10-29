@@ -162,7 +162,7 @@ def clear_old_files_from_cache(cache: Path, *, max_age_seconds: float) -> None:
     for file in cache.iterdir():
         age_seconds = get_age_seconds(file)
         if age_seconds < 0 or age_seconds >= max_age_seconds:
-            logger.debug("Removing old cache file %s", file)
+            logger.debug(f"Removing old cache file {file} of age {age_seconds}s")
             file.unlink()
 
 
