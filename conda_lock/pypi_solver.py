@@ -437,9 +437,7 @@ def _get_url(link: Link) -> str:
 
 def _compute_hash(link: Link, lock_spec_hash: Optional[str]) -> HashModel:
     if lock_spec_hash is None:
-        hashes: Dict[str, str] = {}
-        if link.hash_name is not None and link.hash is not None:
-            hashes[link.hash_name] = link.hash
+        hashes: Dict[str, str] = dict(link.hashes)
         return HashModel.model_validate(hashes)
     else:
         # A hash was provided in the lock spec, so that takes precedence
