@@ -257,7 +257,7 @@ def virtual_package_repo_from_specification(
         data = yaml.safe_load(fp)
     logging.debug("Virtual package spec: %s", data)
 
-    spec = VirtualPackageSpec.parse_obj(data)
+    spec = VirtualPackageSpec.model_validate(data)
 
     repodata = _init_fake_repodata()
     for subdir, subdir_spec in spec.subdirs.items():
