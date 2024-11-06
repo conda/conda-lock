@@ -1267,7 +1267,7 @@ def test_run_lock_with_time_metadata(
     if is_micromamba(conda_exe):
         monkeypatch.setenv("CONDA_FLAGS", "-v")
     frozen_datetime = datetime.datetime(
-        year=1, month=7, day=12, hour=15, minute=6, second=3
+        year=1971, month=7, day=12, hour=15, minute=6, second=3
     )
     with freeze_time(frozen_datetime):
         run_lock(
