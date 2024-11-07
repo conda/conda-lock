@@ -2605,16 +2605,6 @@ def test_fake_conda_env(conda_exe: str, conda_lock_yaml: Path):
     with fake_conda_environment(
         lockfile_content.package, platform="linux-64"
     ) as prefix:
-        subprocess.call(
-            [
-                conda_exe,
-                "list",
-                "--debug",
-                "-p",
-                prefix,
-                "--json",
-            ]
-        )
         packages = json.loads(
             subprocess.check_output(
                 [
