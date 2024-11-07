@@ -2644,7 +2644,10 @@ def test_fake_conda_env(conda_exe: str, conda_lock_yaml: Path):
             else:
                 assert env_package["base_url"] == expected_base_url
                 assert env_package["channel"] == expected_channel
-            assert env_package["dist_name"] == f"{path.name[:-8]}"
+            expected_dist = path
+            while expected_dist.name.endswith((".tar", ".bz2", ".gz", ".conda")):
+                expected_dist = expected_dist.with_suffix("")
+            assert env_package["dist_name"] == expected_dist.name
             assert platform == path.parent.name
 
 
