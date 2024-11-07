@@ -25,7 +25,6 @@ dependencies:
 - pre-commit
 - pytest
 - pytest-cov
-- pytest-split
 - pytest-timeout
 - pytest-xdist
 - python-build
@@ -42,3 +41,5 @@ dependencies:
 - types-freezegun
 - types-setuptools
 - wheel
+- pip:
+  - pytest-split
