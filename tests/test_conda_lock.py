@@ -2652,7 +2652,6 @@ def test_fake_conda_env(conda_exe: str, conda_lock_yaml: Path):
 
 
 @pytest.mark.parametrize("placeholder", ["$QUETZ_API_KEY", "${QUETZ_API_KEY}"])
-@flaky
 def test_private_lock(
     quetz_server: "QuetzServerInfo",
     tmp_path: Path,
@@ -2713,7 +2712,7 @@ def test_private_lock(
                     str(env_prefix),
                     str(tmp_path / "conda-lock.yml"),
                 ],
-                catch_exceptions=False,
+                catch_exceptions=True,
             )
 
         print(result.stdout, file=sys.stdout)

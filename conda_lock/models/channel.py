@@ -3,8 +3,8 @@ Conda lock supports two kinds of credentials used for channels:
 
 ## Token based
 
-These are used by anaconda.org, Anaconda Enterprise and Quetz.
-To pass one of these channels specify them in your source with an environment variable.
+These are used by anaconda.org, Anaconda Enterprise, and Quetz.
+To pass one of these channels, specify them in your source with an environment variable.
 Make sure this environment variable is not expanded.
 
 Example:
@@ -13,13 +13,13 @@ Example:
 
 ## Simple Auth
 
-For other channels (such as those self-managed) you may be using standard
+For other channels (such as those self-managed), you may be using standard
 username/password auth:
 
 Example:
 --channel 'http://$USER:$PASSWORD@host.com/channel'
 
-# What gets stored
+## What gets stored
 
 Since credential parts are both volatile and secret, conda-lock will not store
 the raw version of a URL. If it encounters a channel URL that contains credentials,
@@ -34,17 +34,13 @@ import copy
 import logging
 import os
 import re
-import typing
 
 from posixpath import expandvars
-from typing import FrozenSet, List, Optional, cast
+from typing import Any, FrozenSet, List, Optional, Tuple, cast
 from urllib.parse import unquote, urlparse, urlunparse
 
 from pydantic import BaseModel, ConfigDict, Field
 
-
-if typing.TYPE_CHECKING:
-    from pydantic.typing import ReprArgs
 
 logger = logging.getLogger(__name__)
 token_pattern = re.compile(r"(.*)(/t/\$?\{?[a-zA-Z0-9-_]*\}?)(/.*)")
@@ -79,26 +75,26 @@ class CondaUrl(BaseModel):
 class ZeroValRepr(BaseModel):
     """Helper that hides falsy values from repr."""
 
-    def __repr_args__(self: BaseModel) -> "ReprArgs":
+    def __repr_args__(self) -> List[Tuple[str, Any]]:
         return [(key, value) for key, value in self.__dict__.items() if value]
 
 
-class Channel(ZeroValRepr, BaseModel):
+class Channel(ZeroValRepr):
     model_config = ConfigDict(frozen=True)
     url: str
-    used_env_vars: FrozenSet[str] = Field(default=frozenset())
+    used_env_vars: FrozenSet[str] = Field(default_factory=frozenset)
 
     @classmethod
     def from_string(cls, value: str) -> "Channel":
         if "://" in value:
             return cls.from_conda_url(CondaUrl.from_string(value))
-        return Channel(url=value, used_env_vars=frozenset())
+        return cls(url=value, used_env_vars=frozenset())
 
     @classmethod
     def from_conda_url(cls, value: CondaUrl) -> "Channel":
         env_vars = {value.user_env_var, value.token_env_var, value.password_env_var}
         env_vars.discard(None)
-        return Channel(
+        return cls(
             url=value.env_var_url,
             used_env_vars=frozenset(cast(FrozenSet[str], env_vars)),
         )
@@ -142,7 +138,6 @@ def _detect_used_env_var(
 def _env_var_normalize(url: str) -> CondaUrl:
     """Normalize URL by using environment variables."""
     res = urlparse(url)
-    res_replaced = copy.copy(res)
 
     def make_netloc(
         username: Optional[str], password: Optional[str], host: str, port: Optional[int]
@@ -160,8 +155,10 @@ def _env_var_normalize(url: str) -> CondaUrl:
 
     def get_or_raise(val: Optional[str]) -> str:
         if val is None:
-            raise ValueError("Expected to be non Null")
+            raise ValueError("Expected to be non-null")
         return val
+
+    res_replaced = copy.copy(res)
 
     if res.username:
         user_env_var = _detect_used_env_var(res.username, ["USERNAME", "USER"])
@@ -196,8 +193,8 @@ def _env_var_normalize(url: str) -> CondaUrl:
             token, ["TOKEN", "CRED", "PASSWORD", "PASS", "KEY"]
         )
         if not token_env_var:
-            # maybe we should raise here if we have mismatched env vars
-            logger.warning("token url detected without env var")
+            # Maybe we should raise here if we have mismatched env vars
+            logger.warning("Token URL detected without env var")
         else:
             new_path = token_pattern.sub(rf"\1/t/${token_env_var}\3", res_replaced.path)
             res_replaced = res_replaced._replace(path=new_path)
