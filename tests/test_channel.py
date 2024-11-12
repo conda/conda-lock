@@ -36,14 +36,26 @@ def test_url_auth_info(monkeypatch: "MonkeyPatch") -> None:
     monkeypatch.setenv("USER", user)
     monkeypatch.setenv("PASSWORD", passwd)
 
-    # These two urls are equivalent since we can pull the env vars out.
-    x = _env_var_normalize("http://$USER:$PASSWORD@host/prefix/t/$TOKEN/suffix")
-    y = _env_var_normalize(f"http://{user}:{passwd}@host/prefix/t/{token}/suffix")
+    # These three urls are equivalent since we can pull the env vars out.
+    x = _env_var_normalize("http://${USER}:${PASSWORD}@host/prefix/t/${TOKEN}/suffix")
+    y = _env_var_normalize("http://$USER:$PASSWORD@host/prefix/t/$TOKEN/suffix")
+    z = _env_var_normalize(f"http://{user}:{passwd}@host/prefix/t/{token}/suffix")
 
-    assert x.env_var_url == y.env_var_url
+    env_var_url = "http://${USER}:${PASSWORD}@host/prefix/t/${TOKEN}/suffix"
+    assert user not in env_var_url
+    assert passwd not in env_var_url
+    assert token not in env_var_url
+    assert x.env_var_url == env_var_url
+    assert y.env_var_url == env_var_url
+    assert z.env_var_url == env_var_url
 
-    replaced = y.conda_token_replaced_url()
-    assert replaced == f"http://{user}:{passwd}@host/t/<TOKEN>/prefix/suffix"
+    replaced = f"http://{user}:{passwd}@host/t/<TOKEN>/prefix/suffix"
+    assert user in replaced
+    assert passwd in replaced
+    assert "<TOKEN>" in replaced
+    assert x.conda_token_replaced_url() == replaced
+    assert y.conda_token_replaced_url() == replaced
+    assert z.conda_token_replaced_url() == replaced
 
 
 @pytest.mark.parametrize(

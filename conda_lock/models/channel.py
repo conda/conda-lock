@@ -165,7 +165,7 @@ def _env_var_normalize(url: str) -> CondaUrl:
         if user_env_var:
             res_replaced = res_replaced._replace(
                 netloc=make_netloc(
-                    username=f"${user_env_var}",
+                    username=f"${{{user_env_var}}}",
                     password=res_replaced.password,
                     host=get_or_raise(res_replaced.hostname),
                     port=res_replaced.port,
@@ -180,7 +180,7 @@ def _env_var_normalize(url: str) -> CondaUrl:
             res_replaced = res_replaced._replace(
                 netloc=make_netloc(
                     username=res_replaced.username,
-                    password=f"${password_env_var}",
+                    password=f"${{{password_env_var}}}",
                     host=get_or_raise(res_replaced.hostname),
                     port=res_replaced.port,
                 )
@@ -196,7 +196,9 @@ def _env_var_normalize(url: str) -> CondaUrl:
             # Maybe we should raise here if we have mismatched env vars
             logger.warning("Token URL detected without env var")
         else:
-            new_path = token_pattern.sub(rf"\1/t/${token_env_var}\3", res_replaced.path)
+            new_path = token_pattern.sub(
+                rf"\1/t/${{{token_env_var}}}\3", res_replaced.path
+            )
             res_replaced = res_replaced._replace(path=new_path)
 
     return CondaUrl(
