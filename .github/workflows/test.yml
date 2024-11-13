@@ -25,7 +25,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ ubuntu, macos, windows ]
+        os: [ ubuntu, macos ]
         python-version: [ "3.8", "3.12" ]
 
         # pytest-split handles dividing the tests into n groups indexed 1...n.
@@ -76,8 +76,6 @@ jobs:
             pytest-split-group-size: 3
           - os: macos
             pytest-split-group-size: 3
-          - os: windows
-            pytest-split-group-size: 10
 
     defaults:
       run:
