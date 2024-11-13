@@ -77,10 +77,21 @@ jobs:
         os: [ ubuntu-latest, macos-latest, windows-latest ]
         python-version: [ "3.8" ]
     steps:
+      - name: Set Conda platform
+        run: |
+          if [ "$RUNNER_OS" == "Linux" ]; then
+            echo "CONDA_PLATFORM=linux-64" >> $GITHUB_ENV
+          elif [ "$RUNNER_OS" == "macOS" ]; then
+            echo "CONDA_PLATFORM=osx-arm64" >> $GITHUB_ENV
+          elif [ "$RUNNER_OS" == "Windows" ]; then
+            echo "CONDA_PLATFORM=win-64" >> $GITHUB_ENV
+          fi
+      - name: Verify Conda platform
+        run: echo "Conda platform is $CONDA_PLATFORM"
       - name: Install Conda environment with Micromamba
         uses: mamba-org/setup-micromamba@v2
         with:
-          micromamba-version: ${{ env.MICROMAMBA_VERSION }}
+          micromamba-url: https://github.com/mamba-org/micromamba-releases/releases/download/${{ env.MICROMAMBA_VERSION }}/micromamba-${{ env.CONDA_PLATFORM }}
           init-shell: bash
       - name: Download lockfiles
         uses: actions/download-artifact@v4
