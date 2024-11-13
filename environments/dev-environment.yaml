@@ -5,6 +5,8 @@
 name: conda-lock-dev
 category: dev
 channels:
+- conda-forge/label/mamba_prerelease
+- conda-forge/label/micromamba_prerelease
 - conda-forge
 - nodefaults
 dependencies:
@@ -15,7 +17,8 @@ dependencies:
 - flaky
 - freezegun
 - gitpython
-- mamba !=2.0.3
+- mamba >2.0.3
+- micromamba >2.0.3
 - mkdocs
 - mkdocs-click
 - mkdocs-material
