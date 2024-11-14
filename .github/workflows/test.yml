@@ -120,7 +120,7 @@ jobs:
             --splits="${{ matrix.pytest-split-group-size }}" \
             --group="${{ matrix.pytest-split-group-index }}"
 
-      - uses: codecov/codecov-action@v4
+      - uses: codecov/codecov-action@v5
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
 
