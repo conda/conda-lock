@@ -985,6 +985,7 @@ def _render_lockfile_for_install(
     filename: pathlib.Path,
     include_dev_dependencies: bool = True,
     extras: Optional[AbstractSet[str]] = None,
+    force_platform: Optional[str] = None
 ) -> Iterator[pathlib.Path]:
     """
     Render lock content into a temporary, explicit lockfile for the current platform
@@ -1006,7 +1007,11 @@ def _render_lockfile_for_install(
 
     lock_content = parse_conda_lock_file(pathlib.Path(filename))
 
-    platform = platform_subdir()
+    if force_platform is None:
+        platform = platform_subdir()
+    else:
+        platform = force_platform
+
     if platform not in lock_content.metadata.platforms:
         suggested_platforms_section = "platforms:\n- "
         suggested_platforms_section += "\n- ".join(
@@ -1506,6 +1511,11 @@ DEFAULT_INSTALL_OPT_LOCK_FILE = pathlib.Path(DEFAULT_LOCKFILE_NAME)
     default=[],
     help="include extra dependencies from the lockfile (where applicable)",
 )
+@click.option(
+    "--platform",
+    default="",
+    help="The platform to install from the lockfile.",
+)
 @click.argument("lock-file", default=DEFAULT_INSTALL_OPT_LOCK_FILE, type=click.Path())
 @click.pass_context
 def click_install(
@@ -1523,6 +1533,7 @@ def click_install(
     log_level: TLogLevel,
     dev: bool,
     extras: List[str],
+    platform: Optional[str],
 ) -> None:
     # bail out if we do not encounter the lockfile
     lock_file = pathlib.Path(lock_file)
@@ -1545,6 +1556,7 @@ def click_install(
         validate_platform=validate_platform,
         dev=dev,
         extras=extras,
+        platform=platform,
     )
 
 
@@ -1561,6 +1573,7 @@ def install(
     validate_platform: bool = DEFAULT_INSTALL_OPT_VALIDATE_PLATFORM,
     dev: bool = DEFAULT_INSTALL_OPT_DEV,
     extras: Optional[List[str]] = None,
+    platform: Optional[str] = None,
 ) -> None:
     if extras is None:
         extras = []
@@ -1580,7 +1593,7 @@ def install(
                 error.args[0] + " Disable validation with `--no-validate-platform`."
             )
     with _render_lockfile_for_install(
-        lock_file, include_dev_dependencies=dev, extras=set(extras)
+        lock_file, include_dev_dependencies=dev, extras=set(extras), force_platform=platform
     ) as lockfile:
         if _auth is not None:
             with _add_auth(read_file(lockfile), _auth) as lockfile_with_auth:
