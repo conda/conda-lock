@@ -1007,10 +1007,7 @@ def _render_lockfile_for_install(
 
     lock_content = parse_conda_lock_file(pathlib.Path(filename))
 
-    if force_platform is None:
-        platform = platform_subdir()
-    else:
-        platform = force_platform
+    platform = force_platform or platform_subdir()
 
     if platform not in lock_content.metadata.platforms:
         suggested_platforms_section = "platforms:\n- "
@@ -1513,7 +1510,6 @@ DEFAULT_INSTALL_OPT_LOCK_FILE = pathlib.Path(DEFAULT_LOCKFILE_NAME)
 )
 @click.option(
     "--platform",
-    default="",
     help="The platform to install from the lockfile.",
 )
 @click.argument("lock-file", default=DEFAULT_INSTALL_OPT_LOCK_FILE, type=click.Path())
