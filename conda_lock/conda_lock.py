@@ -985,7 +985,7 @@ def _render_lockfile_for_install(
     filename: pathlib.Path,
     include_dev_dependencies: bool = True,
     extras: Optional[AbstractSet[str]] = None,
-    force_platform: Optional[str] = None
+    force_platform: Optional[str] = None,
 ) -> Iterator[pathlib.Path]:
     """
     Render lock content into a temporary, explicit lockfile for the current platform
@@ -1593,7 +1593,10 @@ def install(
                 error.args[0] + " Disable validation with `--no-validate-platform`."
             )
     with _render_lockfile_for_install(
-        lock_file, include_dev_dependencies=dev, extras=set(extras), force_platform=platform
+        lock_file,
+        include_dev_dependencies=dev,
+        extras=set(extras),
+        force_platform=platform,
     ) as lockfile:
         if _auth is not None:
             with _add_auth(read_file(lockfile), _auth) as lockfile_with_auth:
