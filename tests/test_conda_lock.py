@@ -2061,16 +2061,16 @@ def test_solve_arch_multiple_categories():
         assert numpy_deps[0].categories == {"test", "dev"}
 
 
-def _check_package_installed(package: str, prefix: str):
-    import glob
-
-    files = list(glob.glob(f"{prefix}/conda-meta/{package}-*.json"))
+def _check_package_installed(package: str, prefix: str, subdir: Optional[str] = None):
+    files = list(glob(f"{prefix}/conda-meta/{package}-*.json"))
     assert len(files) >= 1
     # TODO: validate that all the files are in there
     for fn in files:
         data = json.load(open(fn))
         for expected_file in data["files"]:
             assert (Path(prefix) / Path(expected_file)).exists()
+        if subdir is not None:
+            assert data["subdir"] == subdir
     return True
 
 
@@ -2648,6 +2648,54 @@ def test_fake_conda_env(conda_exe: str, conda_lock_yaml: Path):
                 expected_dist = expected_dist.with_suffix("")
             assert env_package["dist_name"] == expected_dist.name
             assert platform == path.parent.name
+
+
+def test_forced_platform(
+    conda_exe: str,
+    tmp_path: Path,
+    conda_lock_yaml: Path,
+    capsys: "pytest.CaptureFixture[str]",
+):
+    if is_micromamba(conda_exe):
+        pytest.skip(reason="micromamba tests are failing")
+    if platform_subdir() != "osx-arm64":
+        pytest.skip("Test is only relevant for macOS on ARM64")
+
+    root_prefix = tmp_path / "root_prefix"
+    root_prefix.mkdir(exist_ok=True)
+    prefix = root_prefix / "test_env"
+
+    package = "bzip2"
+    platform = "osx-64"
+    assert platform != platform_subdir()
+
+    install_args = [
+        "install",
+        "--conda",
+        conda_exe,
+        "--prefix",
+        str(prefix),
+        "--force-platform",
+        platform,
+        str(conda_lock_yaml),
+    ]
+    with capsys.disabled():
+        runner = CliRunner(mix_stderr=False)
+        result = runner.invoke(main, install_args, catch_exceptions=False)
+
+    print(result.stdout, file=sys.stdout)
+    print(result.stderr, file=sys.stderr)
+    if Path(conda_lock_yaml).exists():
+        logging.debug(
+            "lockfile contents: \n\n=======\n%s\n\n==========",
+            Path(conda_lock_yaml).read_text(),
+        )
+
+    assert _check_package_installed(
+        package=package,
+        prefix=str(prefix),
+        subdir=platform,
+    ), f"Package {package} does not exist in {prefix} environment"
 
 
 @pytest.mark.parametrize("placeholder", ["$QUETZ_API_KEY", "${QUETZ_API_KEY}"])
