@@ -182,8 +182,6 @@ def extract_input_hash(lockfile_contents: str) -> Optional[str]:
 
 
 def _do_validate_platform(platform: str) -> Tuple[bool, str]:
-    from ensureconda.resolve import platform_subdir
-
     determined_subdir = platform_subdir()
     return platform == determined_subdir, determined_subdir
 
@@ -1509,8 +1507,9 @@ DEFAULT_INSTALL_OPT_LOCK_FILE = pathlib.Path(DEFAULT_LOCKFILE_NAME)
     help="include extra dependencies from the lockfile (where applicable)",
 )
 @click.option(
-    "--platform",
-    help="The platform to install from the lockfile.",
+    "--force-platform",
+    help="Force using the given platform when installing from the lockfile, instead of the native platform.",
+    default=platform_subdir,
 )
 @click.argument("lock-file", default=DEFAULT_INSTALL_OPT_LOCK_FILE, type=click.Path())
 @click.pass_context
@@ -1529,7 +1528,7 @@ def click_install(
     log_level: TLogLevel,
     dev: bool,
     extras: List[str],
-    platform: Optional[str],
+    force_platform: str,
 ) -> None:
     # bail out if we do not encounter the lockfile
     lock_file = pathlib.Path(lock_file)
@@ -1552,7 +1551,7 @@ def click_install(
         validate_platform=validate_platform,
         dev=dev,
         extras=extras,
-        platform=platform,
+        force_platform=force_platform,
     )
 
 
@@ -1569,7 +1568,7 @@ def install(
     validate_platform: bool = DEFAULT_INSTALL_OPT_VALIDATE_PLATFORM,
     dev: bool = DEFAULT_INSTALL_OPT_DEV,
     extras: Optional[List[str]] = None,
-    platform: Optional[str] = None,
+    force_platform: Optional[str] = None,
 ) -> None:
     if extras is None:
         extras = []
@@ -1592,7 +1591,7 @@ def install(
         lock_file,
         include_dev_dependencies=dev,
         extras=set(extras),
-        force_platform=platform,
+        force_platform=force_platform,
     ) as lockfile:
         if _auth is not None:
             with _add_auth(read_file(lockfile), _auth) as lockfile_with_auth:
