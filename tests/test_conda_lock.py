@@ -25,6 +25,7 @@ import yaml
 
 from click.testing import CliRunner
 from click.testing import Result as CliResult
+from ensureconda.resolve import platform_subdir
 from flaky import flaky
 from freezegun import freeze_time
 
@@ -2503,8 +2504,6 @@ def test_virtual_packages(
 
     platform = "linux-64"
 
-    from click.testing import CliRunner
-
     for lockfile in glob(f"conda-{platform}.*"):
         os.unlink(lockfile)
 
@@ -2668,7 +2667,6 @@ def test_private_lock(
         )
         logging.info("using micromamba version %s", res.stdout)
         pytest.xfail("micromamba doesn't support our quetz server urls properly")
-    from ensureconda.resolve import platform_subdir
 
     monkeypatch.setenv("QUETZ_API_KEY", quetz_server.api_key)
     monkeypatch.chdir(tmp_path)
@@ -2683,10 +2681,8 @@ def test_private_lock(
     (tmp_path / "environment.yml").write_text(content)
 
     with capsys.disabled():
-        from click.testing import CliRunner, Result
-
         runner = CliRunner(mix_stderr=False)
-        result: Result = runner.invoke(
+        result: CliResult = runner.invoke(
             main,
             [
                 "lock",
@@ -2703,7 +2699,7 @@ def test_private_lock(
             env_name = uuid.uuid4().hex
             env_prefix = tmp_path / env_name
 
-            result: Result = runner.invoke(
+            result: CliResult = runner.invoke(
                 main,
                 [
                     "install",
@@ -2778,10 +2774,8 @@ def test_lookup(
     monkeypatch.chdir(cwd)
     lookup_filename = str((cwd / lookup_source).absolute())
     with capsys.disabled():
-        from click.testing import CliRunner, Result
-
         runner = CliRunner(mix_stderr=False)
-        result: Result = runner.invoke(
+        result: CliResult = runner.invoke(
             main,
             ["lock", "--pypi_to_conda_lookup_file", lookup_filename],
             catch_exceptions=False,
@@ -2858,8 +2852,6 @@ def test_get_pkgs_dirs_mocked_output(info_file: str, expected: Optional[List[Pat
 
 def test_cli_version(capsys: "pytest.CaptureFixture[str]"):
     """It should correctly report its version."""
-
-    from click.testing import CliRunner
 
     with capsys.disabled():
         runner = CliRunner(mix_stderr=False)
