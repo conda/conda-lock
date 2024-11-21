@@ -1267,7 +1267,7 @@ def test_run_lock_with_time_metadata(
     if is_micromamba(conda_exe):
         monkeypatch.setenv("CONDA_FLAGS", "-v")
     frozen_datetime = datetime.datetime(
-        year=1, month=7, day=12, hour=15, minute=6, second=3
+        year=1971, month=7, day=12, hour=15, minute=6, second=3
     )
     with freeze_time(frozen_datetime):
         run_lock(
@@ -2605,16 +2605,6 @@ def test_fake_conda_env(conda_exe: str, conda_lock_yaml: Path):
     with fake_conda_environment(
         lockfile_content.package, platform="linux-64"
     ) as prefix:
-        subprocess.call(
-            [
-                conda_exe,
-                "list",
-                "--debug",
-                "-p",
-                prefix,
-                "--json",
-            ]
-        )
         packages = json.loads(
             subprocess.check_output(
                 [
@@ -2654,7 +2644,10 @@ def test_fake_conda_env(conda_exe: str, conda_lock_yaml: Path):
             else:
                 assert env_package["base_url"] == expected_base_url
                 assert env_package["channel"] == expected_channel
-            assert env_package["dist_name"] == f"{path.name[:-8]}"
+            expected_dist = path
+            while expected_dist.name.endswith((".tar", ".bz2", ".gz", ".conda")):
+                expected_dist = expected_dist.with_suffix("")
+            assert env_package["dist_name"] == expected_dist.name
             assert platform == path.parent.name
 
 

@@ -565,9 +565,10 @@ def fake_conda_environment(
             channel = urlunsplit(
                 (url.scheme, url.hostname, str(path.parent), None, None)
             )
-            while path.suffix in {".tar", ".bz2", ".gz", ".conda"}:
-                path = path.with_suffix("")
-            build = path.name.split("-")[-1]
+            truncated_path = path
+            while truncated_path.suffix in {".tar", ".bz2", ".gz", ".conda"}:
+                truncated_path = truncated_path.with_suffix("")
+            build = truncated_path.name.split("-")[-1]
             try:
                 build_number = int(build.split("_")[-1])
             except ValueError:
@@ -588,6 +589,6 @@ def fake_conda_environment(
             if dep.hash.sha256 is not None:
                 entry["sha256"] = dep.hash.sha256
 
-            with open(conda_meta / (path.name + ".json"), "w") as f:
+            with open(conda_meta / (truncated_path.name + ".json"), "w") as f:
                 json.dump(entry, f, indent=2)
         yield prefix

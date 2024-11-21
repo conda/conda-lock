@@ -89,7 +89,9 @@ class TimeMeta(StrictModel):
     @classmethod
     def create(cls) -> "TimeMeta":
         return cls(
-            created_at=datetime.datetime.utcnow().isoformat(timespec="seconds") + "Z"
+            created_at=datetime.datetime.now(datetime.timezone.utc).strftime(
+                "%Y-%m-%dT%H:%M:%SZ"
+            )
         )
 
 

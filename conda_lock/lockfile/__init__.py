@@ -178,9 +178,9 @@ def parse_conda_lock_file(path: pathlib.Path) -> Lockfile:
         content = yaml.safe_load(f)
     version = content.pop("version", None)
     if version == 1:
-        lockfile = lockfile_v1_to_v2(LockfileV1.parse_obj(content))
+        lockfile = lockfile_v1_to_v2(LockfileV1.model_validate(content))
     elif version == 2:
-        lockfile = Lockfile.parse_obj(content)
+        lockfile = Lockfile.model_validate(content)
     elif version is None:
         raise MissingLockfileVersion(f"{path} is missing a version")
     else:
