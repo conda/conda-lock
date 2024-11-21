@@ -100,7 +100,7 @@ jobs:
 
       - uses: maresb/setup-micromamba@log-level-1
         with:
-          micromamba-url: https://github.com/mamba-org/micromamba-releases/releases/download/2.0.4alpha2-0/micromamba-${{ env.CONDA_PLATFORM }}
+          micromamba-url: https://github.com/mamba-org/micromamba-releases/releases/download/2.0.4alpha3-0/micromamba-${{ env.CONDA_PLATFORM }}
           environment-file: environments/conda-lock.yml
           environment-name: conda-lock-dev
           init-shell: bash
