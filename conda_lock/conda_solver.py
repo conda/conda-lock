@@ -177,9 +177,13 @@ def solve_conda(
             if url.startswith(candidate1):
                 url = url.replace(candidate1, channel.url, 1)
 
-            candidate2 = channel.env_replaced_url()
+            candidate2 = channel.mamba_token_replaced_url()
             if url.startswith(candidate2):
                 url = url.replace(candidate2, channel.url, 1)
+
+            candidate3 = channel.env_replaced_url()
+            if url.startswith(candidate3):
+                url = url.replace(candidate3, channel.url, 1)
         return url
 
     # extract dependencies from package plan

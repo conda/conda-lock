@@ -56,7 +56,7 @@ def test_url_auth_info(monkeypatch: "MonkeyPatch") -> None:
     assert y.env_var_url == env_var_url
     assert z.env_var_url == env_var_url
 
-    replaced = f"http://{user}:{passwd}@host/t/<TOKEN>/prefix/suffix"
+    replaced = f"http://{user}:{passwd}@host/prefix/t/<TOKEN>/suffix"
     assert user in replaced
     assert passwd in replaced
     assert "<TOKEN>" in replaced

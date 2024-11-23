@@ -8,6 +8,7 @@ import subprocess
 import tempfile
 import threading
 
+from logging import getLogger
 from typing import IO, Dict, Iterator, List, Optional, Sequence, Union
 
 from ensureconda.api import determine_micromamba_version, ensureconda
@@ -15,6 +16,8 @@ from packaging.version import Version
 
 from conda_lock.models.channel import Channel
 
+
+logger = getLogger(__name__)
 
 PathLike = Union[str, pathlib.Path]
 
@@ -106,6 +109,7 @@ def _invoke_conda(
         common_args.extend(shlex.split(conda_flags))
 
     cmd = [str(arg) for arg in [conda, *command_args, *common_args, *post_args]]
+    logger.debug(f"Invoking command: {shlex.join(cmd)}")
 
     with subprocess.Popen(
         cmd,

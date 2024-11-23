@@ -41,6 +41,11 @@ from urllib.parse import unquote, urlparse, urlunparse
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from conda_lock._vendor.conda.common.url import (
+    mask_anaconda_token,
+    split_anaconda_token,
+)
+
 
 logger = logging.getLogger(__name__)
 token_pattern = re.compile(r"(.*)(/t/\$?\{?[a-zA-Z0-9-_]*\}?)(/.*)")
@@ -84,12 +89,13 @@ class Channel(ZeroValRepr):
         """Handle conda's token replacement in the output URL."""
         # TODO: pass in env vars maybe?
         expanded_url = expandvars(self.url)
-        if token_pattern.match(expanded_url):
-            replaced = token_pattern.sub(r"\1\3", expanded_url, 1)
-            p = urlparse(replaced)
-            replaced = urlunparse(p._replace(path="/t/<TOKEN>" + p.path))
-            return replaced
-        return expanded_url
+        return mask_anaconda_token(expanded_url)
+
+    def mamba_token_replaced_url(self) -> str:
+        """Handle mamba's token replacement in the output URL."""
+        expanded_url = expandvars(self.url)
+        _, token = split_anaconda_token(expanded_url)
+        return expanded_url.replace(token, "*****", 1) if token else expanded_url
 
 
 def _detect_used_env_var(
