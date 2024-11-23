@@ -2,7 +2,12 @@ import typing
 
 import pytest
 
-from conda_lock.models.channel import Channel, _detect_used_env_var, _env_var_normalize
+from conda_lock.models.channel import (
+    Channel,
+    _channel_from_conda_url,
+    _conda_url_from_string,
+    _detect_used_env_var,
+)
 from conda_lock.src_parser.aggregation import unify_package_sources
 
 
@@ -37,9 +42,11 @@ def test_url_auth_info(monkeypatch: "MonkeyPatch") -> None:
     monkeypatch.setenv("PASSWORD", passwd)
 
     # These three urls are equivalent since we can pull the env vars out.
-    x = _env_var_normalize("http://${USER}:${PASSWORD}@host/prefix/t/${TOKEN}/suffix")
-    y = _env_var_normalize("http://$USER:$PASSWORD@host/prefix/t/$TOKEN/suffix")
-    z = _env_var_normalize(f"http://{user}:{passwd}@host/prefix/t/{token}/suffix")
+    x = _conda_url_from_string(
+        "http://${USER}:${PASSWORD}@host/prefix/t/${TOKEN}/suffix"
+    )
+    y = _conda_url_from_string("http://$USER:$PASSWORD@host/prefix/t/$TOKEN/suffix")
+    z = _conda_url_from_string(f"http://{user}:{passwd}@host/prefix/t/{token}/suffix")
 
     env_var_url = "http://${USER}:${PASSWORD}@host/prefix/t/${TOKEN}/suffix"
     assert user not in env_var_url
@@ -53,9 +60,9 @@ def test_url_auth_info(monkeypatch: "MonkeyPatch") -> None:
     assert user in replaced
     assert passwd in replaced
     assert "<TOKEN>" in replaced
-    assert x.conda_token_replaced_url() == replaced
-    assert y.conda_token_replaced_url() == replaced
-    assert z.conda_token_replaced_url() == replaced
+    assert _channel_from_conda_url(x).conda_token_replaced_url() == replaced
+    assert _channel_from_conda_url(y).conda_token_replaced_url() == replaced
+    assert _channel_from_conda_url(z).conda_token_replaced_url() == replaced
 
 
 @pytest.mark.parametrize(

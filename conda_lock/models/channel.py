@@ -56,21 +56,6 @@ class CondaUrl(BaseModel):
     password: Optional[str] = None
     password_env_var: Optional[str] = None
 
-    @classmethod
-    def from_string(cls, value: str) -> "CondaUrl":
-        return _env_var_normalize(value)
-
-    def conda_token_replaced_url(self) -> str:
-        """This is basically a crazy thing that conda does for the token replacement in the output"""
-        # TODO: pass in env vars maybe?
-        expanded_url = expandvars(self.env_var_url)
-        if token_pattern.match(expanded_url):
-            replaced = token_pattern.sub(r"\1\3", expanded_url, 1)
-            p = urlparse(replaced)
-            replaced = urlunparse(p._replace(path="/t/<TOKEN>" + p.path))
-            return replaced
-        return expanded_url
-
 
 class ZeroValRepr(BaseModel):
     """Helper that hides falsy values from repr."""
@@ -87,17 +72,10 @@ class Channel(ZeroValRepr):
     @classmethod
     def from_string(cls, value: str) -> "Channel":
         if "://" in value:
-            return cls.from_conda_url(CondaUrl.from_string(value))
+            conda_url = _conda_url_from_string(value)
+            channel = _channel_from_conda_url(conda_url)
+            return channel
         return cls(url=value, used_env_vars=frozenset())
-
-    @classmethod
-    def from_conda_url(cls, value: CondaUrl) -> "Channel":
-        env_vars = {value.user_env_var, value.token_env_var, value.password_env_var}
-        env_vars.discard(None)
-        return cls(
-            url=value.env_var_url,
-            used_env_vars=frozenset(cast(FrozenSet[str], env_vars)),
-        )
 
     def env_replaced_url(self) -> str:
         return expandvars(self.url)
@@ -135,7 +113,7 @@ def _detect_used_env_var(
     return None
 
 
-def _env_var_normalize(url: str) -> CondaUrl:
+def _conda_url_from_string(url: str) -> CondaUrl:
     """Normalize URL by using environment variables."""
     res = urlparse(url)
 
@@ -210,4 +188,18 @@ def _env_var_normalize(url: str) -> CondaUrl:
         password_env_var=password_env_var,
         token=token,
         token_env_var=token_env_var,
+    )
+
+
+def _channel_from_conda_url(conda_url: CondaUrl) -> Channel:
+    conda_url = conda_url
+    env_vars = {
+        conda_url.user_env_var,
+        conda_url.token_env_var,
+        conda_url.password_env_var,
+    }
+    env_vars.discard(None)
+    return Channel(
+        url=conda_url.env_var_url,
+        used_env_vars=frozenset(cast(FrozenSet[str], env_vars)),
     )
