@@ -6,7 +6,7 @@ import pathlib
 
 from collections import defaultdict
 from types import TracebackType
-from typing import Any, Dict, Iterable, List, Optional, Set, Tuple, Type
+from typing import Any, DefaultDict, Dict, Iterable, List, Optional, Set, Tuple, Type
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
@@ -48,8 +48,8 @@ class FakePackage(BaseModel):
 
 class FakeRepoData(BaseModel):
     base_path: pathlib.Path
-    packages_by_subdir: Dict[FakePackage, Set[str]] = Field(
-        default_factory=lambda: defaultdict(set)
+    packages_by_subdir: defaultdict[FakePackage, Set[str]] = Field(
+        default_factory=lambda: defaultdict[FakePackage, Set[str]](set)
     )
     all_subdirs: Set[str] = {
         "noarch",
