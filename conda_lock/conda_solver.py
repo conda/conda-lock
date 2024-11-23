@@ -268,8 +268,8 @@ def _get_pkgs_dirs(
     env = conda_env_override(platform)
     output = subprocess.check_output(args, env=env).decode()
     json_object_str = extract_json_object(output)
-    json_object: dict[str, Any] = json.loads(json_object_str)
-    pkgs_dirs_list: list[str]
+    json_object: Dict[str, Any] = json.loads(json_object_str)
+    pkgs_dirs_list: List[str]
     if "pkgs_dirs" in json_object:
         pkgs_dirs_list = json_object["pkgs_dirs"]
     elif "package cache" in json_object:
