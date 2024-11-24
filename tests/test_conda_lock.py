@@ -2739,7 +2739,7 @@ def test_private_lock(
         )
         assert result.exit_code == 0
 
-    def run_install(with_env: bool) -> Result:
+    def run_install(with_env: bool) -> CliResult:
         with capsys.disabled():
             runner = CliRunner(mix_stderr=False)
             env_name = uuid.uuid4().hex
