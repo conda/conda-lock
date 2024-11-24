@@ -127,9 +127,9 @@ class GitMeta(StrictModel):
         except ImportError:
             return None
 
-        git_sha: str | None = None
-        git_user_name: str | None = None
-        git_user_email: str | None = None
+        git_sha: Optional[str] = None
+        git_user_name: Optional[str] = None
+        git_user_email: Optional[str] = None
 
         try:
             repo = git.Repo(search_parent_directories=True)
