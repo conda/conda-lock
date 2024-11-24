@@ -51,7 +51,13 @@ logger = logging.getLogger(__name__)
 token_pattern = re.compile(r"(.*)(/t/\$?\{?[a-zA-Z0-9-_]*\}?)(/.*)")
 
 
-class CondaUrl(BaseModel):
+class _CondaUrl(BaseModel):
+    """A high-level representation of a URL that may contain credentials.
+
+    This is an intermediate representation that is used after parsing but before
+    the URL is used to create a Channel object.
+    """
+
     raw_url: str
     env_var_url: str
     token: Optional[str] = None
@@ -119,7 +125,7 @@ def _detect_used_env_var(
     return None
 
 
-def _conda_url_from_string(url: str) -> CondaUrl:
+def _conda_url_from_string(url: str) -> _CondaUrl:
     """Normalize URL by using environment variables."""
     res = urlparse(url)
 
@@ -185,7 +191,7 @@ def _conda_url_from_string(url: str) -> CondaUrl:
             )
             res_replaced = res_replaced._replace(path=new_path)
 
-    return CondaUrl(
+    return _CondaUrl(
         raw_url=url,
         env_var_url=urlunparse(res_replaced),
         user=res.username,
@@ -197,7 +203,7 @@ def _conda_url_from_string(url: str) -> CondaUrl:
     )
 
 
-def _channel_from_conda_url(conda_url: CondaUrl) -> Channel:
+def _channel_from_conda_url(conda_url: _CondaUrl) -> Channel:
     conda_url = conda_url
     env_vars = {
         conda_url.user_env_var,
