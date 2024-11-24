@@ -68,14 +68,7 @@ class _CondaUrl(BaseModel):
     password_env_var: Optional[str] = None
 
 
-class ZeroValRepr(BaseModel):
-    """Helper that hides falsy values from repr."""
-
-    def __repr_args__(self) -> List[Tuple[str, Any]]:
-        return [(key, value) for key, value in self.__dict__.items() if value]
-
-
-class Channel(ZeroValRepr):
+class Channel(BaseModel):
     model_config = ConfigDict(frozen=True)
     url: str
     used_env_vars: FrozenSet[str] = Field(default_factory=frozenset)
@@ -102,6 +95,19 @@ class Channel(ZeroValRepr):
         expanded_url = expandvars(self.url)
         _, token = split_anaconda_token(expanded_url)
         return expanded_url.replace(token, "*****", 1) if token else expanded_url
+
+    def __repr_args__(self) -> List[Tuple[str, Any]]:
+        """Hide falsy values from repr.
+
+        >>> Channel.from_string("conda-forge")
+        Channel(url='conda-forge')
+        >>> Channel.from_string(
+        ...     "https://host.com/t/$MY_REPO_TOKEN/channel"
+        ... )  # doctest: +NORMALIZE_WHITESPACE
+        Channel(url='https://host.com/t/${MY_REPO_TOKEN}/channel',
+            used_env_vars=frozenset({'MY_REPO_TOKEN'}))
+        """
+        return [(key, value) for key, value in self.__dict__.items() if value]
 
 
 def _detect_used_env_var(
