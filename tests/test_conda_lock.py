@@ -2699,7 +2699,6 @@ def test_forced_platform(
 
 
 @pytest.mark.parametrize("placeholder", ["$QUETZ_API_KEY", "${QUETZ_API_KEY}"])
-@flaky
 def test_private_lock(
     quetz_server: "QuetzServerInfo",
     tmp_path: Path,
@@ -2714,9 +2713,7 @@ def test_private_lock(
             [conda_exe, "--version"], stdout=subprocess.PIPE, encoding="utf8"
         )
         logging.info("using micromamba version %s", res.stdout)
-        pytest.xfail("micromamba doesn't support our quetz server urls properly")
 
-    monkeypatch.setenv("QUETZ_API_KEY", quetz_server.api_key)
     monkeypatch.chdir(tmp_path)
 
     content = yaml.safe_dump(
@@ -2738,14 +2735,20 @@ def test_private_lock(
                 conda_exe,
             ],
             catch_exceptions=False,
+            env=dict(os.environ, QUETZ_API_KEY=quetz_server.api_key),
         )
         assert result.exit_code == 0
 
-    def run_install():
+    def run_install(with_env: bool) -> Result:
         with capsys.disabled():
             runner = CliRunner(mix_stderr=False)
             env_name = uuid.uuid4().hex
             env_prefix = tmp_path / env_name
+
+            if with_env:
+                env = dict(os.environ, QUETZ_API_KEY=quetz_server.api_key)
+            else:
+                env = dict(os.environ)
 
             result: CliResult = runner.invoke(
                 main,
@@ -2758,17 +2761,18 @@ def test_private_lock(
                     str(tmp_path / "conda-lock.yml"),
                 ],
                 catch_exceptions=False,
+                env=env,
             )
 
         print(result.stdout, file=sys.stdout)
         print(result.stderr, file=sys.stderr)
-        assert result.exit_code == 0
+        return result
 
-    run_install()
+    result = run_install(with_env=True)
+    assert result.exit_code == 0
 
-    monkeypatch.delenv("QUETZ_API_KEY")
     with pytest.raises(MissingEnvVarError):
-        run_install()
+        run_install(with_env=False)
 
 
 def test_lookup_sources():

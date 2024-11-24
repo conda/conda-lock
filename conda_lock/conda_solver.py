@@ -34,7 +34,7 @@ from conda_lock.invoke_conda import (
 )
 from conda_lock.lockfile import apply_categories
 from conda_lock.lockfile.v2prelim.models import HashModel, LockedDependency
-from conda_lock.models.channel import Channel
+from conda_lock.models.channel import Channel, normalize_url_with_placeholders
 from conda_lock.models.lock_spec import Dependency, VersionedDependency
 
 
@@ -171,17 +171,6 @@ def solve_conda(
         )
     logging.debug("dry_run_install:\n%s", dry_run_install)
 
-    def normalize_url(url: str) -> str:
-        for channel in channels:
-            candidate1 = channel.conda_token_replaced_url()
-            if url.startswith(candidate1):
-                url = url.replace(candidate1, channel.url, 1)
-
-            candidate2 = channel.env_replaced_url()
-            if url.startswith(candidate2):
-                url = url.replace(candidate2, channel.url, 1)
-        return url
-
     # extract dependencies from package plan
     planned = {}
     for action in dry_run_install["actions"]["FETCH"]:
@@ -201,7 +190,7 @@ def solve_conda(
             platform=platform,
             dependencies=dependencies,
             # TODO: Normalize URL here and inject env vars
-            url=normalize_url(action["url"]),
+            url=normalize_url_with_placeholders(action["url"], channels=channels),
             # NB: virtual packages may have no hash
             hash=HashModel(
                 md5=action["md5"] if "md5" in action else "",
@@ -264,8 +253,8 @@ def _get_pkgs_dirs(
     env = conda_env_override(platform)
     output = subprocess.check_output(args, env=env).decode()
     json_object_str = extract_json_object(output)
-    json_object: dict[str, Any] = json.loads(json_object_str)
-    pkgs_dirs_list: list[str]
+    json_object: Dict[str, Any] = json.loads(json_object_str)
+    pkgs_dirs_list: List[str]
     if "pkgs_dirs" in json_object:
         pkgs_dirs_list = json_object["pkgs_dirs"]
     elif "package cache" in json_object:
