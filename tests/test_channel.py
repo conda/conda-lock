@@ -56,13 +56,20 @@ def test_url_auth_info(monkeypatch: "MonkeyPatch") -> None:
     assert y.env_var_url == env_var_url
     assert z.env_var_url == env_var_url
 
-    replaced = f"http://{user}:{passwd}@host/prefix/t/<TOKEN>/suffix"
-    assert user in replaced
-    assert passwd in replaced
-    assert "<TOKEN>" in replaced
-    assert _channel_from_conda_url(x).conda_token_replaced_url() == replaced
-    assert _channel_from_conda_url(y).conda_token_replaced_url() == replaced
-    assert _channel_from_conda_url(z).conda_token_replaced_url() == replaced
+    conda_replaced = f"http://{user}:{passwd}@host/prefix/t/<TOKEN>/suffix"
+    assert user in conda_replaced
+    assert passwd in conda_replaced
+    assert "<TOKEN>" in conda_replaced
+    assert _channel_from_conda_url(x).conda_token_replaced_url() == conda_replaced
+    assert _channel_from_conda_url(y).conda_token_replaced_url() == conda_replaced
+    assert _channel_from_conda_url(z).conda_token_replaced_url() == conda_replaced
+    mamba_replaced = f"http://{user}:{passwd}@host/prefix/t/*****/suffix"
+    assert user in mamba_replaced
+    assert passwd in mamba_replaced
+    assert "*****" in mamba_replaced
+    assert _channel_from_conda_url(x).mamba_token_replaced_url() == mamba_replaced
+    assert _channel_from_conda_url(y).mamba_token_replaced_url() == mamba_replaced
+    assert _channel_from_conda_url(z).mamba_token_replaced_url() == mamba_replaced
 
 
 @pytest.mark.parametrize(
