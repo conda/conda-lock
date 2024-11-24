@@ -73,6 +73,8 @@ class FakeRepoData(BaseModel):
 
     @property
     def channel(self) -> Channel:
+        # The URL is a file path, so there are no env vars. Thus we use the
+        # raw Channel constructor here rather than the usual Channel.from_string().
         return Channel(url=self.channel_url, used_env_vars=frozenset([]))
 
     @property

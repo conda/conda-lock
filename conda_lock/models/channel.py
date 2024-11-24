@@ -75,6 +75,36 @@ class Channel(BaseModel):
 
     @classmethod
     def from_string(cls, value: str) -> "Channel":
+        """The primary constructor for Channel.
+
+        >>> Channel.from_string("conda-forge")
+        Channel(url='conda-forge')
+
+        # Channels can be specified with a label
+        >>> Channel.from_string("conda-forge/label/micromamba_prerelease")
+        Channel(url='conda-forge/label/micromamba_prerelease')
+
+        # Channels can contain tokens, and these will be replaced with env vars
+        >>> os.environ["MY_REPO_TOKEN"] = "tk-123-456"
+        >>> Channel.from_string(
+        ...     "https://host.com/t/tk-123-456/channel"
+        ... )  # doctest: +NORMALIZE_WHITESPACE
+        Channel(url='https://host.com/t/${MY_REPO_TOKEN}/channel',
+            used_env_vars=frozenset({'MY_REPO_TOKEN'}))
+
+        # Channels can contain username/password credentials
+        >>> os.environ["MY_USERNAME"] = "user"
+        >>> os.environ["MY_PASSWORD"] = "pass"
+        >>> Channel.from_string(
+        ...     "https://user:pass@host.com/channel"
+        ... )  # doctest: +NORMALIZE_WHITESPACE
+        Channel(url='https://${MY_USERNAME}:${MY_PASSWORD}@host.com/channel',
+            used_env_vars=frozenset({'MY_USERNAME', 'MY_PASSWORD'}))
+
+        >>> del os.environ["MY_USERNAME"]
+        >>> del os.environ["MY_PASSWORD"]
+        >>> del os.environ["MY_REPO_TOKEN"]
+        """
         if "://" in value:
             conda_url = _conda_url_from_string(value)
             channel = _channel_from_conda_url(conda_url)
@@ -82,25 +112,61 @@ class Channel(BaseModel):
         return cls(url=value, used_env_vars=frozenset())
 
     def env_replaced_url(self) -> str:
+        """Expand environment variables in the URL.
+
+        Note that we only do POSIX-style expansion here in order to maintain
+        consistency across platforms.
+
+        >>> os.environ["MY_VAR"] = "value"
+        >>> Channel.from_string(
+        ...     "https://host.com/$MY_VAR/channel"
+        ... ).env_replaced_url()
+        'https://host.com/value/channel'
+        >>> Channel.from_string(
+        ...     "https://host.com/${MY_VAR}/channel"
+        ... ).env_replaced_url()
+        'https://host.com/value/channel'
+        >>> del os.environ["MY_VAR"]
+        """
         return expandvars(self.url)
 
     def conda_token_replaced_url(self) -> str:
-        """Handle conda's token replacement in the output URL."""
-        # TODO: pass in env vars maybe?
-        expanded_url = expandvars(self.url)
+        """Emulate conda's token replacement in the output URL.
+
+        This is used to recognize URLs contained in explicit lockfiles created by
+        conda. In these lockfiles, the token is censored with <TOKEN>.
+
+        >>> Channel.from_string(
+        ...     "https://host.com/t/asdfjkl/channel"
+        ... ).conda_token_replaced_url()
+        'https://host.com/t/<TOKEN>/channel'
+        """
+        expanded_url = self.env_replaced_url()
         return mask_anaconda_token(expanded_url)
 
     def mamba_token_replaced_url(self) -> str:
-        """Handle mamba's token replacement in the output URL."""
-        expanded_url = expandvars(self.url)
+        """Emulate mamba's token replacement in the output URL.
+
+        This is used to recognize URLs contained in explicit lockfiles created by
+        mamba or micromamba. In these lockfiles, the token is censored with *****.
+
+        >>> Channel.from_string(
+        ...     "https://host.com/t/asdfjkl/channel"
+        ... ).mamba_token_replaced_url()
+        'https://host.com/t/*****/channel'
+        """
+        expanded_url = self.env_replaced_url()
         _, token = split_anaconda_token(expanded_url)
         return expanded_url.replace(token, "*****", 1) if token else expanded_url
 
     def __repr_args__(self) -> List[Tuple[str, Any]]:
         """Hide falsy values from repr.
 
+        # Note how used_env_vars is not shown:
         >>> Channel.from_string("conda-forge")
         Channel(url='conda-forge')
+
+        # It's only shown when it's non-empty:
         >>> Channel.from_string(
         ...     "https://host.com/t/$MY_REPO_TOKEN/channel"
         ... )  # doctest: +NORMALIZE_WHITESPACE
