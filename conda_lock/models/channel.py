@@ -36,10 +36,10 @@ import os
 import re
 
 from posixpath import expandvars
-from typing import Any, FrozenSet, List, Optional, Tuple, cast
+from typing import Any, List, Optional, Tuple
 from urllib.parse import unquote, urlparse, urlunparse
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict
 
 from conda_lock._vendor.conda.common.url import (
     mask_anaconda_token,
@@ -71,7 +71,7 @@ class _CondaUrl(BaseModel):
 class Channel(BaseModel):
     model_config = ConfigDict(frozen=True)
     url: str
-    used_env_vars: FrozenSet[str] = Field(default_factory=frozenset)
+    used_env_vars: Tuple[str, ...]
 
     @classmethod
     def from_string(cls, value: str) -> "Channel":
@@ -90,7 +90,7 @@ class Channel(BaseModel):
         ...     "https://host.com/t/tk-123-456/channel"
         ... )  # doctest: +NORMALIZE_WHITESPACE
         Channel(url='https://host.com/t/${MY_A_REPO_TOKEN}/channel',
-            used_env_vars=frozenset({'MY_A_REPO_TOKEN'}))
+            used_env_vars=('MY_A_REPO_TOKEN',))
 
         Channels can contain username/password credentials
         >>> os.environ["MY_A_USERNAME"] = "user"
@@ -99,7 +99,7 @@ class Channel(BaseModel):
         ...     "https://user:pass@host.com/channel"
         ... )  # doctest: +NORMALIZE_WHITESPACE
         Channel(url='https://${MY_A_USERNAME}:${MY_A_PASSWORD}@host.com/channel',
-            used_env_vars=frozenset({'MY_A_USERNAME', 'MY_A_PASSWORD'}))
+            used_env_vars=('MY_A_PASSWORD', 'MY_A_USERNAME'))
 
         >>> del os.environ["MY_A_USERNAME"]
         >>> del os.environ["MY_A_PASSWORD"]
@@ -109,7 +109,7 @@ class Channel(BaseModel):
             conda_url = _conda_url_from_string(value)
             channel = _channel_from_conda_url(conda_url)
             return channel
-        return cls(url=value, used_env_vars=frozenset())
+        return cls(url=value, used_env_vars=())
 
     def env_replaced_url(self) -> str:
         """Expand environment variables in the URL.
@@ -171,7 +171,7 @@ class Channel(BaseModel):
         ...     "https://host.com/t/$MY_REPO_TOKEN/channel"
         ... )  # doctest: +NORMALIZE_WHITESPACE
         Channel(url='https://host.com/t/${MY_REPO_TOKEN}/channel',
-            used_env_vars=frozenset({'MY_REPO_TOKEN'}))
+            used_env_vars=('MY_REPO_TOKEN',))
         """
         return [(key, value) for key, value in self.__dict__.items() if value]
 
@@ -277,15 +277,15 @@ def _conda_url_from_string(url: str) -> _CondaUrl:
 
 def _channel_from_conda_url(conda_url: _CondaUrl) -> Channel:
     conda_url = conda_url
-    env_vars = {
+    env_vars_maybe_with_none = {
         conda_url.user_env_var,
         conda_url.token_env_var,
         conda_url.password_env_var,
     }
-    env_vars.discard(None)
+    env_vars = {v for v in env_vars_maybe_with_none if v is not None}
     return Channel(
         url=conda_url.env_var_url,
-        used_env_vars=frozenset(cast(FrozenSet[str], env_vars)),
+        used_env_vars=tuple(sorted(env_vars)),
     )
 
 
@@ -310,7 +310,7 @@ def normalize_url_with_placeholders(url: str, channels: List[Channel]) -> str:
     >>> channel = Channel.from_string(channel_url)
     >>> channel  # doctest: +NORMALIZE_WHITESPACE
     Channel(url='http://localhost:32817/t/${MY_C_REPO_TOKEN}/get/proxy-channel',
-        used_env_vars=frozenset({'MY_C_REPO_TOKEN'}))
+        used_env_vars=('MY_C_REPO_TOKEN',))
 
     The normalized URL should have the token replaced with the env var placeholder
     >>> expected_normalized_url = conda_url.replace("<TOKEN>", "${MY_C_REPO_TOKEN}")
@@ -328,7 +328,7 @@ def normalize_url_with_placeholders(url: str, channels: List[Channel]) -> str:
     >>> channel = Channel.from_string(channel_url)
     >>> channel  # doctest: +NORMALIZE_WHITESPACE
     Channel(url='http://${MY_C_USERNAME}:${MY_C_PASSWORD}@localhost:32817/channel',
-        used_env_vars=frozenset({'MY_C_PASSWORD', 'MY_C_USERNAME'}))
+        used_env_vars=('MY_C_PASSWORD', 'MY_C_USERNAME'))
     >>> normalize_url_with_placeholders(channel_url, channels=[channel])
     'http://${MY_C_USERNAME}:${MY_C_PASSWORD}@localhost:32817/channel'
 
