@@ -80,30 +80,30 @@ class Channel(BaseModel):
         >>> Channel.from_string("conda-forge")
         Channel(url='conda-forge')
 
-        # Channels can be specified with a label
+        Channels can be specified with a label
         >>> Channel.from_string("conda-forge/label/micromamba_prerelease")
         Channel(url='conda-forge/label/micromamba_prerelease')
 
-        # Channels can contain tokens, and these will be replaced with env vars
-        >>> os.environ["MY_REPO_TOKEN"] = "tk-123-456"
+        Channels can contain tokens, and these will be replaced with env vars
+        >>> os.environ["MY_A_REPO_TOKEN"] = "tk-123-456"
         >>> Channel.from_string(
         ...     "https://host.com/t/tk-123-456/channel"
         ... )  # doctest: +NORMALIZE_WHITESPACE
-        Channel(url='https://host.com/t/${MY_REPO_TOKEN}/channel',
-            used_env_vars=frozenset({'MY_REPO_TOKEN'}))
+        Channel(url='https://host.com/t/${MY_A_REPO_TOKEN}/channel',
+            used_env_vars=frozenset({'MY_A_REPO_TOKEN'}))
 
-        # Channels can contain username/password credentials
-        >>> os.environ["MY_USERNAME"] = "user"
-        >>> os.environ["MY_PASSWORD"] = "pass"
+        Channels can contain username/password credentials
+        >>> os.environ["MY_A_USERNAME"] = "user"
+        >>> os.environ["MY_A_PASSWORD"] = "pass"
         >>> Channel.from_string(
         ...     "https://user:pass@host.com/channel"
         ... )  # doctest: +NORMALIZE_WHITESPACE
-        Channel(url='https://${MY_USERNAME}:${MY_PASSWORD}@host.com/channel',
-            used_env_vars=frozenset({'MY_USERNAME', 'MY_PASSWORD'}))
+        Channel(url='https://${MY_A_USERNAME}:${MY_A_PASSWORD}@host.com/channel',
+            used_env_vars=frozenset({'MY_A_USERNAME', 'MY_A_PASSWORD'}))
 
-        >>> del os.environ["MY_USERNAME"]
-        >>> del os.environ["MY_PASSWORD"]
-        >>> del os.environ["MY_REPO_TOKEN"]
+        >>> del os.environ["MY_A_USERNAME"]
+        >>> del os.environ["MY_A_PASSWORD"]
+        >>> del os.environ["MY_A_REPO_TOKEN"]
         """
         if "://" in value:
             conda_url = _conda_url_from_string(value)
@@ -117,16 +117,16 @@ class Channel(BaseModel):
         Note that we only do POSIX-style expansion here in order to maintain
         consistency across platforms.
 
-        >>> os.environ["MY_VAR"] = "value"
+        >>> os.environ["MY_B_VAR"] = "value"
         >>> Channel.from_string(
-        ...     "https://host.com/$MY_VAR/channel"
+        ...     "https://host.com/$MY_B_VAR/channel"
         ... ).env_replaced_url()
         'https://host.com/value/channel'
         >>> Channel.from_string(
-        ...     "https://host.com/${MY_VAR}/channel"
+        ...     "https://host.com/${MY_B_VAR}/channel"
         ... ).env_replaced_url()
         'https://host.com/value/channel'
-        >>> del os.environ["MY_VAR"]
+        >>> del os.environ["MY_B_VAR"]
         """
         return expandvars(self.url)
 
@@ -305,15 +305,15 @@ def normalize_url_with_placeholders(url: str, channels: List[Channel]) -> str:
     >>> mamba_url = conda_url.replace("<TOKEN>", "*****")
 
     Create a channel with a token stored in an env var
-    >>> os.environ["MY_REPO_TOKEN"] = "some-token"
+    >>> os.environ["MY_C_REPO_TOKEN"] = "some-token"
     >>> channel_url = "http://localhost:32817/t/some-token/get/proxy-channel"
     >>> channel = Channel.from_string(channel_url)
     >>> channel  # doctest: +NORMALIZE_WHITESPACE
-    Channel(url='http://localhost:32817/t/${MY_REPO_TOKEN}/get/proxy-channel',
-        used_env_vars=frozenset({'MY_REPO_TOKEN'}))
+    Channel(url='http://localhost:32817/t/${MY_C_REPO_TOKEN}/get/proxy-channel',
+        used_env_vars=frozenset({'MY_C_REPO_TOKEN'}))
 
     The normalized URL should have the token replaced with the env var placeholder
-    >>> expected_normalized_url = conda_url.replace("<TOKEN>", "${MY_REPO_TOKEN}")
+    >>> expected_normalized_url = conda_url.replace("<TOKEN>", "${MY_C_REPO_TOKEN}")
 
     Check that the normalized URL is correct for both conda and mamba censorings
     >>> normalized_conda_url = normalize_url_with_placeholders(conda_url, [channel])
@@ -322,20 +322,20 @@ def normalize_url_with_placeholders(url: str, channels: List[Channel]) -> str:
     >>> assert normalized_mamba_url == expected_normalized_url, normalized_mamba_url
 
     Normalization should also work similarly for basic auth
-    >>> os.environ["MY_USERNAME"] = "user"
-    >>> os.environ["MY_PASSWORD"] = "pass"
+    >>> os.environ["MY_C_USERNAME"] = "user"
+    >>> os.environ["MY_C_PASSWORD"] = "pass"
     >>> channel_url = "http://user:pass@localhost:32817/channel"
     >>> channel = Channel.from_string(channel_url)
     >>> channel  # doctest: +NORMALIZE_WHITESPACE
-    Channel(url='http://${MY_USERNAME}:${MY_PASSWORD}@localhost:32817/channel',
-        used_env_vars=frozenset({'MY_PASSWORD', 'MY_USERNAME'}))
+    Channel(url='http://${MY_C_USERNAME}:${MY_C_PASSWORD}@localhost:32817/channel',
+        used_env_vars=frozenset({'MY_C_PASSWORD', 'MY_C_USERNAME'}))
     >>> normalize_url_with_placeholders(channel_url, channels=[channel])
-    'http://${MY_USERNAME}:${MY_PASSWORD}@localhost:32817/channel'
+    'http://${MY_C_USERNAME}:${MY_C_PASSWORD}@localhost:32817/channel'
 
     Clean up
-    >>> del os.environ["MY_REPO_TOKEN"]
-    >>> del os.environ["MY_USERNAME"]
-    >>> del os.environ["MY_PASSWORD"]
+    >>> del os.environ["MY_C_REPO_TOKEN"]
+    >>> del os.environ["MY_C_USERNAME"]
+    >>> del os.environ["MY_C_PASSWORD"]
     """
     for channel in channels:
         candidate1 = channel.conda_token_replaced_url()
