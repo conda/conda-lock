@@ -1989,17 +1989,17 @@ def test_aggregate_lock_specs_invalid_pip_repos():
         sources=[],
     )
 
-    spec_a_b = base_spec.copy(update={"pip_repositories": [repo_a, repo_b]})
+    spec_a_b = base_spec.model_copy(update={"pip_repositories": [repo_a, repo_b]})
     agg_spec = aggregate_lock_specs([base_spec, spec_a_b, spec_a_b], platforms=[])
     assert agg_spec.pip_repositories == spec_a_b.pip_repositories
 
     # swap the order of the two repositories, which is an error
-    spec_b_a = base_spec.copy(update={"pip_repositories": [repo_b, repo_a]})
+    spec_b_a = base_spec.model_copy(update={"pip_repositories": [repo_b, repo_a]})
     with pytest.raises(ChannelAggregationError):
         agg_spec = aggregate_lock_specs([base_spec, spec_a_b, spec_b_a], platforms=[])
 
     # We can combine ["a"] with ["b", "a"], but not with ["a", "b"].
-    spec_a = base_spec.copy(update={"pip_repositories": [repo_a]})
+    spec_a = base_spec.model_copy(update={"pip_repositories": [repo_a]})
     aggregate_lock_specs([base_spec, spec_a, spec_b_a], platforms=[])
     with pytest.raises(ChannelAggregationError):
         aggregate_lock_specs([base_spec, spec_a, spec_a_b], platforms=[])

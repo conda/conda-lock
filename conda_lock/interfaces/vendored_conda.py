@@ -6,4 +6,4 @@ from conda_lock._vendor.conda.common.url import (
 from conda_lock._vendor.conda.models.match_spec import MatchSpec
 
 
-__all__ = ["toposort", "MatchSpec", "mask_anaconda_token", "split_anaconda_token"]
+__all__ = ["MatchSpec", "mask_anaconda_token", "split_anaconda_token", "toposort"]

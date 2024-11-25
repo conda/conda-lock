@@ -49,7 +49,7 @@ class FakePackage(BaseModel):
 class FakeRepoData(BaseModel):
     base_path: pathlib.Path
     packages_by_subdir: DefaultDict[FakePackage, Set[str]] = Field(
-        default_factory=lambda: defaultdict(set)  # type: ignore[arg-type]
+        default_factory=lambda: defaultdict(set)  # type: ignore[arg-type,unused-ignore]
     )
     all_subdirs: Set[str] = {
         "noarch",
