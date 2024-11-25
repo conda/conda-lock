@@ -25,6 +25,7 @@ import yaml
 
 from click.testing import CliRunner
 from click.testing import Result as CliResult
+from ensureconda.resolve import platform_subdir
 from flaky import flaky
 from freezegun import freeze_time
 
@@ -2060,16 +2061,16 @@ def test_solve_arch_multiple_categories():
         assert numpy_deps[0].categories == {"test", "dev"}
 
 
-def _check_package_installed(package: str, prefix: str):
-    import glob
-
-    files = list(glob.glob(f"{prefix}/conda-meta/{package}-*.json"))
+def _check_package_installed(package: str, prefix: str, subdir: Optional[str] = None):
+    files = list(glob(f"{prefix}/conda-meta/{package}-*.json"))
     assert len(files) >= 1
     # TODO: validate that all the files are in there
     for fn in files:
         data = json.load(open(fn))
         for expected_file in data["files"]:
             assert (Path(prefix) / Path(expected_file)).exists()
+        if subdir is not None:
+            assert data["subdir"] == subdir
     return True
 
 
@@ -2503,8 +2504,6 @@ def test_virtual_packages(
 
     platform = "linux-64"
 
-    from click.testing import CliRunner
-
     for lockfile in glob(f"conda-{platform}.*"):
         os.unlink(lockfile)
 
@@ -2651,6 +2650,54 @@ def test_fake_conda_env(conda_exe: str, conda_lock_yaml: Path):
             assert platform == path.parent.name
 
 
+def test_forced_platform(
+    conda_exe: str,
+    tmp_path: Path,
+    conda_lock_yaml: Path,
+    capsys: "pytest.CaptureFixture[str]",
+):
+    if is_micromamba(conda_exe):
+        pytest.skip(reason="micromamba tests are failing")
+    if platform_subdir() != "osx-arm64":
+        pytest.skip("Test is only relevant for macOS on ARM64")
+
+    root_prefix = tmp_path / "root_prefix"
+    root_prefix.mkdir(exist_ok=True)
+    prefix = root_prefix / "test_env"
+
+    package = "bzip2"
+    platform = "osx-64"
+    assert platform != platform_subdir()
+
+    install_args = [
+        "install",
+        "--conda",
+        conda_exe,
+        "--prefix",
+        str(prefix),
+        "--force-platform",
+        platform,
+        str(conda_lock_yaml),
+    ]
+    with capsys.disabled():
+        runner = CliRunner(mix_stderr=False)
+        result = runner.invoke(main, install_args, catch_exceptions=False)
+
+    print(result.stdout, file=sys.stdout)
+    print(result.stderr, file=sys.stderr)
+    if Path(conda_lock_yaml).exists():
+        logging.debug(
+            "lockfile contents: \n\n=======\n%s\n\n==========",
+            Path(conda_lock_yaml).read_text(),
+        )
+
+    assert _check_package_installed(
+        package=package,
+        prefix=str(prefix),
+        subdir=platform,
+    ), f"Package {package} does not exist in {prefix} environment"
+
+
 @pytest.mark.parametrize("placeholder", ["$QUETZ_API_KEY", "${QUETZ_API_KEY}"])
 def test_private_lock(
     quetz_server: "QuetzServerInfo",
@@ -2666,7 +2713,6 @@ def test_private_lock(
             [conda_exe, "--version"], stdout=subprocess.PIPE, encoding="utf8"
         )
         logging.info("using micromamba version %s", res.stdout)
-    from ensureconda.resolve import platform_subdir
 
     monkeypatch.chdir(tmp_path)
 
@@ -2680,10 +2726,8 @@ def test_private_lock(
     (tmp_path / "environment.yml").write_text(content)
 
     with capsys.disabled():
-        from click.testing import CliRunner, Result
-
         runner = CliRunner(mix_stderr=False)
-        result: Result = runner.invoke(
+        result: CliResult = runner.invoke(
             main,
             [
                 "lock",
@@ -2695,7 +2739,7 @@ def test_private_lock(
         )
         assert result.exit_code == 0
 
-    def run_install(with_env: bool) -> Result:
+    def run_install(with_env: bool) -> CliResult:
         with capsys.disabled():
             runner = CliRunner(mix_stderr=False)
             env_name = uuid.uuid4().hex
@@ -2706,7 +2750,7 @@ def test_private_lock(
             else:
                 env = dict(os.environ)
 
-            result: Result = runner.invoke(
+            result: CliResult = runner.invoke(
                 main,
                 [
                     "install",
@@ -2782,10 +2826,8 @@ def test_lookup(
     monkeypatch.chdir(cwd)
     lookup_filename = str((cwd / lookup_source).absolute())
     with capsys.disabled():
-        from click.testing import CliRunner, Result
-
         runner = CliRunner(mix_stderr=False)
-        result: Result = runner.invoke(
+        result: CliResult = runner.invoke(
             main,
             ["lock", "--pypi_to_conda_lookup_file", lookup_filename],
             catch_exceptions=False,
@@ -2862,8 +2904,6 @@ def test_get_pkgs_dirs_mocked_output(info_file: str, expected: Optional[List[Pat
 
 def test_cli_version(capsys: "pytest.CaptureFixture[str]"):
     """It should correctly report its version."""
-
-    from click.testing import CliRunner
 
     with capsys.disabled():
         runner = CliRunner(mix_stderr=False)
