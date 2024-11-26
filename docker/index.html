@@ -674,7 +674,7 @@ docker container.  This avoids the case where the <code>conda install xyz</code>
 <span class="c"># -----------------</span>
 <span class="c"># Builder container</span>
 <span class="c"># -----------------</span>
-<span class="k">FROM</span><span class="w"> </span><span class="s">continuumio/miniconda:latest</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="s">builder</span>
+<span class="k">FROM</span><span class="w"> </span><span class="s">continuumio/miniconda3:latest</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="s">builder</span>
 
 <span class="k">COPY</span><span class="w"> </span>conda-linux-64.lock<span class="w"> </span>/locks/conda-linux-64.lock
 <span class="k">RUN</span><span class="w"> </span>conda<span class="w"> </span>create<span class="w"> </span>-p<span class="w"> </span>/opt/env<span class="w"> </span>--copy<span class="w"> </span>--file<span class="w"> </span>/locks/conda-linux-64.lock
