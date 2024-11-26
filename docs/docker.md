@@ -19,7 +19,7 @@ You want a dockerfile that is structured something similar to this
 # -----------------
 # Builder container
 # -----------------
-FROM continuumio/miniconda:latest as builder
+FROM continuumio/miniconda3:latest as builder
 
 COPY conda-linux-64.lock /locks/conda-linux-64.lock
 RUN conda create -p /opt/env --copy --file /locks/conda-linux-64.lock
