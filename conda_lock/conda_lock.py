@@ -227,6 +227,7 @@ def do_conda_install(
         [
             *env_prefix,
             "create",
+            "--quiet",
             *copy_arg,
             "--file",
             str(file),
