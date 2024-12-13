@@ -1193,17 +1193,22 @@ TLogLevel = Union[
 
 @main.command("lock", context_settings={"show_default": True})
 @click.option(
-    "--conda", default=None, help="path (or name) of the conda/mamba executable to use."
+    "--conda",
+    default=None,
+    help="path (or name) of the conda/mamba executable to use.",
+    envvar="CONDA_LOCK_CONDA",
 )
 @click.option(
     "--mamba/--no-mamba",
     default=HAVE_MAMBA,
     help="don't attempt to use or install mamba.",
+    envvar="CONDA_LOCK_MAMBA",
 )
 @click.option(
     "--micromamba/--no-micromamba",
     default=False,
     help="don't attempt to use or install micromamba.",
+    envvar="CONDA_LOCK_MICROMAMBA",
 )
 @click.option(
     "-p",
@@ -1453,17 +1458,22 @@ DEFAULT_INSTALL_OPT_LOCK_FILE = pathlib.Path(DEFAULT_LOCKFILE_NAME)
 
 @main.command("install", context_settings={"show_default": True})
 @click.option(
-    "--conda", default=None, help="path (or name) of the conda/mamba executable to use."
+    "--conda",
+    default=None,
+    help="path (or name) of the conda/mamba executable to use.",
+    envvar="CONDA_LOCK_CONDA",
 )
 @click.option(
     "--mamba/--no-mamba",
     default=DEFAULT_INSTALL_OPT_MAMBA,
     help="don't attempt to use or install mamba.",
+    envvar="CONDA_LOCK_MAMBA",
 )
 @click.option(
     "--micromamba/--no-micromamba",
     default=DEFAULT_INSTALL_OPT_MICROMAMBA,
     help="don't attempt to use or install micromamba.",
+    envvar="CONDA_LOCK_MICROMAMBA",
 )
 @click.option(
     "--copy",
