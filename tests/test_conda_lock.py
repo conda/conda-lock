@@ -2792,19 +2792,9 @@ def test_fake_conda_env(conda_exe: str, conda_lock_yaml: Path):
     with fake_conda_environment(
         lockfile_content.package, platform="linux-64"
     ) as prefix:
-        packages = json.loads(
-            subprocess.check_output(
-                [
-                    conda_exe,
-                    "list",
-                    "--debug",
-                    "--no-pip",
-                    "-p",
-                    prefix,
-                    "--json",
-                ]
-            )
-        )
+        cmd = [str(conda_exe), "list", "--debug", "--no-pip", "-p", prefix, "--json"]
+        result = subprocess.check_output(cmd)
+        packages = json.loads(result)
         locked = {
             p.name: p
             for p in lockfile_content.package
