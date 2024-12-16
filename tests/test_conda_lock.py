@@ -2800,7 +2800,21 @@ def test_fake_conda_env(conda_exe: str, conda_lock_yaml: Path):
             for p in lockfile_content.package
             if p.manager == "conda" and p.platform == "linux-64"
         }
-        assert len(packages) == len(locked)
+        if len(packages) != len(locked):
+            # There's a discrepancy. Do further analysis and raise an error.
+            locked_names = set(locked.keys())
+            package_names = {p["name"] for p in packages}
+            if len(package_names) != len(packages):
+                raise RuntimeError(
+                    f"Found duplicate packages in conda list output: {packages}"
+                )
+            not_locked = package_names - locked_names
+            extra_locked = locked_names - package_names
+            raise RuntimeError(
+                f"Got {len(packages)} packages in conda list output, but "
+                f"{len(locked)} in lockfile: {not_locked} not in lockfile, "
+                f"{extra_locked} in lockfile but not in conda list output"
+            )
         for env_package in packages:
             locked_package = locked[env_package["name"]]
 
