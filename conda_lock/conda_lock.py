@@ -1191,8 +1191,10 @@ TLogLevel = Union[
     Literal["CRITICAL"],
 ]
 
+CONTEXT_SETTINGS = {"show_default": True, "help_option_names": ["--help", "-h"]}
 
-@main.command("lock", context_settings={"show_default": True, "help_option_names": ["--help", "-h"]})
+
+@main.command("lock", context_settings=CONTEXT_SETTINGS)
 @click.option(
     "--conda",
     default=None,
@@ -1457,7 +1459,7 @@ DEFAULT_INSTALL_OPT_DEV = True
 DEFAULT_INSTALL_OPT_LOCK_FILE = pathlib.Path(DEFAULT_LOCKFILE_NAME)
 
 
-@main.command("install", context_settings={"show_default": True})
+@main.command("install", context_settings=CONTEXT_SETTINGS)
 @click.option(
     "--conda",
     default=None,
@@ -1611,7 +1613,7 @@ def install(
             install_func(file=lockfile)
 
 
-@main.command("render", context_settings={"show_default": True})
+@main.command("render", context_settings=CONTEXT_SETTINGS)
 @click.option(
     "--dev-dependencies/--no-dev-dependencies",
     is_flag=True,
@@ -1692,7 +1694,7 @@ def render(
     )
 
 
-@main.command("render-lock-spec", context_settings={"show_default": True})
+@main.command("render-lock-spec", context_settings=CONTEXT_SETTINGS)
 @click.option(
     "--conda",
     default=None,
