@@ -1192,7 +1192,7 @@ TLogLevel = Union[
 ]
 
 
-@main.command("lock", context_settings={"show_default": True})
+@main.command("lock", context_settings={"show_default": True, "help_option_names": ["--help", "-h"]})
 @click.option(
     "--conda",
     default=None,
