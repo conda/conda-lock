@@ -16,7 +16,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  MICROMAMBA_VERSION: 'latest'
+  MICROMAMBA_VERSION: '2.0.6.rc1-0'
 
 jobs:
   test:
