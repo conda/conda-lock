@@ -124,6 +124,12 @@ def apply_categories(
             # `dask-core` as packages that are planned to be installed.
             planned_items = extract_planned_items(_seperator_munge_get(planned, item))
 
+            if item != name:
+                # Add item to deps *after* extracting dependencies otherwise we do not
+                # properly mark all transitive dependencies as part of the same
+                # category.
+                deps.add(item)
+
             for planned_item in planned_items:
                 todo.extend(
                     dep_name(
@@ -135,7 +141,6 @@ def apply_categories(
                 )
             if todo:
                 item = todo.pop(0)
-                deps.add(item)
             else:
                 break
 

@@ -2061,6 +2061,69 @@ def test_solve_arch_multiple_categories():
         assert numpy_deps[0].categories == {"test", "dev"}
 
 
+def test_solve_arch_transitive_deps():
+    _conda_exe = determine_conda_executable(None, mamba=False, micromamba=False)
+    channels = [Channel.from_string("conda-forge")]
+
+    with tempfile.NamedTemporaryFile(dir=".") as tf:
+        spec = LockSpecification(
+            dependencies={
+                "linux-64": [
+                    VersionedDependency(
+                        name="python",
+                        version="=3.10.9",
+                        manager="conda",
+                        category="main",
+                        extras=[],
+                    ),
+                    VersionedDependency(
+                        name="pip",
+                        version="=24.2",
+                        manager="conda",
+                        category="main",
+                        extras=[],
+                    ),
+                    VersionedDependency(
+                        name="jupyter",
+                        version="=1.1.1",
+                        manager="pip",
+                        category="main",
+                        extras=[],
+                    ),
+                ],
+            },
+            channels=channels,
+            # NB: this file must exist for relative path resolution to work
+            # in create_lockfile_from_spec
+            sources=[Path(tf.name)],
+        )
+
+        vpr = default_virtual_package_repodata()
+        with vpr:
+            locked_deps = _solve_for_arch(
+                conda=_conda_exe,
+                spec=spec,
+                platform="linux-64",
+                channels=channels,
+                pip_repositories=[],
+                virtual_package_repo=vpr,
+                mapping_url=DEFAULT_MAPPING_URL,
+            )
+        python_deps = [dep for dep in locked_deps if dep.name == "python"]
+        assert len(python_deps) == 1
+        assert python_deps[0].categories == {"main"}
+
+        jupyter_deps = [dep for dep in locked_deps if dep.name == "jupyter"]
+        assert len(jupyter_deps) == 1
+        assert jupyter_deps[0].categories == {"main"}
+
+        # ipython is a transitive dependency of jupyter
+        ipython_deps = [dep for dep in locked_deps if dep.name == "ipython"]
+        assert len(ipython_deps) == 1
+        # Ensure that transitive dependencies are also properly tagged
+        assert ipython_deps[0].categories == {"main"}
+
+
 def _check_package_installed(package: str, prefix: str, subdir: Optional[str] = None):
     files = list(glob(f"{prefix}/conda-meta/{package}-*.json"))
     assert len(files) >= 1
@@ -2895,9 +2958,9 @@ def test_get_pkgs_dirs_mocked_output(info_file: str, expected: Optional[List[Pat
 
     with mock.patch("subprocess.check_output", return_value=command_output):
         # If expected is None, we expect a ValueError to be raised
-        with pytest.raises(
-            ValueError
-        ) if expected is None else contextlib.nullcontext():
+        with (
+            pytest.raises(ValueError) if expected is None else contextlib.nullcontext()
+        ):
             result = _get_pkgs_dirs(conda=conda, platform="linux-64", method=method)
             assert result == expected
 
