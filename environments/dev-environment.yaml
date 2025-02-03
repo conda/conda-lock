@@ -5,8 +5,10 @@
 name: conda-lock-dev
 category: dev
 channels:
-- conda-forge
+- conda-forge/label/mamba_prerelease
+- conda-forge/label/micromamba_prerelease
 - nodefaults
+- conda-forge
 dependencies:
 - check-manifest
 - docker-py
@@ -15,7 +17,7 @@ dependencies:
 - flaky
 - freezegun
 - gitpython
-- mamba <2
+- mamba >2.0.5
 - mkdocs
 - mkdocs-click
 - mkdocs-material
@@ -34,6 +36,7 @@ dependencies:
 - tomli
 - twine
 - types-click
+- types-click-default-group
 - types-filelock
 - types-requests
 - types-toml
@@ -41,5 +44,3 @@ dependencies:
 - types-freezegun
 - types-setuptools
 - wheel
-- pip:
-  - types-click-default-group
