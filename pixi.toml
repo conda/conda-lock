@@ -7,7 +7,7 @@
 [project]
 name = "conda-lock"
 platforms = ["linux-64", "linux-aarch64", "osx-64", "osx-arm64", "win-64"]
-channels = ["conda-forge"]
+channels = ["conda-forge", "conda-forge/label/mamba_prerelease", "conda-forge/label/micromamba_prerelease"]
 
 [dependencies]
 boltons = ">=23.0.0"
@@ -62,7 +62,7 @@ doctr = "*"
 filelock = "*"
 flaky = "*"
 freezegun = "*"
-mamba = "*"
+mamba = ">2.0.5"
 mkdocs = "*"
 mkdocs-click = "*"
 mkdocs-include-markdown-plugin = "*"
