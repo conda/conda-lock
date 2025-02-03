@@ -469,11 +469,13 @@ def update_specs_for_arch(
                     "update" if is_micromamba(conda) else "install",
                     *_get_conda_flags(channels=channels, platform=platform),
                 ]
+            cmd = [
+                str(arg)
+                for arg in [*args, "-p", prefix, "--json", "--dry-run", *to_update]
+            ]
+            logger.debug(f"Running command {shlex.join(cmd)}")
             proc = subprocess.run(  # noqa: UP022  # Poetry monkeypatch breaks capture_output
-                [
-                    str(arg)
-                    for arg in [*args, "-p", prefix, "--json", "--dry-run", *to_update]
-                ],
+                cmd,
                 env=conda_env_override(platform),
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
