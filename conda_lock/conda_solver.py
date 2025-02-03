@@ -3,7 +3,6 @@ import logging
 import os
 import pathlib
 import shlex
-import shutil
 import subprocess
 import sys
 import tempfile
@@ -620,32 +619,21 @@ def make_fake_python_binary(prefix: str) -> None:
 
             print(stderr_message, file=sys.stderr, flush=True, end='')
 
-            if "-m pip" in cmd:
-                # Simulate an empty `pip inspect` output
-                print('{}', flush=True)
-            else:
+            if "-m pip" not in cmd:
                 raise RuntimeError("Expected to invoke pip module with `-m pip`.")
             """
         )
     )
 
     if sys.platform == "win32":
-        # On Windows, copy sys.executable to prefix/Scripts/python.exe
-        fake_python_binary = pathlib.Path(prefix) / "Scripts" / "python.exe"
+        # On Windows, create a batch file that calls the script
+        fake_python_binary = pathlib.Path(prefix) / "Scripts" / "python.bat"
         fake_python_binary.parent.mkdir(parents=True, exist_ok=True)
-
-        # Copy the existing python.exe into the fake environment
-        shutil.copyfile(sys.executable, fake_python_binary)
-
-        # Adjust the environment to ensure our fake script is executed
-        # Create a wrapper batch file that sets PYTHONPATH
-        wrapper_batch = pathlib.Path(prefix) / "Scripts" / "python.bat"
-        wrapper_batch_content = dedent(f"""\
+        batch_content = dedent(f"""\
             @echo off
-            set PYTHONPATH={prefix};%PYTHONPATH%
-            "{fake_python_binary}" %*
+            "{sys.executable}" "{fake_python_script}" %*
         """)
-        wrapper_batch.write_text(wrapper_batch_content)
+        fake_python_binary.write_text(batch_content)
     else:
         # On Unix-like systems, create a shell script that calls the script
         fake_python_binary = pathlib.Path(prefix) / "bin" / "python"
