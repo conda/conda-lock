@@ -162,7 +162,7 @@ substitute = [
 ]
 
 [tool.conda-lock]
-channels = ["conda-forge", "nodefaults"]
+channels = ["conda-forge", "conda-forge/label/mamba_prerelease", "conda-forge/label/micromamba_prerelease", "nodefaults"]
 platforms = ["linux-64", "osx-64", "osx-arm64", "win-64", "linux-aarch64"]
 
 [tool.conda-lock.dependencies]
