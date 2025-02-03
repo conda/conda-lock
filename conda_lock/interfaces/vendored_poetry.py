@@ -31,7 +31,7 @@ from conda_lock._vendor.poetry.repositories.repository import Repository
 from conda_lock._vendor.poetry.repositories.repository_pool import (
     RepositoryPool as Pool,
 )
-from conda_lock._vendor.poetry.utils.env import Env
+from conda_lock._vendor.poetry.utils.env import Env, VirtualEnv
 
 
 __all__ = [
@@ -53,4 +53,5 @@ __all__ = [
     "PyPiRepository",
     "Repository",
     "VersionConstraint",
+    "VirtualEnv",
 ]
