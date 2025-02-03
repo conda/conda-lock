@@ -10,6 +10,7 @@ import os
 import pathlib
 import posixpath
 import re
+import subprocess
 import sys
 import tempfile
 
@@ -1154,6 +1155,11 @@ def run_lock(
         conda_exe, mamba=mamba, micromamba=micromamba
     )
     logger.debug(f"Using conda executable: {_conda_exe}")
+    version_info = subprocess.check_output(
+        [_conda_exe, "--version"], encoding="utf-8"
+    ).strip()
+    logger.debug(f"Executable has version: {version_info}")
+
     make_lock_files(
         conda=_conda_exe,
         src_files=environment_files,
