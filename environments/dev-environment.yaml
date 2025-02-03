@@ -5,10 +5,10 @@
 name: conda-lock-dev
 category: dev
 channels:
-- conda-forge
 - conda-forge/label/mamba_prerelease
 - conda-forge/label/micromamba_prerelease
 - nodefaults
+- conda-forge
 dependencies:
 - check-manifest
 - docker-py
