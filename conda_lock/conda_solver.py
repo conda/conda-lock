@@ -424,7 +424,7 @@ def update_specs_for_arch(
             entry["name"]: entry
             for entry in json.loads(
                 subprocess.check_output(
-                    [str(conda), "list", "-p", prefix, "--json"],
+                    [str(conda), "list", "--no-pip", "-p", prefix, "--json"],
                     env=conda_env_override(platform),
                 )
             )
