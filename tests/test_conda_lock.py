@@ -2673,6 +2673,7 @@ def test_fake_conda_env(conda_exe: str, conda_lock_yaml: Path):
                     conda_exe,
                     "list",
                     "--debug",
+                    "--no-pip",
                     "-p",
                     prefix,
                     "--json",
