@@ -6,6 +6,7 @@ import re
 from pathlib import Path
 from typing import TYPE_CHECKING
 from typing import Any
+from typing import ClassVar
 from typing import cast
 
 from conda_lock._vendor.cleo.helpers import argument
@@ -15,26 +16,43 @@ from conda_lock._vendor.poetry.config.config import PackageFilterPolicy
 from conda_lock._vendor.poetry.config.config import boolean_normalizer
 from conda_lock._vendor.poetry.config.config import boolean_validator
 from conda_lock._vendor.poetry.config.config import int_normalizer
+from conda_lock._vendor.poetry.config.config_source import UNSET
+from conda_lock._vendor.poetry.config.config_source import ConfigSourceMigration
 from conda_lock._vendor.poetry.console.commands.command import Command
 
 
 if TYPE_CHECKING:
+    from conda_lock._vendor.cleo.io.inputs.argument import Argument
+    from conda_lock._vendor.cleo.io.inputs.option import Option
+
     from conda_lock._vendor.poetry.config.config_source import ConfigSource
+
+CONFIG_MIGRATIONS = [
+    ConfigSourceMigration(
+        old_key="experimental.system-git-client", new_key="system-git-client"
+    ),
+    ConfigSourceMigration(
+        old_key="virtualenvs.prefer-active-python",
+        new_key="virtualenvs.use-poetry-python",
+        value_migration={True: UNSET, False: True},
+    ),
+]
 
 
 class ConfigCommand(Command):
     name = "config"
     description = "Manages configuration settings."
 
-    arguments = [
+    arguments: ClassVar[list[Argument]] = [
         argument("key", "Setting key.", optional=True),
         argument("value", "Setting value.", optional=True, multiple=True),
     ]
 
-    options = [
+    options: ClassVar[list[Option]] = [
         option("list", None, "List configuration settings."),
         option("unset", None, "Unset configuration setting."),
         option("local", None, "Set/Get from the project's local configuration."),
+        option("migrate", None, "Migrate outdated configuration settings."),
     ]
 
     help = """\
@@ -48,7 +66,7 @@ To remove a repository (repo is a short alias for repositories):
 
     <comment>poetry config --unset repo.foo</comment>"""
 
-    LIST_PROHIBITED_SETTINGS = {"http-basic", "pypi-token"}
+    LIST_PROHIBITED_SETTINGS: ClassVar[set[str]] = {"http-basic", "pypi-token"}
 
     @property
     def unique_config_values(self) -> dict[str, tuple[Any, Any]]:
@@ -62,23 +80,23 @@ To remove a repository (repo is a short alias for repositories):
                 boolean_normalizer,
             ),
             "virtualenvs.options.no-pip": (boolean_validator, boolean_normalizer),
-            "virtualenvs.options.no-setuptools": (
-                boolean_validator,
-                boolean_normalizer,
-            ),
             "virtualenvs.path": (str, lambda val: str(Path(val))),
-            "virtualenvs.prefer-active-python": (boolean_validator, boolean_normalizer),
+            "virtualenvs.use-poetry-python": (boolean_validator, boolean_normalizer),
             "virtualenvs.prompt": (str, str),
-            "experimental.system-git-client": (boolean_validator, boolean_normalizer),
-            "installer.modern-installation": (boolean_validator, boolean_normalizer),
+            "system-git-client": (boolean_validator, boolean_normalizer),
+            "requests.max-retries": (lambda val: int(val) >= 0, int_normalizer),
+            "installer.re-resolve": (boolean_validator, boolean_normalizer),
             "installer.parallel": (boolean_validator, boolean_normalizer),
             "installer.max-workers": (lambda val: int(val) > 0, int_normalizer),
             "installer.no-binary": (
                 PackageFilterPolicy.validator,
                 PackageFilterPolicy.normalize,
             ),
+            "installer.only-binary": (
+                PackageFilterPolicy.validator,
+                PackageFilterPolicy.normalize,
+            ),
             "solver.lazy-wheel": (boolean_validator, boolean_normalizer),
-            "warnings.export": (boolean_validator, boolean_normalizer),
             "keyring.enabled": (boolean_validator, boolean_normalizer),
         }
 
@@ -87,12 +105,15 @@ To remove a repository (repo is a short alias for repositories):
     def handle(self) -> int:
         from pathlib import Path
 
-        from conda_lock._vendor.poetry.core.pyproject.exceptions import PyProjectException
+        from conda_lock._vendor.poetry.core.pyproject.exceptions import PyProjectError
 
         from conda_lock._vendor.poetry.config.config import Config
         from conda_lock._vendor.poetry.config.file_config_source import FileConfigSource
         from conda_lock._vendor.poetry.locations import CONFIG_DIR
         from conda_lock._vendor.poetry.toml.file import TOMLFile
+
+        if self.option("migrate"):
+            self._migrate()
 
         config = Config.create()
         config_file = TOMLFile(CONFIG_DIR / "config.toml")
@@ -101,7 +122,7 @@ To remove a repository (repo is a short alias for repositories):
             local_config_file = TOMLFile(self.poetry.file.path.parent / "poetry.toml")
             if local_config_file.exists():
                 config.merge(local_config_file.read())
-        except (RuntimeError, PyProjectException):
+        except (RuntimeError, PyProjectError):
             local_config_file = TOMLFile(Path.cwd() / "poetry.toml")
 
         if self.option("local"):
@@ -321,3 +342,37 @@ To remove a repository (repo is a short alias for repositories):
                 message = f"<c1>{k + key}</c1> = <c2>{json.dumps(value)}</c2>"
 
             self.line(message)
+
+    def _migrate(self) -> None:
+        from conda_lock._vendor.poetry.config.file_config_source import FileConfigSource
+        from conda_lock._vendor.poetry.locations import CONFIG_DIR
+        from conda_lock._vendor.poetry.toml.file import TOMLFile
+
+        config_file = TOMLFile(CONFIG_DIR / "config.toml")
+
+        if self.option("local"):
+            config_file = TOMLFile(self.poetry.file.path.parent / "poetry.toml")
+            if not config_file.exists():
+                raise RuntimeError("No local config file found")
+
+        config_source = FileConfigSource(config_file)
+
+        self.io.write_line("Checking for required migrations ...")
+
+        required_migrations = [
+            migration
+            for migration in CONFIG_MIGRATIONS
+            if migration.dry_run(config_source, io=self.io)
+        ]
+
+        if not required_migrations:
+            self.io.write_line("Already up to date.")
+            return
+
+        if not self.io.is_interactive() or self.confirm(
+            "Proceed with migration?: ", False
+        ):
+            for migration in required_migrations:
+                migration.apply(config_source)
+
+            self.io.write_line("Config migration successfully done.")

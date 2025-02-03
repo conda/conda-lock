@@ -8,6 +8,7 @@ import tarfile
 from collections import defaultdict
 from contextlib import contextmanager
 from copy import copy
+from functools import cached_property
 from gzip import GzipFile
 from io import BytesIO
 from pathlib import Path
@@ -21,7 +22,6 @@ from conda_lock._vendor.poetry.core.masonry.utils.helpers import distribution_na
 
 
 if TYPE_CHECKING:
-    from collections.abc import Iterable
     from collections.abc import Iterator
     from tarfile import TarInfo
 
@@ -69,7 +69,7 @@ class SdistBuilder(Builder):
 
         name = distribution_name(self._package.name)
         target = target_dir / f"{name}-{self._meta.version}.tar.gz"
-        gz = GzipFile(target.as_posix(), mode="wb", mtime=0)
+        gz = GzipFile(target.as_posix(), mode="wb", mtime=self._archive_mtime)
         tar = tarfile.TarFile(
             target.as_posix(), mode="w", fileobj=gz, format=tarfile.PAX_FORMAT
         )
@@ -94,25 +94,24 @@ class SdistBuilder(Builder):
 
             if self._poetry.package.build_should_generate_setup():
                 setup = self.build_setup()
-                tar_info = tarfile.TarInfo(pjoin(tar_dir, "setup.py"))
-                tar_info.size = len(setup)
-                tar_info.mtime = 0
-                tar_info = self.clean_tarinfo(tar_info)
-                tar.addfile(tar_info, BytesIO(setup))
+                self.add_file_to_tar(tar, pjoin(tar_dir, "setup.py"), setup)
 
             pkg_info = self.build_pkg_info()
-
-            tar_info = tarfile.TarInfo(pjoin(tar_dir, "PKG-INFO"))
-            tar_info.size = len(pkg_info)
-            tar_info.mtime = 0
-            tar_info = self.clean_tarinfo(tar_info)
-            tar.addfile(tar_info, BytesIO(pkg_info))
+            self.add_file_to_tar(tar, pjoin(tar_dir, "PKG-INFO"), pkg_info)
         finally:
             tar.close()
             gz.close()
 
         logger.info(f"Built <comment>{target.name}</comment>")
         return target
+
+    def add_file_to_tar(
+        self, tar: tarfile.TarFile, file_name: str, content: bytes
+    ) -> None:
+        tar_info = tarfile.TarInfo(file_name)
+        tar_info.size = len(content)
+        tar_info = self.clean_tarinfo(tar_info)
+        tar.addfile(tar_info, BytesIO(content))
 
     def build_setup(self) -> bytes:
         from conda_lock._vendor.poetry.core.masonry.utils.package_include import PackageInclude
@@ -142,7 +141,7 @@ class SdistBuilder(Builder):
                         pkg_root = os.path.relpath(pkg_dir, str(self._path))
                         if "" in package_dir:
                             package_dir.update(
-                                (p, os.path.join(pkg_root, p.replace(".", "/")))
+                                (p, (Path(pkg_root) / p.replace(".", "/")).as_posix())
                                 for p in _packages
                             )
                         else:
@@ -199,10 +198,8 @@ class SdistBuilder(Builder):
             before.append(f"scripts = \\\n{pformat(rel_paths)}\n")
             extra.append("'scripts': scripts,")
 
-        if self._package.python_versions != "*":
-            python_requires = self._meta.requires_python
-
-            extra.append(f"'python_requires': {python_requires!r},")
+        if self._meta.requires_python:
+            extra.append(f"'python_requires': {self._meta.requires_python!r},")
 
         return SETUP.format(
             before="\n".join(before),
@@ -261,18 +258,18 @@ class SdistBuilder(Builder):
         subpkg_paths = set()
 
         def find_nearest_pkg(rel_path: str) -> tuple[str, str]:
-            parts = rel_path.split(os.sep)
+            parts = Path(rel_path).parts
             for i in reversed(range(1, len(parts))):
                 ancestor = "/".join(parts[:i])
                 if ancestor in subpkg_paths:
-                    pkg = ".".join([pkg_name] + parts[:i])
+                    pkg = ".".join([pkg_name, *parts[:i]])
                     return pkg, "/".join(parts[i:])
 
             # Relative to the top-level package
             return pkg_name, Path(rel_path).as_posix()
 
-        for path, _dirnames, filenames in os.walk(str(base), topdown=True):
-            if os.path.basename(path) == "__pycache__":
+        for path, _dirnames, filenames in os.walk(base, topdown=True):
+            if Path(path).name == "__pycache__":
                 continue
 
             from_top_level = os.path.relpath(path, base)
@@ -288,7 +285,7 @@ class SdistBuilder(Builder):
             )
             if is_subpkg:
                 subpkg_paths.add(from_top_level)
-                parts = from_top_level.split(os.sep)
+                parts = Path(from_top_level).parts
                 packages.append(".".join([pkg_name, *parts]))
             else:
                 pkg, from_nearest_pkg = find_nearest_pkg(from_top_level)
@@ -333,12 +330,7 @@ class SdistBuilder(Builder):
         additional_files.add(Path("pyproject.toml"))
 
         # add readme files if specified
-        if "readme" in self._poetry.local_config:
-            readme: str | Iterable[str] = self._poetry.local_config["readme"]
-            if isinstance(readme, str):
-                additional_files.add(Path(readme))
-            else:
-                additional_files.update(Path(r) for r in readme)
+        additional_files.update(Path(r) for r in self._poetry.package.readmes)
 
         for additional_file in additional_files:
             file = BuildIncludeFile(
@@ -407,8 +399,7 @@ class SdistBuilder(Builder):
 
         return main, dict(extras)
 
-    @classmethod
-    def clean_tarinfo(cls, tar_info: TarInfo) -> TarInfo:
+    def clean_tarinfo(self, tar_info: TarInfo) -> TarInfo:
         """
         Clean metadata from a TarInfo object to make it more reproducible.
 
@@ -424,6 +415,21 @@ class SdistBuilder(Builder):
         ti.gid = 0
         ti.uname = ""
         ti.gname = ""
+        ti.mtime = self._archive_mtime
         ti.mode = normalize_file_permissions(ti.mode)
 
         return ti
+
+    @cached_property
+    def _archive_mtime(self) -> int:
+        if source_date_epoch := os.getenv("SOURCE_DATE_EPOCH"):
+            try:
+                return int(source_date_epoch)
+            except ValueError:
+                logger.warning(
+                    "SOURCE_DATE_EPOCH environment variable is not an int,"
+                    " using mtime=0"
+                )
+                return 0
+        logger.debug("SOURCE_DATE_EPOCH environment variable is not set, using mtime=0")
+        return 0

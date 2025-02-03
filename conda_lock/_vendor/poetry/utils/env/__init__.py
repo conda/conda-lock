@@ -12,8 +12,8 @@ from conda_lock._vendor.poetry.utils.env.exceptions import EnvCommandError
 from conda_lock._vendor.poetry.utils.env.exceptions import EnvError
 from conda_lock._vendor.poetry.utils.env.exceptions import IncorrectEnvError
 from conda_lock._vendor.poetry.utils.env.exceptions import InvalidCurrentPythonVersionError
-from conda_lock._vendor.poetry.utils.env.exceptions import NoCompatiblePythonVersionFound
-from conda_lock._vendor.poetry.utils.env.exceptions import PythonVersionNotFound
+from conda_lock._vendor.poetry.utils.env.exceptions import NoCompatiblePythonVersionFoundError
+from conda_lock._vendor.poetry.utils.env.exceptions import PythonVersionNotFoundError
 from conda_lock._vendor.poetry.utils.env.generic_env import GenericEnv
 from conda_lock._vendor.poetry.utils.env.mock_env import MockEnv
 from conda_lock._vendor.poetry.utils.env.null_env import NullEnv
@@ -21,11 +21,8 @@ from conda_lock._vendor.poetry.utils.env.script_strings import GET_BASE_PREFIX
 from conda_lock._vendor.poetry.utils.env.script_strings import GET_ENV_PATH_ONELINER
 from conda_lock._vendor.poetry.utils.env.script_strings import GET_ENVIRONMENT_INFO
 from conda_lock._vendor.poetry.utils.env.script_strings import GET_PATHS
-from conda_lock._vendor.poetry.utils.env.script_strings import GET_PATHS_FOR_GENERIC_ENVS
-from conda_lock._vendor.poetry.utils.env.script_strings import GET_PYTHON_VERSION
 from conda_lock._vendor.poetry.utils.env.script_strings import GET_PYTHON_VERSION_ONELINER
 from conda_lock._vendor.poetry.utils.env.script_strings import GET_SYS_PATH
-from conda_lock._vendor.poetry.utils.env.script_strings import GET_SYS_TAGS
 from conda_lock._vendor.poetry.utils.env.site_packages import SitePackages
 from conda_lock._vendor.poetry.utils.env.system_env import SystemEnv
 from conda_lock._vendor.poetry.utils.env.virtual_env import VirtualEnv
@@ -35,7 +32,8 @@ if TYPE_CHECKING:
     from collections.abc import Iterator
 
     from conda_lock._vendor.cleo.io.io import IO
-    from conda_lock._vendor.poetry.core.poetry import Poetry as CorePoetry
+
+    from conda_lock._vendor.poetry.poetry import Poetry
 
 
 @contextmanager
@@ -56,7 +54,7 @@ def ephemeral_environment(
 
 @contextmanager
 def build_environment(
-    poetry: CorePoetry, env: Env | None = None, io: IO | None = None
+    poetry: Poetry, env: Env | None = None, io: IO | None = None
 ) -> Iterator[Env]:
     """
     If a build script is specified for the project, there could be additional build
@@ -66,7 +64,10 @@ def build_environment(
     environment is returned.
     """
     if not env or poetry.package.build_script:
-        with ephemeral_environment(executable=env.python if env else None) as venv:
+        with ephemeral_environment(
+            executable=env.python if env else None,
+            flags={"no-pip": True},
+        ) as venv:
             if io:
                 requires = [
                     f"<c1>{requirement}</c1>"
@@ -78,16 +79,10 @@ def build_environment(
                     f" {', '.join(requires)}"
                 )
 
-            output = venv.run_pip(
-                "install",
-                "--disable-pip-version-check",
-                "--ignore-installed",
-                "--no-input",
-                *poetry.pyproject.build_system.requires,
-            )
+            from conda_lock._vendor.poetry.utils.isolated_build import IsolatedEnv
 
-            if io and io.is_debug() and output:
-                io.write_error(output)
+            isolated_env = IsolatedEnv(venv, poetry.pool)
+            isolated_env.install(poetry.pyproject.build_system.requires)
 
             yield venv
     else:
@@ -98,18 +93,15 @@ __all__ = [
     "GET_BASE_PREFIX",
     "GET_ENVIRONMENT_INFO",
     "GET_PATHS",
-    "GET_PYTHON_VERSION",
     "GET_SYS_PATH",
-    "GET_SYS_TAGS",
     "GET_ENV_PATH_ONELINER",
     "GET_PYTHON_VERSION_ONELINER",
-    "GET_PATHS_FOR_GENERIC_ENVS",
     "EnvError",
     "EnvCommandError",
     "IncorrectEnvError",
     "InvalidCurrentPythonVersionError",
-    "NoCompatiblePythonVersionFound",
-    "PythonVersionNotFound",
+    "NoCompatiblePythonVersionFoundError",
+    "PythonVersionNotFoundError",
     "Env",
     "EnvManager",
     "GenericEnv",

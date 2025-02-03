@@ -29,10 +29,11 @@ class CodeGenerator:
 
     INDENT = 4  # spaces
 
-    def __init__(self, definition, resolver=None):
+    def __init__(self, definition, resolver=None, detailed_exceptions=True):
         self._code = []
         self._compile_regexps = {}
         self._custom_formats = {}
+        self._detailed_exceptions = detailed_exceptions
 
         # Any extra library should be here to be imported only once.
         # Lines are imports to be printed in the file and objects
@@ -266,6 +267,10 @@ class CodeGenerator:
         """
         Short-cut for creating raising exception in the code.
         """
+        if not self._detailed_exceptions:
+            self.l('raise JsonSchemaValueException("'+msg+'")', *args)
+            return
+
         arg = '"'+msg+'"'
         if append_to_msg:
             arg += ' + (' + append_to_msg + ')'

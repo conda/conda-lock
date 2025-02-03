@@ -29,44 +29,27 @@ class MultiConstraint(BaseConstraint):
         return all(constraint.allows(other) for constraint in self._constraints)
 
     def allows_all(self, other: BaseConstraint) -> bool:
-        if other.is_any():
-            return False
+        if isinstance(other, MultiConstraint):
+            return all(c in other.constraints for c in self._constraints)
 
-        if other.is_empty():
-            return True
-
-        if not isinstance(other, MultiConstraint):
-            return self.allows(other)
-
-        our_constraints = iter(self._constraints)
-        their_constraints = iter(other.constraints)
-        our_constraint = next(our_constraints, None)
-        their_constraint = next(their_constraints, None)
-
-        while our_constraint and their_constraint:
-            if our_constraint.allows_all(their_constraint):
-                their_constraint = next(their_constraints, None)
-            else:
-                our_constraint = next(our_constraints, None)
-
-        return their_constraint is None
+        return all(c.allows_all(other) for c in self._constraints)
 
     def allows_any(self, other: BaseConstraint) -> bool:
-        if other.is_any():
-            return True
-
-        if other.is_empty():
-            return True
+        from conda_lock._vendor.poetry.core.constraints.generic import UnionConstraint
 
         if isinstance(other, Constraint):
-            return self.allows(other)
+            if other.operator == "==":
+                return self.allows(other)
 
-        if isinstance(other, MultiConstraint):
+            return other.operator == "!="
+
+        if isinstance(other, UnionConstraint):
             return any(
-                c1.allows(c2) for c1 in self.constraints for c2 in other.constraints
+                all(c1.allows_any(c2) for c1 in self.constraints)
+                for c2 in other.constraints
             )
 
-        return False
+        return isinstance(other, MultiConstraint) or other.is_any()
 
     def invert(self) -> UnionConstraint:
         from conda_lock._vendor.poetry.core.constraints.generic import UnionConstraint

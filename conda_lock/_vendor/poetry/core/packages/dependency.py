@@ -2,12 +2,10 @@ from __future__ import annotations
 
 import os
 import re
-import warnings
 
 from contextlib import suppress
 from pathlib import Path
 from typing import TYPE_CHECKING
-from typing import Sequence
 from typing import TypeVar
 
 from packaging.utils import canonicalize_name
@@ -24,6 +22,7 @@ from conda_lock._vendor.poetry.core.version.markers import parse_marker
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
+    from collections.abc import Sequence
 
     from packaging.utils import NormalizedName
 
@@ -42,7 +41,7 @@ class Dependency(PackageSpecification):
         constraint: str | VersionConstraint,
         optional: bool = False,
         groups: Iterable[str] | None = None,
-        allows_prereleases: bool = False,
+        allows_prereleases: bool | None = None,
         extras: Iterable[str] | None = None,
         source_type: str | None = None,
         source_url: str | None = None,
@@ -76,11 +75,11 @@ class Dependency(PackageSpecification):
 
         self._groups = frozenset(groups)
         self._allows_prereleases = allows_prereleases
+        # "_develop" is only required for enriching [project] dependencies
+        self._develop = False
 
         self._python_versions = "*"
         self._python_constraint = parse_constraint("*")
-        self._transitive_python_versions: str | None = None
-        self._transitive_python_constraint: VersionConstraint | None = None
         self._transitive_marker: BaseMarker | None = None
 
         self._in_extras: Sequence[NormalizedName] = []
@@ -108,15 +107,6 @@ class Dependency(PackageSpecification):
 
         self._pretty_constraint = str(constraint)
 
-    def set_constraint(self, constraint: str | VersionConstraint) -> None:
-        warnings.warn(
-            "Calling method 'set_constraint' is deprecated and will be removed. "
-            "It has been replaced by the property 'constraint' for consistency.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        self.constraint = constraint  # type: ignore[assignment]
-
     @property
     def pretty_constraint(self) -> str:
         return self._pretty_constraint
@@ -143,28 +133,6 @@ class Dependency(PackageSpecification):
                     create_nested_marker("python_version", self._python_constraint)
                 )
             )
-
-    @property
-    def transitive_python_versions(self) -> str:
-        warnings.warn(
-            "'transitive_python_versions' is deprecated and will be removed.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        if self._transitive_python_versions is None:
-            return self._python_versions
-
-        return self._transitive_python_versions
-
-    @transitive_python_versions.setter
-    def transitive_python_versions(self, value: str) -> None:
-        warnings.warn(
-            "'transitive_python_versions' is deprecated and will be removed.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        self._transitive_python_versions = value
-        self._transitive_python_constraint = parse_constraint(value)
 
     @property
     def marker(self) -> BaseMarker:
@@ -224,18 +192,6 @@ class Dependency(PackageSpecification):
         return self._python_constraint
 
     @property
-    def transitive_python_constraint(self) -> VersionConstraint:
-        warnings.warn(
-            "'transitive_python_constraint' is deprecated and will be removed.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        if self._transitive_python_constraint is None:
-            return self._python_constraint
-
-        return self._transitive_python_constraint
-
-    @property
     def extras(self) -> frozenset[NormalizedName]:
         # extras activated in a dependency is the same as features
         return self._features
@@ -277,7 +233,14 @@ class Dependency(PackageSpecification):
     def base_pep_508_name_resolved(self) -> str:
         return self.base_pep_508_name
 
-    def allows_prereleases(self) -> bool:
+    def allows_prereleases(self) -> bool | None:
+        """
+        None (default): only use pre-release versions
+                        if no stable version satisfies the constraint
+        False: do not allow pre-release versions
+               even if this means there is no solution
+        True: do not distinguish between stable and pre-release versions
+        """
         return self._allows_prereleases
 
     def is_optional(self) -> bool:
@@ -374,6 +337,7 @@ class Dependency(PackageSpecification):
         """
         from conda_lock._vendor.poetry.core.packages.url_dependency import URLDependency
         from conda_lock._vendor.poetry.core.packages.utils.link import Link
+        from conda_lock._vendor.poetry.core.packages.utils.utils import cached_is_dir
         from conda_lock._vendor.poetry.core.packages.utils.utils import is_archive_file
         from conda_lock._vendor.poetry.core.packages.utils.utils import is_python_project
         from conda_lock._vendor.poetry.core.packages.utils.utils import is_url
@@ -403,9 +367,9 @@ class Dependency(PackageSpecification):
         elif req.url:
             link = Link(req.url)
         else:
-            path_str = os.path.normpath(os.path.abspath(name))
+            path_str = os.path.normpath(os.path.abspath(name))  # noqa: PTH100
             p, extras = strip_extras(path_str)
-            if os.path.isdir(p) and (os.path.sep in name or name.startswith(".")):
+            if cached_is_dir(p) and (os.path.sep in name or name.startswith(".")):
                 if not is_python_project(Path(name)):
                     raise ValueError(
                         f"Directory {name!r} is not installable. Not a Python project."

@@ -3,7 +3,6 @@ from __future__ import annotations
 import posixpath
 import re
 import urllib.parse as urlparse
-import warnings
 
 from functools import cached_property
 from typing import TYPE_CHECKING
@@ -187,32 +186,6 @@ class Link:
                     return {match.group(1): match.group(2)}
         return {}
 
-    @property
-    def metadata_hash(self) -> str | None:
-        warnings.warn(
-            "metadata_hash is deprecated. Use metadata_hashes instead.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        if self.has_metadata and isinstance(self._metadata, str):
-            match = self._hash_re.search(self._metadata)
-            if match:
-                return match.group(2)
-        return None
-
-    @property
-    def metadata_hash_name(self) -> str | None:
-        warnings.warn(
-            "metadata_hash_name is deprecated. Use metadata_hashes instead.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        if self.has_metadata and isinstance(self._metadata, str):
-            match = self._hash_re.search(self._metadata)
-            if match:
-                return match.group(1)
-        return None
-
     @cached_property
     def hashes(self) -> Mapping[str, str]:
         if self._hashes:
@@ -221,30 +194,6 @@ class Link:
         if match:
             return {match.group(1): match.group(2)}
         return {}
-
-    @property
-    def hash(self) -> str | None:
-        warnings.warn(
-            "hash is deprecated. Use hashes instead.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        match = self._hash_re.search(self.url)
-        if match:
-            return match.group(2)
-        return None
-
-    @property
-    def hash_name(self) -> str | None:
-        warnings.warn(
-            "hash_name is deprecated. Use hashes instead.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        match = self._hash_re.search(self.url)
-        if match:
-            return match.group(1)
-        return None
 
     @cached_property
     def show_url(self) -> str:
@@ -265,17 +214,6 @@ class Link:
     @cached_property
     def is_sdist(self) -> bool:
         return self.ext in {".tar.bz2", ".tar.gz", ".zip"}
-
-    @cached_property
-    def is_artifact(self) -> bool:
-        """
-        Determines if this points to an actual artifact (e.g. a tarball) or if
-        it points to an "abstract" thing like a path or a VCS location.
-        """
-        if self.scheme in {"ssh", "git", "hg", "bzr", "sftp", "svn"}:
-            return False
-
-        return True
 
     @cached_property
     def yanked(self) -> bool:

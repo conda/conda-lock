@@ -117,9 +117,6 @@ class VersionRangeConstraint(VersionConstraint):
         if self.max != other.min:
             return False
 
-        return (
-            self.include_max
-            and not other.include_min
-            or not self.include_max
-            and other.include_min
+        return (self.include_max and not other.include_min) or (
+            not self.include_max and other.include_min
         )

@@ -1,17 +1,18 @@
 from __future__ import annotations
 
-import os
 import subprocess
 
-from pathlib import Path
+from typing import TYPE_CHECKING
 
 from conda_lock._vendor.poetry.core.vcs.git import Git
 
 
-def get_vcs(directory: Path) -> Git | None:
-    working_dir = Path.cwd()
-    os.chdir(str(directory.resolve()))
+if TYPE_CHECKING:
+    from pathlib import Path
 
+
+def get_vcs(directory: Path) -> Git | None:
+    directory = directory.resolve(strict=True)
     vcs: Git | None
 
     try:
@@ -21,23 +22,23 @@ def get_vcs(directory: Path) -> Git | None:
             [executable(), "check-ignore", "."],
             stderr=subprocess.DEVNULL,
             stdout=subprocess.DEVNULL,
+            cwd=directory,
         ).returncode
 
         if check_ignore == 0:
             vcs = None
         else:
-            git_dir = subprocess.check_output(
-                [executable(), "rev-parse", "--show-toplevel"],
+            rel_path_to_git_dir = subprocess.check_output(
+                [executable(), "rev-parse", "--show-cdup"],
                 stderr=subprocess.STDOUT,
                 text=True,
                 encoding="utf-8",
+                cwd=directory,
             ).strip()
 
-            vcs = Git(Path(git_dir))
+            vcs = Git((directory / rel_path_to_git_dir).resolve())
 
     except (subprocess.CalledProcessError, OSError, RuntimeError):
         vcs = None
-    finally:
-        os.chdir(str(working_dir))
 
     return vcs

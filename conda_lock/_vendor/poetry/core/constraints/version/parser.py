@@ -6,7 +6,7 @@ import re
 from typing import TYPE_CHECKING
 
 from conda_lock._vendor.poetry.core.constraints.version.exceptions import ParseConstraintError
-from conda_lock._vendor.poetry.core.version.exceptions import InvalidVersion
+from conda_lock._vendor.poetry.core.version.exceptions import InvalidVersionError
 
 
 if TYPE_CHECKING:
@@ -14,17 +14,21 @@ if TYPE_CHECKING:
     from conda_lock._vendor.poetry.core.constraints.version.version_constraint import VersionConstraint
 
 
-@functools.lru_cache(maxsize=None)
+@functools.cache
 def parse_constraint(constraints: str) -> VersionConstraint:
     return _parse_constraint(constraints=constraints)
 
 
-def parse_marker_version_constraint(constraints: str) -> VersionConstraint:
-    return _parse_constraint(constraints=constraints, is_marker_constraint=True)
+def parse_marker_version_constraint(
+    constraints: str, *, pep440: bool = True
+) -> VersionConstraint:
+    return _parse_constraint(
+        constraints=constraints, is_marker_constraint=True, pep440=pep440
+    )
 
 
 def _parse_constraint(
-    constraints: str, *, is_marker_constraint: bool = False
+    constraints: str, *, is_marker_constraint: bool = False, pep440: bool = True
 ) -> VersionConstraint:
     if constraints == "*":
         from conda_lock._vendor.poetry.core.constraints.version.version_range import VersionRange
@@ -46,13 +50,17 @@ def _parse_constraint(
             for constraint in and_constraints:
                 constraint_objects.append(
                     parse_single_constraint(
-                        constraint, is_marker_constraint=is_marker_constraint
+                        constraint,
+                        is_marker_constraint=is_marker_constraint,
+                        pep440=pep440,
                     )
                 )
         else:
             constraint_objects.append(
                 parse_single_constraint(
-                    and_constraints[0], is_marker_constraint=is_marker_constraint
+                    and_constraints[0],
+                    is_marker_constraint=is_marker_constraint,
+                    pep440=pep440,
                 )
             )
 
@@ -74,9 +82,10 @@ def _parse_constraint(
 
 
 def parse_single_constraint(
-    constraint: str, *, is_marker_constraint: bool = False
+    constraint: str, *, is_marker_constraint: bool = False, pep440: bool = True
 ) -> VersionConstraint:
     from conda_lock._vendor.poetry.core.constraints.version.patterns import BASIC_CONSTRAINT
+    from conda_lock._vendor.poetry.core.constraints.version.patterns import BASIC_RELEASE_CONSTRAINT
     from conda_lock._vendor.poetry.core.constraints.version.patterns import CARET_CONSTRAINT
     from conda_lock._vendor.poetry.core.constraints.version.patterns import TILDE_CONSTRAINT
     from conda_lock._vendor.poetry.core.constraints.version.patterns import TILDE_PEP440_CONSTRAINT
@@ -94,7 +103,7 @@ def parse_single_constraint(
     if m:
         try:
             version = Version.parse(m.group("version"))
-        except InvalidVersion as e:
+        except InvalidVersionError as e:
             raise ParseConstraintError(
                 f"Could not parse version constraint: {constraint}"
             ) from e
@@ -110,7 +119,7 @@ def parse_single_constraint(
     if m:
         try:
             version = Version.parse(m.group("version"))
-        except InvalidVersion as e:
+        except InvalidVersionError as e:
             raise ParseConstraintError(
                 f"Could not parse version constraint: {constraint}"
             ) from e
@@ -127,7 +136,7 @@ def parse_single_constraint(
     if m:
         try:
             version = Version.parse(m.group("version"))
-        except InvalidVersion as e:
+        except InvalidVersionError as e:
             raise ParseConstraintError(
                 f"Could not parse version constraint: {constraint}"
             ) from e
@@ -159,7 +168,7 @@ def parse_single_constraint(
 
         try:
             version = Version.parse(version_string)
-        except InvalidVersion as e:
+        except InvalidVersionError as e:
             raise ParseConstraintError(
                 f"Could not parse version constraint: {constraint}"
             ) from e
@@ -183,6 +192,35 @@ def parse_single_constraint(
         if op == "!=":
             return VersionUnion(VersionRange(max=version), VersionRange(min=version))
 
+        return version
+
+    # These below should be reserved for comparing non python packages such as OS
+    # versions using `platform_release`
+    if not pep440 and (m := BASIC_RELEASE_CONSTRAINT.match(constraint)):
+        op = m.group("op")
+        release_string = m.group("release")
+        build = m.group("build")
+
+        try:
+            version = Version(
+                release=Version.parse(release_string).release,
+                local=build,
+            )
+        except InvalidVersionError as e:
+            raise ParseConstraintError(
+                f"Could not parse version constraint: {constraint}"
+            ) from e
+
+        if op == "<":
+            return VersionRange(max=version)
+        if op == "<=":
+            return VersionRange(max=version, include_max=True)
+        if op == ">":
+            return VersionRange(min=version)
+        if op == ">=":
+            return VersionRange(min=version, include_min=True)
+        if op == "!=":
+            return VersionUnion(VersionRange(max=version), VersionRange(min=version))
         return version
 
     raise ParseConstraintError(f"Could not parse version constraint: {constraint}")

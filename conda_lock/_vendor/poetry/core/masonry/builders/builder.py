@@ -1,11 +1,9 @@
 from __future__ import annotations
 
 import logging
-import re
 import sys
-import warnings
+import textwrap
 
-from collections import defaultdict
 from functools import cached_property
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -16,12 +14,8 @@ if TYPE_CHECKING:
     from conda_lock._vendor.poetry.core.poetry import Poetry
 
 
-AUTHOR_REGEX = re.compile(
-    r"(?u)^(?P<name>[- .,\w\d'’\"()]+) <(?P<email>.+?)>$"  # noqa: RUF001
-)
-
 METADATA_BASE = """\
-Metadata-Version: 2.1
+Metadata-Version: 2.3
 Name: {name}
 Version: {version}
 Summary: {summary}
@@ -33,12 +27,7 @@ logger = logging.getLogger(__name__)
 class Builder:
     format: str | None = None
 
-    def __init__(
-        self,
-        poetry: Poetry,
-        ignore_packages_formats: bool = False,
-        executable: Path | None = None,
-    ) -> None:
+    def __init__(self, poetry: Poetry, executable: Path | None = None) -> None:
         from conda_lock._vendor.poetry.core.masonry.metadata import Metadata
 
         if not poetry.is_package_mode:
@@ -49,7 +38,6 @@ class Builder:
         self._poetry = poetry
         self._package = poetry.package
         self._path: Path = poetry.pyproject_path.parent
-        self._ignore_packages_formats = ignore_packages_formats
         self._excluded_files: set[str] | None = None
         self._executable = Path(executable or sys.executable)
         self._meta = Metadata.from_package(self._package)
@@ -58,41 +46,16 @@ class Builder:
     def _module(self) -> Module:
         from conda_lock._vendor.poetry.core.masonry.utils.module import Module
 
-        packages = []
-        for p in self._package.packages:
-            formats = p.get("format") or None
-
-            # Default to including the package in both sdist & wheel
-            # if the `format` key is not provided in the inline include table.
-            if formats is None:
-                formats = ["sdist", "wheel"]
-
-            if not isinstance(formats, list):
-                formats = [formats]
-
-            if (
-                formats
-                and self.format
-                and self.format not in formats
-                and not self._ignore_packages_formats
-            ):
-                continue
-
-            packages.append(p)
-
-        includes = []
-        for include in self._package.include:
-            formats = include.get("format", [])
-
-            if (
-                formats
-                and self.format
-                and self.format not in formats
-                and not self._ignore_packages_formats
-            ):
-                continue
-
-            includes.append(include)
+        packages = [
+            item
+            for item in self._package.packages
+            if not self.format or self.format in item["format"]
+        ]
+        includes = [
+            item
+            for item in self._package.include
+            if not self.format or self.format in item["format"]
+        ]
 
         return Module(
             self._package.name,
@@ -128,15 +91,12 @@ class Builder:
                     )
 
             explicitly_included = set()
-            for inc in self._package.include:
-                if fmt and inc["format"] and fmt not in inc["format"]:
+            for inc in self._module.explicit_includes:
+                if fmt and fmt not in inc.formats:
                     continue
 
-                included_glob = inc["path"]
-                for included in self._path.glob(str(included_glob)):
-                    explicitly_included.add(
-                        Path(included).relative_to(self._path).as_posix()
-                    )
+                for included in inc.elements:
+                    explicitly_included.add(included.relative_to(self._path).as_posix())
 
             ignored = (vcs_ignored_files | explicitly_excluded) - explicitly_included
             for ignored_file in ignored:
@@ -170,7 +130,7 @@ class Builder:
 
         for include in self._module.includes:
             include.refresh()
-            formats = include.formats or ["sdist"]
+            formats = include.formats
 
             for file in include.elements:
                 if "__pycache__" in str(file):
@@ -207,7 +167,7 @@ class Builder:
                             if not (
                                 current_file.is_dir()
                                 or self.is_excluded(
-                                    include_file.relative_to_source_root()
+                                    include_file.relative_to_project_root()
                                 )
                             ):
                                 to_add.add(include_file)
@@ -250,12 +210,16 @@ class Builder:
             summary=str(self._meta.summary),
         )
 
-        # Optional fields
-        if self._meta.home_page:
-            content += f"Home-page: {self._meta.home_page}\n"
-
         if self._meta.license:
-            content += f"License: {self._meta.license}\n"
+            license_field = "License: "
+            # Indentation is not only for readability, but required
+            # so that the line break is not treated as end of field.
+            # The exact indentation does not matter,
+            # but it is essential to also indent empty lines.
+            escaped_license = textwrap.indent(
+                self._meta.license, " " * len(license_field), lambda line: True
+            ).strip()
+            content += f"{license_field}{escaped_license}\n"
 
         if self._meta.keywords:
             content += f"Keywords: {self._meta.keywords}\n"
@@ -298,56 +262,18 @@ class Builder:
         return content
 
     def convert_entry_points(self) -> dict[str, list[str]]:
-        result = defaultdict(list)
+        result: dict[str, list[str]] = {}
 
-        # Scripts -> Entry points
-        for name, specification in self._poetry.local_config.get("scripts", {}).items():
-            if isinstance(specification, str):
-                # TODO: deprecate this in favour or reference
-                specification = {"reference": specification, "type": "console"}
+        for group_name, group in self._poetry.package.entry_points.items():
+            if group_name == "console-scripts":
+                group_name = "console_scripts"
+            elif group_name == "gui-scripts":
+                group_name = "gui_scripts"
+            result[group_name] = sorted(
+                f"{name} = {specification}" for name, specification in group.items()
+            )
 
-            if "callable" in specification:
-                warnings.warn(
-                    f"Use of callable in script specification ({name}) is"
-                    " deprecated. Use reference instead.",
-                    DeprecationWarning,
-                    stacklevel=1,
-                )
-                specification = {
-                    "reference": specification["callable"],
-                    "type": "console",
-                }
-
-            if specification.get("type") != "console":
-                continue
-
-            extras = specification.get("extras", [])
-            if extras:
-                warnings.warn(
-                    f'The script "{name}" depends on an extra. Scripts depending on'
-                    " extras are deprecated and support for them will be removed in a"
-                    " future version of poetry/poetry-core. See"
-                    " https://packaging.python.org/en/latest/specifications/entry-points/#data-model"
-                    " for details.",
-                    DeprecationWarning,
-                    stacklevel=1,
-                )
-            extras = f"[{', '.join(extras)}]" if extras else ""
-            reference = specification.get("reference")
-
-            if reference:
-                result["console_scripts"].append(f"{name} = {reference}{extras}")
-
-        # Plugins -> entry points
-        plugins = self._poetry.local_config.get("plugins", {})
-        for groupname, group in plugins.items():
-            for name, specification in sorted(group.items()):
-                result[groupname].append(f"{name} = {specification}")
-
-        for groupname in result:
-            result[groupname] = sorted(result[groupname])
-
-        return dict(result)
+        return result
 
     def convert_script_files(self) -> list[Path]:
         script_files: list[Path] = []
@@ -364,30 +290,20 @@ class Builder:
 
                 abs_path = Path.joinpath(self._path, source)
 
-                if not abs_path.exists():
-                    raise RuntimeError(
-                        f"{abs_path} in script specification ({name}) is not found."
-                    )
-
-                if not abs_path.is_file():
-                    raise RuntimeError(
-                        f"{abs_path} in script specification ({name}) is not a file."
-                    )
+                if not self._package.build_script:
+                    # scripts can be generated by build_script, in this case they do not exist here
+                    if not abs_path.exists():
+                        raise RuntimeError(
+                            f"{abs_path} in script specification ({name}) is not found."
+                        )
+                    if not abs_path.is_file():
+                        raise RuntimeError(
+                            f"{abs_path} in script specification ({name}) is not a file."
+                        )
 
                 script_files.append(abs_path)
 
         return script_files
-
-    @classmethod
-    def convert_author(cls, author: str) -> dict[str, str]:
-        m = AUTHOR_REGEX.match(author)
-        if m is None:
-            raise RuntimeError(f"{author} does not match regex")
-
-        name = m.group("name")
-        email = m.group("email")
-
-        return {"name": name, "email": email}
 
     def _get_legal_files(self) -> set[Path]:
         include_files_patterns = {"COPYING*", "LICEN[SC]E*", "AUTHORS*", "NOTICE*"}

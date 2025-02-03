@@ -3,7 +3,6 @@ from __future__ import annotations
 import json
 import os
 import re
-import sys
 
 from contextlib import contextmanager
 from copy import deepcopy
@@ -12,20 +11,17 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 from typing import Any
 
-from packaging.tags import Tag
-
 from conda_lock._vendor.poetry.utils.env.base_env import Env
 from conda_lock._vendor.poetry.utils.env.script_strings import GET_BASE_PREFIX
 from conda_lock._vendor.poetry.utils.env.script_strings import GET_ENVIRONMENT_INFO
 from conda_lock._vendor.poetry.utils.env.script_strings import GET_PATHS
-from conda_lock._vendor.poetry.utils.env.script_strings import GET_PYTHON_VERSION
 from conda_lock._vendor.poetry.utils.env.script_strings import GET_SYS_PATH
-from conda_lock._vendor.poetry.utils.env.script_strings import GET_SYS_TAGS
-from conda_lock._vendor.poetry.utils.env.system_env import SystemEnv
 
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
+
+    from packaging.tags import Tag
 
 
 class VirtualEnv(Env):
@@ -50,20 +46,26 @@ class VirtualEnv(Env):
         paths: list[str] = json.loads(output)
         return paths
 
-    def get_version_info(self) -> tuple[Any, ...]:
-        output = self.run_python_script(GET_PYTHON_VERSION)
-        assert isinstance(output, str)
-
-        return tuple(int(s) for s in output.strip().split("."))
-
-    def get_python_implementation(self) -> str:
-        implementation: str = self.marker_env["platform_python_implementation"]
-        return implementation
-
     def get_supported_tags(self) -> list[Tag]:
-        output = self.run_python_script(GET_SYS_TAGS)
+        from packaging.tags import compatible_tags
+        from packaging.tags import cpython_tags
+        from packaging.tags import generic_tags
 
-        return [Tag(*t) for t in json.loads(output)]
+        python = self.version_info[:3]
+        interpreter_name = self.marker_env["interpreter_name"]
+        interpreter_version = self.marker_env["interpreter_version"]
+
+        if interpreter_name == "pp":
+            interpreter = "pp3"
+        elif interpreter_name == "cp":
+            interpreter = f"{interpreter_name}{interpreter_version}"
+        else:
+            interpreter = None
+
+        return [
+            *(cpython_tags(python) if interpreter_name == "cp" else generic_tags()),
+            *compatible_tags(python, interpreter=interpreter),
+        ]
 
     def get_marker_env(self) -> dict[str, Any]:
         output = self.run_python_script(GET_ENVIRONMENT_INFO)
@@ -132,7 +134,7 @@ class VirtualEnv(Env):
         return pyvenv_cfg.exists() and (
             re.search(
                 r"^\s*include-system-site-packages\s*=\s*true\s*$",
-                pyvenv_cfg.read_text(),
+                pyvenv_cfg.read_text(encoding="utf-8"),
                 re.IGNORECASE | re.MULTILINE,
             )
             is not None
@@ -141,5 +143,5 @@ class VirtualEnv(Env):
     def is_path_relative_to_lib(self, path: Path) -> bool:
         return super().is_path_relative_to_lib(path) or (
             self.includes_system_site_packages
-            and SystemEnv(Path(sys.prefix)).is_path_relative_to_lib(path)
+            and self.parent_env.is_path_relative_to_lib(path)
         )

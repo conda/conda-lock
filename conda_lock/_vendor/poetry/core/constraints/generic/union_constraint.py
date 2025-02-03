@@ -24,47 +24,23 @@ class UnionConstraint(BaseConstraint):
         return any(constraint.allows(other) for constraint in self._constraints)
 
     def allows_any(self, other: BaseConstraint) -> bool:
-        if other.is_empty():
-            return False
+        if isinstance(other, UnionConstraint):
+            return any(
+                c1.allows_any(c2)
+                for c1 in self._constraints
+                for c2 in other.constraints
+            )
 
-        if other.is_any():
-            return True
-
-        if isinstance(other, (UnionConstraint, MultiConstraint)):
-            constraints = other.constraints
-        else:
-            constraints = (other,)
-
-        return any(
-            our_constraint.allows_any(their_constraint)
-            for our_constraint in self._constraints
-            for their_constraint in constraints
-        )
+        return any(c.allows_any(other) for c in self._constraints)
 
     def allows_all(self, other: BaseConstraint) -> bool:
-        if other.is_any():
-            return False
+        if isinstance(other, UnionConstraint):
+            return all(
+                any(c1.allows_all(c2) for c1 in self._constraints)
+                for c2 in other.constraints
+            )
 
-        if other.is_empty():
-            return True
-
-        if isinstance(other, (UnionConstraint, MultiConstraint)):
-            constraints = other.constraints
-        else:
-            constraints = (other,)
-
-        our_constraints = iter(self._constraints)
-        their_constraints = iter(constraints)
-        our_constraint = next(our_constraints, None)
-        their_constraint = next(their_constraints, None)
-
-        while our_constraint and their_constraint:
-            if our_constraint.allows_all(their_constraint):
-                their_constraint = next(their_constraints, None)
-            else:
-                our_constraint = next(our_constraints, None)
-
-        return their_constraint is None
+        return any(c.allows_all(other) for c in self._constraints)
 
     def invert(self) -> MultiConstraint:
         inverted_constraints = [c.invert() for c in self._constraints]

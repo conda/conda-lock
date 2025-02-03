@@ -9,7 +9,7 @@ from conda_lock._vendor.poetry.core.version.markers import _compact_markers
 from conda_lock._vendor.poetry.core.version.parser import Parser
 
 
-class InvalidRequirement(ValueError):
+class InvalidRequirementError(ValueError):
     """
     An invalid requirement was found, users should refer to PEP 508.
     """
@@ -24,7 +24,7 @@ class Requirement:
     Parse a requirement.
 
     Parse a given requirement string into its parts, such as name, specifier,
-    URL, and extras. Raises InvalidRequirement on a badly-formed requirement
+    URL, and extras. Raises InvalidRequirementError on a badly-formed requirement
     string.
     """
 
@@ -35,7 +35,7 @@ class Requirement:
         try:
             parsed = _parser.parse(requirement_string)
         except (UnexpectedCharacters, UnexpectedToken) as e:
-            raise InvalidRequirement(
+            raise InvalidRequirementError(
                 "The requirement is invalid: Unexpected character at column"
                 f" {e.column}\n\n{e.get_context(requirement_string)}"
             )
@@ -48,13 +48,13 @@ class Requirement:
             parsed_url = urlparse.urlparse(url)
             if parsed_url.scheme == "file":
                 if urlparse.urlunparse(parsed_url) != url:
-                    raise InvalidRequirement(
+                    raise InvalidRequirementError(
                         f'The requirement is invalid: invalid URL "{url}"'
                     )
             elif (
                 not (parsed_url.scheme and parsed_url.netloc)
             ) and not parsed_url.path:
-                raise InvalidRequirement(
+                raise InvalidRequirementError(
                     f'The requirement is invalid: invalid URL "{url}"'
                 )
             self.url = url
@@ -68,7 +68,7 @@ class Requirement:
         try:
             self.constraint = parse_constraint(constraint)
         except ParseConstraintError:
-            raise InvalidRequirement(
+            raise InvalidRequirementError(
                 f'The requirement is invalid: invalid version constraint "{constraint}"'
             )
 

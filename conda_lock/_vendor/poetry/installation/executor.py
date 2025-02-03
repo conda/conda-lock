@@ -1,12 +1,12 @@
 from __future__ import annotations
 
-import contextlib
 import csv
 import functools
 import itertools
 import json
 import threading
 
+from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor
 from concurrent.futures import wait
 from pathlib import Path
@@ -14,12 +14,9 @@ from subprocess import CalledProcessError
 from typing import TYPE_CHECKING
 from typing import Any
 
-from conda_lock._vendor.cleo.io.null_io import NullIO
 from conda_lock._vendor.poetry.core.packages.utils.link import Link
 
 from conda_lock._vendor.poetry.installation.chef import Chef
-from conda_lock._vendor.poetry.installation.chef import ChefBuildError
-from conda_lock._vendor.poetry.installation.chef import ChefInstallError
 from conda_lock._vendor.poetry.installation.chooser import Chooser
 from conda_lock._vendor.poetry.installation.operations import Install
 from conda_lock._vendor.poetry.installation.operations import Uninstall
@@ -34,19 +31,26 @@ from conda_lock._vendor.poetry.utils.helpers import get_file_hash
 from conda_lock._vendor.poetry.utils.helpers import get_highest_priority_hash_type
 from conda_lock._vendor.poetry.utils.helpers import pluralize
 from conda_lock._vendor.poetry.utils.helpers import remove_directory
-from conda_lock._vendor.poetry.utils.pip import pip_install
+from conda_lock._vendor.poetry.utils.isolated_build import IsolatedBuildBackendError
+from conda_lock._vendor.poetry.utils.isolated_build import IsolatedBuildInstallError
+from conda_lock._vendor.poetry.vcs.git import Git
 
 
 if TYPE_CHECKING:
     from conda_lock._vendor.cleo.io.io import IO
     from conda_lock._vendor.cleo.io.outputs.section_output import SectionOutput
-    from conda_lock._vendor.poetry.core.masonry.builders.builder import Builder
     from conda_lock._vendor.poetry.core.packages.package import Package
 
     from conda_lock._vendor.poetry.config.config import Config
     from conda_lock._vendor.poetry.installation.operations.operation import Operation
     from conda_lock._vendor.poetry.repositories import RepositoryPool
     from conda_lock._vendor.poetry.utils.env import Env
+
+
+def _package_get_name(package: Package) -> str | None:
+    if url := package.repository_url:
+        return Git.get_name_from_source_url(url)
+    return None
 
 
 class Executor:
@@ -65,20 +69,6 @@ class Executor:
         self._enabled = True
         self._verbose = False
         self._wheel_installer = WheelInstaller(self._env)
-        self._use_modern_installation = config.get(
-            "installer.modern-installation", True
-        )
-        if not self._use_modern_installation:
-            self._io.write_line(
-                "<warning>Warning: Setting `installer.modern-installation` to `false` "
-                "is deprecated.</>"
-            )
-            self._io.write_line(
-                "<warning>The pip-based installer will be removed in a future release.</>"
-            )
-            self._io.write_line(
-                "<warning>See https://github.com/python-poetry/poetry/issues/8987.</>"
-            )
 
         if parallel is None:
             parallel = config.get("installer.parallel", True)
@@ -96,8 +86,6 @@ class Executor:
         self._chooser = Chooser(pool, self._env, config)
 
         self._executor = ThreadPoolExecutor(max_workers=self._max_workers)
-        self._total_operations = 0
-        self._executed_operations = 0
         self._executed = {"install": 0, "update": 0, "uninstall": 0}
         self._skipped = {"install": 0, "update": 0, "uninstall": 0}
         self._sections: dict[int, SectionOutput] = {}
@@ -109,6 +97,7 @@ class Executor:
         # Cache whether decorated output is supported.
         # https://github.com/python-poetry/cleo/issues/423
         self._decorated_output: bool = self._io.output.is_decorated()
+        self._max_retries = config.get("requests.max-retries", 0)
 
     @property
     def installations_count(self) -> int:
@@ -147,24 +136,7 @@ class Executor:
     def enable_bytecode_compilation(self, enable: bool = True) -> None:
         self._wheel_installer.enable_bytecode_compilation(enable)
 
-    def pip_install(
-        self, req: Path, upgrade: bool = False, editable: bool = False
-    ) -> int:
-        try:
-            pip_install(req, self._env, upgrade=upgrade, editable=editable)
-        except EnvCommandError as e:
-            output = decode(e.e.output)
-            if (
-                "KeyboardInterrupt" in output
-                or "ERROR: Operation cancelled by user" in output
-            ):
-                return -2
-            raise
-
-        return 0
-
     def execute(self, operations: list[Operation]) -> int:
-        self._total_operations = len(operations)
         for job_type in self._executed:
             self._executed[job_type] = 0
             self._skipped[job_type] = 0
@@ -175,18 +147,12 @@ class Executor:
         self._sections = {}
         self._yanked_warnings = []
 
-        # pip has to be installed first without parallelism if we install via pip
-        for i, op in enumerate(operations):
-            if op.package.name == "pip":
-                wait([self._executor.submit(self._execute_operation, op)])
-                del operations[i]
-                break
-
         # We group operations by priority
         groups = itertools.groupby(operations, key=lambda o: -o.priority)
         for _, group in groups:
             tasks = []
             serial_operations = []
+            serial_git_operations = defaultdict(list)
             for operation in group:
                 if self._shutdown:
                     break
@@ -201,26 +167,49 @@ class Executor:
                     operation.package.develop
                     and operation.package.source_type in {"directory", "git"}
                 )
-                if not operation.skipped and is_parallel_unsafe:
-                    serial_operations.append(operation)
-                    continue
+                # Skipped operations are safe to execute in parallel
+                if operation.skipped:
+                    is_parallel_unsafe = False
 
-                tasks.append(self._executor.submit(self._execute_operation, operation))
+                if is_parallel_unsafe:
+                    serial_operations.append(operation)
+                elif operation.package.source_type == "git":
+                    # Serially execute git operations that get cloned to the same directory,
+                    # to prevent multiple parallel git operations in the same repo.
+                    serial_git_operations[_package_get_name(operation.package)].append(
+                        operation
+                    )
+                else:
+                    tasks.append(
+                        self._executor.submit(self._execute_operation, operation)
+                    )
+
+            def _serialize(
+                repository_serial_operations: list[Operation],
+            ) -> None:
+                for operation in repository_serial_operations:
+                    self._execute_operation(operation)
+
+            # For each git repository, execute all operations serially
+            for repository_git_operations in serial_git_operations.values():
+                tasks.append(
+                    self._executor.submit(
+                        _serialize,
+                        repository_serial_operations=repository_git_operations,
+                    )
+                )
 
             try:
                 wait(tasks)
 
                 for operation in serial_operations:
-                    wait([self._executor.submit(self._execute_operation, operation)])
+                    self._execute_operation(operation)
 
             except KeyboardInterrupt:
                 self._shutdown = True
 
             if self._shutdown:
-                # Cancelling further tasks from being executed
-                [task.cancel() for task in tasks]
-                self._executor.shutdown(wait=True)
-
+                self._executor.shutdown(wait=True, cancel_futures=True)
                 break
 
         for warning in self._yanked_warnings:
@@ -311,10 +300,13 @@ class Executor:
                     io = self._sections.get(id(operation), self._io)
 
                 with self._lock:
-                    trace = ExceptionTrace(e)
-                    trace.render(io)
                     pkg = operation.package
-                    if isinstance(e, ChefBuildError):
+                    with_trace = True
+
+                    if isinstance(e, IsolatedBuildBackendError):
+                        # TODO: Revisit once upstream fix is available https://github.com/python-poetry/cleo/issues/454
+                        # we disable trace here explicitly to workaround incorrect context detection by crashtest
+                        with_trace = False
                         pip_command = "pip wheel --no-cache-dir --use-pep517"
                         if pkg.develop:
                             requirement = pkg.source_url
@@ -323,16 +315,11 @@ class Executor:
                             requirement = (
                                 pkg.to_dependency().to_pep_508().split(";")[0].strip()
                             )
-                        message = (
-                            "<info>"
-                            "Note: This error originates from the build backend,"
-                            " and is likely not a problem with poetry"
-                            f" but with {pkg.pretty_name} ({pkg.full_pretty_version})"
-                            " not supporting PEP 517 builds. You can verify this by"
-                            f" running '{pip_command} \"{requirement}\"'."
-                            "</info>"
+                        message = e.generate_message(
+                            source_string=f"{pkg.pretty_name} ({pkg.full_pretty_version})",
+                            build_command=f'{pip_command} "{requirement}"',
                         )
-                    elif isinstance(e, ChefInstallError):
+                    elif isinstance(e, IsolatedBuildInstallError):
                         message = (
                             "<error>"
                             "Cannot install build-system.requires"
@@ -348,6 +335,9 @@ class Executor:
                         )
                     else:
                         message = f"<error>Cannot install {pkg.pretty_name}.</error>"
+
+                    if with_trace:
+                        ExceptionTrace(e).render(io)
 
                     io.write_line("")
                     io.write_line(message)
@@ -408,7 +398,6 @@ class Executor:
     def _increment_operations_count(self, operation: Operation, executed: bool) -> None:
         with self._lock:
             if executed:
-                self._executed_operations += 1
                 self._executed[operation.job_type] += 1
             else:
                 self._skipped[operation.job_type] += 1
@@ -539,8 +528,6 @@ class Executor:
 
     def _install(self, operation: Install | Update) -> int:
         package = operation.package
-        if package.source_type == "directory" and not self._use_modern_installation:
-            return self._install_directory_without_wheel_installer(operation)
 
         cleanup_archive: bool = False
         if package.source_type == "git":
@@ -563,9 +550,6 @@ class Executor:
             " <info>Installing...</info>"
         )
         self._write(operation, message)
-
-        if not self._use_modern_installation:
-            return self.pip_install(archive, upgrade=operation.job_type == "update")
 
         try:
             if operation.job_type == "update":
@@ -626,8 +610,6 @@ class Executor:
         )
 
     def _prepare_git_archive(self, operation: Install | Update) -> Path:
-        from conda_lock._vendor.poetry.vcs.git import Git
-
         package = operation.package
         assert package.source_url is not None
 
@@ -678,59 +660,6 @@ class Executor:
             (output_dir / ".created_from_git_dependency").touch()
 
         return archive
-
-    def _install_directory_without_wheel_installer(
-        self, operation: Install | Update
-    ) -> int:
-        from conda_lock._vendor.poetry.factory import Factory
-        from conda_lock._vendor.poetry.pyproject.toml import PyProjectTOML
-
-        package = operation.package
-        operation_message = self.get_operation_message(operation)
-
-        message = (
-            f"  <fg=blue;options=bold>-</> {operation_message}:"
-            " <info>Building...</info>"
-        )
-        self._write(operation, message)
-
-        assert package.source_url is not None
-        if package.root_dir:
-            req = package.root_dir / package.source_url
-        else:
-            req = Path(package.source_url).resolve(strict=False)
-
-        if package.source_subdirectory:
-            req /= package.source_subdirectory
-
-        pyproject = PyProjectTOML(req / "pyproject.toml")
-
-        package_poetry = None
-        if pyproject.is_poetry_project():
-            with contextlib.suppress(RuntimeError):
-                package_poetry = Factory().create_poetry(pyproject.file.path.parent)
-
-        if package_poetry is not None:
-            builder: Builder
-            if package.develop and not package_poetry.package.build_script:
-                from conda_lock._vendor.poetry.masonry.builders.editable import EditableBuilder
-
-                # This is a Poetry package in editable mode
-                # we can use the EditableBuilder without going through pip
-                # to install it, unless it has a build script.
-                builder = EditableBuilder(package_poetry, self._env, NullIO())
-                builder.build()
-
-                return 0
-
-            if package_poetry.package.build_script:
-                from conda_lock._vendor.poetry.core.masonry.builders.sdist import SdistBuilder
-
-                builder = SdistBuilder(package_poetry)
-                with builder.setup_py():
-                    return self.pip_install(req, upgrade=True, editable=package.develop)
-
-        return self.pip_install(req, upgrade=True, editable=package.develop)
 
     def _download(self, operation: Install | Update) -> Path:
         link = self._chooser.choose_for(operation.package)
@@ -822,7 +751,9 @@ class Executor:
         url: str,
         dest: Path,
     ) -> None:
-        downloader = Downloader(url, dest, self._authenticator)
+        downloader = Downloader(
+            url, dest, self._authenticator, max_retries=self._max_retries
+        )
         wheel_size = downloader.total_size
 
         operation_message = self.get_operation_message(operation)
@@ -870,18 +801,6 @@ class Executor:
         package = operation.package
 
         if not package.source_url or package.source_type == "legacy":
-            if not self._use_modern_installation:
-                # Since we are installing from our own distribution cache pip will write
-                # a `direct_url.json` file pointing to the cache distribution.
-                #
-                # That's not what we want, so we remove the direct_url.json file, if it
-                # exists.
-                for (
-                    direct_url_json
-                ) in self._env.site_packages.find_distribution_direct_url_json_files(
-                    distribution_name=package.name, writable_only=True
-                ):
-                    direct_url_json.unlink(missing_ok=True)
             return
 
         url_reference: dict[str, Any] | None = None

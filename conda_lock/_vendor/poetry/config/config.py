@@ -114,42 +114,33 @@ class Config:
             "options": {
                 "always-copy": False,
                 "system-site-packages": False,
-                # we default to False here in order to prevent development environment
-                # breakages for IDEs etc. as when working in these environments
-                # assumptions are often made about virtual environments having pip and
-                # setuptools.
                 "no-pip": False,
-                "no-setuptools": False,
             },
-            "prefer-active-python": False,
+            "use-poetry-python": False,
             "prompt": "{project_name}-py{python_version}",
         },
-        "experimental": {
-            "system-git-client": False,
+        "requests": {
+            "max-retries": 0,
         },
         "installer": {
-            "modern-installation": True,
+            "re-resolve": True,
             "parallel": True,
             "max-workers": None,
             "no-binary": None,
+            "only-binary": None,
         },
         "solver": {
             "lazy-wheel": True,
         },
-        "warnings": {
-            "export": True,
-        },
+        "system-git-client": False,
         "keyring": {
             "enabled": True,
         },
     }
 
-    def __init__(
-        self, use_environment: bool = True, base_dir: Path | None = None
-    ) -> None:
+    def __init__(self, use_environment: bool = True) -> None:
         self._config = deepcopy(self.default_config)
         self._use_environment = use_environment
-        self._base_dir = base_dir
         self._config_source: ConfigSource = DictConfigSource()
         self._auth_config_source: ConfigSource = DictConfigSource()
 
@@ -305,14 +296,12 @@ class Config:
             "virtualenvs.in-project",
             "virtualenvs.options.always-copy",
             "virtualenvs.options.no-pip",
-            "virtualenvs.options.no-setuptools",
             "virtualenvs.options.system-site-packages",
-            "virtualenvs.options.prefer-active-python",
-            "experimental.system-git-client",
-            "installer.modern-installation",
+            "virtualenvs.use-poetry-python",
+            "installer.re-resolve",
             "installer.parallel",
             "solver.lazy-wheel",
-            "warnings.export",
+            "system-git-client",
             "keyring.enabled",
         }:
             return boolean_normalizer
@@ -320,10 +309,13 @@ class Config:
         if name == "virtualenvs.path":
             return lambda val: str(Path(val))
 
-        if name == "installer.max-workers":
+        if name in {
+            "installer.max-workers",
+            "requests.max-retries",
+        }:
             return int_normalizer
 
-        if name == "installer.no-binary":
+        if name in ["installer.no-binary", "installer.only-binary"]:
             return PackageFilterPolicy.normalize
 
         return lambda val: val

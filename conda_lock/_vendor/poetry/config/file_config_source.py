@@ -8,6 +8,8 @@ from tomlkit import document
 from tomlkit import table
 
 from conda_lock._vendor.poetry.config.config_source import ConfigSource
+from conda_lock._vendor.poetry.config.config_source import PropertyNotFoundError
+from conda_lock._vendor.poetry.config.config_source import drop_empty_config_category
 
 
 if TYPE_CHECKING:
@@ -19,9 +21,8 @@ if TYPE_CHECKING:
 
 
 class FileConfigSource(ConfigSource):
-    def __init__(self, file: TOMLFile, auth_config: bool = False) -> None:
+    def __init__(self, file: TOMLFile) -> None:
         self._file = file
-        self._auth_config = auth_config
 
     @property
     def name(self) -> str:
@@ -30,6 +31,20 @@ class FileConfigSource(ConfigSource):
     @property
     def file(self) -> TOMLFile:
         return self._file
+
+    def get_property(self, key: str) -> Any:
+        keys = key.split(".")
+
+        config = self.file.read() if self.file.exists() else {}
+
+        for i, key in enumerate(keys):
+            if key not in config:
+                raise PropertyNotFoundError(f"Key {'.'.join(keys)} not in config")
+
+            if i == len(keys) - 1:
+                return config[key]
+
+            config = config[key]
 
     def add_property(self, key: str, value: Any) -> None:
         with self.secure() as toml:
@@ -62,6 +77,10 @@ class FileConfigSource(ConfigSource):
                     break
 
                 current_config = current_config[key]
+
+            current_config = drop_empty_config_category(keys=keys[:-1], config=config)
+            config.clear()
+            config.update(current_config)
 
     @contextmanager
     def secure(self) -> Iterator[TOMLDocument]:

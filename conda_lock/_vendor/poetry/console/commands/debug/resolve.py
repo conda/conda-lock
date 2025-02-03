@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
+from typing import ClassVar
 
 from conda_lock._vendor.cleo.helpers import argument
 from conda_lock._vendor.cleo.helpers import option
@@ -11,6 +12,8 @@ from conda_lock._vendor.poetry.console.commands.show import ShowCommand
 
 
 if TYPE_CHECKING:
+    from conda_lock._vendor.cleo.io.inputs.argument import Argument
+    from conda_lock._vendor.cleo.io.inputs.option import Option
     from conda_lock._vendor.cleo.ui.table import Rows
 
 
@@ -18,10 +21,10 @@ class DebugResolveCommand(InitCommand):
     name = "debug resolve"
     description = "Debugs dependency resolution."
 
-    arguments = [
+    arguments: ClassVar[list[Argument]] = [
         argument("package", "The packages to resolve.", optional=True, multiple=True)
     ]
-    options = [
+    options: ClassVar[list[Option]] = [
         option(
             "extras",
             "E",
@@ -34,7 +37,10 @@ class DebugResolveCommand(InitCommand):
         option("install", None, "Show what would be installed for the current system."),
     ]
 
-    loggers = ["poetry.repositories.pypi_repository", "poetry.inspection.info"]
+    loggers: ClassVar[list[str]] = [
+        "poetry.repositories.pypi_repository",
+        "poetry.inspection.info",
+    ]
 
     def handle(self) -> int:
         from conda_lock._vendor.cleo.io.null_io import NullIO

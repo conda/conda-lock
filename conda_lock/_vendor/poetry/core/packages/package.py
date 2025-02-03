@@ -1,28 +1,24 @@
 from __future__ import annotations
 
-import re
 import warnings
 
-from contextlib import contextmanager
 from typing import TYPE_CHECKING
 from typing import ClassVar
-from typing import Mapping
-from typing import Sequence
 from typing import TypeVar
 
 from conda_lock._vendor.poetry.core.constraints.version import parse_constraint
 from conda_lock._vendor.poetry.core.constraints.version.exceptions import ParseConstraintError
 from conda_lock._vendor.poetry.core.packages.dependency_group import MAIN_GROUP
 from conda_lock._vendor.poetry.core.packages.specification import PackageSpecification
-from conda_lock._vendor.poetry.core.packages.utils.utils import create_nested_marker
-from conda_lock._vendor.poetry.core.version.exceptions import InvalidVersion
-from conda_lock._vendor.poetry.core.version.markers import parse_marker
+from conda_lock._vendor.poetry.core.utils.patterns import AUTHOR_REGEX
+from conda_lock._vendor.poetry.core.version.exceptions import InvalidVersionError
 
 
 if TYPE_CHECKING:
     from collections.abc import Collection
     from collections.abc import Iterable
-    from collections.abc import Iterator
+    from collections.abc import Mapping
+    from collections.abc import Sequence
     from pathlib import Path
 
     from packaging.utils import NormalizedName
@@ -35,10 +31,6 @@ if TYPE_CHECKING:
     from conda_lock._vendor.poetry.core.version.markers import BaseMarker
 
     T = TypeVar("T", bound="Package")
-
-AUTHOR_REGEX = re.compile(
-    r"(?u)^(?P<name>[- .,\w\d'’\"():&]+)(?: <(?P<email>.+?)>)?$"  # noqa: RUF001
-)
 
 
 class Package(PackageSpecification):
@@ -55,13 +47,13 @@ class Package(PackageSpecification):
         "3.10",
         "3.11",
         "3.12",
+        "3.13",
     }
 
     def __init__(
         self,
         name: str,
         version: str | Version,
-        pretty_version: str | None = None,
         source_type: str | None = None,
         source_url: str | None = None,
         source_reference: str | None = None,
@@ -75,14 +67,6 @@ class Package(PackageSpecification):
         Creates a new in memory package.
         """
         from conda_lock._vendor.poetry.core.version.markers import AnyMarker
-
-        if pretty_version is not None:
-            warnings.warn(
-                "The `pretty_version` parameter is deprecated and will be removed"
-                " in a future release.",
-                DeprecationWarning,
-                stacklevel=2,
-            )
 
         super().__init__(
             name,
@@ -110,13 +94,13 @@ class Package(PackageSpecification):
         self.keywords: Sequence[str] = []
         self._license: License | None = None
         self.readmes: tuple[Path, ...] = ()
+        self.readme_content_type: str | None = None
+        self.readme_content: str | None = None
 
         self.extras: Mapping[NormalizedName, Sequence[Dependency]] = {}
 
         self._dependency_groups: Mapping[str, DependencyGroup] = {}
 
-        # Category is heading towards deprecation.
-        self._category = "main"
         self.files: Sequence[Mapping[str, str]] = []
         self.optional = False
 
@@ -124,7 +108,6 @@ class Package(PackageSpecification):
 
         self._python_versions = "*"
         self._python_constraint = parse_constraint("*")
-        self._python_marker: BaseMarker = AnyMarker()
 
         self.marker: BaseMarker = AnyMarker()
 
@@ -200,7 +183,7 @@ class Package(PackageSpecification):
     @property
     def requires(self) -> list[Dependency]:
         """
-        Returns the main dependencies
+        Returns the main dependencies.
         """
         if not self._dependency_groups or MAIN_GROUP not in self._dependency_groups:
             return []
@@ -208,16 +191,15 @@ class Package(PackageSpecification):
         return self._dependency_groups[MAIN_GROUP].dependencies
 
     @property
-    def all_requires(
-        self,
-    ) -> list[Dependency]:
+    def all_requires(self) -> list[Dependency]:
         """
-        Returns the main dependencies and group dependencies.
+        Returns the main dependencies and group dependencies
+        enriched with Poetry-specific information for locking.
         """
         return [
             dependency
             for group in self._dependency_groups.values()
-            for dependency in group.dependencies
+            for dependency in group.dependencies_for_locking
         ]
 
     def _set_version(self, version: str | Version) -> None:
@@ -226,8 +208,8 @@ class Package(PackageSpecification):
         if not isinstance(version, Version):
             try:
                 version = Version.parse(version)
-            except InvalidVersion:
-                raise InvalidVersion(
+            except InvalidVersionError:
+                raise InvalidVersionError(
                     f"Invalid version '{version}' on package {self.name}"
                 )
 
@@ -278,11 +260,11 @@ class Package(PackageSpecification):
         except ParseConstraintError:
             raise ParseConstraintError(f"Invalid python versions '{value}' on {self}")
 
+        if constraint.is_empty():
+            raise ParseConstraintError(f"Python versions '{value}' on {self} is empty")
+
         self._python_versions = value
         self._python_constraint = constraint
-        self._python_marker = parse_marker(
-            create_nested_marker("python_version", self._python_constraint)
-        )
 
     @property
     def python_constraint(self) -> VersionConstraint:
@@ -290,7 +272,18 @@ class Package(PackageSpecification):
 
     @property
     def python_marker(self) -> BaseMarker:
-        return self._python_marker
+        from conda_lock._vendor.poetry.core.packages.utils.utils import create_nested_marker
+        from conda_lock._vendor.poetry.core.version.markers import parse_marker
+
+        warnings.warn(
+            "`python_marker` is deprecated and will be removed in a future release.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+
+        return parse_marker(
+            create_nested_marker("python_version", self._python_constraint)
+        )
 
     @property
     def license(self) -> License | None:
@@ -372,44 +365,6 @@ class Package(PackageSpecification):
             urls["Documentation"] = self.documentation_url
 
         return urls
-
-    @property
-    def category(self) -> str:
-        warnings.warn(
-            "`category` is deprecated and will be removed in a future release.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        return self._category
-
-    @category.setter
-    def category(self, category: str) -> None:
-        warnings.warn(
-            "Setting `category` is deprecated and will be removed in a future release.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        self._category = category
-
-    @property
-    def readme(self) -> Path | None:
-        warnings.warn(
-            "`readme` is deprecated: you are getting only the first readme file."
-            " Please use the plural form `readmes`.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        return next(iter(self.readmes), None)
-
-    @readme.setter
-    def readme(self, path: Path) -> None:
-        warnings.warn(
-            "`readme` is deprecated. Please assign a tuple to the plural form"
-            " `readmes`.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        self.readmes = (path,)
 
     @property
     def yanked(self) -> bool:
@@ -506,7 +461,7 @@ class Package(PackageSpecification):
         updated_groups = {
             group_name: group
             for group_name, group in self._dependency_groups.items()
-            if group_name in groups or not only and not group.is_optional()
+            if group_name in groups or (not only and not group.is_optional())
         }
         package = self.clone()
         package._dependency_groups = updated_groups
@@ -583,16 +538,6 @@ class Package(PackageSpecification):
 
         return dep.with_constraint(self._version)
 
-    @contextmanager
-    def with_python_versions(self, python_versions: str) -> Iterator[None]:
-        original_python_versions = self.python_versions
-
-        self.python_versions = python_versions
-
-        yield
-
-        self.python_versions = original_python_versions
-
     def satisfies(
         self, dependency: Dependency, ignore_source_type: bool = False
     ) -> bool:
@@ -608,7 +553,7 @@ class Package(PackageSpecification):
         if not dependency.constraint.allows(self.version):
             return False
 
-        if not (ignore_source_type or self.source_satisfies(dependency)):
+        if not (ignore_source_type or self.source_satisfies(dependency)):  # noqa: SIM103
             return False
 
         return True

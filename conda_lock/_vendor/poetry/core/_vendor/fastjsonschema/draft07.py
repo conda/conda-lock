@@ -3,11 +3,11 @@ from .draft06 import CodeGeneratorDraft06
 
 class CodeGeneratorDraft07(CodeGeneratorDraft06):
     FORMAT_REGEXS = dict(CodeGeneratorDraft06.FORMAT_REGEXS, **{
-        'date': r'^(?P<year>\d{4})-(?P<month>\d{2})-(?P<day>\d{2})\Z',
+        'date': r'^(?P<year>\d{4})-(?P<month>(0[1-9]|1[0-2]))-(?P<day>(0[1-9]|[12]\d|3[01]))\Z',
         'iri': r'^\w+:(\/?\/?)[^\s]+\Z',
         'iri-reference': r'^(\w+:(\/?\/?))?[^#\\\s]*(#[^\\\s]*)?\Z',
         'idn-email': r'^[^@]+@[^@]+\.[^@]+\Z',
-        #'idn-hostname': r'',
+        'idn-hostname': r'^(?!-)(xn--)?[a-zA-Z0-9][a-zA-Z0-9-_]{0,61}[a-zA-Z0-9]{0,1}\.(?!-)(xn--)?([a-zA-Z0-9\-]{1,50}|[a-zA-Z0-9-]{1,30}\.[a-zA-Z]{2,})$',
         'relative-json-pointer': r'^(?:0|[1-9][0-9]*)(?:#|(?:\/(?:[^~/]|~0|~1)*)*)\Z',
         #'regex': r'',
         'time': (
@@ -17,8 +17,8 @@ class CodeGeneratorDraft07(CodeGeneratorDraft06):
         ),
     })
 
-    def __init__(self, definition, resolver=None, formats={}, use_default=True, use_formats=True):
-        super().__init__(definition, resolver, formats, use_default, use_formats)
+    def __init__(self, definition, resolver=None, formats={}, use_default=True, use_formats=True, detailed_exceptions=True):
+        super().__init__(definition, resolver, formats, use_default, use_formats, detailed_exceptions)
         # pylint: disable=duplicate-code
         self._json_keywords_to_function.update((
             ('if', self.generate_if_then_else),

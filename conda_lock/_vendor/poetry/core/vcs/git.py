@@ -11,31 +11,47 @@ from conda_lock._vendor.poetry.core.utils._compat import WINDOWS
 
 
 PROTOCOL = r"\w+"
-USER = r"[a-zA-Z0-9_.-]+"
+# https://url.spec.whatwg.org/#forbidden-host-code-point
+URL_RESTRICTED = r"[^/\?#:@<>\[\]\|]"
+USER = rf"{URL_RESTRICTED}+"
+USER_AUTH_HTTP = rf"((?P<username>{USER})(:(?P<password>{URL_RESTRICTED}*))?)"
 RESOURCE = r"[a-zA-Z0-9_.-]+"
 PORT = r"\d+"
-PATH = r"[%\w~.\-/\\\$]+"
+PATH = r"[%\w~.\-\+/\\\$]+"
 NAME = r"[%\w~.\-]+"
 REV = r"[^@#]+?"
 SUBDIR = r"[\w\-/\\]+"
+PATTERN_SUFFIX = (
+    r"(?:"
+    rf"#(?:egg=.+?&subdirectory=|subdirectory=)(?P<subdirectory>{SUBDIR})"
+    r"|"
+    r"#egg=?.+"
+    r"|"
+    rf"[@#](?P<rev>{REV})(?:[&#](?:(?:egg=.+?&subdirectory=|subdirectory=)(?P<rev_subdirectory>{SUBDIR})|egg=.+?))?"
+    r")?"
+    r"$"
+)
 
 PATTERNS = [
     re.compile(
         r"^(git\+)?"
-        r"(?P<protocol>https?|git|ssh|rsync|file)://"
+        r"(?P<protocol>git|ssh|rsync|file)://"
         rf"(?:(?P<user>{USER})@)?"
         rf"(?P<resource>{RESOURCE})?"
         rf"(:(?P<port>{PORT}))?"
         rf"(?P<pathname>[:/\\]({PATH}[/\\])?"
         rf"((?P<name>{NAME}?)(\.git|[/\\])?)?)"
-        r"(?:"
-        rf"#(?:egg=.+?&subdirectory=|subdirectory=)(?P<subdirectory>{SUBDIR})"
-        r"|"
-        r"#egg=?.+"
-        r"|"
-        rf"[@#](?P<rev>{REV})(?:[&#](?:(?:egg=.+?&subdirectory=|subdirectory=)(?P<rev_subdirectory>{SUBDIR})|egg=.+?))?"
-        r")?"
-        r"$"
+        rf"{PATTERN_SUFFIX}"
+    ),
+    re.compile(
+        r"^(git\+)?"
+        r"(?P<protocol>https?)://"
+        rf"(?:(?P<user>{USER_AUTH_HTTP})@)?"
+        rf"(?P<resource>{RESOURCE})?"
+        rf"(:(?P<port>{PORT}))?"
+        rf"(?P<pathname>[:/\\]({PATH}[/\\])?"
+        rf"((?P<name>{NAME}?)(\.git|[/\\])?)?)"
+        rf"{PATTERN_SUFFIX}"
     ),
     re.compile(
         r"(git\+)?"
@@ -45,14 +61,7 @@ PATTERNS = [
         rf"(:(?P<port>{PORT}))?"
         rf"(?P<pathname>({PATH})"
         rf"(?P<name>{NAME})(\.git|/)?)"
-        r"(?:"
-        rf"#(?:egg=.+?&subdirectory=|subdirectory=)(?P<subdirectory>{SUBDIR})"
-        r"|"
-        r"#egg=?.+"
-        r"|"
-        rf"[@#](?P<rev>{REV})(?:[&#](?:(?:egg=.+?&subdirectory=|subdirectory=)(?P<rev_subdirectory>{SUBDIR})|egg=.+?))?"
-        r")?"
-        r"$"
+        rf"{PATTERN_SUFFIX}"
     ),
     re.compile(
         rf"^(?:(?P<user>{USER})@)?"
@@ -60,14 +69,7 @@ PATTERNS = [
         rf"(:(?P<port>{PORT}))?"
         rf"(?P<pathname>([:/]{PATH}/)"
         rf"(?P<name>{NAME})(\.git|/)?)"
-        r"(?:"
-        rf"#(?:egg=.+?&subdirectory=|subdirectory=)(?P<subdirectory>{SUBDIR})"
-        r"|"
-        r"#egg=?.+"
-        r"|"
-        rf"[@#](?P<rev>{REV})(?:[&#](?:(?:egg=.+?&subdirectory=|subdirectory=)(?P<rev_subdirectory>{SUBDIR})|egg=.+?))?"
-        r")?"
-        r"$"
+        rf"{PATTERN_SUFFIX}"
     ),
     re.compile(
         rf"((?P<user>{USER})@)?"
@@ -75,14 +77,7 @@ PATTERNS = [
         r"[:/]{{1,2}}"
         rf"(?P<pathname>({PATH})"
         rf"(?P<name>{NAME})(\.git|/)?)"
-        r"(?:"
-        rf"#(?:egg=.+?&subdirectory=|subdirectory=)(?P<subdirectory>{SUBDIR})"
-        r"|"
-        r"#egg=?.+"
-        r"|"
-        rf"[@#](?P<rev>{REV})(?:[&#](?:(?:egg=.+?&subdirectory=|subdirectory=)(?P<rev_subdirectory>{SUBDIR})|egg=.+?))?"
-        r")?"
-        r"$"
+        rf"{PATTERN_SUFFIX}"
     ),
 ]
 
@@ -119,7 +114,7 @@ class ParsedUrl:
             if m:
                 groups = m.groupdict()
                 return ParsedUrl(
-                    groups.get("protocol"),
+                    groups.get("protocol", "ssh"),
                     groups.get("resource"),
                     groups.get("pathname"),
                     groups.get("user"),
@@ -262,67 +257,6 @@ class Git:
             return (0, 0, 0)
         return int(version.group(1)), int(version.group(2)), int(version.group(3))
 
-    def clone(self, repository: str, dest: Path) -> str:
-        self._check_parameter(repository)
-        cmd = [
-            "clone",
-            "--filter=blob:none",
-            "--recurse-submodules",
-            "--",
-            repository,
-            str(dest),
-        ]
-        # Blobless clones introduced in Git 2.17
-        if self.version < (2, 17):
-            cmd.remove("--filter=blob:none")
-        return self.run(*cmd)
-
-    def checkout(self, rev: str, folder: Path | None = None) -> str:
-        args = []
-        if folder is None and self._work_dir:
-            folder = self._work_dir
-
-        if folder:
-            args += [
-                "--git-dir",
-                (folder / ".git").as_posix(),
-                "--work-tree",
-                folder.as_posix(),
-            ]
-
-        self._check_parameter(rev)
-
-        args += ["checkout", "--recurse-submodules", rev]
-
-        return self.run(*args)
-
-    def rev_parse(self, rev: str, folder: Path | None = None) -> str:
-        args = []
-        if folder is None and self._work_dir:
-            folder = self._work_dir
-
-        self._check_parameter(rev)
-
-        # We need "^0" (an alternative to "^{commit}") to ensure that the
-        # commit SHA of the commit the tag points to is returned, even in
-        # the case of annotated tags.
-        #
-        # We deliberately avoid the "^{commit}" syntax itself as on some
-        # platforms (cygwin/msys to be specific), the braces are interpreted
-        # as special characters and would require escaping, while on others
-        # they should not be escaped.
-        args += ["rev-parse", rev + "^0"]
-
-        return self.run(*args, folder=folder)
-
-    def get_current_branch(self, folder: Path | None = None) -> str:
-        if folder is None and self._work_dir:
-            folder = self._work_dir
-
-        output = self.run("symbolic-ref", "--short", "HEAD", folder=folder)
-
-        return output.strip()
-
     def get_ignored_files(self, folder: Path | None = None) -> list[str]:
         args = []
         if folder is None and self._work_dir:
@@ -340,23 +274,6 @@ class Git:
         output = self.run(*args)
 
         return output.strip().split("\n")
-
-    def remote_urls(self, folder: Path | None = None) -> dict[str, str]:
-        output = self.run(
-            "config", "--get-regexp", r"remote\..*\.url", folder=folder
-        ).strip()
-
-        urls = {}
-        for url in output.splitlines():
-            name, url = url.split(" ", 1)
-            urls[name.strip()] = url.strip()
-
-        return urls
-
-    def remote_url(self, folder: Path | None = None) -> str:
-        urls = self.remote_urls(folder=folder)
-
-        return urls.get("remote.origin.url", urls[next(iter(urls.keys()))])
 
     def run(self, *args: Any, **kwargs: Any) -> str:
         folder = kwargs.pop("folder", None)
@@ -376,10 +293,3 @@ class Git:
             .decode()
             .strip()
         )
-
-    def _check_parameter(self, parameter: str) -> None:
-        """
-        Checks a git parameter to avoid unwanted code execution.
-        """
-        if parameter.strip().startswith("-"):
-            raise GitError(f"Invalid Git parameter: {parameter}")

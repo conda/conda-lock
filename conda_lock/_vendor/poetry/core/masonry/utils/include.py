@@ -21,9 +21,7 @@ class Include:
         - a directory
     """
 
-    def __init__(
-        self, base: Path, include: str, formats: list[str] | None = None
-    ) -> None:
+    def __init__(self, base: Path, include: str, formats: list[str]) -> None:
         self._base = base
         self._include = str(include)
         self._formats = formats
@@ -39,7 +37,7 @@ class Include:
         return self._elements
 
     @property
-    def formats(self) -> list[str] | None:
+    def formats(self) -> list[str]:
         return self._formats
 
     def is_empty(self) -> bool:

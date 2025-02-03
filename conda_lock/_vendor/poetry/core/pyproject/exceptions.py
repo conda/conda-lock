@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from conda_lock._vendor.poetry.core.exceptions import PoetryCoreException
+from conda_lock._vendor.poetry.core.exceptions import PoetryCoreError
 
 
-class PyProjectException(PoetryCoreException):
+class PyProjectError(PoetryCoreError):
     pass
