@@ -8,7 +8,6 @@ from contextlib import suppress
 from pathlib import Path
 from typing import TYPE_CHECKING
 from typing import Any
-from typing import Iterator
 
 import requests
 import requests.adapters
@@ -24,18 +23,20 @@ from conda_lock._vendor.poetry.inspection.info import PackageInfo
 from conda_lock._vendor.poetry.inspection.lazy_wheel import LazyWheelUnsupportedError
 from conda_lock._vendor.poetry.inspection.lazy_wheel import metadata_from_wheel_url
 from conda_lock._vendor.poetry.repositories.cached_repository import CachedRepository
-from conda_lock._vendor.poetry.repositories.exceptions import PackageNotFound
+from conda_lock._vendor.poetry.repositories.exceptions import PackageNotFoundError
 from conda_lock._vendor.poetry.repositories.exceptions import RepositoryError
 from conda_lock._vendor.poetry.repositories.link_sources.html import HTMLPage
 from conda_lock._vendor.poetry.utils.authenticator import Authenticator
 from conda_lock._vendor.poetry.utils.constants import REQUESTS_TIMEOUT
-from conda_lock._vendor.poetry.utils.helpers import HTTPRangeRequestSupported
+from conda_lock._vendor.poetry.utils.helpers import HTTPRangeRequestSupportedError
 from conda_lock._vendor.poetry.utils.helpers import download_file
 from conda_lock._vendor.poetry.utils.helpers import get_highest_priority_hash_type
 from conda_lock._vendor.poetry.utils.patterns import wheel_file_re
 
 
 if TYPE_CHECKING:
+    from collections.abc import Iterator
+
     from packaging.utils import NormalizedName
     from conda_lock._vendor.poetry.core.packages.utils.link import Link
 
@@ -48,11 +49,12 @@ class HTTPRepository(CachedRepository):
         self,
         name: str,
         url: str,
+        *,
         config: Config | None = None,
         disable_cache: bool = False,
         pool_size: int = requests.adapters.DEFAULT_POOLSIZE,
     ) -> None:
-        super().__init__(name, disable_cache, config)
+        super().__init__(name, disable_cache=disable_cache, config=config)
         self._url = url
         if config is None:
             config = Config.create()
@@ -66,6 +68,7 @@ class HTTPRepository(CachedRepository):
         self.get_page = functools.lru_cache(maxsize=None)(self._get_page)
 
         self._lazy_wheel = config.get("solver.lazy-wheel", True)
+        self._max_retries = config.get("requests.max-retries", 0)
         # We are tracking if a domain supports range requests or not to avoid
         # unnecessary requests.
         # ATTENTION: A domain might support range requests only for some files, so the
@@ -95,7 +98,11 @@ class HTTPRepository(CachedRepository):
         self, url: str, dest: Path, *, raise_accepts_ranges: bool = False
     ) -> None:
         return download_file(
-            url, dest, session=self.session, raise_accepts_ranges=raise_accepts_ranges
+            url,
+            dest,
+            session=self.session,
+            raise_accepts_ranges=raise_accepts_ranges,
+            max_retries=self._max_retries,
         )
 
     @contextmanager
@@ -141,7 +148,7 @@ class HTTPRepository(CachedRepository):
                 link, raise_accepts_ranges=raise_accepts_ranges
             ) as filepath:
                 return PackageInfo.from_wheel(filepath)
-        except HTTPRangeRequestSupported:
+        except HTTPRangeRequestSupportedError:
             # The domain did not support range requests for the first URL(s) we tried,
             # but supports it for some URLs (especially the current URL),
             # so we abort the download, update _supports_range_requests to try
@@ -166,7 +173,7 @@ class HTTPRepository(CachedRepository):
                 response = self.session.get(link.metadata_url)
                 if link.metadata_hashes and (
                     hash_name := get_highest_priority_hash_type(
-                        set(link.metadata_hashes.keys()), f"{link.filename}.metadata"
+                        link.metadata_hashes, f"{link.filename}.metadata"
                     )
                 ):
                     metadata_hash = getattr(hashlib, hash_name)(
@@ -193,10 +200,7 @@ class HTTPRepository(CachedRepository):
         return None
 
     def _get_info_from_links(
-        self,
-        links: list[Link],
-        *,
-        ignore_yanked: bool = True,
+        self, links: list[Link], *, ignore_yanked: bool
     ) -> PackageInfo:
         # Sort links by distribution type
         wheels: list[Link] = []
@@ -331,7 +335,7 @@ class HTTPRepository(CachedRepository):
 
     def _links_to_data(self, links: list[Link], data: PackageInfo) -> dict[str, Any]:
         if not links:
-            raise PackageNotFound(
+            raise PackageNotFoundError(
                 f'No valid distribution links found for package: "{data.name}" version:'
                 f' "{data.version}"'
             )
@@ -351,9 +355,7 @@ class HTTPRepository(CachedRepository):
                 file_hash = self.calculate_sha256(link)
 
             if file_hash is None and (
-                hash_type := get_highest_priority_hash_type(
-                    set(link.hashes.keys()), link.filename
-                )
+                hash_type := get_highest_priority_hash_type(link.hashes, link.filename)
             ):
                 file_hash = f"{hash_type}:{link.hashes[hash_type]}"
 
@@ -372,9 +374,7 @@ class HTTPRepository(CachedRepository):
 
     def calculate_sha256(self, link: Link) -> str | None:
         with self._cached_or_downloaded_file(link) as filepath:
-            hash_name = get_highest_priority_hash_type(
-                set(link.hashes.keys()), link.filename
-            )
+            hash_name = get_highest_priority_hash_type(link.hashes, link.filename)
             known_hash = None
             with suppress(ValueError, AttributeError):
                 # Handle ValueError here as well since under FIPS environments
@@ -428,5 +428,5 @@ class HTTPRepository(CachedRepository):
     def _get_page(self, name: NormalizedName) -> LinkSource:
         response = self._get_response(f"/{name}/")
         if not response:
-            raise PackageNotFound(f"Package [{name}] not found.")
+            raise PackageNotFoundError(f"Package [{name}] not found.")
         return HTMLPage(response.url, response.text)

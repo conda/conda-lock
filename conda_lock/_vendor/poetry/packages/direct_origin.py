@@ -7,8 +7,10 @@ from typing import TYPE_CHECKING
 
 from conda_lock._vendor.poetry.core.packages.utils.link import Link
 
+from conda_lock._vendor.poetry.config.config import Config
 from conda_lock._vendor.poetry.inspection.info import PackageInfo
 from conda_lock._vendor.poetry.inspection.info import PackageInfoError
+from conda_lock._vendor.poetry.utils.authenticator import get_default_authenticator
 from conda_lock._vendor.poetry.utils.helpers import download_file
 from conda_lock._vendor.poetry.utils.helpers import get_file_hash
 from conda_lock._vendor.poetry.vcs.git import Git
@@ -20,7 +22,7 @@ if TYPE_CHECKING:
     from conda_lock._vendor.poetry.utils.cache import ArtifactCache
 
 
-@functools.lru_cache(maxsize=None)
+@functools.cache
 def _get_package_from_git(
     url: str,
     branch: str | None = None,
@@ -56,6 +58,9 @@ def _get_package_from_git(
 class DirectOrigin:
     def __init__(self, artifact_cache: ArtifactCache) -> None:
         self._artifact_cache = artifact_cache
+        config = Config.create()
+        self._max_retries = config.get("requests.max-retries", 0)
+        self._authenticator = get_default_authenticator()
 
     @classmethod
     def get_package_from_file(cls, file_path: Path) -> Package:
@@ -74,10 +79,15 @@ class DirectOrigin:
     def get_package_from_directory(cls, directory: Path) -> Package:
         return PackageInfo.from_directory(path=directory).to_package(root_dir=directory)
 
+    def _download_file(self, url: str, dest: Path) -> None:
+        download_file(
+            url, dest, session=self._authenticator, max_retries=self._max_retries
+        )
+
     def get_package_from_url(self, url: str) -> Package:
         link = Link(url)
         artifact = self._artifact_cache.get_cached_archive_for_link(
-            link, strict=True, download_func=download_file
+            link, strict=True, download_func=self._download_file
         )
 
         package = self.get_package_from_file(artifact)

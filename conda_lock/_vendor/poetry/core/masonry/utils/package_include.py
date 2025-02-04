@@ -14,7 +14,7 @@ class PackageInclude(Include):
         self,
         base: Path,
         include: str,
-        formats: list[str] | None = None,
+        formats: list[str],
         source: str | None = None,
         target: str | None = None,
     ) -> None:

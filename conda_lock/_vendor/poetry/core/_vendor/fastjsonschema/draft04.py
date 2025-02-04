@@ -27,15 +27,15 @@ class CodeGeneratorDraft04(CodeGenerator):
     # library. Some regexps are not 100% precise but good enough, fast and without dependencies.
     FORMAT_REGEXS = {
         'date-time': r'^\d{4}-[01]\d-[0-3]\d(t|T)[0-2]\d:[0-5]\d:[0-5]\d(?:\.\d+)?(?:[+-][0-2]\d:[0-5]\d|[+-][0-2]\d[0-5]\d|z|Z)\Z',
-        'email': r'^[^@]+@[^@]+\.[^@]+\Z',
+        'email': r'^(?!.*\.\..*@)[^@.][^@]*(?<!\.)@[^@]+\.[^@]+\Z',
         'hostname': r'^(([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])\.)*([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9\-]{0,61}[A-Za-z0-9])\Z',
-        'ipv4': r'^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\Z',
+        'ipv4': r'^((25[0-5]|2[0-4][0-9]|1?[0-9][0-9]?)\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\Z',
         'ipv6': r'^(?:(?:[0-9A-Fa-f]{1,4}:){6}(?:[0-9A-Fa-f]{1,4}:[0-9A-Fa-f]{1,4}|(?:(?:[0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\\.){3}(?:[0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5]))|::(?:[0-9A-Fa-f]{1,4}:){5}(?:[0-9A-Fa-f]{1,4}:[0-9A-Fa-f]{1,4}|(?:(?:[0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\\.){3}(?:[0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5]))|(?:[0-9A-Fa-f]{1,4})?::(?:[0-9A-Fa-f]{1,4}:){4}(?:[0-9A-Fa-f]{1,4}:[0-9A-Fa-f]{1,4}|(?:(?:[0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\\.){3}(?:[0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5]))|(?:[0-9A-Fa-f]{1,4}:[0-9A-Fa-f]{1,4})?::(?:[0-9A-Fa-f]{1,4}:){3}(?:[0-9A-Fa-f]{1,4}:[0-9A-Fa-f]{1,4}|(?:(?:[0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\\.){3}(?:[0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5]))|(?:(?:[0-9A-Fa-f]{1,4}:){,2}[0-9A-Fa-f]{1,4})?::(?:[0-9A-Fa-f]{1,4}:){2}(?:[0-9A-Fa-f]{1,4}:[0-9A-Fa-f]{1,4}|(?:(?:[0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\\.){3}(?:[0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5]))|(?:(?:[0-9A-Fa-f]{1,4}:){,3}[0-9A-Fa-f]{1,4})?::[0-9A-Fa-f]{1,4}:(?:[0-9A-Fa-f]{1,4}:[0-9A-Fa-f]{1,4}|(?:(?:[0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\\.){3}(?:[0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5]))|(?:(?:[0-9A-Fa-f]{1,4}:){,4}[0-9A-Fa-f]{1,4})?::(?:[0-9A-Fa-f]{1,4}:[0-9A-Fa-f]{1,4}|(?:(?:[0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\\.){3}(?:[0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5]))|(?:(?:[0-9A-Fa-f]{1,4}:){,5}[0-9A-Fa-f]{1,4})?::[0-9A-Fa-f]{1,4}|(?:(?:[0-9A-Fa-f]{1,4}:){,6}[0-9A-Fa-f]{1,4})?::)\Z',
         'uri': r'^\w+:(\/?\/?)[^\s]+\Z',
     }
 
-    def __init__(self, definition, resolver=None, formats={}, use_default=True, use_formats=True):
-        super().__init__(definition, resolver)
+    def __init__(self, definition, resolver=None, formats={}, use_default=True, use_formats=True, detailed_exceptions=True):
+        super().__init__(definition, resolver, detailed_exceptions)
         self._custom_formats = formats
         self._use_formats = use_formats
         self._use_default = use_default
@@ -211,8 +211,7 @@ class CodeGeneratorDraft04(CodeGenerator):
         elif not_definition is False:
             return
         elif not not_definition:
-            with self.l('if {}:', self._variable):
-                self.exc('{name} must NOT match a disallowed definition', rule='not')
+            self.exc('{name} must NOT match a disallowed definition', rule='not')
         else:
             with self.l('try:', optimize=False):
                 self.generate_func_code_block(not_definition, self._variable, self._variable_name)
@@ -223,7 +222,7 @@ class CodeGeneratorDraft04(CodeGenerator):
     def generate_min_length(self):
         with self.l('if isinstance({variable}, str):'):
             self.create_variable_with_length()
-            if not isinstance(self._definition['minLength'], int):
+            if not isinstance(self._definition['minLength'], (int, float)):
                 raise JsonSchemaDefinitionException('minLength must be a number')
             with self.l('if {variable}_len < {minLength}:'):
                 self.exc('{name} must be longer than or equal to {minLength} characters', rule='minLength')
@@ -231,7 +230,7 @@ class CodeGeneratorDraft04(CodeGenerator):
     def generate_max_length(self):
         with self.l('if isinstance({variable}, str):'):
             self.create_variable_with_length()
-            if not isinstance(self._definition['maxLength'], int):
+            if not isinstance(self._definition['maxLength'], (int, float)):
                 raise JsonSchemaDefinitionException('maxLength must be a number')
             with self.l('if {variable}_len > {maxLength}:'):
                 self.exc('{name} must be shorter than or equal to {maxLength} characters', rule='maxLength')
@@ -272,6 +271,7 @@ class CodeGeneratorDraft04(CodeGenerator):
                 self._generate_format(format_, format_ + '_re_pattern', format_regex)
             # Format regex is used only in meta schemas.
             elif format_ == 'regex':
+                self._extra_imports_lines = ['import re'] 
                 with self.l('try:', optimize=False):
                     self.l('re.compile({variable})')
                 with self.l('except Exception:'):
@@ -321,11 +321,14 @@ class CodeGeneratorDraft04(CodeGenerator):
                 self.l('quotient = {variable} / {multipleOf}')
             with self.l('if int(quotient) != quotient:'):
                 self.exc('{name} must be multiple of {multipleOf}', rule='multipleOf')
+            # For example, 1e308 / 0.123456789
+            with self.l('if {variable} / {multipleOf} == float("inf"):'):
+                self.exc('inifinity reached', rule='multipleOf')
 
     def generate_min_items(self):
         self.create_variable_is_list()
         with self.l('if {variable}_is_list:'):
-            if not isinstance(self._definition['minItems'], int):
+            if not isinstance(self._definition['minItems'], (int, float)):
                 raise JsonSchemaDefinitionException('minItems must be a number')
             self.create_variable_with_length()
             with self.l('if {variable}_len < {minItems}:'):
@@ -334,7 +337,7 @@ class CodeGeneratorDraft04(CodeGenerator):
     def generate_max_items(self):
         self.create_variable_is_list()
         with self.l('if {variable}_is_list:'):
-            if not isinstance(self._definition['maxItems'], int):
+            if not isinstance(self._definition['maxItems'], (int, float)):
                 raise JsonSchemaDefinitionException('maxItems must be a number')
             self.create_variable_with_length()
             with self.l('if {variable}_len > {maxItems}:'):
@@ -440,7 +443,7 @@ class CodeGeneratorDraft04(CodeGenerator):
     def generate_min_properties(self):
         self.create_variable_is_dict()
         with self.l('if {variable}_is_dict:'):
-            if not isinstance(self._definition['minProperties'], int):
+            if not isinstance(self._definition['minProperties'], (int, float)):
                 raise JsonSchemaDefinitionException('minProperties must be a number')
             self.create_variable_with_length()
             with self.l('if {variable}_len < {minProperties}:'):
@@ -449,7 +452,7 @@ class CodeGeneratorDraft04(CodeGenerator):
     def generate_max_properties(self):
         self.create_variable_is_dict()
         with self.l('if {variable}_is_dict:'):
-            if not isinstance(self._definition['maxProperties'], int):
+            if not isinstance(self._definition['maxProperties'], (int, float)):
                 raise JsonSchemaDefinitionException('maxProperties must be a number')
             self.create_variable_with_length()
             with self.l('if {variable}_len > {maxProperties}:'):
@@ -460,6 +463,18 @@ class CodeGeneratorDraft04(CodeGenerator):
         with self.l('if {variable}_is_dict:'):
             if not isinstance(self._definition['required'], (list, tuple)):
                 raise JsonSchemaDefinitionException('required must be an array')
+            if len(self._definition['required']) != len(set(self._definition['required'])):
+                raise JsonSchemaDefinitionException('required must contain unique elements')
+            if not self._definition.get('additionalProperties', True):
+                not_possible = [
+                    prop
+                    for prop in self._definition['required']
+                    if
+                        prop not in self._definition.get('properties', {})
+                        and not any(re.search(regex, prop) for regex in self._definition.get('patternProperties', {}))
+                ]
+                if not_possible:
+                    raise JsonSchemaDefinitionException('{}: items {} are required but not allowed'.format(self._variable, not_possible))
             self.l('{variable}__missing_keys = set({required}) - {variable}.keys()')
             with self.l('if {variable}__missing_keys:'):
                 dynamic = 'str(sorted({variable}__missing_keys)) + " properties"'

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 from typing import Any
+from typing import ClassVar
 
 from conda_lock._vendor.cleo.commands.command import Command as BaseCommand
 from conda_lock._vendor.cleo.exceptions import CleoValueError
@@ -13,7 +14,7 @@ if TYPE_CHECKING:
 
 
 class Command(BaseCommand):
-    loggers: list[str] = []
+    loggers: ClassVar[list[str]] = []
 
     _poetry: Poetry | None = None
 
@@ -25,6 +26,11 @@ class Command(BaseCommand):
         return self._poetry
 
     def set_poetry(self, poetry: Poetry) -> None:
+        """Explicitly set the current Poetry.
+
+        Useful for Plugins that extends the features of a Poetry CLI Command.
+        """
+
         self._poetry = poetry
 
     def get_application(self) -> Application:

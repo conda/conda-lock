@@ -6,4 +6,4 @@ from conda_lock._vendor.poetry.core.version.pep440.segments import ReleaseTag
 from conda_lock._vendor.poetry.core.version.pep440.version import PEP440Version
 
 
-__all__ = ("LocalSegmentType", "Release", "ReleaseTag", "PEP440Version")
+__all__ = ("LocalSegmentType", "PEP440Version", "Release", "ReleaseTag")

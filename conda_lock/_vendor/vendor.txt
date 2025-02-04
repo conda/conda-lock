@@ -1,7 +1,7 @@
 # Poetry-related:
 cleo==2.1.0
-poetry==1.8.3
-poetry-core==1.9.0
+poetry==2.0.1
+poetry-core==2.0.1
 grayskull==2.7.3
 
 # install conda from github since it's not available on pypi

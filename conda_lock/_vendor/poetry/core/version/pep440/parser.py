@@ -8,7 +8,7 @@ from typing import TypeVar
 
 from packaging.version import VERSION_PATTERN
 
-from conda_lock._vendor.poetry.core.version.exceptions import InvalidVersion
+from conda_lock._vendor.poetry.core.version.exceptions import InvalidVersionError
 from conda_lock._vendor.poetry.core.version.pep440 import Release
 from conda_lock._vendor.poetry.core.version.pep440 import ReleaseTag
 
@@ -63,11 +63,11 @@ class PEP440Parser:
         )
 
     @classmethod
-    @functools.lru_cache(maxsize=None)
+    @functools.cache
     def parse(cls, value: str, version_class: type[T]) -> T:
         match = cls._regex.search(value) if value else None
         if not match:
-            raise InvalidVersion(f"Invalid PEP 440 version: '{value}'")
+            raise InvalidVersionError(f"Invalid PEP 440 version: '{value}'")
 
         return version_class(
             epoch=int(match.group("epoch")) if match.group("epoch") else 0,
@@ -81,6 +81,5 @@ class PEP440Parser:
 
 
 def parse_pep440(value: str, version_class: type[T]) -> T:
-    return PEP440Parser.parse(  # type: ignore[no-any-return]
-        value, version_class  # type: ignore[arg-type]
-    )
+    version: T = PEP440Parser.parse(value, version_class)  # type: ignore[arg-type]
+    return version

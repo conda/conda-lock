@@ -66,6 +66,8 @@ def resolve_remote(uri, handlers):
             result = json.loads(req.read().decode(encoding),)
         except ValueError as exc:
             raise JsonSchemaDefinitionException('{} failed to decode: {}'.format(uri, exc))
+        finally:
+            req.close()
     return result
 
 

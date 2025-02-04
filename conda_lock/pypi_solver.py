@@ -42,6 +42,7 @@ from conda_lock.interfaces.vendored_poetry import (
     PoetryVCSDependency,
     Pool,
     PyPiRepository,
+    VirtualEnv,
 )
 from conda_lock.lockfile import apply_categories
 from conda_lock.lockfile.v2prelim.models import (
@@ -67,7 +68,7 @@ MANYLINUX_TAGS = ["1", "2010", "2014", "_2_17", "_2_24", "_2_28"]
 MACOS_VERSION = (13, 4)
 
 
-class PlatformEnv(Env):
+class PlatformEnv(VirtualEnv):
     """
     Fake poetry Env to match PyPI distributions to the target conda environment
     """

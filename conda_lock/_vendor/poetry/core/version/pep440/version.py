@@ -6,7 +6,6 @@ import warnings
 
 from typing import TYPE_CHECKING
 from typing import Any
-from typing import Sequence
 from typing import TypeVar
 
 from conda_lock._vendor.poetry.core.version.pep440.segments import RELEASE_PHASE_ID_ALPHA
@@ -17,6 +16,8 @@ from conda_lock._vendor.poetry.core.version.pep440.segments import ReleaseTag
 
 
 if TYPE_CHECKING:
+    from collections.abc import Sequence
+
     from conda_lock._vendor.poetry.core.version.pep440.segments import LocalSegmentType
 
 
@@ -147,17 +148,7 @@ class PEP440Version:
     def parts(self) -> Sequence[int]:
         return self.release.to_parts()
 
-    def to_string(self, short: bool = False) -> str:
-        if short:
-            import warnings
-
-            warnings.warn(
-                "Parameter 'short' has no effect and will be removed. "
-                "(Versions are always normalized according to PEP 440 now.)",
-                DeprecationWarning,
-                stacklevel=2,
-            )
-
+    def to_string(self) -> str:
         version_string = self.release.to_string()
 
         if self.epoch:
@@ -307,14 +298,16 @@ class PEP440Version:
         )
 
     def replace(self: T, **kwargs: Any) -> T:
-        return self.__class__(**{
+        return self.__class__(
             **{
-                k: getattr(self, k)
-                for k in self.__dataclass_fields__
-                if k not in ("_compare_key", "text")
-            },  # setup defaults with current values, excluding compare keys and text
-            **kwargs,  # keys to replace
-        })
+                **{
+                    k: getattr(self, k)
+                    for k in self.__dataclass_fields__
+                    if k not in ("_compare_key", "text")
+                },  # setup defaults with current values, excluding compare keys and text
+                **kwargs,  # keys to replace
+            }
+        )
 
     def without_local(self: T) -> T:
         return self.replace(local=None)

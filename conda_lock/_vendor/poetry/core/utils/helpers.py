@@ -1,13 +1,11 @@
 from __future__ import annotations
 
-import os
 import shutil
 import stat
 import sys
 import tempfile
 import time
 import unicodedata
-import warnings
 
 from contextlib import contextmanager
 from pathlib import Path
@@ -15,8 +13,6 @@ from typing import TYPE_CHECKING
 from typing import Any
 
 from packaging.utils import canonicalize_name
-
-from conda_lock._vendor.poetry.core.version.pep440 import PEP440Version
 
 
 if TYPE_CHECKING:
@@ -31,27 +27,20 @@ def module_name(name: str) -> str:
     return canonicalize_name(name).replace("-", "_")
 
 
-def normalize_version(version: str) -> str:
-    warnings.warn(
-        "normalize_version() is deprecated. Use Version.parse().to_string() instead.",
-        DeprecationWarning,
-        stacklevel=2,
-    )
-    return PEP440Version.parse(version).to_string()
-
-
 @contextmanager
-def temporary_directory(*args: Any, **kwargs: Any) -> Iterator[str]:
+def temporary_directory(*args: Any, **kwargs: Any) -> Iterator[Path]:
     if sys.version_info >= (3, 10):
         # mypy reports an error if ignore_cleanup_errors is
         # specified literally in the call
         kwargs["ignore_cleanup_errors"] = True
         with tempfile.TemporaryDirectory(*args, **kwargs) as name:
-            yield name
+            yield Path(name)
     else:
         name = tempfile.mkdtemp(*args, **kwargs)
-        yield name
-        robust_rmtree(name)
+        try:
+            yield Path(name)
+        finally:
+            robust_rmtree(name)
 
 
 def parse_requires(requires: str) -> list[str]:
@@ -92,10 +81,11 @@ def parse_requires(requires: str) -> list[str]:
 
 
 def _on_rm_error(func: Any, path: str | Path, exc_info: Any) -> None:
-    if not os.path.exists(path):
+    path = Path(path)
+    if not path.exists():
         return
 
-    os.chmod(path, stat.S_IWRITE)
+    path.chmod(stat.S_IWRITE)
     func(path)
 
 

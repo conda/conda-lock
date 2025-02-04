@@ -7,6 +7,9 @@ import subprocess
 import sys
 import sysconfig
 
+from abc import ABC
+from abc import abstractmethod
+from functools import cached_property
 from pathlib import Path
 from subprocess import CalledProcessError
 from typing import TYPE_CHECKING
@@ -26,8 +29,10 @@ if TYPE_CHECKING:
 
     from conda_lock._vendor.poetry.utils.env.generic_env import GenericEnv
 
+    PythonVersion = tuple[int, int, int, str, int]
 
-class Env:
+
+class Env(ABC):
     """
     An abstract Python environment.
     """
@@ -52,15 +57,17 @@ class Env:
 
         self._base = base or path
 
-        self._marker_env: dict[str, Any] | None = None
         self._site_packages: SitePackages | None = None
-        self._paths: dict[str, str] | None = None
         self._supported_tags: list[Tag] | None = None
         self._purelib: Path | None = None
         self._platlib: Path | None = None
         self._script_dirs: list[Path] | None = None
 
         self._embedded_pip_path: Path | None = None
+
+    @property
+    def bin_dir(self) -> Path:
+        return self._bin_dir
 
     @property
     def path(self) -> Path:
@@ -71,8 +78,8 @@ class Env:
         return self._base
 
     @property
-    def version_info(self) -> tuple[int, int, int, str, int]:
-        version_info: tuple[int, int, int, str, int] = self.marker_env["version_info"]
+    def version_info(self) -> PythonVersion:
+        version_info: PythonVersion = self.marker_env["version_info"]
         return version_info
 
     @property
@@ -87,12 +94,9 @@ class Env:
         """
         return Path(self._bin(self._executable))
 
-    @property
+    @cached_property
     def marker_env(self) -> dict[str, Any]:
-        if self._marker_env is None:
-            self._marker_env = self.get_marker_env()
-
-        return self._marker_env
+        return self.get_marker_env()
 
     @property
     def parent_env(self) -> GenericEnv:
@@ -171,13 +175,10 @@ class Env:
     @property
     def site_packages(self) -> SitePackages:
         if self._site_packages is None:
-            # we disable write checks if no user site exist
-            fallbacks = [self.usersite] if self.usersite else []
             self._site_packages = SitePackages(
                 self.purelib,
                 self.platlib,
-                fallbacks,
-                skip_write_checks=not fallbacks,
+                self.fallbacks,
             )
         return self._site_packages
 
@@ -210,8 +211,14 @@ class Env:
 
         return self._platlib
 
+    @cached_property
+    def fallbacks(self) -> list[Path]:
+        paths = [Path(path) for path in self.paths.get("fallbacks", [])]
+        paths += [self.usersite] if self.usersite else []
+        return paths
+
     def _get_lib_dirs(self) -> list[Path]:
-        return [self.purelib, self.platlib]
+        return [self.purelib, self.platlib, *self.fallbacks]
 
     def is_path_relative_to_lib(self, path: Path) -> bool:
         for lib_path in self._get_lib_dirs():
@@ -222,25 +229,23 @@ class Env:
         return False
 
     @property
-    def sys_path(self) -> list[str]:
-        raise NotImplementedError()
+    @abstractmethod
+    def sys_path(self) -> list[str]: ...
 
-    @property
+    @cached_property
     def paths(self) -> dict[str, str]:
-        if self._paths is None:
-            self._paths = self.get_paths()
+        paths = self.get_paths()
 
-            if self.is_venv():
-                # We copy pip's logic here for the `include` path
-                self._paths["include"] = str(
-                    self.path.joinpath(
-                        "include",
-                        "site",
-                        f"python{self.version_info[0]}.{self.version_info[1]}",
-                    )
+        if self.is_venv():
+            # We copy pip's logic here for the `include` path
+            paths["include"] = str(
+                self.path.joinpath(
+                    "include",
+                    "site",
+                    f"python{self.version_info[0]}.{self.version_info[1]}",
                 )
-
-        return self._paths
+            )
+        return paths
 
     @property
     def supported_tags(self) -> list[Tag]:
@@ -261,14 +266,8 @@ class Env:
 
         return Path(sys.prefix)
 
-    def get_version_info(self) -> tuple[Any, ...]:
-        raise NotImplementedError()
-
-    def get_python_implementation(self) -> str:
-        raise NotImplementedError()
-
-    def get_marker_env(self) -> dict[str, Any]:
-        raise NotImplementedError()
+    @abstractmethod
+    def get_marker_env(self) -> dict[str, Any]: ...
 
     def get_pip_command(self, embedded: bool = False) -> list[str]:
         if embedded or not Path(self._bin(self._pip_executable)).exists():
@@ -276,11 +275,11 @@ class Env:
         # run as module so that pip can update itself on Windows
         return [str(self.python), "-m", "pip"]
 
-    def get_supported_tags(self) -> list[Tag]:
-        raise NotImplementedError()
+    @abstractmethod
+    def get_supported_tags(self) -> list[Tag]: ...
 
-    def get_paths(self) -> dict[str, str]:
-        raise NotImplementedError()
+    @abstractmethod
+    def get_paths(self) -> dict[str, str]: ...
 
     def is_valid_for_marker(self, marker: BaseMarker) -> bool:
         valid: bool = marker.validate(self.marker_env)
@@ -335,8 +334,9 @@ class Env:
                 subprocess.check_call(cmd, stderr=stderr, env=env, **kwargs)
                 output = ""
             else:
+                encoding = "locale" if sys.version_info >= (3, 10) else None
                 output = subprocess.check_output(
-                    cmd, stderr=stderr, env=env, text=True, **kwargs
+                    cmd, stderr=stderr, env=env, text=True, encoding=encoding, **kwargs
                 )
         except CalledProcessError as e:
             raise EnvCommandError(e)
@@ -355,8 +355,8 @@ class Env:
         exe.communicate()
         return exe.returncode
 
-    def is_venv(self) -> bool:
-        raise NotImplementedError()
+    @abstractmethod
+    def is_venv(self) -> bool: ...
 
     @property
     def script_dirs(self) -> list[Path]:
