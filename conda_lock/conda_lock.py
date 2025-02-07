@@ -1229,8 +1229,10 @@ CONTEXT_SETTINGS = {"show_default": True, "help_option_names": ["--help", "-h"]}
 @click.option(
     "--dev-dependencies/--no-dev-dependencies",
     is_flag=True,
-    default=True,
-    help="include dev dependencies in the lockfile (where applicable)",
+    help="(DEPRECATED) include dev dependencies in the lockfile (where applicable)",
+    hidden=False,
+    is_eager=True,
+    callback=lambda: click.BadParameter("Deprecated option, use `--extra dev` instead.")
 )
 @click.option(
     "-f",
@@ -1455,7 +1457,6 @@ DEFAULT_INSTALL_OPT_MICROMAMBA = False
 DEFAULT_INSTALL_OPT_COPY = False
 DEFAULT_INSTALL_OPT_VALIDATE_PLATFORM = True
 DEFAULT_INSTALL_OPT_LOG_LEVEL = "INFO"
-DEFAULT_INSTALL_OPT_DEV = True
 DEFAULT_INSTALL_OPT_LOCK_FILE = pathlib.Path(DEFAULT_LOCKFILE_NAME)
 
 
@@ -1509,8 +1510,10 @@ DEFAULT_INSTALL_OPT_LOCK_FILE = pathlib.Path(DEFAULT_LOCKFILE_NAME)
 @click.option(
     "--dev/--no-dev",
     is_flag=True,
-    default=DEFAULT_INSTALL_OPT_DEV,
-    help="install dev dependencies from the lockfile (where applicable)",
+    help="(DEPRECATED) include dev dependencies in the lockfile (where applicable)",
+    hidden=False,
+    is_eager=True,
+    callback=lambda: click.BadParameter("Deprecated option, use `--extra dev` instead.")
 )
 @click.option(
     "-E",
@@ -1579,7 +1582,6 @@ def install(
     auth: Optional[str] = None,
     auth_file: Optional[PathLike] = None,
     validate_platform: bool = DEFAULT_INSTALL_OPT_VALIDATE_PLATFORM,
-    dev: bool = DEFAULT_INSTALL_OPT_DEV,
     extras: Optional[List[str]] = None,
     force_platform: Optional[str] = None,
 ) -> None:
@@ -1617,8 +1619,10 @@ def install(
 @click.option(
     "--dev-dependencies/--no-dev-dependencies",
     is_flag=True,
-    default=True,
-    help="include dev dependencies in the lockfile (where applicable)",
+    help="(DEPRECATED) include dev dependencies in the lockfile (where applicable)",
+    hidden=False,
+    is_eager=True,
+    callback=lambda: click.BadParameter("Deprecated option, use `--extra dev` instead.")
 )
 @click.option(
     "-k",
@@ -1729,8 +1733,10 @@ def render(
 @click.option(
     "--dev-dependencies/--no-dev-dependencies",
     is_flag=True,
-    default=True,
-    help="include dev dependencies in the lockfile spec (where applicable)",
+    help="(DEPRECATED) include dev dependencies in the lockfile (where applicable)",
+    hidden=False,
+    is_eager=True,
+    callback=lambda: click.BadParameter("Deprecated option, use `--extra dev` instead."),
 )
 @click.option(
     "-f",
