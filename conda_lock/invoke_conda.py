@@ -180,11 +180,16 @@ def _stderr_to_log(stderr: IO[str]) -> list[str]:
     can be configured via an environment variable.
 
     Rules for log levels:
-    1. Lines starting with "warning" are always logged at WARNING level
-    2. Indented lines (starting with spaces) inherit the previous line's log level
-    3. All other lines are logged at the configured default level, which can be set via
-       the `CONDA_LOCK_SUBPROCESS_STDERR_DEFAULT_LOG_LEVEL` environment variable
-    4. If no default level is configured, non-warning lines are logged at ERROR level
+    1. If CONDA_LOCK_SUBPROCESS_STDERR_LOG_LEVEL_OVERRIDE is set, all lines are logged
+       at that level, regardless of content
+    2. Otherwise:
+       a. Lines starting with a known log level prefix are logged at that level:
+          - mamba style: "debug    ", "info     ", "warning  ", etc.
+          - conda style: "DEBUG conda.core", "INFO conda.fetch", etc.
+       b. Indented lines (starting with spaces) inherit the previous line's log level
+       c. All other lines are logged at the configured default level, which can be set via
+          the `CONDA_LOCK_SUBPROCESS_STDERR_DEFAULT_LOG_LEVEL` environment variable
+       d. If no default level is configured, non-warning lines are logged at ERROR level
 
     Example of warning detection and indentation inheritance:
         warning  libmamba [foo-1.2.3] The following files were already present
@@ -199,9 +204,13 @@ def _stderr_to_log(stderr: IO[str]) -> list[str]:
         A list of the original lines, preserving trailing newlines
 
     Environment Variables:
+        CONDA_LOCK_SUBPROCESS_STDERR_LOG_LEVEL_OVERRIDE: If set, all lines will be logged
+            at this level, regardless of content. Must be a valid Python logging level
+            name (DEBUG, INFO, WARNING, ERROR, CRITICAL).
         CONDA_LOCK_SUBPROCESS_STDERR_DEFAULT_LOG_LEVEL: The log level to use for
-            non-warning lines. Must be a valid Python logging level name (DEBUG,
-            INFO, WARNING, ERROR, CRITICAL). Defaults to ERROR if not set.
+            non-warning lines when no override is set. Must be a valid Python logging
+            level name (DEBUG, INFO, WARNING, ERROR, CRITICAL). Defaults to ERROR if
+            not set.
     """
     LOG_LEVEL_INDICATORS = {
         # The first 9 characters of the line are used to determine the log level
@@ -221,6 +230,17 @@ def _stderr_to_log(stderr: IO[str]) -> list[str]:
     }
 
     lines = []
+    # Check for override first
+    override_level = os.environ.get("CONDA_LOCK_SUBPROCESS_STDERR_LOG_LEVEL_OVERRIDE")
+    if override_level:
+        log_level = getattr(logging, override_level)
+        # When override is set, use it for all lines
+        for line in stderr:
+            logging.log(log_level, line.rstrip())
+            lines.append(line)
+        return lines
+
+    # No override, proceed with normal log level detection
     default_log_level = getattr(
         logging,
         os.environ.get("CONDA_LOCK_SUBPROCESS_STDERR_DEFAULT_LOG_LEVEL", "ERROR"),
