@@ -135,11 +135,8 @@ def _invoke_conda(
 
             stdout_thread = threading.Thread(target=read_stdout)
             stdout_thread.start()
-        stderr = []
         if p.stderr:
-            for line in p.stderr:
-                stderr.append(line)
-                logging.error(line.rstrip())
+            stderr = _stderr_to_log(p.stderr)
         if stdout_thread:
             stdout_thread.join()
 
@@ -173,6 +170,14 @@ def _process_stdout(stdout: IO[str]) -> Iterator[str]:
                 cache.add(logline)
         else:
             yield logline
+
+
+def _stderr_to_log(stderr: IO[str]) -> list[str]:
+    lines = []
+    for line in stderr:
+        lines.append(line)
+        logging.error(line.rstrip())
+    return lines
 
 
 def conda_env_override(platform: str) -> Dict[str, str]:
