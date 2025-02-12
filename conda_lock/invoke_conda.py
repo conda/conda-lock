@@ -173,10 +173,25 @@ def _process_stdout(stdout: IO[str]) -> Iterator[str]:
 
 
 def _stderr_to_log(stderr: IO[str]) -> list[str]:
+    """Log stderr at level ERROR, but log warnings at level WARNING.
+
+    For example, the following multi-line warning should be logged as WARNING:
+
+    ```
+    warning  libmamba [foo-1.2.3-py310h99e81ca_0] The following files were already ...
+        - lib/python3.10/site-packages/package/__init__.py
+    ```
+    """
     lines = []
+    log_level = logging.ERROR
     for line in stderr:
         lines.append(line)
-        logging.error(line.rstrip())
+        if line.startswith("warning"):
+            log_level = logging.WARNING
+        elif log_level == logging.WARNING:
+            if not line.startswith("  "):
+                log_level = logging.ERROR
+        logging.log(log_level, line.rstrip())
     return lines
 
 
