@@ -173,7 +173,14 @@ def _process_stdout(stdout: IO[str]) -> Iterator[str]:
 
 
 def _stderr_to_log(stderr: IO[str]) -> list[str]:
-    """Log stderr at level ERROR, but log warnings at level WARNING.
+    """Log stderr output from a subprocess.
+
+    By default, log stderr output at level ERROR, or the level specified by the
+    `CONDA_LOCK_SUBPROCESS_STDERR_DEFAULT_LOG_LEVEL` environment variable. However,
+    lines that are detected to be warnings are logged at level WARNING.
+
+    The current warning heuristic is that a warning is a line that starts with
+    "warning" including any subsequent indented lines.
 
     For example, the following multi-line warning should be logged as WARNING:
 
@@ -183,14 +190,18 @@ def _stderr_to_log(stderr: IO[str]) -> list[str]:
     ```
     """
     lines = []
-    log_level = logging.ERROR
+    default_log_level = getattr(
+        logging,
+        os.environ.get("CONDA_LOCK_SUBPROCESS_STDERR_DEFAULT_LOG_LEVEL", "ERROR"),
+    )
+    log_level = default_log_level
     for line in stderr:
         lines.append(line)
         if line.startswith("warning"):
             log_level = logging.WARNING
         elif log_level == logging.WARNING:
             if not line.startswith("  "):
-                log_level = logging.ERROR
+                log_level = default_log_level
         logging.log(log_level, line.rstrip())
     return lines
 
