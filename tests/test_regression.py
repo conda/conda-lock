@@ -1,17 +1,19 @@
 """This is a test module to ensure that the various changes we've made over time don't
 break the functionality of conda-lock.  This is a regression test suite."""
 
+import io
+import logging
 import shutil
-import sys
 import textwrap
 
 from pathlib import Path
+from textwrap import dedent
 from typing import List, Union
 
 import pytest
 
 from conda_lock.conda_lock import run_lock
-from conda_lock.invoke_conda import is_micromamba
+from conda_lock.invoke_conda import _stderr_to_log, is_micromamba
 from conda_lock.lookup import DEFAULT_MAPPING_URL
 from conda_lock.models.lock_spec import VersionedDependency
 from conda_lock.src_parser import DEFAULT_PLATFORMS
@@ -122,3 +124,52 @@ def test_pip_environment_regression_gh449(pip_environment_regression_gh449: Path
                 version="==1.10.10",
             )
         ]
+
+
+def test_stderr_to_log_gh770(caplog):
+    fake_stderr = io.StringIO(
+        dedent("""\
+        Some regular error at start
+        warning: config issue detected
+          additional details: near line 42
+        Some regular error message
+        warning: second warning
+          additional info
+        Some regular error at end
+    """)
+    )
+    with caplog.at_level(logging.WARNING):
+        result = _stderr_to_log(fake_stderr)
+
+    # The function should return the original lines, inclusive of trailing newlines
+    assert result == [line + "\n" for line in fake_stderr.getvalue().splitlines()]
+
+    # Expected logging behavior:
+    # - First line (error): does not start with 'warning' -> ERROR
+    # - Second line: starts with 'warning:' -> WARNING
+    # - Third line: indented line remains WARNING
+    # - Fourth line: resets to ERROR
+    # - Fifth line: starts with 'warning:' -> WARNING
+    # - Sixth line: indented line remains WARNING
+    # - Seventh line: resets to ERROR
+    expected_records = [
+        ("ERROR", "Some regular error at start"),
+        ("WARNING", "warning: config issue detected"),
+        ("WARNING", "  additional details: near line 42"),
+        ("ERROR", "Some regular error message"),
+        ("WARNING", "warning: second warning"),
+        ("WARNING", "  additional info"),
+        ("ERROR", "Some regular error at end"),
+    ]
+
+    records = caplog.records
+
+    for record, (expected_level, expected_message) in zip(
+        records, expected_records, strict=True
+    ):
+        assert (
+            record.levelname == expected_level
+        ), f"Expected level {expected_level} but got {record.levelname}"
+        assert (
+            record.message == expected_message
+        ), f"Expected message '{expected_message}' but got '{record.message}'"
