@@ -55,7 +55,7 @@ jobs:
           pipx install -e .
       - name: run-test
         run: |
-          conda-lock --log-level=DEBUG --mamba -f tests/gdal/environment.yml -p $CONDA_PLATFORM
+          conda-lock --log-level=DEBUG --micromamba -f tests/gdal/environment.yml -p $CONDA_PLATFORM
           conda-lock render -p $CONDA_PLATFORM
           conda-lock render -p $CONDA_PLATFORM --kind=env
           cat conda-$CONDA_PLATFORM.lock
