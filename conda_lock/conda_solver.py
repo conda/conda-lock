@@ -387,8 +387,8 @@ def solve_specs_for_arch(
     try:
         dryrun_install: DryRunInstall = json.loads(extract_json_object(proc.stdout))
         return _reconstruct_fetch_actions(conda, platform, dryrun_install)
-    except json.JSONDecodeError:
-        raise
+    except json.JSONDecodeError as e:
+        raise RuntimeError(f"Failed to parse json: '{proc.stdout}'") from e
 
 
 def update_specs_for_arch(
