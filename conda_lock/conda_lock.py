@@ -262,7 +262,6 @@ def make_lock_files(  # noqa: C901
     channel_overrides: Optional[Sequence[str]] = None,
     virtual_package_spec: Optional[pathlib.Path] = None,
     update: Optional[Sequence[str]] = None,
-    include_dev_dependencies: bool = True,
     filename_template: Optional[str] = None,
     filter_categories: bool = False,
     extras: Optional[AbstractSet[str]] = None,
@@ -295,8 +294,6 @@ def make_lock_files(  # noqa: C901
     update :
         Names of dependencies to update to their latest versions, regardless
         of whether the constraint in src_files has changed.
-    include_dev_dependencies :
-        Include development dependencies in explicit or env output
     filename_template :
         Format for names of rendered explicit or env files. Must include {platform}.
     extras :
@@ -317,8 +314,6 @@ def make_lock_files(  # noqa: C901
 
     # Compute lock specification
     required_categories = {"main"}
-    if include_dev_dependencies:
-        required_categories.add("dev")
     if extras is not None:
         required_categories.update(extras)
     lock_spec = make_lock_spec(
@@ -458,7 +453,6 @@ def make_lock_files(  # noqa: C901
         do_render(
             new_lock_content,
             kinds=[k for k in kinds if k != "lock"],
-            include_dev_dependencies=include_dev_dependencies,
             filename_template=filename_template,
             extras=extras,
             check_input_hash=check_input_hash,
@@ -468,7 +462,6 @@ def make_lock_files(  # noqa: C901
 def do_render(
     lockfile: Lockfile,
     kinds: Sequence[Union[Literal["env"], Literal["explicit"]]],
-    include_dev_dependencies: bool = True,
     filename_template: Optional[str] = None,
     extras: Optional[AbstractSet[str]] = None,
     check_input_hash: bool = False,
@@ -482,8 +475,6 @@ def do_render(
         Lock content
     kinds :
         Lockfile formats to render
-    include_dev_dependencies :
-        Include development dependencies in output
     filename_template :
         Format for the lock file names. Must include {platform}.
     extras :
@@ -519,7 +510,6 @@ def do_render(
             if filename_template:
                 context = {
                     "platform": plat,
-                    "dev-dependencies": str(include_dev_dependencies).lower(),
                     "input-hash": lockfile.metadata.content_hash,
                     "version": distribution("conda_lock").version,
                     "timestamp": datetime.datetime.now(datetime.timezone.utc).strftime(
@@ -544,7 +534,6 @@ def do_render(
             print(f"Rendering lockfile(s) for {plat}...", file=sys.stderr)
             lockfile_contents = render_lockfile_for_platform(
                 lockfile=lockfile,
-                include_dev_dependencies=include_dev_dependencies,
                 extras=extras,
                 kind=kind,
                 platform=plat,
@@ -576,7 +565,6 @@ def do_render(
 def render_lockfile_for_platform(  # noqa: C901
     *,
     lockfile: Lockfile,
-    include_dev_dependencies: bool,
     extras: Optional[AbstractSet[str]],
     kind: Union[Literal["env"], Literal["explicit"]],
     platform: str,
@@ -590,8 +578,6 @@ def render_lockfile_for_platform(  # noqa: C901
     ----------
     lockfile :
         Locked package versions
-    include_dev_dependencies :
-        Include development dependencies in output
     extras :
         Optional dependency groups to include in output
     kind :
@@ -611,7 +597,6 @@ def render_lockfile_for_platform(  # noqa: C901
     categories_to_install: Set[str] = {
         "main",
         *(extras or []),
-        *(["dev"] if include_dev_dependencies else []),
     }
 
     conda_deps: List[LockedDependency] = []
@@ -982,7 +967,6 @@ def _strip_auth_from_lockfile(lockfile: str) -> str:
 @contextmanager
 def _render_lockfile_for_install(
     filename: pathlib.Path,
-    include_dev_dependencies: bool = True,
     extras: Optional[AbstractSet[str]] = None,
     force_platform: Optional[str] = None,
 ) -> Iterator[pathlib.Path]:
@@ -993,8 +977,6 @@ def _render_lockfile_for_install(
     ----------
     filename :
         Path to conda-lock.yml
-    include_dev_dependencies :
-        Include development dependencies in output
     extras :
         Optional dependency groups to include in output
 
@@ -1043,7 +1025,6 @@ def _render_lockfile_for_install(
         lockfile=lock_content,
         kind="explicit",
         platform=platform,
-        include_dev_dependencies=include_dev_dependencies,
         extras=extras,
         suppress_warning_for_pip_and_explicit=True,
     )
@@ -1067,6 +1048,13 @@ def _detect_lockfile_kind(path: pathlib.Path) -> TKindAll:
         raise UnknownLockfileKind(
             f"Could not detect the kind of lockfile at {path}. Note that explicit "
             "lockfiles must contain the line '@EXPLICIT'."
+        )
+
+def _deprecated_dev_cli(ctx, param, value):
+    """A click callback function raising a deprecation error."""
+    raise click.BadParameter(
+        "--dev-dependencies/--no-dev-dependencies and --dev/--no-dev options "
+        "are deprecated. Use `--extra dev` instead."
         )
 
 
@@ -1131,7 +1119,6 @@ def run_lock(
     platforms: Optional[Sequence[str]] = None,
     mamba: bool = False,
     micromamba: bool = False,
-    include_dev_dependencies: bool = True,
     channel_overrides: Optional[Sequence[str]] = None,
     filename_template: Optional[str] = None,
     kinds: Optional[Sequence[TKindAll]] = None,
@@ -1165,7 +1152,6 @@ def run_lock(
         kinds=kinds or DEFAULT_KINDS,
         lockfile_path=lockfile_path,
         filename_template=filename_template,
-        include_dev_dependencies=include_dev_dependencies,
         extras=extras,
         check_input_hash=check_input_hash,
         filter_categories=filter_categories,
@@ -1232,7 +1218,7 @@ CONTEXT_SETTINGS = {"show_default": True, "help_option_names": ["--help", "-h"]}
     help="(DEPRECATED) include dev dependencies in the lockfile (where applicable)",
     hidden=False,
     is_eager=True,
-    callback=lambda: click.BadParameter("Deprecated option, use `--extra dev` instead.")
+    callback=_deprecated_dev_cli,
 )
 @click.option(
     "-f",
@@ -1353,7 +1339,6 @@ def lock(
     micromamba: bool,
     platform: Sequence[str],
     channel_overrides: Sequence[str],
-    dev_dependencies: bool,
     files: Sequence[PathLike],
     kind: Sequence[Union[Literal["lock"], Literal["env"], Literal["explicit"]]],
     filename_template: str,
@@ -1381,7 +1366,6 @@ def lock(
 
     \b
         platform: The platform this lock file was generated for (conda subdir).
-        dev-dependencies: Whether or not dev dependencies are included in this lock file.
         input-hash: A sha256 hash of the lock file input specification.
         version: The version of conda-lock used to generate this lock file.
         timestamp: The approximate timestamp of the output file in ISO8601 basic format.
@@ -1423,7 +1407,6 @@ def lock(
         platforms=platform,
         mamba=mamba,
         micromamba=micromamba,
-        include_dev_dependencies=dev_dependencies,
         channel_overrides=channel_overrides,
         kinds=kind,
         lockfile_path=None if lockfile is None else pathlib.Path(lockfile),
@@ -1513,7 +1496,7 @@ DEFAULT_INSTALL_OPT_LOCK_FILE = pathlib.Path(DEFAULT_LOCKFILE_NAME)
     help="(DEPRECATED) include dev dependencies in the lockfile (where applicable)",
     hidden=False,
     is_eager=True,
-    callback=lambda: click.BadParameter("Deprecated option, use `--extra dev` instead.")
+    callback=_deprecated_dev_cli,
 )
 @click.option(
     "-E",
@@ -1542,7 +1525,6 @@ def click_install(
     auth_file: Optional[PathLike],
     validate_platform: bool,
     log_level: TLogLevel,
-    dev: bool,
     extras: List[str],
     force_platform: str,
 ) -> None:
@@ -1565,7 +1547,6 @@ def click_install(
         auth=auth,
         auth_file=auth_file,
         validate_platform=validate_platform,
-        dev=dev,
         extras=extras,
         force_platform=force_platform,
     )
@@ -1604,7 +1585,6 @@ def install(
             )
     with _render_lockfile_for_install(
         lock_file,
-        include_dev_dependencies=dev,
         extras=set(extras),
         force_platform=force_platform,
     ) as lockfile:
@@ -1622,7 +1602,7 @@ def install(
     help="(DEPRECATED) include dev dependencies in the lockfile (where applicable)",
     hidden=False,
     is_eager=True,
-    callback=lambda: click.BadParameter("Deprecated option, use `--extra dev` instead.")
+    callback=_deprecated_dev_cli,
 )
 @click.option(
     "-k",
@@ -1664,7 +1644,6 @@ def install(
 @click.pass_context
 def render(
     ctx: click.Context,
-    dev_dependencies: bool,
     kind: Sequence[Union[Literal["env"], Literal["explicit"]]],
     filename_template: str,
     extras: List[str],
@@ -1692,7 +1671,6 @@ def render(
         lock_content,
         filename_template=filename_template,
         kinds=kind,
-        include_dev_dependencies=dev_dependencies,
         extras=set(extras),
         override_platform=platform,
     )
@@ -1736,7 +1714,7 @@ def render(
     help="(DEPRECATED) include dev dependencies in the lockfile (where applicable)",
     hidden=False,
     is_eager=True,
-    callback=lambda: click.BadParameter("Deprecated option, use `--extra dev` instead."),
+    callback=_deprecated_dev_cli,
 )
 @click.option(
     "-f",
@@ -1878,7 +1856,6 @@ def render_lock_spec(  # noqa: C901
     micromamba: Optional[bool],
     platform: Sequence[str],
     channel_overrides: Sequence[str],
-    dev_dependencies: bool,
     files: Sequence[PathLike],
     kind: Sequence[Literal["pixi.toml"]],
     filename_template: Optional[str],
@@ -1999,7 +1976,6 @@ def render_lock_spec(  # noqa: C901
         stdout=stdout,
         platform_overrides=platform,
         channel_overrides=channel_overrides,
-        include_dev_dependencies=dev_dependencies,
         extras=set(extras),
         filter_categories=filter_categories,
         lockfile_path=lockfile_path,
@@ -2017,7 +1993,6 @@ def do_render_lockspec(
     stdout: bool,
     platform_overrides: Optional[Sequence[str]] = None,
     channel_overrides: Optional[Sequence[str]] = None,
-    include_dev_dependencies: bool = True,
     extras: Optional[AbstractSet[str]] = None,
     filter_categories: bool = False,
     lockfile_path: Optional[pathlib.Path] = None,
@@ -2030,8 +2005,6 @@ def do_render_lockspec(
         src_files = handle_no_specified_source_files(lockfile_path)
 
     required_categories = {"main"}
-    if include_dev_dependencies:
-        required_categories.add("dev")
     if extras is not None:
         required_categories.update(extras)
     lock_spec = make_lock_spec(
