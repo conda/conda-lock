@@ -1138,7 +1138,6 @@ def test_explicit_toposorted() -> None:
         lockfile=lockfile,
         kind="explicit",
         platform="linux-64",
-        include_dev_dependencies=False,
         extras=set(),
     )
 
@@ -2178,12 +2177,12 @@ def test_install(
     platform = "linux-64"
 
     lock_filename_template = (
-        request.node.name + "conda-{platform}-{dev-dependencies}.lock"
+        request.node.name + "conda-{platform}.lock"
     )
     if kind == "env":
-        lock_filename = request.node.name + "conda-linux-64-true.lock.yml"
+        lock_filename = request.node.name + "conda-linux-64.lock.yml"
     elif kind == "explicit":
-        lock_filename = request.node.name + "conda-linux-64-true.lock"
+        lock_filename = request.node.name + "conda-linux-64.lock"
     elif kind == "lock":
         lock_filename = "conda-lock.yml"
     else:
