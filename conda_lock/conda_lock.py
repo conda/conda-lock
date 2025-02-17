@@ -1054,12 +1054,15 @@ _deprecated_dev_help = (
     "(DEPRECATED) include (or not) dev dependencies in the lockfile (where "
     "applicable)",
 )
+
+
 def _deprecated_dev_cli(ctx, param, value):
     """A click callback function raising a deprecation error."""
-    raise click.BadParameter(
-        "--dev-dependencies/--no-dev-dependencies and --dev/--no-dev options "
-        "are deprecated. Use `--extra dev` instead."
-        )
+    if value:
+        raise click.BadParameter(
+            "--dev-dependencies/--no-dev-dependencies and --dev/--no-dev "
+            "switches are deprecated. Use `--extra dev` instead."
+            )
 
 
 def handle_no_specified_source_files(
@@ -1217,7 +1220,9 @@ CONTEXT_SETTINGS = {"show_default": True, "help_option_names": ["--help", "-h"]}
     help="""Override the channels to use when solving the environment. These will replace the channels as listed in the various source files.""",
 )
 @click.option(
-    "--dev-dependencies", "--no-dev-dependencies",
+    " /--dev-dependencies", " /--no-dev-dependencies", "dev_dependencies",
+    is_flag=True,
+    default=False,
     help=_deprecated_dev_help,
     hidden=False,
     is_eager=True,
@@ -1358,6 +1363,7 @@ def lock(
     update: Optional[Sequence[str]] = None,
     metadata_choices: Sequence[str] = (),
     metadata_yamls: Sequence[PathLike] = (),
+    dev_dependencies: bool = False,  # DEPRECATED
 ) -> None:
     """Generate fully reproducible lock files for conda environments.
 
@@ -1494,7 +1500,9 @@ DEFAULT_INSTALL_OPT_LOCK_FILE = pathlib.Path(DEFAULT_LOCKFILE_NAME)
     type=click.Choice(["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]),
 )
 @click.option(
-    "--dev", "--no-dev",
+    " /--dev", " /--no-dev", "dev",
+    is_flag=True,
+    default=False,
     help=_deprecated_dev_help,
     hidden=False,
     is_eager=True,
@@ -1529,6 +1537,7 @@ def click_install(
     log_level: TLogLevel,
     extras: List[str],
     force_platform: str,
+    dev: bool,  #DEPRECATED
 ) -> None:
     # bail out if we do not encounter the lockfile
     lock_file = pathlib.Path(lock_file)
@@ -1599,7 +1608,9 @@ def install(
 
 @main.command("render", context_settings=CONTEXT_SETTINGS)
 @click.option(
-    "--dev-dependencies", "--no-dev-dependencies",
+    " /--dev-dependencies", " /--no-dev-dependencies", "dev_dependencies",
+    is_flag=True,
+    default=False,
     help=_deprecated_dev_help,
     hidden=False,
     is_eager=True,
@@ -1652,6 +1663,7 @@ def render(
     lock_file: PathLike,
     pdb: bool,
     platform: Sequence[str],
+    dev_dependencies: bool,  #DEPRECATED
 ) -> None:
     """Render multi-platform lockfile into single-platform env or explicit file"""
     logging.basicConfig(level=log_level)
@@ -1710,7 +1722,9 @@ def render(
     help="""Override the channels to use when solving the environment. These will replace the channels as listed in the various source files.""",
 )
 @click.option(
-    "--dev-dependencies", "--no-dev-dependencies",
+    " /--dev-dependencies", " /--no-dev-dependencies", "dev_dependencies",
+    is_flag=True,
+    default=False,
     help=_deprecated_dev_help,
     hidden=False,
     is_eager=True,
@@ -1875,6 +1889,7 @@ def render_lock_spec(  # noqa: C901
     stdout: bool,
     pixi_project_name: Optional[str],
     editable: Sequence[str],
+    dev_dependencies: bool,  #DEPRECATED
 ) -> None:
     """Combine source files into a single lock specification"""
     kinds = set(kind)
