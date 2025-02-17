@@ -1050,6 +1050,10 @@ def _detect_lockfile_kind(path: pathlib.Path) -> TKindAll:
             "lockfiles must contain the line '@EXPLICIT'."
         )
 
+_deprecated_dev_help = (
+    "(DEPRECATED) include (or not) dev dependencies in the lockfile (where "
+    "applicable)",
+)
 def _deprecated_dev_cli(ctx, param, value):
     """A click callback function raising a deprecation error."""
     raise click.BadParameter(
@@ -1213,9 +1217,8 @@ CONTEXT_SETTINGS = {"show_default": True, "help_option_names": ["--help", "-h"]}
     help="""Override the channels to use when solving the environment. These will replace the channels as listed in the various source files.""",
 )
 @click.option(
-    "--dev-dependencies/--no-dev-dependencies",
-    is_flag=True,
-    help="(DEPRECATED) include dev dependencies in the lockfile (where applicable)",
+    "--dev-dependencies", "--no-dev-dependencies",
+    help=_deprecated_dev_help,
     hidden=False,
     is_eager=True,
     callback=_deprecated_dev_cli,
@@ -1491,9 +1494,8 @@ DEFAULT_INSTALL_OPT_LOCK_FILE = pathlib.Path(DEFAULT_LOCKFILE_NAME)
     type=click.Choice(["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]),
 )
 @click.option(
-    "--dev/--no-dev",
-    is_flag=True,
-    help="(DEPRECATED) include dev dependencies in the lockfile (where applicable)",
+    "--dev", "--no-dev",
+    help=_deprecated_dev_help,
     hidden=False,
     is_eager=True,
     callback=_deprecated_dev_cli,
@@ -1597,9 +1599,8 @@ def install(
 
 @main.command("render", context_settings=CONTEXT_SETTINGS)
 @click.option(
-    "--dev-dependencies/--no-dev-dependencies",
-    is_flag=True,
-    help="(DEPRECATED) include dev dependencies in the lockfile (where applicable)",
+    "--dev-dependencies", "--no-dev-dependencies",
+    help=_deprecated_dev_help,
     hidden=False,
     is_eager=True,
     callback=_deprecated_dev_cli,
@@ -1709,9 +1710,8 @@ def render(
     help="""Override the channels to use when solving the environment. These will replace the channels as listed in the various source files.""",
 )
 @click.option(
-    "--dev-dependencies/--no-dev-dependencies",
-    is_flag=True,
-    help="(DEPRECATED) include dev dependencies in the lockfile (where applicable)",
+    "--dev-dependencies", "--no-dev-dependencies",
+    help=_deprecated_dev_help,
     hidden=False,
     is_eager=True,
     callback=_deprecated_dev_cli,
