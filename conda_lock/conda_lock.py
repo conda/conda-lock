@@ -1052,8 +1052,7 @@ def _detect_lockfile_kind(path: pathlib.Path) -> TKindAll:
 
 
 _deprecated_dev_help = (
-    "(DEPRECATED) include (or not) dev dependencies in the lockfile (where "
-    "applicable)"
+    "(DEPRECATED) include (or not) dev dependencies in the lockfile (where applicable)"
 )
 
 
@@ -1061,7 +1060,7 @@ def _deprecated_dev_cli(ctx: click.Context, param: click.Parameter, value: Any) 
     """A click callback function raising a deprecation error."""
     if value:
         raise click.BadParameter(
-            "--dev-dependencies/--no-dev-dependencies and --dev/--no-dev "
+            "--dev-dependencies/--no-dev-dependencies (lock, render) and --dev/--no-dev (install) "
             "switches are deprecated. Use `--extra dev` instead."
         )
     else:
@@ -1223,10 +1222,11 @@ CONTEXT_SETTINGS = {"show_default": True, "help_option_names": ["--help", "-h"]}
     help="""Override the channels to use when solving the environment. These will replace the channels as listed in the various source files.""",
 )
 @click.option(
-    " /--dev-dependencies",
-    " /--no-dev-dependencies",
+    "--dev-dependencies",
+    "--no-dev-dependencies",
     "dev_dependencies",
     is_flag=True,
+    flag_value=True,
     default=False,
     help=_deprecated_dev_help,
     hidden=False,
@@ -1505,10 +1505,11 @@ DEFAULT_INSTALL_OPT_LOCK_FILE = pathlib.Path(DEFAULT_LOCKFILE_NAME)
     type=click.Choice(["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]),
 )
 @click.option(
-    " /--dev",
-    " /--no-dev",
+    "--dev",
+    "--no-dev",
     "dev",
     is_flag=True,
+    flag_value=True,
     default=False,
     help=_deprecated_dev_help,
     hidden=False,
@@ -1615,10 +1616,11 @@ def install(
 
 @main.command("render", context_settings=CONTEXT_SETTINGS)
 @click.option(
-    " /--dev-dependencies",
-    " /--no-dev-dependencies",
+    "--dev-dependencies",
+    "--no-dev-dependencies",
     "dev_dependencies",
     is_flag=True,
+    flag_value=True,
     default=False,
     help=_deprecated_dev_help,
     hidden=False,
@@ -1731,10 +1733,11 @@ def render(
     help="""Override the channels to use when solving the environment. These will replace the channels as listed in the various source files.""",
 )
 @click.option(
-    " /--dev-dependencies",
-    " /--no-dev-dependencies",
+    "--dev-dependencies",
+    "--no-dev-dependencies",
     "dev_dependencies",
     is_flag=True,
+    flag_value=True,
     default=False,
     help=_deprecated_dev_help,
     hidden=False,
