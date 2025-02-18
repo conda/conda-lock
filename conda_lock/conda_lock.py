@@ -1050,19 +1050,22 @@ def _detect_lockfile_kind(path: pathlib.Path) -> TKindAll:
             "lockfiles must contain the line '@EXPLICIT'."
         )
 
+
 _deprecated_dev_help = (
     "(DEPRECATED) include (or not) dev dependencies in the lockfile (where "
-    "applicable)",
+    "applicable)"
 )
 
 
-def _deprecated_dev_cli(ctx, param, value):
+def _deprecated_dev_cli(ctx: Any, param: Any, value: Any) -> Any:
     """A click callback function raising a deprecation error."""
     if value:
         raise click.BadParameter(
             "--dev-dependencies/--no-dev-dependencies and --dev/--no-dev "
             "switches are deprecated. Use `--extra dev` instead."
-            )
+        )
+    else:
+        return value
 
 
 def handle_no_specified_source_files(
@@ -1220,7 +1223,9 @@ CONTEXT_SETTINGS = {"show_default": True, "help_option_names": ["--help", "-h"]}
     help="""Override the channels to use when solving the environment. These will replace the channels as listed in the various source files.""",
 )
 @click.option(
-    " /--dev-dependencies", " /--no-dev-dependencies", "dev_dependencies",
+    " /--dev-dependencies",
+    " /--no-dev-dependencies",
+    "dev_dependencies",
     is_flag=True,
     default=False,
     help=_deprecated_dev_help,
@@ -1500,7 +1505,9 @@ DEFAULT_INSTALL_OPT_LOCK_FILE = pathlib.Path(DEFAULT_LOCKFILE_NAME)
     type=click.Choice(["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]),
 )
 @click.option(
-    " /--dev", " /--no-dev", "dev",
+    " /--dev",
+    " /--no-dev",
+    "dev",
     is_flag=True,
     default=False,
     help=_deprecated_dev_help,
@@ -1537,7 +1544,7 @@ def click_install(
     log_level: TLogLevel,
     extras: List[str],
     force_platform: str,
-    dev: bool,  #DEPRECATED
+    dev: bool,  # DEPRECATED
 ) -> None:
     # bail out if we do not encounter the lockfile
     lock_file = pathlib.Path(lock_file)
@@ -1608,7 +1615,9 @@ def install(
 
 @main.command("render", context_settings=CONTEXT_SETTINGS)
 @click.option(
-    " /--dev-dependencies", " /--no-dev-dependencies", "dev_dependencies",
+    " /--dev-dependencies",
+    " /--no-dev-dependencies",
+    "dev_dependencies",
     is_flag=True,
     default=False,
     help=_deprecated_dev_help,
@@ -1663,7 +1672,7 @@ def render(
     lock_file: PathLike,
     pdb: bool,
     platform: Sequence[str],
-    dev_dependencies: bool,  #DEPRECATED
+    dev_dependencies: bool,  # DEPRECATED
 ) -> None:
     """Render multi-platform lockfile into single-platform env or explicit file"""
     logging.basicConfig(level=log_level)
@@ -1722,7 +1731,9 @@ def render(
     help="""Override the channels to use when solving the environment. These will replace the channels as listed in the various source files.""",
 )
 @click.option(
-    " /--dev-dependencies", " /--no-dev-dependencies", "dev_dependencies",
+    " /--dev-dependencies",
+    " /--no-dev-dependencies",
+    "dev_dependencies",
     is_flag=True,
     default=False,
     help=_deprecated_dev_help,
@@ -1889,7 +1900,7 @@ def render_lock_spec(  # noqa: C901
     stdout: bool,
     pixi_project_name: Optional[str],
     editable: Sequence[str],
-    dev_dependencies: bool,  #DEPRECATED
+    dev_dependencies: bool,  # DEPRECATED
 ) -> None:
     """Combine source files into a single lock specification"""
     kinds = set(kind)
