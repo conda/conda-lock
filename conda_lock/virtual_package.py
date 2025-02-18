@@ -37,9 +37,9 @@ class FakePackage(BaseModel):
     def to_repodata_entry(self) -> Tuple[str, Dict[str, Any]]:
         out = self.model_dump()
         if self.build_string:
-            build = f"{self.build_string}_{self.build_number}"
+            build = self.build_string
         else:
-            build = f"{self.build_number}"
+            build = str(self.build_number)
         out["depends"] = list(out["depends"])
         out["build"] = build
         fname = f"{self.name}-{self.version}-{build}.tar.bz2"
