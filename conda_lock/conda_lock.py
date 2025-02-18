@@ -1057,7 +1057,7 @@ _deprecated_dev_help = (
 )
 
 
-def _deprecated_dev_cli(ctx: Any, param: Any, value: Any) -> Any:
+def _deprecated_dev_cli(ctx: click.Context, param: click.Parameter, value: Any) -> Any:
     """A click callback function raising a deprecation error."""
     if value:
         raise click.BadParameter(
