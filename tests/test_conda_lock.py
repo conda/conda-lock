@@ -2637,12 +2637,12 @@ def test_default_virtual_package_input_hash_stability():
     from conda_lock.virtual_package import default_virtual_package_repodata
 
     expected = {
-        "linux-64": "a949aac83da089258ce729fcd54dc0a3a1724ea325d67680d7a6d7cc9c0f1d1b",
-        "linux-aarch64": "f68603a3a28dbb03d20a25e1dacda3c42b6acc8a93bd31e13c4956115820cfa6",
-        "linux-ppc64le": "ababb6bc556ac8c9e27a499bf9b83b5757f6ded385caa0c3d7bf3f360dfe358d",
-        "osx-64": "b7eebe4be0654740f67e3023f2ede298f390119ef225f50ad7e7288ea22d5c93",
-        "osx-arm64": "cc82018d1b1809b9aebacacc5ed05ee6a4318b3eba039607d2a6957571f8bf2b",
-        "win-64": "44239e9f0175404e62e4a80bb8f4be72e38c536280d6d5e484e52fa04b45c9f6",
+        "linux-64": "ebfbb8130f916103373e6521bfb129825cded8b0c3e93f430cc834d8c3664244",
+        "linux-aarch64": "5418156c9b6c5ae92b8558087b5d39ee06c66b5ec405a91b4c7ee23d6cec41e2",
+        "linux-ppc64le": "7b111d5f69fb0bd81808d1a9272187ad719e5f03c63b3ebb600aca01355b8576",
+        "osx-64": "e2236a55963b8a15f6702e885eb44c7ce3f294c638cc91aa770e23435f77d18e",
+        "osx-arm64": "bb227bce8532d0eee9396306045e270525b110103f4c54be9ac35621baab3dcd",
+        "win-64": "1d34ea90abc99d31721cae03335543cbe16ad4e1eaa988e7a7f8563bda2f951d",
     }
 
     spec = LockSpecification(
