@@ -2123,6 +2123,121 @@ def test_solve_arch_transitive_deps():
         # Ensure that transitive dependencies are also properly tagged
         assert ipython_deps[0].categories == {"main"}
 
+def test_solve_x86_64_microarch_level_1():
+    _conda_exe = determine_conda_executable(None, mamba=False, micromamba=False)
+    channels = [Channel.from_string("conda-forge")]
+
+    with tempfile.NamedTemporaryFile(dir=".") as tf:
+        spec = LockSpecification(
+            dependencies={
+                "linux-64": [
+                    VersionedDependency(
+                        name="_x86_64-microarch-level",
+                        version="=1",
+                        manager="conda",
+                        category="main",
+                        extras=[],
+                    ),
+                ],
+            },
+            channels=channels,
+            # NB: this file must exist for relative path resolution to work
+            # in create_lockfile_from_spec
+            sources=[Path(tf.name)],
+        )
+
+        vpr = default_virtual_package_repodata()
+        with vpr:
+            locked_deps = _solve_for_arch(
+                conda=_conda_exe,
+                spec=spec,
+                platform="linux-64",
+                channels=[*channels, vpr.channel],
+                pip_repositories=[],
+                virtual_package_repo=vpr,
+                mapping_url=DEFAULT_MAPPING_URL,
+            )
+        
+        assert len(locked_deps) == 1
+        assert locked_deps[0].version == "1"
+
+def test_solve_x86_64_microarch_level_2_exception():
+    _conda_exe = determine_conda_executable(None, mamba=False, micromamba=False)
+    channels = [Channel.from_string("conda-forge")]
+
+    with tempfile.NamedTemporaryFile(dir=".") as tf:
+        spec = LockSpecification(
+            dependencies={
+                "linux-64": [
+                    VersionedDependency(
+                        name="_x86_64-microarch-level",
+                        version="=2",
+                        manager="conda",
+                        category="main",
+                        extras=[],
+                    ),
+                ],
+            },
+            channels=channels,
+            # NB: this file must exist for relative path resolution to work
+            # in create_lockfile_from_spec
+            sources=[Path(tf.name)],
+        )
+
+        vpr = default_virtual_package_repodata()
+        with vpr:
+            with pytest.raises(subprocess.CalledProcessError):
+                _solve_for_arch(
+                    conda=_conda_exe,
+                    spec=spec,
+                    platform="linux-64",
+                    channels=[*channels, vpr.channel],
+                    pip_repositories=[],
+                    virtual_package_repo=vpr,
+                    mapping_url=DEFAULT_MAPPING_URL,
+                )
+
+def test_solve_x86_64_microarch_level_2_with_input_spec():
+    from conda_lock.virtual_package import virtual_package_repo_from_specification
+
+    _conda_exe = determine_conda_executable(None, mamba=False, micromamba=False)
+    channels = [Channel.from_string("conda-forge")]
+
+    with tempfile.NamedTemporaryFile(dir=".") as tf:
+        spec = LockSpecification(
+            dependencies={
+                "linux-64": [
+                    VersionedDependency(
+                        name="_x86_64-microarch-level",
+                        version="=2",
+                        manager="conda",
+                        category="main",
+                        extras=[],
+                    ),
+                ],
+            },
+            channels=channels,
+            # NB: this file must exist for relative path resolution to work
+            # in create_lockfile_from_spec
+            sources=[Path(tf.name)],
+        )
+
+        test_dir = TESTS_DIR.joinpath("test-archspec")
+        vspec = test_dir / "virtual-packages.yaml"
+        vpr = virtual_package_repo_from_specification(vspec)
+        with vpr:
+            locked_deps = _solve_for_arch(
+                conda=_conda_exe,
+                spec=spec,
+                platform="linux-64",
+                channels=[*channels, vpr.channel],
+                pip_repositories=[],
+                virtual_package_repo=vpr,
+                mapping_url=DEFAULT_MAPPING_URL,
+            )
+
+        assert len(locked_deps) == 1
+        assert locked_deps[0].version == "2"
 
 def _check_package_installed(package: str, prefix: str, subdir: Optional[str] = None):
     files = list(glob(f"{prefix}/conda-meta/{package}-*.json"))

@@ -1,0 +1,4 @@
+subdirs:
+  linux-64:
+    packages:
+      __archspec: "1 x86_64_v2"
