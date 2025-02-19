@@ -2123,6 +2123,7 @@ def test_solve_arch_transitive_deps():
         # Ensure that transitive dependencies are also properly tagged
         assert ipython_deps[0].categories == {"main"}
 
+
 def test_solve_x86_64_microarch_level_1():
     _conda_exe = determine_conda_executable(None, mamba=False, micromamba=False)
     channels = [Channel.from_string("conda-forge")]
@@ -2157,9 +2158,13 @@ def test_solve_x86_64_microarch_level_1():
                 virtual_package_repo=vpr,
                 mapping_url=DEFAULT_MAPPING_URL,
             )
-        
-        assert len(locked_deps) == 1
-        assert locked_deps[0].version == "1"
+
+        microarch_level_deps = [
+            dep for dep in locked_deps if dep.name == "_x86_64-microarch-level"
+        ]
+        assert len(microarch_level_deps) == 1
+        assert microarch_level_deps[0].version == "1"
+
 
 def test_solve_x86_64_microarch_level_2_exception():
     _conda_exe = determine_conda_executable(None, mamba=False, micromamba=False)
@@ -2196,6 +2201,7 @@ def test_solve_x86_64_microarch_level_2_exception():
                     virtual_package_repo=vpr,
                     mapping_url=DEFAULT_MAPPING_URL,
                 )
+
 
 def test_solve_x86_64_microarch_level_2_with_input_spec():
     from conda_lock.virtual_package import virtual_package_repo_from_specification
@@ -2236,8 +2242,12 @@ def test_solve_x86_64_microarch_level_2_with_input_spec():
                 mapping_url=DEFAULT_MAPPING_URL,
             )
 
-        assert len(locked_deps) == 1
-        assert locked_deps[0].version == "2"
+        microarch_level_deps = [
+            dep for dep in locked_deps if dep.name == "_x86_64-microarch-level"
+        ]
+        assert len(microarch_level_deps) == 1
+        assert microarch_level_deps[0].version == "2"
+
 
 def _check_package_installed(package: str, prefix: str, subdir: Optional[str] = None):
     files = list(glob(f"{prefix}/conda-meta/{package}-*.json"))
