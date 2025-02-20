@@ -135,11 +135,8 @@ def _invoke_conda(
 
             stdout_thread = threading.Thread(target=read_stdout)
             stdout_thread.start()
-        stderr = []
         if p.stderr:
-            for line in p.stderr:
-                stderr.append(line)
-                logging.error(line.rstrip())
+            stderr = _stderr_to_log(p.stderr)
         if stdout_thread:
             stdout_thread.join()
 
@@ -173,6 +170,99 @@ def _process_stdout(stdout: IO[str]) -> Iterator[str]:
                 cache.add(logline)
         else:
             yield logline
+
+
+def _stderr_to_log(stderr: IO[str]) -> list[str]:
+    """Process and log stderr output from a subprocess with configurable log levels.
+
+    This function processes stderr output line by line, applying different log levels
+    based on the content and context of each line. The log level for non-warning lines
+    can be configured via an environment variable.
+
+    Rules for log levels:
+    1. If CONDA_LOCK_SUBPROCESS_STDERR_LOG_LEVEL_OVERRIDE is set, all lines are logged
+       at that level, regardless of content
+    2. Otherwise:
+       a. Lines starting with a known log level prefix are logged at that level:
+          - mamba style: "debug    ", "info     ", "warning  ", etc.
+          - conda style: "DEBUG conda.core", "INFO conda.fetch", etc.
+       b. Indented lines (starting with spaces) inherit the previous line's log level
+       c. All other lines are logged at the configured default level, which can be set via
+          the `CONDA_LOCK_SUBPROCESS_STDERR_DEFAULT_LOG_LEVEL` environment variable
+       d. If no default level is configured, non-warning lines are logged at ERROR level
+
+    Example of warning detection and indentation inheritance:
+        warning  libmamba [foo-1.2.3] The following files were already present
+            - lib/python3.10/site-packages/package/__init__.py
+        Some other message  # This resets to the default level
+        DEBUG conda.gateways.subprocess:subprocess_call(86): ... # conda-style log
+
+    Args:
+        stderr: A file-like object containing the stderr output to process
+
+    Returns:
+        A list of the original lines, preserving trailing newlines
+
+    Environment Variables:
+        CONDA_LOCK_SUBPROCESS_STDERR_LOG_LEVEL_OVERRIDE: If set, all lines will be logged
+            at this level, regardless of content. Must be a valid Python logging level
+            name (DEBUG, INFO, WARNING, ERROR, CRITICAL).
+        CONDA_LOCK_SUBPROCESS_STDERR_DEFAULT_LOG_LEVEL: The log level to use for
+            non-warning lines when no override is set. Must be a valid Python logging
+            level name (DEBUG, INFO, WARNING, ERROR, CRITICAL). Defaults to ERROR if
+            not set.
+    """
+    LOG_LEVEL_INDICATORS = {
+        # The first 9 characters of the line are used to determine the log level
+        # mamba
+        "trace    ": logging.DEBUG,
+        "debug    ": logging.DEBUG,
+        "info     ": logging.INFO,
+        "warning  ": logging.WARNING,
+        "error    ": logging.ERROR,
+        "critical ": logging.CRITICAL,
+        # conda
+        "DEBUG con": logging.DEBUG,
+        "INFO cond": logging.INFO,
+        "WARNING c": logging.WARNING,
+        "ERROR con": logging.ERROR,
+        "CRITICAL ": logging.CRITICAL,
+    }
+
+    lines = []
+    # Check for override first
+    override_level = os.environ.get("CONDA_LOCK_SUBPROCESS_STDERR_LOG_LEVEL_OVERRIDE")
+    if override_level:
+        log_level = getattr(logging, override_level)
+        # When override is set, use it for all lines
+        for line in stderr:
+            logging.log(log_level, line.rstrip())
+            lines.append(line)
+        return lines
+
+    # No override, proceed with normal log level detection
+    default_log_level = getattr(
+        logging,
+        os.environ.get("CONDA_LOCK_SUBPROCESS_STDERR_DEFAULT_LOG_LEVEL", "ERROR"),
+    )
+    previous_level = default_log_level
+
+    for line in stderr:
+        # Determine the log level for this line
+        possible_mamba_log_level = line[:9]
+        if possible_mamba_log_level in LOG_LEVEL_INDICATORS:
+            log_level = LOG_LEVEL_INDICATORS[possible_mamba_log_level]
+        elif line.startswith("  "):
+            # Indented lines inherit the previous level
+            log_level = previous_level
+        else:
+            log_level = default_log_level
+
+        # Log the line and store it
+        logging.log(log_level, line.rstrip())
+        lines.append(line)
+        previous_level = log_level
+    return lines
 
 
 def conda_env_override(platform: str) -> Dict[str, str]:
