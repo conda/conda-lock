@@ -294,6 +294,7 @@ def categories_environment_files(tmp_path: Path) -> List[Path]:
 
 dev_deps_and_extras_cli_regression = list(
     itertools.product(
+        [False, True],  # dev_deps_are_empty
         [None, True, False],  # dev_deps
         [False, True],  # filter_cats
         [[], ["dev"], ["mm"], ["dev", "mm"]],  # extras
@@ -302,7 +303,10 @@ dev_deps_and_extras_cli_regression = list(
 
 
 def make_dev_deps_and_extras_cli_regression_id(
-    dev_deps: Optional[bool], filter_cats: bool, extras: List[str]
+    dev_deps_are_empty: bool,
+    dev_deps: Optional[bool],
+    filter_cats: bool,
+    extras: List[str],
 ) -> str:
     dev = (
         ""
@@ -313,16 +317,17 @@ def make_dev_deps_and_extras_cli_regression_id(
     )
     filter = "--filter-categories" if filter_cats else ""
     extra = "--category=" + ",".join(extras) if extras else ""
-    nonempty_args = [arg for arg in [dev, filter, extra] if arg]
+    empty_dev_deps = "empty-dev-deps" if dev_deps_are_empty else ""
+    nonempty_args = [arg for arg in [dev, filter, extra, empty_dev_deps] if arg]
     return "_".join(nonempty_args) or "no_args"
 
 
 @pytest.mark.parametrize(
-    "dev_deps,filter_cats,extras",
+    "dev_deps_are_empty,dev_deps,filter_cats,extras",
     dev_deps_and_extras_cli_regression,
     ids=[
-        make_dev_deps_and_extras_cli_regression_id(d, f, e)
-        for d, f, e in dev_deps_and_extras_cli_regression
+        make_dev_deps_and_extras_cli_regression_id(dde, d, f, e)
+        for dde, d, f, e in dev_deps_and_extras_cli_regression
     ],
 )
 def test_dev_deps_and_extras_cli_regression(
@@ -330,6 +335,7 @@ def test_dev_deps_and_extras_cli_regression(
     categories_environment_files: List[Path],
     mamba_exe: Path,
     capsys: "pytest.CaptureFixture[str]",
+    dev_deps_are_empty: bool,
     dev_deps: Optional[bool],
     filter_cats: bool,
     extras: List[str],
@@ -384,16 +390,15 @@ def test_dev_deps_and_extras_cli_regression(
         "lock",
         "--conda",
         str(mamba_exe),
-        "-p",
-        "linux-64",
-        "-k",
-        "explicit",
-        "--filename-template",
-        filename_template,
+        "--platform=linux-64",
+        "--kind=explicit",
+        f"--filename-template={filename_template}",
     ]
 
-    # Add all environment files
+    # Add environment files
     for env_file in categories_environment_files:
+        if dev_deps_are_empty and env_file.name == "environment-dev.yml":
+            continue
         args.extend(["-f", str(env_file)])
 
     # Add optional arguments based on the test case
@@ -432,7 +437,7 @@ def test_dev_deps_and_extras_cli_regression(
     assert "tzcode" in content, "Main category dependency should always be present"
 
     # Check for dev category dependency
-    should_have_dev_category = (
+    should_have_dev_category = (not dev_deps_are_empty) and (
         (dev_deps is None or dev_deps is True)  # dev_dependencies is True by default
         or "dev" in extras
     )
