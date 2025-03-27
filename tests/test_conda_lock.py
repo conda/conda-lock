@@ -422,9 +422,9 @@ def test_lock_poetry_ibis(
         all_categories.update(pkg.categories)
 
     for desired_category in extra_categories:
-        assert (
-            desired_category in all_categories
-        ), "Extra category not found in lockfile"
+        assert desired_category in all_categories, (
+            "Extra category not found in lockfile"
+        )
 
 
 def test_parse_environment_file(gdal_environment: Path):
@@ -873,9 +873,9 @@ def test_poetry_no_pypi_multiple_pyprojects(
         src_files=poetry_pyproject_toml_no_pypi_other_projects,
         mapping_url=DEFAULT_MAPPING_URL,
     )
-    assert (
-        spec.allow_pypi_requests is True
-    ), "PyPI requests should be allowed when all pyprojects.toml allow PyPI requests"
+    assert spec.allow_pypi_requests is True, (
+        "PyPI requests should be allowed when all pyprojects.toml allow PyPI requests"
+    )
     spec = make_lock_spec(
         src_files=[
             *poetry_pyproject_toml_no_pypi_other_projects,
@@ -883,9 +883,9 @@ def test_poetry_no_pypi_multiple_pyprojects(
         ],
         mapping_url=DEFAULT_MAPPING_URL,
     )
-    assert (
-        spec.allow_pypi_requests is False
-    ), "PyPI requests should be forbidden when at least one pyproject.toml forbids PyPI requests"
+    assert spec.allow_pypi_requests is False, (
+        "PyPI requests should be forbidden when at least one pyproject.toml forbids PyPI requests"
+    )
 
 
 def test_prepare_repositories_pool():
@@ -1168,9 +1168,9 @@ def test_explicit_toposorted() -> None:
             if dep.startswith("__"):
                 # This is a virtual package, so we don't need to check it
                 continue
-            assert (
-                dep in installed_names
-            ), f"{n=}, {line=}, {name=}, {dep=}, {installed_names=}"
+            assert dep in installed_names, (
+                f"{n=}, {line=}, {name=}, {dep=}, {installed_names=}"
+            )
 
         # Simulate installing the package
         installed_names.add(name)
@@ -1222,9 +1222,9 @@ def test_run_lock_with_input_metadata(
         inputs_metadata["environment.yml"].md5 == "5473161eb8500056d793df7ac720a36f"
     ), "Input md5 didn't match expectation"
     expected_shasum = "1177fb37f73bebd39bba9e504cb03495136b1961126475a5839da2e878b2afda"
-    assert (
-        inputs_metadata["environment.yml"].sha256 == expected_shasum
-    ), "Input shasum didn't match expectation"
+    assert inputs_metadata["environment.yml"].sha256 == expected_shasum, (
+        "Input shasum didn't match expectation"
+    )
 
 
 @pytest.fixture
@@ -1341,15 +1341,15 @@ def test_run_lock_with_git_metadata(
         git_metadata_zlib_environment.parent / DEFAULT_LOCKFILE_NAME
     )
 
-    assert (
-        lockfile.metadata.git_metadata is not None
-    ), "Git metadata was None, should be some value"
-    assert (
-        lockfile.metadata.git_metadata.git_user_name is not None
-    ), "Git metadata user.name was None, should be some value"
-    assert (
-        lockfile.metadata.git_metadata.git_user_email is not None
-    ), "Git metadata user.email was None, should be some value"
+    assert lockfile.metadata.git_metadata is not None, (
+        "Git metadata was None, should be some value"
+    )
+    assert lockfile.metadata.git_metadata.git_user_name is not None, (
+        "Git metadata user.name was None, should be some value"
+    )
+    assert lockfile.metadata.git_metadata.git_user_email is not None, (
+        "Git metadata user.email was None, should be some value"
+    )
     if current_user_name is None:
         config = repo.config_writer()
         config.remove_option("user", "name")
@@ -1380,12 +1380,12 @@ def test_run_lock_with_custom_metadata(
         custom_yaml_metadata.parent / DEFAULT_LOCKFILE_NAME
     )
 
-    assert (
-        lockfile.metadata.custom_metadata is not None
-    ), "Custom metadata was None unexpectedly"
-    assert (
-        lockfile.metadata.custom_metadata == EXPECTED_CUSTOM_FIELDS
-    ), "Custom metadata didn't get written as expected"
+    assert lockfile.metadata.custom_metadata is not None, (
+        "Custom metadata was None unexpectedly"
+    )
+    assert lockfile.metadata.custom_metadata == EXPECTED_CUSTOM_FIELDS, (
+        "Custom metadata didn't get written as expected"
+    )
 
 
 def test_run_lock_blas_mkl(
@@ -3198,9 +3198,9 @@ def test_pip_respects_glibc_version(
     manylinux_pattern = r"manylinux_(\d+)_(\d+).+\.whl"
     # Should return the first match so higher version first.
     manylinux_match = re.search(manylinux_pattern, cryptography_dep.url)
-    assert (
-        manylinux_match
-    ), "No match found for manylinux version in {cryptography_dep.url}"
+    assert manylinux_match, (
+        "No match found for manylinux version in {cryptography_dep.url}"
+    )
 
     manylinux_version = [int(each) for each in manylinux_match.groups()]
     # Make sure the manylinux wheel was built with glibc <= 2.17

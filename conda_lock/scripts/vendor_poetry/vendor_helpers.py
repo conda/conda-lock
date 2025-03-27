@@ -283,11 +283,10 @@ class DependencyData(BaseModel):
             )
         else:
             raise NotImplementedError(
-                f"Found {len(self.discovered_licenses)} " f"licenses for {self.name}."
+                f"Found {len(self.discovered_licenses)} licenses for {self.name}."
             )
         description = (
-            f"{self.name} v{self.version}, "
-            f"licensed as {link}, {self.copyright_line()}."
+            f"{self.name} v{self.version}, licensed as {link}, {self.copyright_line()}."
         )
         return description
 

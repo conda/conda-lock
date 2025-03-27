@@ -452,7 +452,7 @@ def update_specs_for_arch(
                 assert not pinned_filename.exists()
                 with open(pinned_filename, "w") as pinned:
                     for name in set(installed.keys()).difference(update):
-                        pinned.write(f'{name} =={installed[name]["version"]}\n')
+                        pinned.write(f"{name} =={installed[name]['version']}\n")
                 args = [
                     str(conda),
                     "update",
@@ -498,8 +498,8 @@ def update_specs_for_arch(
         updated = {entry["name"]: entry for entry in dryrun_install["actions"]["LINK"]}
         for package in set(installed).difference(updated):
             entry = installed[package]
-            fn = f'{entry["dist_name"]}.tar.bz2'
-            channel = f'{entry["base_url"]}/{entry["platform"]}'
+            fn = f"{entry['dist_name']}.tar.bz2"
+            channel = f"{entry['base_url']}/{entry['platform']}"
             url = f"{channel}/{fn}"
             md5 = locked[package].hash.md5
             if md5 is None:
