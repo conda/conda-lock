@@ -31,6 +31,7 @@ dependencies = [
     "click >=8.0",
     "click-default-group",
     "ensureconda >=1.4.4",
+    "filelock",
     "gitpython >=3.1.30",
     "jinja2",
     # constraint on version comes from poetry and conda
