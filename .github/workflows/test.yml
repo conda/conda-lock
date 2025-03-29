@@ -98,7 +98,7 @@ jobs:
       - uses: mamba-org/setup-micromamba@v2
         with:
           micromamba-url: https://github.com/mamba-org/micromamba-releases/releases/download/${{ env.MICROMAMBA_VERSION }}/micromamba-${{ env.CONDA_PLATFORM }}
-          environment-file: environments/conda-lock.yml
+          environment-file: environments/conda-lock-python-${{ matrix.python-version }}.yaml
           environment-name: conda-lock-dev
           init-shell: bash
           cache-environment: true
