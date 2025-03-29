@@ -97,21 +97,37 @@ jobs:
       - name: Verify Conda platform
         run: echo "Conda platform is $CONDA_PLATFORM"
 
+      - name: Rename conda-lock-python-${{ matrix.python-version }}.yaml to conda-lock.yml
+        # Otherwise, micromamba parses an empty environment.
+        # TODO: Open an issue
+        run: |
+          LOCKFILE_DIR="${RUNNER_TEMP}/conda-lock-dir"
+          mkdir -p "${LOCKFILE_DIR}"
+          cp environments/conda-lock-python-${{ matrix.python-version }}.yaml "${LOCKFILE_DIR}/conda-lock.yml"
+          echo "LOCKFILE_DIR=${LOCKFILE_DIR}"
+          ls -al "${LOCKFILE_DIR}"
+          echo "LOCKFILE_DIR=${LOCKFILE_DIR}" >> $GITHUB_ENV
+
       - uses: mamba-org/setup-micromamba@v2
         with:
           micromamba-url: https://github.com/mamba-org/micromamba-releases/releases/download/${{ env.MICROMAMBA_VERSION }}/micromamba-${{ env.CONDA_PLATFORM }}
-          environment-file: environments/conda-lock.yml
+          environment-file: ${{ env.LOCKFILE_DIR }}/conda-lock.yml
           environment-name: conda-lock-dev
           init-shell: bash
           cache-environment: true
           create-args: >-
-            python=${{ matrix.python-version }} --category=main --category=dev
+            --category=main --category=dev
 
       - name: install conda-lock
         run: |
           which pip
           pip install -e . --no-deps
-          pip check
+
+      - name: run pip check
+        if: ${{ matrix.python-version != '3.13' }}
+        # Ignore wrong version of conda-libmamba-solver for now.
+        # <https://github.com/conda-forge/mamba-feedstock/pull/310#issuecomment-2768731938>
+        run: pip check
 
       - name: run-test
         run: |
