@@ -144,20 +144,35 @@ class Channel(BaseModel):
         expanded_url = self.env_replaced_url()
         return mask_anaconda_token(expanded_url)
 
-    def mamba_token_replaced_url(self) -> str:
-        """Emulate mamba's token replacement in the output URL.
+    def mamba_v1_token_replaced_url(self) -> str:
+        """Emulate mamba's v1 token replacement in the output URL.
 
         This is used to recognize URLs contained in explicit lockfiles created by
         mamba or micromamba. In these lockfiles, the token is censored with *****.
 
         >>> Channel.from_string(
         ...     "https://host.com/t/asdfjkl/channel"
-        ... ).mamba_token_replaced_url()
+        ... ).mamba_v1_token_replaced_url()
         'https://host.com/t/*****/channel'
         """
         expanded_url = self.env_replaced_url()
         _, token = split_anaconda_token(expanded_url)
         return expanded_url.replace(token, "*****", 1) if token else expanded_url
+
+    def mamba_v2_token_replaced_url(self) -> str:
+        """Emulate mamba's v2 token replacement in the output URL.
+
+        This is used to recognize URLs contained in explicit lockfiles created by
+        mamba or micromamba. In these lockfiles, the token is censored with **********.
+
+        >>> Channel.from_string(
+        ...     "https://host.com/t/asdfjkl/channel"
+        ... ).mamba_v2_token_replaced_url()
+        'https://host.com/t/**********/channel'
+        """
+        expanded_url = self.env_replaced_url()
+        _, token = split_anaconda_token(expanded_url)
+        return expanded_url.replace(token, "**********", 1) if token else expanded_url
 
     def __repr_args__(self) -> List[Tuple[str, Any]]:
         """Hide falsy values from repr.
@@ -301,8 +316,11 @@ def normalize_url_with_placeholders(url: str, channels: List[Channel]) -> str:
     ...     "/linux-64/zlib-1.3.1-hb9d3cd8_2.conda#c9f075ab2f33b3bbee9e62d4ad0a6cd8"
     ... )
 
-    Mamba lockfiles are censored with ***** instead of <TOKEN>
-    >>> mamba_url = conda_url.replace("<TOKEN>", "*****")
+    Mamba v1 lockfiles are censored with ***** instead of <TOKEN>
+    >>> mamba_v1_url = conda_url.replace("<TOKEN>", "*****")
+
+    Mamba v2 lockfiles are censored with ********** instead of <TOKEN>
+    >>> mamba_v2_url = conda_url.replace("<TOKEN>", "**********")
 
     Create a channel with a token stored in an env var
     >>> os.environ["MY_C_REPO_TOKEN"] = "some-token"
@@ -317,9 +335,11 @@ def normalize_url_with_placeholders(url: str, channels: List[Channel]) -> str:
 
     Check that the normalized URL is correct for both conda and mamba censorings
     >>> normalized_conda_url = normalize_url_with_placeholders(conda_url, [channel])
-    >>> normalized_mamba_url = normalize_url_with_placeholders(mamba_url, [channel])
+    >>> normalized_mamba_v1_url = normalize_url_with_placeholders(mamba_v1_url, [channel])
+    >>> normalized_mamba_v2_url = normalize_url_with_placeholders(mamba_v2_url, [channel])
     >>> assert normalized_conda_url == expected_normalized_url, normalized_conda_url
-    >>> assert normalized_mamba_url == expected_normalized_url, normalized_mamba_url
+    >>> assert normalized_mamba_v1_url == expected_normalized_url, normalized_mamba_v1_url
+    >>> assert normalized_mamba_v2_url == expected_normalized_url, normalized_mamba_v2_url
 
     Normalization should also work similarly for basic auth
     >>> os.environ["MY_C_USERNAME"] = "user"
@@ -342,11 +362,15 @@ def normalize_url_with_placeholders(url: str, channels: List[Channel]) -> str:
         if url.startswith(candidate1):
             url = url.replace(candidate1, channel.url, 1)
 
-        candidate2 = channel.mamba_token_replaced_url()
+        candidate2 = channel.mamba_v1_token_replaced_url()
         if url.startswith(candidate2):
             url = url.replace(candidate2, channel.url, 1)
 
-        candidate3 = channel.env_replaced_url()
+        candidate3 = channel.mamba_v2_token_replaced_url()
         if url.startswith(candidate3):
             url = url.replace(candidate3, channel.url, 1)
+
+        candidate4 = channel.env_replaced_url()
+        if url.startswith(candidate4):
+            url = url.replace(candidate4, channel.url, 1)
     return url
