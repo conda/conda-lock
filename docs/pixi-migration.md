@@ -9,29 +9,36 @@ Removing pixi from your project is as simple as deleting the files indicated in 
 
 ## Quick example
 
-Use conda-lock and pixi to make a development environment for ibis.
+Use conda-lock and pixi to make a development environment for mypy.
 
 ```sh
+# Install/upgrade conda-lock
 pipx upgrade conda-lock || pipx install --force "conda-lock>=3"
 cd /tmp
-git clone https://github.com/ibis-project/ibis.git
-cd ibis
+git clone https://github.com/python/mypy
+cd mypy
 git checkout -b add-pixi
 echo .pixi >> .gitignore
-git add .gitignore
-git commit -m "Ignore pixi cache directory"
 conda-lock render-lock-spec --kind=pixi.toml --stdout \
     --file=pyproject.toml \
     --channel=conda-forge \
-    --pixi-project-name=ibis \
-    --editable ibis=. \
+    --pixi-project-name=mypy \
+    --editable mypy=. \
     > pixi.toml
+
+# Solve the environment
+pixi update
+# Activate the environment
+pixi shell
+mypy --version
+
+# Commit the changes
+git add .gitignore
+git commit -m "Ignore pixi cache directory"
 git add pixi.toml
 git commit -m "Add pixi.toml configuration"
-pixi update
 git add pixi.lock
 git commit -m "Add pixi.lock lock file"
-pixi shell
 ```
 
 ## The steps to get started
