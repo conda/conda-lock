@@ -4,7 +4,7 @@ import re
 import tarfile
 
 from collections import defaultdict
-from functools import cache, cached_property
+from functools import cache, cached_property  # type: ignore[attr-defined,unused-ignore]
 from io import BytesIO
 from pathlib import Path
 from tempfile import NamedTemporaryFile

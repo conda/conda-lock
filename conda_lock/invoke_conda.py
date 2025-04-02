@@ -168,7 +168,7 @@ def _process_stdout(stdout: IO[str]) -> Iterator[str]:
             yield logline
 
 
-def _stderr_to_log(stderr: IO[str]) -> list[str]:
+def _stderr_to_log(stderr: IO[str]) -> List[str]:
     """Process and log stderr output from a subprocess with configurable log levels.
 
     This function processes stderr output line by line, applying different log levels
