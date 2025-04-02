@@ -393,6 +393,48 @@ def solve_specs_for_arch(
         raise RuntimeError(f"Failed to parse json: '{proc.stdout}'") from e
 
 
+def _get_installed_conda_packages(
+    conda: PathLike,
+    platform: str,
+    prefix: str,
+) -> Dict[str, LinkAction]:
+    """
+    Get the installed conda packages for the given prefix.
+
+    Try to get installed packages, first with --no-pip flag, then without if that fails.
+    The --no-pip flag was added in Conda v2.1.0 (2013), but for mamba/micromamba only in
+    v2.0.7 (March 2025).
+    """
+    try:
+        output = subprocess.check_output(
+            [str(conda), "list", "--no-pip", "-p", prefix, "--json"],
+            env=conda_env_override(platform),
+            stderr=subprocess.STDOUT,
+        )
+    except subprocess.CalledProcessError as e:
+        err_output = (
+            e.output.decode("utf-8") if isinstance(e.output, bytes) else e.output
+        )
+        if "The following argument was not expected: --no-pip" in err_output:
+            logger.warning(
+                f"The '--no-pip' flag is not supported by {conda}. Please consider upgrading."
+            )
+            # Retry without --no-pip
+            output = subprocess.check_output(
+                [str(conda), "list", "-p", prefix, "--json"],
+                env=conda_env_override(platform),
+                stderr=subprocess.STDOUT,
+            )
+        else:
+            # Re-raise if it's a different error.
+            raise
+    decoded_output = output.decode("utf-8")
+    installed: Dict[str, LinkAction] = {
+        entry["name"]: entry for entry in json.loads(decoded_output)
+    }
+    return installed
+
+
 def update_specs_for_arch(
     conda: PathLike,
     specs: List[str],
@@ -422,36 +464,7 @@ def update_specs_for_arch(
     """
 
     with fake_conda_environment(locked.values(), platform=platform) as prefix:
-        # Try to get installed packages, first with --no-pip flag, then without if that fails.
-        # The --no-pip flag was added in Conda v2.1.0 (2013), but for mamba/micromamba only in
-        # v2.0.7 (March 2025).
-        try:
-            output = subprocess.check_output(
-                [str(conda), "list", "--no-pip", "-p", prefix, "--json"],
-                env=conda_env_override(platform),
-                stderr=subprocess.STDOUT,
-            )
-        except subprocess.CalledProcessError as e:
-            err_output = (
-                e.output.decode("utf-8") if isinstance(e.output, bytes) else e.output
-            )
-            if "The following argument was not expected: --no-pip" in err_output:
-                logger.warning(
-                    f"The '--no-pip' flag is not supported by {conda}. Please consider upgrading."
-                )
-                # Retry without --no-pip
-                output = subprocess.check_output(
-                    [str(conda), "list", "-p", prefix, "--json"],
-                    env=conda_env_override(platform),
-                    stderr=subprocess.STDOUT,
-                )
-            else:
-                # Re-raise if it's a different error.
-                raise
-        decoded_output = output.decode("utf-8")
-        installed: Dict[str, LinkAction] = {
-            entry["name"]: entry for entry in json.loads(decoded_output)
-        }
+        installed = _get_installed_conda_packages(conda, platform, prefix)
         spec_for_name = {MatchSpec(v).name: v for v in specs}  # pyright: ignore
         to_update = [
             spec_for_name[name] for name in set(installed).intersection(update)

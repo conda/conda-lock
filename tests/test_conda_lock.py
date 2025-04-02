@@ -50,6 +50,7 @@ from conda_lock.conda_lock import (
     run_lock,
 )
 from conda_lock.conda_solver import (
+    _get_installed_conda_packages,
     _get_pkgs_dirs,
     extract_json_object,
     fake_conda_environment,
@@ -70,7 +71,6 @@ from conda_lock.lockfile.v2prelim.models import (
 from conda_lock.lookup import DEFAULT_MAPPING_URL, conda_name_to_pypi_name
 from conda_lock.models.channel import Channel
 from conda_lock.models.lock_spec import (
-    Dependency,
     PathDependency,
     VCSDependency,
     VersionedDependency,
@@ -2792,9 +2792,7 @@ def test_fake_conda_env(conda_exe: str, conda_lock_yaml: Path):
     with fake_conda_environment(
         lockfile_content.package, platform="linux-64"
     ) as prefix:
-        cmd = [str(conda_exe), "list", "--debug", "--no-pip", "-p", prefix, "--json"]
-        result = subprocess.check_output(cmd)
-        packages = json.loads(result)
+        packages = _get_installed_conda_packages(conda_exe, "linux-64", prefix)
         locked = {
             p.name: p
             for p in lockfile_content.package
@@ -2803,7 +2801,7 @@ def test_fake_conda_env(conda_exe: str, conda_lock_yaml: Path):
         if len(packages) != len(locked):
             # There's a discrepancy. Do further analysis and raise an error.
             locked_names = set(locked.keys())
-            package_names = {p["name"] for p in packages}
+            package_names = set(packages.keys())
             if len(package_names) != len(packages):
                 raise RuntimeError(
                     f"Found duplicate packages in conda list output: {packages}"
@@ -2815,7 +2813,7 @@ def test_fake_conda_env(conda_exe: str, conda_lock_yaml: Path):
                 f"{len(locked)} in lockfile: {not_locked} not in lockfile, "
                 f"{extra_locked} in lockfile but not in conda list output"
             )
-        for env_package in packages:
+        for env_package in packages.values():
             locked_package = locked[env_package["name"]]
 
             platform = env_package["platform"]
