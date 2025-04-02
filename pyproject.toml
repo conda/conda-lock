@@ -30,7 +30,9 @@ dependencies = [
     # conda-lock dependencies
     "click >=8.0",
     "click-default-group",
-    "ensureconda >=1.4.4",
+    # ensureconda v1.4.7 introduced locking for downloads which fixed
+    # frequent CI failures on Windows.
+    "ensureconda >=1.4.7",
     "filelock",
     "gitpython >=3.1.30",
     "jinja2",

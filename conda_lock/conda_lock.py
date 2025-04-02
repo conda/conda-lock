@@ -224,17 +224,16 @@ def do_conda_install(
     copy_arg = ["--copy"] if kind != "env" and copy else []
     yes_arg = ["--yes"] if kind != "env" else []
 
-    _conda(
-        [
-            *env_prefix,
-            "create",
-            "--quiet",
-            *copy_arg,
-            "--file",
-            str(file),
-            *yes_arg,
-        ],
-    )
+    additional_args = [
+        *env_prefix,
+        "create",
+        "--quiet",
+        *copy_arg,
+        "--file",
+        str(file),
+        *yes_arg,
+    ]
+    _conda(additional_args)
 
     if not pip_requirements:
         return

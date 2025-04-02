@@ -16,7 +16,8 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  MICROMAMBA_VERSION: '2.0.6.rc1-0'
+  # See also the same variable in integration-test.yml
+  MICROMAMBA_VERSION: 'latest'
 
 jobs:
   test:
@@ -110,7 +111,9 @@ jobs:
 
       - uses: mamba-org/setup-micromamba@v2
         with:
-          micromamba-url: https://github.com/mamba-org/micromamba-releases/releases/download/${{ env.MICROMAMBA_VERSION }}/micromamba-${{ env.CONDA_PLATFORM }}
+          micromamba-version: ${{ env.MICROMAMBA_VERSION }}
+          # # Use micromamba-url instead of micromamba-version to test prereleases
+          # micromamba-url: https://github.com/mamba-org/micromamba-releases/releases/download/${{ env.MICROMAMBA_VERSION }}/micromamba-${{ env.CONDA_PLATFORM }}
           environment-file: ${{ env.LOCKFILE_DIR }}/conda-lock.yml
           environment-name: conda-lock-dev
           init-shell: bash
