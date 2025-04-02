@@ -16,7 +16,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  MICROMAMBA_VERSION: 'latest'
+  MICROMAMBA_VERSION: '1.5.12-0'
 
 jobs:
   test-windows:
@@ -35,6 +35,7 @@ jobs:
           init-shell: powershell
           create-args: >-
             python=3.12
+            mamba<2
 
       - name: install conda-lock
         run: |
@@ -73,7 +74,8 @@ jobs:
           environment-file: environments/dev-environment.yaml
           init-shell: bash
           create-args: >-
-            python=${{ matrix.python-version }}
+            python=${{ matrix.python-version }}.*
+            mamba<2
 
       - name: install conda-lock
         shell: bash -eo pipefail -l {0}
