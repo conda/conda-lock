@@ -167,17 +167,16 @@ Named environments are specified by selecting some mutually compatible features.
 Then each named environment is solved for independently.
 
 There is also a default environment, and it can be overridden.
-We override the default environment to include all categories.
+For convenience, we override the default environment to include all categories.
 
-...
+#### The default feature and environment
 
-#### The default feature
+Dependencies specified under `[dependencies]` or `[pypi-dependencies]` are grouped into the default feature.
+All environments implicitly include the default feature.
 
-Explain the implicit default feature, and how it is used by `pixi.toml` tables that do not specify a feature.
-
-Also explain the default environment.
-
-All environments implicitly include the default feature!
+In contrast, the `default` environment is simply the environment that is used when no environment is specified.
+Unless otherwise specified, the `default` environment includes only the default feature.
+But in practice, one often wants to default to a "batteries-included" environment.
 
 ## Infrastructure
 
@@ -190,3 +189,7 @@ For periodically updating the lock file, you can use [pixi-diff-to-markdown](htt
 ### Docker
 
 See [pixi-docker](https://github.com/prefix-dev/pixi-docker).
+
+## Contributions welcome
+
+We would be delighted to receive PRs to improve and extend both this guide and `conda-lock render-lock-spec`.
