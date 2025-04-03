@@ -95,6 +95,8 @@ def _download_to_or_read_from_cache(
     # Return the contents immediately if the file is fresh
     if destination.is_file():
         age_seconds = get_age_seconds(destination)
+        if age_seconds is None:
+            raise RuntimeError(f"Error checking age of {destination}")
         if 0 <= age_seconds < dont_check_if_newer_than_seconds:
             logger.debug(
                 f"Using cached mapping {destination} of age {age_seconds}s "
@@ -161,18 +163,27 @@ def clear_old_files_from_cache(cache: Path, *, max_age_seconds: float) -> None:
         )
     for file in cache.iterdir():
         age_seconds = get_age_seconds(file)
-        if age_seconds < 0 or age_seconds >= max_age_seconds:
-            logger.debug(f"Removing old cache file {file} of age {age_seconds}s")
-            file.unlink()
+        if age_seconds is None:
+            # The file was probably already deleted.
+            pass
+        elif age_seconds < 0 or age_seconds >= max_age_seconds:
+            try:
+                file.unlink()
+                logger.debug(f"Removed old cache file {file} of age {age_seconds}s")
+            except FileNotFoundError:
+                pass
 
 
-def get_age_seconds(path: Path) -> float:
+def get_age_seconds(path: Path) -> Optional[float]:
     """Return the age of a file in seconds.
 
     On Windows, the age of a new file is sometimes slightly negative, so we add a small
     offset to ensure that the age is positive.
     """
-    raw_age = datetime.now().timestamp() - path.stat().st_mtime
+    try:
+        raw_age = datetime.now().timestamp() - path.stat().st_mtime
+    except FileNotFoundError:
+        return None
     if platform.system() == "Windows":
         return raw_age + WINDOWS_TIME_EPSILON
     else:

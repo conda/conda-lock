@@ -3,12 +3,14 @@ import logging
 import os
 import pathlib
 import shlex
+import shutil
 import subprocess
 import sys
 import tempfile
 import time
 
 from contextlib import contextmanager
+from textwrap import dedent
 from typing import (
     Any,
     Dict,
@@ -391,6 +393,48 @@ def solve_specs_for_arch(
         raise RuntimeError(f"Failed to parse json: '{proc.stdout}'") from e
 
 
+def _get_installed_conda_packages(
+    conda: PathLike,
+    platform: str,
+    prefix: str,
+) -> Dict[str, LinkAction]:
+    """
+    Get the installed conda packages for the given prefix.
+
+    Try to get installed packages, first with --no-pip flag, then without if that fails.
+    The --no-pip flag was added in Conda v2.1.0 (2013), but for mamba/micromamba only in
+    v2.0.7 (March 2025).
+    """
+    try:
+        output = subprocess.check_output(
+            [str(conda), "list", "--no-pip", "-p", prefix, "--json"],
+            env=conda_env_override(platform),
+            stderr=subprocess.STDOUT,
+        )
+    except subprocess.CalledProcessError as e:
+        err_output = (
+            e.output.decode("utf-8") if isinstance(e.output, bytes) else e.output
+        )
+        if "The following argument was not expected: --no-pip" in err_output:
+            logger.warning(
+                f"The '--no-pip' flag is not supported by {conda}. Please consider upgrading."
+            )
+            # Retry without --no-pip
+            output = subprocess.check_output(
+                [str(conda), "list", "-p", prefix, "--json"],
+                env=conda_env_override(platform),
+                stderr=subprocess.STDOUT,
+            )
+        else:
+            # Re-raise if it's a different error.
+            raise
+    decoded_output = output.decode("utf-8")
+    installed: Dict[str, LinkAction] = {
+        entry["name"]: entry for entry in json.loads(decoded_output)
+    }
+    return installed
+
+
 def update_specs_for_arch(
     conda: PathLike,
     specs: List[str],
@@ -420,15 +464,7 @@ def update_specs_for_arch(
     """
 
     with fake_conda_environment(locked.values(), platform=platform) as prefix:
-        installed: Dict[str, LinkAction] = {
-            entry["name"]: entry
-            for entry in json.loads(
-                subprocess.check_output(
-                    [str(conda), "list", "-p", prefix, "--json"],
-                    env=conda_env_override(platform),
-                )
-            )
-        }
+        installed = _get_installed_conda_packages(conda, platform, prefix)
         spec_for_name = {MatchSpec(v).name: v for v in specs}  # pyright: ignore
         to_update = [
             spec_for_name[name] for name in set(installed).intersection(update)
@@ -452,7 +488,7 @@ def update_specs_for_arch(
                 assert not pinned_filename.exists()
                 with open(pinned_filename, "w") as pinned:
                     for name in set(installed.keys()).difference(update):
-                        pinned.write(f'{name} =={installed[name]["version"]}\n')
+                        pinned.write(f"{name} =={installed[name]['version']}\n")
                 args = [
                     str(conda),
                     "update",
@@ -469,11 +505,13 @@ def update_specs_for_arch(
                     "update" if is_micromamba(conda) else "install",
                     *_get_conda_flags(channels=channels, platform=platform),
                 ]
+            cmd = [
+                str(arg)
+                for arg in [*args, "-p", prefix, "--json", "--dry-run", *to_update]
+            ]
+            logger.debug(f"Running command {shlex.join(cmd)}")
             proc = subprocess.run(  # noqa: UP022  # Poetry monkeypatch breaks capture_output
-                [
-                    str(arg)
-                    for arg in [*args, "-p", prefix, "--json", "--dry-run", *to_update]
-                ],
+                cmd,
                 env=conda_env_override(platform),
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
@@ -498,8 +536,8 @@ def update_specs_for_arch(
         updated = {entry["name"]: entry for entry in dryrun_install["actions"]["LINK"]}
         for package in set(installed).difference(updated):
             entry = installed[package]
-            fn = f'{entry["dist_name"]}.tar.bz2'
-            channel = f'{entry["base_url"]}/{entry["platform"]}'
+            fn = f"{entry['dist_name']}.tar.bz2"
+            channel = f"{entry['base_url']}/{entry['platform']}"
             url = f"{channel}/{fn}"
             md5 = locked[package].hash.md5
             if md5 is None:
@@ -580,4 +618,80 @@ def fake_conda_environment(
 
             with open(conda_meta / (truncated_path.name + ".json"), "w") as f:
                 json.dump(entry, f, indent=2)
+            make_fake_python_binary(prefix)
         yield prefix
+
+
+def make_fake_python_binary(prefix: str) -> None:
+    """Create a fake python binary in the given prefix.
+
+    Our fake Conda environment contains metadata indicating that `python`
+    is installed in the prefix, however no packages are installed.
+
+    This is intended to prevent failure of `PrefixData.load_site_packages`
+    which was introduced in libmamba v2. That function invokes the command
+    `python -q -m pip inspect --local` to check for installed pip packages,
+    where the `python` binary is the one in the conda prefix. Our fake
+    prefix only contains the package metadata records, not the actual
+    packages or binaries. At this stage for conda-lock, we are only
+    interested in the conda packages, so we spoof the `python` binary
+    to return an empty stdout so that things proceed without error.
+    """
+    # Write the fake Python script to a file
+    fake_python_script = pathlib.Path(prefix) / "fake_python_script.py"
+    fake_python_script.write_text(
+        dedent(
+            """\
+            import sys
+            import shlex
+
+            cmd = shlex.join(sys.argv)
+
+            stderr_message = f'''\
+            This is a fake python binary generated by conda-lock.
+
+            It prevents libmamba from failing when it tries to check for installed \
+            pip packages.
+
+            For more details, see the docstring for `make_fake_python_binary`.
+
+            This was called as:
+                {cmd}
+            '''
+
+            print(stderr_message, file=sys.stderr, flush=True, end='')
+
+            if "-m pip" in cmd:
+                # Simulate an empty `pip inspect` output
+                print('{}', flush=True)
+            else:
+                raise RuntimeError("Expected to invoke pip module with `-m pip`.")
+            """
+        )
+    )
+
+    if sys.platform == "win32":
+        # On Windows, copy sys.executable to prefix/Scripts/python.exe
+        fake_python_binary = pathlib.Path(prefix) / "Scripts" / "python.exe"
+        fake_python_binary.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(sys.executable, fake_python_binary)
+
+        # Adjust the environment to ensure our fake script is executed
+        # Create a wrapper batch file that sets PYTHONPATH
+        wrapper_batch = pathlib.Path(prefix) / "Scripts" / "python.bat"
+        wrapper_batch_content = dedent(f"""\
+            @echo off
+            set PYTHONPATH={prefix};%PYTHONPATH%
+            "{fake_python_binary}" %*
+        """)
+        wrapper_batch.write_text(wrapper_batch_content)
+    else:
+        # On Unix-like systems, create a shell script that calls the script
+        fake_python_binary = pathlib.Path(prefix) / "bin" / "python"
+        fake_python_binary.parent.mkdir(parents=True, exist_ok=True)
+        shell_script_content = dedent(f"""\
+            #!/usr/bin/env sh
+            "{sys.executable}" "{fake_python_script}" "$@"
+        """)
+        fake_python_binary.write_text(shell_script_content)
+        fake_python_binary.chmod(0o755)

@@ -7,7 +7,12 @@ on:
   - cron: 28 5 * * MON,THU
 
 jobs:
-  conda-lock:
+  create-lockfiles:
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: [ "3.9", "3.13" ]
+
     # Don't run scheduled job on forks. Ref: <https://github.com/orgs/community/discussions/26684#discussioncomment-3252843>
     if: (github.event_name == 'schedule' && github.repository == 'conda/conda-lock') || (github.event_name != 'schedule')
     defaults:
@@ -29,11 +34,30 @@ jobs:
 
     - name: Run conda-lock to recreate lockfile from scratch
       run: |
-        rm environments/conda-lock.yml
+        PYTHON_VERSION=${{ matrix.python-version }}
+        rm environments/conda-lock-python-${PYTHON_VERSION}.yaml
         conda-lock \
             --file=environments/dev-environment.yaml \
+            --file=environments/python-${PYTHON_VERSION}.yaml \
             --file=pyproject.toml \
-            --lockfile=environments/conda-lock.yml
+            --lockfile=environments/conda-lock-python-${PYTHON_VERSION}.yaml
+
+    - name: Upload lockfile
+      uses: actions/upload-artifact@v4
+      with:
+        name: conda-lock-python-${{ matrix.python-version }}
+        path: environments/conda-lock-python-${{ matrix.python-version }}.yaml
+
+  create-pr:
+    needs: create-lockfiles
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@eef61447b9ff4aafe5dcd4e0bbf5d482be7e7871 # v4
+
+    - name: Download all lockfiles
+      uses: actions/download-artifact@v4
+      with:
+        path: environments/
 
     - name: Open a pull request
       uses: peter-evans/create-pull-request@v7

@@ -233,12 +233,13 @@ def test_stderr_to_log_gh770(
             (expected_default_level, "hi"),  # Test short line
         ]
 
+    assert len(caplog.records) == len(expected_records)
     for record, (expected_level, expected_message) in zip(
-        caplog.records, expected_records, strict=True
+        caplog.records, expected_records
     ):
-        assert (
-            record.levelname == expected_level
-        ), f"Expected level {expected_level} but got {record.levelname}"
-        assert (
-            record.message == expected_message
-        ), f"Expected message '{expected_message}' but got '{record.message}'"
+        assert record.levelname == expected_level, (
+            f"Expected level {expected_level} but got {record.levelname}"
+        )
+        assert record.message == expected_message, (
+            f"Expected message '{expected_message}' but got '{record.message}'"
+        )

@@ -315,7 +315,7 @@ def get_dependency(dep: lock_spec.Dependency) -> PoetryDependency:
     elif isinstance(dep, lock_spec.URLDependency):
         return PoetryURLDependency(
             name=dep.name,
-            url=f"{dep.url}#{dep.hashes[0].replace(':','=')}",
+            url=f"{dep.url}#{dep.hashes[0].replace(':', '=')}",
             extras=extras,
         )
     elif isinstance(dep, lock_spec.VCSDependency):

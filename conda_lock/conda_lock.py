@@ -10,6 +10,7 @@ import os
 import pathlib
 import posixpath
 import re
+import subprocess
 import sys
 import tempfile
 
@@ -223,17 +224,16 @@ def do_conda_install(
     copy_arg = ["--copy"] if kind != "env" and copy else []
     yes_arg = ["--yes"] if kind != "env" else []
 
-    _conda(
-        [
-            *env_prefix,
-            "create",
-            "--quiet",
-            *copy_arg,
-            "--file",
-            str(file),
-            *yes_arg,
-        ],
-    )
+    additional_args = [
+        *env_prefix,
+        "create",
+        "--quiet",
+        *copy_arg,
+        "--file",
+        str(file),
+        *yes_arg,
+    ]
+    _conda(additional_args)
 
     if not pip_requirements:
         return
@@ -1154,6 +1154,11 @@ def run_lock(
         conda_exe, mamba=mamba, micromamba=micromamba
     )
     logger.debug(f"Using conda executable: {_conda_exe}")
+    version_info = subprocess.check_output(
+        [_conda_exe, "--version"], encoding="utf-8"
+    ).strip()
+    logger.debug(f"Executable has version: {version_info}")
+
     make_lock_files(
         conda=_conda_exe,
         src_files=environment_files,

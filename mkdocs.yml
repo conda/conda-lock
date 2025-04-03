@@ -47,7 +47,9 @@ nav:
     - environment.yml: src_environment_yml.md
     - meta.yaml: src_meta_yaml.md
     - pyproject.toml: src_pyproject.md
-  - Output Formats: output.md
+  - Output Formats:
+    - Lockfile: output.md
+    - pixi: pixi-migration.md
   - Pip integration: pip.md
   - Flags: flags.md
   - Authenticated Channels: authenticated_channels.md
@@ -61,6 +63,7 @@ extra:
   team:
     - name: "Active maintainers"
       members:
+        - maresb
         - mariusvniekerk
   social:
     - icon: fontawesome/brands/github
