@@ -1,0 +1,7 @@
+category: test
+dependencies:
+  - pylint
+  - pytest
+  - ruff
+platform:
+  - linux-64
