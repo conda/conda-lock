@@ -6,7 +6,7 @@ import pathlib
 
 from collections import defaultdict
 from types import TracebackType
-from typing import Any, Dict, Iterable, List, Optional, Set, Tuple, Type
+from typing import Any, DefaultDict, Dict, Iterable, List, Optional, Set, Tuple, Type
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
@@ -37,9 +37,9 @@ class FakePackage(BaseModel):
     def to_repodata_entry(self) -> Tuple[str, Dict[str, Any]]:
         out = self.model_dump()
         if self.build_string:
-            build = f"{self.build_string}_{self.build_number}"
+            build = self.build_string
         else:
-            build = f"{self.build_number}"
+            build = str(self.build_number)
         out["depends"] = list(out["depends"])
         out["build"] = build
         fname = f"{self.name}-{self.version}-{build}.tar.bz2"
@@ -48,8 +48,8 @@ class FakePackage(BaseModel):
 
 class FakeRepoData(BaseModel):
     base_path: pathlib.Path
-    packages_by_subdir: Dict[FakePackage, Set[str]] = Field(
-        default_factory=lambda: defaultdict(set)
+    packages_by_subdir: DefaultDict[FakePackage, Set[str]] = Field(
+        default_factory=lambda: defaultdict(set)  # type: ignore[arg-type,unused-ignore]
     )
     all_subdirs: Set[str] = {
         "noarch",
@@ -60,7 +60,7 @@ class FakeRepoData(BaseModel):
         "osx-arm64",
         "win-64",
     }
-    all_repodata: Dict[str, dict] = {}
+    all_repodata: Dict[str, Dict[str, Any]] = {}
     hash: Optional[str] = None
     old_env_vars: Dict[str, Optional[str]] = {}
 
@@ -73,7 +73,9 @@ class FakeRepoData(BaseModel):
 
     @property
     def channel(self) -> Channel:
-        return Channel(url=self.channel_url, used_env_vars=frozenset([]))
+        # The URL is a file path, so there are no env vars. Thus we use the
+        # raw Channel constructor here rather than the usual Channel.from_string().
+        return Channel(url=self.channel_url, used_env_vars=())
 
     @property
     def channel_url_posix(self) -> str:

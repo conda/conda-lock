@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from contextlib import suppress
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -38,13 +37,10 @@ class BuildSystem:
                 except ValueError:
                     # PEP 517 requires can be path if not PEP 508
                     path = Path(requirement)
-                    # compatibility Python < 3.8
-                    # https://docs.python.org/3/library/pathlib.html#methods
-                    with suppress(OSError):
-                        if path.is_file():
-                            dependency = FileDependency(name=path.name, path=path)
-                        elif path.is_dir():
-                            dependency = DirectoryDependency(name=path.name, path=path)
+                    if path.is_file():
+                        dependency = FileDependency(name=path.name, path=path)
+                    elif path.is_dir():
+                        dependency = DirectoryDependency(name=path.name, path=path)
 
                 if dependency is None:
                     # skip since we could not determine requirement

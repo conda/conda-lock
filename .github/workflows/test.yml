@@ -16,10 +16,8 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  # # Temporarily pin the version due to
-  # # <https://github.com/mamba-org/mamba/issues/3467>
-  # MICROMAMBA_VERSION: 'latest'
-  MICROMAMBA_VERSION: '1.5.10-0'
+  # See also the same variable in integration-test.yml
+  MICROMAMBA_VERSION: 'latest'
 
 jobs:
   test:
@@ -29,7 +27,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ ubuntu, macos, windows ]
-        python-version: [ "3.8", "3.12" ]
+        python-version: [ "3.9", "3.13" ]
 
         # pytest-split handles dividing the tests into n groups indexed 1...n.
         # The tests are automatically split so that the expected duration of each
@@ -39,11 +37,6 @@ jobs:
         pytest-split-group-index: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
 
         exclude:
-          - os: windows
-            python-version: "3.8"
-          - os: macos
-            python-version: "3.8"
-
           # Prune the indices so that we only run the splits up to the group size
           # defined below in "include". (This is ugly but effective.)
           - os: ubuntu
@@ -90,22 +83,54 @@ jobs:
       FORCE_COLOR: "1"
     steps:
       - uses: actions/checkout@eef61447b9ff4aafe5dcd4e0bbf5d482be7e7871 # v4
+        with:
+          fetch-depth: 0
+
+      - name: Set Conda platform
+        run: |
+          if [ "$RUNNER_OS" == "Linux" ]; then
+            echo "CONDA_PLATFORM=linux-64" >> $GITHUB_ENV
+          elif [ "$RUNNER_OS" == "macOS" ]; then
+            echo "CONDA_PLATFORM=osx-arm64" >> $GITHUB_ENV
+          elif [ "$RUNNER_OS" == "Windows" ]; then
+            echo "CONDA_PLATFORM=win-64" >> $GITHUB_ENV
+          fi
+      - name: Verify Conda platform
+        run: echo "Conda platform is $CONDA_PLATFORM"
+
+      - name: Rename conda-lock-python-${{ matrix.python-version }}.yaml to conda-lock.yml
+        # Otherwise, micromamba parses an empty environment.
+        # TODO: Open an issue
+        run: |
+          LOCKFILE_DIR="${RUNNER_TEMP}/conda-lock-dir"
+          mkdir -p "${LOCKFILE_DIR}"
+          cp environments/conda-lock-python-${{ matrix.python-version }}.yaml "${LOCKFILE_DIR}/conda-lock.yml"
+          echo "LOCKFILE_DIR=${LOCKFILE_DIR}"
+          ls -al "${LOCKFILE_DIR}"
+          echo "LOCKFILE_DIR=${LOCKFILE_DIR}" >> $GITHUB_ENV
 
       - uses: mamba-org/setup-micromamba@v2
         with:
           micromamba-version: ${{ env.MICROMAMBA_VERSION }}
-          environment-file: environments/conda-lock.yml
+          # # Use micromamba-url instead of micromamba-version to test prereleases
+          # micromamba-url: https://github.com/mamba-org/micromamba-releases/releases/download/${{ env.MICROMAMBA_VERSION }}/micromamba-${{ env.CONDA_PLATFORM }}
+          environment-file: ${{ env.LOCKFILE_DIR }}/conda-lock.yml
           environment-name: conda-lock-dev
           init-shell: bash
           cache-environment: true
           create-args: >-
-            python=${{ matrix.python-version }} --category=main --category=dev
+            --category=main --category=dev
 
       - name: install conda-lock
         run: |
           which pip
           pip install -e . --no-deps
-          pip check
+
+      - name: run pip check
+        if: ${{ matrix.python-version != '3.13' }}
+        # Ignore wrong version of conda-libmamba-solver for now.
+        # <https://github.com/conda-forge/mamba-feedstock/pull/310#issuecomment-2768731938>
+        run: pip check
 
       - name: run-test
         run: |
@@ -120,7 +145,7 @@ jobs:
             --splits="${{ matrix.pytest-split-group-size }}" \
             --group="${{ matrix.pytest-split-group-index }}"
 
-      - uses: codecov/codecov-action@v4
+      - uses: codecov/codecov-action@v5
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
 

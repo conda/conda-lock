@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import collections
 import contextlib
 import functools
@@ -5,7 +7,7 @@ import os
 import re
 import sys
 import warnings
-from typing import Dict, Generator, Iterator, NamedTuple, Optional, Sequence, Tuple
+from typing import Generator, Iterator, NamedTuple, Sequence
 
 from ._elffile import EIClass, EIData, ELFFile, EMachine
 
@@ -17,7 +19,7 @@ EF_ARM_ABI_FLOAT_HARD = 0x00000400
 # `os.PathLike` not a generic type until Python 3.9, so sticking with `str`
 # as the type for `path` until then.
 @contextlib.contextmanager
-def _parse_elf(path: str) -> Generator[Optional[ELFFile], None, None]:
+def _parse_elf(path: str) -> Generator[ELFFile | None, None, None]:
     try:
         with open(path, "rb") as f:
             yield ELFFile(f)
@@ -55,7 +57,15 @@ def _have_compatible_abi(executable: str, archs: Sequence[str]) -> bool:
         return _is_linux_armhf(executable)
     if "i686" in archs:
         return _is_linux_i686(executable)
-    allowed_archs = {"x86_64", "aarch64", "ppc64", "ppc64le", "s390x", "loongarch64"}
+    allowed_archs = {
+        "x86_64",
+        "aarch64",
+        "ppc64",
+        "ppc64le",
+        "s390x",
+        "loongarch64",
+        "riscv64",
+    }
     return any(arch in allowed_archs for arch in archs)
 
 
@@ -64,7 +74,7 @@ def _have_compatible_abi(executable: str, archs: Sequence[str]) -> bool:
 # For now, guess what the highest minor version might be, assume it will
 # be 50 for testing. Once this actually happens, update the dictionary
 # with the actual value.
-_LAST_GLIBC_MINOR: Dict[int, int] = collections.defaultdict(lambda: 50)
+_LAST_GLIBC_MINOR: dict[int, int] = collections.defaultdict(lambda: 50)
 
 
 class _GLibCVersion(NamedTuple):
@@ -72,7 +82,7 @@ class _GLibCVersion(NamedTuple):
     minor: int
 
 
-def _glibc_version_string_confstr() -> Optional[str]:
+def _glibc_version_string_confstr() -> str | None:
     """
     Primary implementation of glibc_version_string using os.confstr.
     """
@@ -82,7 +92,7 @@ def _glibc_version_string_confstr() -> Optional[str]:
     # https://github.com/python/cpython/blob/fcf1d003bf4f0100c/Lib/platform.py#L175-L183
     try:
         # Should be a string like "glibc 2.17".
-        version_string: str = getattr(os, "confstr")("CS_GNU_LIBC_VERSION")
+        version_string: str | None = os.confstr("CS_GNU_LIBC_VERSION")
         assert version_string is not None
         _, version = version_string.rsplit()
     except (AssertionError, AttributeError, OSError, ValueError):
@@ -91,7 +101,7 @@ def _glibc_version_string_confstr() -> Optional[str]:
     return version
 
 
-def _glibc_version_string_ctypes() -> Optional[str]:
+def _glibc_version_string_ctypes() -> str | None:
     """
     Fallback implementation of glibc_version_string using ctypes.
     """
@@ -135,12 +145,12 @@ def _glibc_version_string_ctypes() -> Optional[str]:
     return version_str
 
 
-def _glibc_version_string() -> Optional[str]:
+def _glibc_version_string() -> str | None:
     """Returns glibc version string, or None if not using glibc."""
     return _glibc_version_string_confstr() or _glibc_version_string_ctypes()
 
 
-def _parse_glibc_version(version_str: str) -> Tuple[int, int]:
+def _parse_glibc_version(version_str: str) -> tuple[int, int]:
     """Parse glibc version.
 
     We use a regexp instead of str.split because we want to discard any
@@ -154,13 +164,14 @@ def _parse_glibc_version(version_str: str) -> Tuple[int, int]:
             f"Expected glibc version with 2 components major.minor,"
             f" got: {version_str}",
             RuntimeWarning,
+            stacklevel=2,
         )
         return -1, -1
     return int(m.group("major")), int(m.group("minor"))
 
 
-@functools.lru_cache()
-def _get_glibc_version() -> Tuple[int, int]:
+@functools.lru_cache
+def _get_glibc_version() -> tuple[int, int]:
     version_str = _glibc_version_string()
     if version_str is None:
         return (-1, -1)
@@ -174,7 +185,7 @@ def _is_compatible(arch: str, version: _GLibCVersion) -> bool:
         return False
     # Check for presence of _manylinux module.
     try:
-        import _manylinux  # noqa
+        import _manylinux
     except ImportError:
         return True
     if hasattr(_manylinux, "manylinux_compatible"):

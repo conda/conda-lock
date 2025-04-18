@@ -259,7 +259,7 @@ def test_concurrent_cached_download_file(tmp_path):
     thread_names_calling_requests_get: queue.Queue[str] = queue.Queue()
 
     def mock_get(*args, **kwargs):
-        time.sleep(5.2)
+        time.sleep(6)
         response = MagicMock()
         response.content = b"content"
         response.status_code = 200

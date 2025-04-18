@@ -1,22 +1,19 @@
 from __future__ import annotations
 
-import warnings
-
 from typing import TYPE_CHECKING
 from typing import Any
-from typing import Mapping
-from typing import Sequence
 
 from conda_lock._vendor.poetry.core.constraints.version import parse_constraint
-from conda_lock._vendor.poetry.core.version.markers import parse_marker
 
 
 if TYPE_CHECKING:
+    from collections.abc import Mapping
+    from collections.abc import Sequence
+
     from conda_lock._vendor.poetry.core.constraints.version import Version
     from conda_lock._vendor.poetry.core.packages.dependency import Dependency
 
 from conda_lock._vendor.poetry.core.packages.package import Package
-from conda_lock._vendor.poetry.core.packages.utils.utils import create_nested_marker
 
 
 class ProjectPackage(Package):
@@ -24,16 +21,7 @@ class ProjectPackage(Package):
         self,
         name: str,
         version: str | Version,
-        pretty_version: str | None = None,
     ) -> None:
-        if pretty_version is not None:
-            warnings.warn(
-                "The `pretty_version` parameter is deprecated and will be removed"
-                " in a future release.",
-                DeprecationWarning,
-                stacklevel=2,
-            )
-
         super().__init__(name, version)
 
         # Attributes must be immutable for clone() to be safe!
@@ -44,6 +32,10 @@ class ProjectPackage(Package):
         self.include: Sequence[Mapping[str, Any]] = []
         self.exclude: Sequence[Mapping[str, Any]] = []
         self.custom_urls: Mapping[str, str] = {}
+        self._requires_python: str = "*"
+        self.dynamic_classifiers = True
+
+        self.entry_points: Mapping[str, dict[str, str]] = {}
 
         if self._python_versions == "*":
             self._python_constraint = parse_constraint("~2.7 || >=3.4")
@@ -63,6 +55,15 @@ class ProjectPackage(Package):
         return dependency
 
     @property
+    def requires_python(self) -> str:
+        return self._requires_python
+
+    @requires_python.setter
+    def requires_python(self, value: str) -> None:
+        self._requires_python = value
+        self.python_versions = value
+
+    @property
     def python_versions(self) -> str:
         return self._python_versions
 
@@ -71,12 +72,23 @@ class ProjectPackage(Package):
         self._python_versions = value
 
         if value == "*":
+            if self._requires_python != "*":
+                raise ValueError(
+                    f'The Python constraint in [tool.poetry.dependencies] "{value}"'
+                    ' is not a subset of "requires-python" in [project]'
+                    f' "{self._requires_python}"'
+                )
             value = "~2.7 || >=3.4"
 
         self._python_constraint = parse_constraint(value)
-        self._python_marker = parse_marker(
-            create_nested_marker("python_version", self._python_constraint)
-        )
+        if not parse_constraint(self._requires_python).allows_all(
+            self._python_constraint
+        ):
+            raise ValueError(
+                f'The Python constraint in [tool.poetry.dependencies] "{value}"'
+                ' is not a subset of "requires-python" in [project]'
+                f' "{self._requires_python}"'
+            )
 
     @property
     def version(self) -> Version:
@@ -86,6 +98,13 @@ class ProjectPackage(Package):
     @version.setter
     def version(self, value: str | Version) -> None:
         self._set_version(value)
+
+    @property
+    def all_classifiers(self) -> list[str]:
+        if self.dynamic_classifiers:
+            return super().all_classifiers
+
+        return list(self.classifiers)
 
     @property
     def urls(self) -> dict[str, str]:

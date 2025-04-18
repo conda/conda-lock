@@ -6,11 +6,13 @@ from conda_lock._vendor.poetry.core.utils.helpers import readme_content_type
 
 
 if TYPE_CHECKING:
-    from conda_lock._vendor.poetry.core.packages.package import Package
+    from packaging.utils import NormalizedName
+
+    from conda_lock._vendor.poetry.core.packages.project_package import ProjectPackage
 
 
 class Metadata:
-    metadata_version = "2.1"
+    metadata_version = "2.3"
     # version 1.0
     name: str | None = None
     version: str
@@ -41,10 +43,10 @@ class Metadata:
 
     # Version 2.1
     description_content_type: str | None = None
-    provides_extra: list[str] = []  # noqa: RUF012
+    provides_extra: list[NormalizedName] = []  # noqa: RUF012
 
     @classmethod
-    def from_package(cls, package: Package) -> Metadata:
+    def from_package(cls, package: ProjectPackage) -> Metadata:
         from conda_lock._vendor.poetry.core.version.helpers import format_python_constraint
 
         meta = cls()
@@ -52,11 +54,25 @@ class Metadata:
         meta.name = package.pretty_name
         meta.version = package.version.to_string()
         meta.summary = package.description
-        if package.readmes:
+        if package.readme_content:
+            meta.description = package.readme_content
+        elif package.readmes:
             descriptions = []
             for readme in package.readmes:
-                with readme.open(encoding="utf-8") as f:
-                    descriptions.append(f.read())
+                try:
+                    descriptions.append(readme.read_text(encoding="utf-8"))
+                except FileNotFoundError as e:
+                    raise FileNotFoundError(
+                        f"Readme path `{readme}` does not exist."
+                    ) from e
+                except IsADirectoryError as e:
+                    raise IsADirectoryError(
+                        f"Readme path `{readme}` is a directory."
+                    ) from e
+                except PermissionError as e:
+                    raise PermissionError(
+                        f"Readme path `{readme}` is not readable."
+                    ) from e
             meta.description = "\n".join(descriptions)
 
         meta.keywords = ",".join(package.keywords)
@@ -74,22 +90,23 @@ class Metadata:
         meta.maintainer_email = package.maintainer_email
 
         # Requires python
-        if package.python_versions != "*":
+        if package.requires_python != "*":
+            meta.requires_python = package.requires_python
+        elif package.python_versions != "*":
             meta.requires_python = format_python_constraint(package.python_constraint)
 
         meta.requires_dist = [d.to_pep_508() for d in package.requires]
 
         # Version 2.1
-        if package.readmes:
+        if package.readme_content_type:
+            meta.description_content_type = package.readme_content_type
+        elif package.readmes:
             meta.description_content_type = readme_content_type(package.readmes[0])
 
         meta.provides_extra = list(package.extras)
 
-        if package.urls:
-            for name, url in package.urls.items():
-                if name == "Homepage" and meta.home_page == url:
-                    continue
-
-                meta.project_urls += (f"{name}, {url}",)
+        meta.project_urls = tuple(
+            f"{name}, {url}" for name, url in package.urls.items()
+        )
 
         return meta

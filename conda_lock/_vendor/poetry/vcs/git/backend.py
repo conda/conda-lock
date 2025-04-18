@@ -54,14 +54,14 @@ class GitRefSpec:
     tag: str | None = None
     ref: bytes = dataclasses.field(default_factory=lambda: b"HEAD")
 
-    def resolve(self, remote_refs: FetchPackResult) -> None:
+    def resolve(self, remote_refs: FetchPackResult, repo: Repo) -> None:
         """
         Resolve the ref using the provided remote refs.
         """
-        self._normalise(remote_refs=remote_refs)
+        self._normalise(remote_refs=remote_refs, repo=repo)
         self._set_head(remote_refs=remote_refs)
 
-    def _normalise(self, remote_refs: FetchPackResult) -> None:
+    def _normalise(self, remote_refs: FetchPackResult, repo: Repo) -> None:
         """
         Internal helper method to determine if given revision is
             1. a branch or tag; if so, set corresponding properties.
@@ -98,7 +98,12 @@ class GitRefSpec:
             for sha in remote_refs.refs.values():
                 if sha.startswith(short_sha):
                     self.revision = sha.decode("utf-8")
-                    break
+                    return
+
+            # no heads with such SHA, let's check all objects
+            for sha in repo.object_store.iter_prefix(short_sha):
+                self.revision = sha.decode("utf-8")
+                return
 
     def _set_head(self, remote_refs: FetchPackResult) -> None:
         """
@@ -134,7 +139,9 @@ class GitRefSpec:
 
     @property
     def is_ref(self) -> bool:
-        return self.branch is not None and self.branch.startswith("refs/")
+        return self.branch is not None and (
+            self.branch.startswith("refs/") or self.branch == "HEAD"
+        )
 
     @property
     def is_sha_short(self) -> bool:
@@ -174,7 +181,7 @@ class Git:
     @staticmethod
     def get_revision(repo: Repo) -> str:
         with repo:
-            return repo.head().decode("utf-8")
+            return repo.get_peeled(b"HEAD").decode("utf-8")
 
     @classmethod
     def info(cls, repo: Repo | Path) -> GitRepoLocalInfo:
@@ -267,7 +274,7 @@ class Git:
         )
 
         try:
-            refspec.resolve(remote_refs=remote_refs)
+            refspec.resolve(remote_refs=remote_refs, repo=local)
         except KeyError:  # branch / ref does not exist
             raise PoetryConsoleError(
                 f"Failed to clone {url} at '{refspec.key}', verify ref exists on"
@@ -310,14 +317,6 @@ class Git:
 
             if isinstance(e, AssertionError) and "Invalid object name" not in str(e):
                 raise
-
-            logger.debug(
-                "\nRequested ref (<c2>%s</c2>) was not fetched to local copy and"
-                " cannot be used. The following error was"
-                " raised:\n\n\t<warning>%s</>",
-                refspec.key,
-                e,
-            )
 
             raise PoetryConsoleError(
                 f"Failed to clone {url} at '{refspec.key}', verify ref exists on"
@@ -395,9 +394,7 @@ class Git:
     def is_using_legacy_client() -> bool:
         from conda_lock._vendor.poetry.config.config import Config
 
-        legacy_client: bool = Config.create().get(
-            "experimental.system-git-client", False
-        )
+        legacy_client: bool = Config.create().get("system-git-client", False)
         return legacy_client
 
     @staticmethod
@@ -434,7 +431,8 @@ class Git:
                     current_repo = Repo(str(target))
 
                     with current_repo:
-                        current_sha = current_repo.head().decode("utf-8")
+                        # we use peeled sha here to ensure tags are resolved consistently
+                        current_sha = current_repo.get_peeled(b"HEAD").decode("utf-8")
                 except (NotGitRepository, AssertionError, KeyError):
                     # something is wrong with the current checkout, clean it
                     remove_directory(target, force=True)

@@ -1,18 +1,16 @@
 from __future__ import annotations
 
+import locale
 import sys
 
 from contextlib import suppress
 
 
-# TODO: use try/except ImportError when
-# https://github.com/python/mypy/issues/1393 is fixed
-
 if sys.version_info < (3, 11):
     # compatibility for python <3.11
     import tomli as tomllib
 else:
-    import tomllib  # nopycln: import
+    import tomllib
 
 
 if sys.version_info < (3, 10):
@@ -50,10 +48,18 @@ def encode(string: str, encodings: list[str] | None = None) -> bytes:
     return string.encode(encodings[0], errors="ignore")
 
 
+def getencoding() -> str:
+    if sys.version_info < (3, 11):
+        return locale.getpreferredencoding()
+    else:
+        return locale.getencoding()
+
+
 __all__ = [
     "WINDOWS",
     "decode",
     "encode",
+    "getencoding",
     "metadata",
     "tomllib",
 ]

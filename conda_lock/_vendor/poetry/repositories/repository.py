@@ -8,10 +8,12 @@ from packaging.utils import canonicalize_name
 from conda_lock._vendor.poetry.core.constraints.version import Version
 
 from conda_lock._vendor.poetry.repositories.abstract_repository import AbstractRepository
-from conda_lock._vendor.poetry.repositories.exceptions import PackageNotFound
+from conda_lock._vendor.poetry.repositories.exceptions import PackageNotFoundError
 
 
 if TYPE_CHECKING:
+    from collections.abc import Sequence
+
     from packaging.utils import NormalizedName
     from conda_lock._vendor.poetry.core.constraints.version import VersionConstraint
     from conda_lock._vendor.poetry.core.packages.dependency import Dependency
@@ -20,7 +22,7 @@ if TYPE_CHECKING:
 
 
 class Repository(AbstractRepository):
-    def __init__(self, name: str, packages: list[Package] | None = None) -> None:
+    def __init__(self, name: str, packages: Sequence[Package] | None = None) -> None:
         super().__init__(name)
         self._packages: list[Package] = []
 
@@ -58,6 +60,8 @@ class Repository(AbstractRepository):
             level="debug",
         )
 
+        if allow_prereleases is False:  # in contrast to None!
+            return packages
         return packages or ignored_pre_release_packages
 
     def has_package(self, package: Package) -> bool:
@@ -69,23 +73,12 @@ class Repository(AbstractRepository):
     def add_package(self, package: Package) -> None:
         self._packages.append(package)
 
-    def remove_package(self, package: Package) -> None:
-        package_id = package.unique_name
-
-        index = None
-        for i, repo_package in enumerate(self.packages):
-            if package_id == repo_package.unique_name:
-                index = i
-                break
-
-        if index is not None:
-            del self._packages[index]
-
-    def search(self, query: str) -> list[Package]:
+    def search(self, query: str | list[str]) -> list[Package]:
         results: list[Package] = []
+        tokens = query if isinstance(query, list) else [query]
 
         for package in self.packages:
-            if query in package.name:
+            if any(token in package.name for token in tokens):
                 results.append(package)
 
         return results
@@ -117,4 +110,4 @@ class Repository(AbstractRepository):
             if canonicalized_name == package.name and package.version == version:
                 return package
 
-        raise PackageNotFound(f"Package {name} ({version}) not found.")
+        raise PackageNotFoundError(f"Package {name} ({version}) not found.")

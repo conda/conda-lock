@@ -4,7 +4,9 @@ import logging
 import re
 
 from contextlib import suppress
+from functools import cached_property
 from importlib import import_module
+from pathlib import Path
 from typing import TYPE_CHECKING
 from typing import cast
 
@@ -14,11 +16,11 @@ from conda_lock._vendor.cleo.events.console_events import COMMAND
 from conda_lock._vendor.cleo.events.event_dispatcher import EventDispatcher
 from conda_lock._vendor.cleo.exceptions import CleoError
 from conda_lock._vendor.cleo.formatters.style import Style
-from conda_lock._vendor.cleo.io.null_io import NullIO
 
 from conda_lock._vendor.poetry.__version__ import __version__
 from conda_lock._vendor.poetry.console.command_loader import CommandLoader
 from conda_lock._vendor.poetry.console.commands.command import Command
+from conda_lock._vendor.poetry.utils.helpers import directory
 
 
 if TYPE_CHECKING:
@@ -30,9 +32,6 @@ if TYPE_CHECKING:
     from conda_lock._vendor.cleo.io.inputs.input import Input
     from conda_lock._vendor.cleo.io.io import IO
     from conda_lock._vendor.cleo.io.outputs.output import Output
-    from crashtest.solution_providers.solution_provider_repository import (
-        SolutionProviderRepository,
-    )
 
     from conda_lock._vendor.poetry.console.commands.installer_command import InstallerCommand
     from conda_lock._vendor.poetry.poetry import Poetry
@@ -63,8 +62,8 @@ COMMANDS = [
     "remove",
     "run",
     "search",
-    "shell",
     "show",
+    "sync",
     "update",
     "version",
     # Cache commands
@@ -74,6 +73,7 @@ COMMANDS = [
     "debug info",
     "debug resolve",
     # Env commands
+    "env activate",
     "env info",
     "env list",
     "env remove",
@@ -86,6 +86,7 @@ COMMANDS = [
     "self update",
     "self show",
     "self show plugins",
+    "self sync",
     # Source commands
     "source add",
     "source remove",
@@ -113,21 +114,72 @@ class Application(BaseApplication):
         self.set_command_loader(command_loader)
 
     @property
-    def poetry(self) -> Poetry:
-        from pathlib import Path
+    def _default_definition(self) -> Definition:
+        from conda_lock._vendor.cleo.io.inputs.option import Option
 
+        definition = super()._default_definition
+
+        definition.add_option(
+            Option("--no-plugins", flag=True, description="Disables plugins.")
+        )
+
+        definition.add_option(
+            Option(
+                "--no-cache", flag=True, description="Disables Poetry source caches."
+            )
+        )
+
+        definition.add_option(
+            Option(
+                "--project",
+                "-P",
+                flag=False,
+                description=(
+                    "Specify another path as the project root."
+                    " All command-line arguments will be resolved relative to the current working directory."
+                ),
+            )
+        )
+
+        definition.add_option(
+            Option(
+                "--directory",
+                "-C",
+                flag=False,
+                description=(
+                    "The working directory for the Poetry command (defaults to the"
+                    " current working directory). All command-line arguments will be"
+                    " resolved relative to the given directory."
+                ),
+            )
+        )
+
+        return definition
+
+    @cached_property
+    def _project_directory(self) -> Path:
+        if self._io and self._io.input.option("project"):
+            with directory(self._working_directory):
+                return Path(self._io.input.option("project")).absolute()
+
+        return self._working_directory
+
+    @cached_property
+    def _working_directory(self) -> Path:
+        if self._io and self._io.input.option("directory"):
+            return Path(self._io.input.option("directory")).absolute()
+
+        return Path.cwd()
+
+    @property
+    def poetry(self) -> Poetry:
         from conda_lock._vendor.poetry.factory import Factory
 
         if self._poetry is not None:
             return self._poetry
 
-        project_path = Path.cwd()
-
-        if self._io and self._io.input.option("directory"):
-            project_path = self._io.input.option("directory")
-
         self._poetry = Factory().create_poetry(
-            cwd=project_path,
+            cwd=self._project_directory,
             io=self._io,
             disable_plugins=self._disable_plugins,
             disable_cache=self._disable_cache,
@@ -174,20 +226,15 @@ class Application(BaseApplication):
 
         return io
 
-    def render_error(self, error: Exception, io: IO) -> None:
-        # We set the solution provider repository here to load providers
-        # only when an error occurs
-        self.set_solution_provider_repository(self._get_solution_provider_repository())
-
-        super().render_error(error, io)
-
     def _run(self, io: IO) -> int:
         self._disable_plugins = io.input.parameter_option("--no-plugins")
         self._disable_cache = io.input.has_parameter_option("--no-cache")
 
         self._load_plugins(io)
 
-        exit_code: int = super()._run(io)
+        with directory(self._working_directory):
+            exit_code: int = super()._run(io)
+
         return exit_code
 
     def _configure_io(self, io: IO) -> None:
@@ -337,12 +384,9 @@ class Application(BaseApplication):
         )
         command.set_installer(installer)
 
-    def _load_plugins(self, io: IO | None = None) -> None:
+    def _load_plugins(self, io: IO) -> None:
         if self._plugins_loaded:
             return
-
-        if io is None:
-            io = NullIO()
 
         self._disable_plugins = io.input.has_parameter_option("--no-plugins")
 
@@ -350,61 +394,12 @@ class Application(BaseApplication):
             from conda_lock._vendor.poetry.plugins.application_plugin import ApplicationPlugin
             from conda_lock._vendor.poetry.plugins.plugin_manager import PluginManager
 
+            PluginManager.add_project_plugin_path(self._project_directory)
             manager = PluginManager(ApplicationPlugin.group)
             manager.load_plugins()
             manager.activate(self)
 
-            # We have to override the command from poetry-plugin-export
-            # with the wrapper.
-            if self.command_loader.has("export"):
-                del self.command_loader._factories["export"]
-            self.command_loader._factories["export"] = load_command("export")
-
         self._plugins_loaded = True
-
-    @property
-    def _default_definition(self) -> Definition:
-        from conda_lock._vendor.cleo.io.inputs.option import Option
-
-        definition = super()._default_definition
-
-        definition.add_option(
-            Option("--no-plugins", flag=True, description="Disables plugins.")
-        )
-
-        definition.add_option(
-            Option(
-                "--no-cache", flag=True, description="Disables Poetry source caches."
-            )
-        )
-
-        definition.add_option(
-            Option(
-                "--directory",
-                "-C",
-                flag=False,
-                description=(
-                    "The working directory for the Poetry command (defaults to the"
-                    " current working directory)."
-                ),
-            )
-        )
-
-        return definition
-
-    def _get_solution_provider_repository(self) -> SolutionProviderRepository:
-        from crashtest.solution_providers.solution_provider_repository import (
-            SolutionProviderRepository,
-        )
-
-        from conda_lock._vendor.poetry.mixology.solutions.providers.python_requirement_solution_provider import (
-            PythonRequirementSolutionProvider,
-        )
-
-        repository = SolutionProviderRepository()
-        repository.register_solution_providers([PythonRequirementSolutionProvider])
-
-        return repository
 
 
 def main() -> int:

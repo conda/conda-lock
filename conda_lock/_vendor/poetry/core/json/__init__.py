@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 import json
-import sys
 
+from importlib.resources import files
 from pathlib import Path
 from typing import TYPE_CHECKING
 from typing import Any
@@ -12,22 +12,15 @@ import fastjsonschema
 from fastjsonschema.exceptions import JsonSchemaException
 
 
+if TYPE_CHECKING:
+    from importlib.abc import Traversable
+
+
 SCHEMA_DIR = Path(__file__).parent / "schemas"
 
 
-if sys.version_info < (3, 9):
-
-    def _get_schema_file(schema_name: str) -> Path:
-        return SCHEMA_DIR / f"{schema_name}.json"
-
-else:
-    from importlib.resources import files
-
-    if TYPE_CHECKING:
-        from importlib.abc import Traversable
-
-    def _get_schema_file(schema_name: str) -> Traversable:
-        return files(__package__) / "schemas" / f"{schema_name}.json"
+def _get_schema_file(schema_name: str) -> Traversable:
+    return files(__package__) / "schemas" / f"{schema_name}.json"
 
 
 class ValidationError(ValueError):

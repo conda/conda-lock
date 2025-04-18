@@ -6,6 +6,8 @@ import itertools
 from pathlib import Path
 from typing import TYPE_CHECKING
 from typing import Any
+from typing import Literal
+from typing import overload
 
 from conda_lock._vendor.poetry.utils._compat import metadata
 from conda_lock._vendor.poetry.utils.helpers import is_dir_writable
@@ -23,7 +25,6 @@ class SitePackages:
         purelib: Path,
         platlib: Path | None = None,
         fallbacks: list[Path] | None = None,
-        skip_write_checks: bool = False,
     ) -> None:
         self._purelib = purelib
         self._platlib = platlib or purelib
@@ -32,14 +33,13 @@ class SitePackages:
             self._platlib = purelib
 
         self._fallbacks = fallbacks or []
-        self._skip_write_checks = skip_write_checks
 
         self._candidates: list[Path] = []
         for path in itertools.chain([self._purelib, self._platlib], self._fallbacks):
             if path not in self._candidates:
                 self._candidates.append(path)
 
-        self._writable_candidates = None if not skip_write_checks else self._candidates
+        self._writable_candidates: list[Path] | None = None
 
     @property
     def path(self) -> Path:
@@ -112,19 +112,6 @@ class SitePackages:
             return distribution
         return None
 
-    def find_distribution_files_with_suffix(
-        self, distribution_name: str, suffix: str, writable_only: bool = False
-    ) -> Iterable[Path]:
-        for distribution in self.distributions(
-            name=distribution_name, writable_only=writable_only
-        ):
-            files = [] if distribution.files is None else distribution.files
-            for file in files:
-                if file.name.endswith(suffix):
-                    path = distribution.locate_file(file)
-                    assert isinstance(path, Path)
-                    yield path
-
     def find_distribution_files_with_name(
         self, distribution_name: str, name: str, writable_only: bool = False
     ) -> Iterable[Path]:
@@ -167,6 +154,28 @@ class SitePackages:
 
         return paths
 
+    @overload
+    def _path_method_wrapper(
+        self,
+        path: Path,
+        method: str,
+        *args: Any,
+        return_first: Literal[False],
+        writable_only: bool = False,
+        **kwargs: Any,
+    ) -> list[tuple[Path, Any]]: ...
+
+    @overload
+    def _path_method_wrapper(
+        self,
+        path: Path,
+        method: str,
+        *args: Any,
+        return_first: bool = True,
+        writable_only: bool = False,
+        **kwargs: Any,
+    ) -> tuple[Path, Any]: ...
+
     def _path_method_wrapper(
         self,
         path: Path,
@@ -183,14 +192,11 @@ class SitePackages:
         results = []
 
         for candidate in candidates:
-            try:
+            with contextlib.suppress(OSError):
                 result = candidate, getattr(candidate, method)(*args, **kwargs)
                 if return_first:
                     return result
                 results.append(result)
-            except OSError:
-                # TODO: Replace with PermissionError
-                pass
 
         if results:
             return results
@@ -198,13 +204,15 @@ class SitePackages:
         raise OSError(f"Unable to access any of {paths_csv(candidates)}")
 
     def write_text(self, path: Path, *args: Any, **kwargs: Any) -> Path:
-        paths = self._path_method_wrapper(path, "write_text", *args, **kwargs)
-        assert isinstance(paths, tuple)
+        paths: tuple[Path, Any] = self._path_method_wrapper(
+            path, "write_text", *args, **kwargs
+        )
         return paths[0]
 
     def mkdir(self, path: Path, *args: Any, **kwargs: Any) -> Path:
-        paths = self._path_method_wrapper(path, "mkdir", *args, **kwargs)
-        assert isinstance(paths, tuple)
+        paths: tuple[Path, Any] = self._path_method_wrapper(
+            path, "mkdir", *args, **kwargs
+        )
         return paths[0]
 
     def exists(self, path: Path) -> bool:

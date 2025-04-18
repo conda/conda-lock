@@ -10,6 +10,7 @@ import os
 import pathlib
 import posixpath
 import re
+import subprocess
 import sys
 import tempfile
 
@@ -182,8 +183,6 @@ def extract_input_hash(lockfile_contents: str) -> Optional[str]:
 
 
 def _do_validate_platform(platform: str) -> Tuple[bool, str]:
-    from ensureconda.resolve import platform_subdir
-
     determined_subdir = platform_subdir()
     return platform == determined_subdir, determined_subdir
 
@@ -225,16 +224,16 @@ def do_conda_install(
     copy_arg = ["--copy"] if kind != "env" and copy else []
     yes_arg = ["--yes"] if kind != "env" else []
 
-    _conda(
-        [
-            *env_prefix,
-            "create",
-            *copy_arg,
-            "--file",
-            str(file),
-            *yes_arg,
-        ],
-    )
+    additional_args = [
+        *env_prefix,
+        "create",
+        "--quiet",
+        *copy_arg,
+        "--file",
+        str(file),
+        *yes_arg,
+    ]
+    _conda(additional_args)
 
     if not pip_requirements:
         return
@@ -985,6 +984,7 @@ def _render_lockfile_for_install(
     filename: pathlib.Path,
     include_dev_dependencies: bool = True,
     extras: Optional[AbstractSet[str]] = None,
+    force_platform: Optional[str] = None,
 ) -> Iterator[pathlib.Path]:
     """
     Render lock content into a temporary, explicit lockfile for the current platform
@@ -1006,7 +1006,8 @@ def _render_lockfile_for_install(
 
     lock_content = parse_conda_lock_file(pathlib.Path(filename))
 
-    platform = platform_subdir()
+    platform = force_platform or platform_subdir()
+
     if platform not in lock_content.metadata.platforms:
         suggested_platforms_section = "platforms:\n- "
         suggested_platforms_section += "\n- ".join(
@@ -1153,6 +1154,11 @@ def run_lock(
         conda_exe, mamba=mamba, micromamba=micromamba
     )
     logger.debug(f"Using conda executable: {_conda_exe}")
+    version_info = subprocess.check_output(
+        [_conda_exe, "--version"], encoding="utf-8"
+    ).strip()
+    logger.debug(f"Executable has version: {version_info}")
+
     make_lock_files(
         conda=_conda_exe,
         src_files=environment_files,
@@ -1190,20 +1196,27 @@ TLogLevel = Union[
     Literal["CRITICAL"],
 ]
 
+CONTEXT_SETTINGS = {"show_default": True, "help_option_names": ["--help", "-h"]}
 
-@main.command("lock", context_settings={"show_default": True})
+
+@main.command("lock", context_settings=CONTEXT_SETTINGS)
 @click.option(
-    "--conda", default=None, help="path (or name) of the conda/mamba executable to use."
+    "--conda",
+    default=None,
+    help="path (or name) of the conda/mamba executable to use.",
+    envvar="CONDA_LOCK_CONDA",
 )
 @click.option(
     "--mamba/--no-mamba",
     default=HAVE_MAMBA,
     help="don't attempt to use or install mamba.",
+    envvar="CONDA_LOCK_MAMBA",
 )
 @click.option(
     "--micromamba/--no-micromamba",
     default=False,
     help="don't attempt to use or install micromamba.",
+    envvar="CONDA_LOCK_MICROMAMBA",
 )
 @click.option(
     "-p",
@@ -1451,19 +1464,24 @@ DEFAULT_INSTALL_OPT_DEV = True
 DEFAULT_INSTALL_OPT_LOCK_FILE = pathlib.Path(DEFAULT_LOCKFILE_NAME)
 
 
-@main.command("install", context_settings={"show_default": True})
+@main.command("install", context_settings=CONTEXT_SETTINGS)
 @click.option(
-    "--conda", default=None, help="path (or name) of the conda/mamba executable to use."
+    "--conda",
+    default=None,
+    help="path (or name) of the conda/mamba executable to use.",
+    envvar="CONDA_LOCK_CONDA",
 )
 @click.option(
     "--mamba/--no-mamba",
     default=DEFAULT_INSTALL_OPT_MAMBA,
     help="don't attempt to use or install mamba.",
+    envvar="CONDA_LOCK_MAMBA",
 )
 @click.option(
     "--micromamba/--no-micromamba",
     default=DEFAULT_INSTALL_OPT_MICROMAMBA,
     help="don't attempt to use or install micromamba.",
+    envvar="CONDA_LOCK_MICROMAMBA",
 )
 @click.option(
     "--copy",
@@ -1506,6 +1524,11 @@ DEFAULT_INSTALL_OPT_LOCK_FILE = pathlib.Path(DEFAULT_LOCKFILE_NAME)
     default=[],
     help="include extra dependencies from the lockfile (where applicable)",
 )
+@click.option(
+    "--force-platform",
+    help="Force using the given platform when installing from the lockfile, instead of the native platform.",
+    default=platform_subdir,
+)
 @click.argument("lock-file", default=DEFAULT_INSTALL_OPT_LOCK_FILE, type=click.Path())
 @click.pass_context
 def click_install(
@@ -1523,6 +1546,7 @@ def click_install(
     log_level: TLogLevel,
     dev: bool,
     extras: List[str],
+    force_platform: str,
 ) -> None:
     # bail out if we do not encounter the lockfile
     lock_file = pathlib.Path(lock_file)
@@ -1545,6 +1569,7 @@ def click_install(
         validate_platform=validate_platform,
         dev=dev,
         extras=extras,
+        force_platform=force_platform,
     )
 
 
@@ -1561,6 +1586,7 @@ def install(
     validate_platform: bool = DEFAULT_INSTALL_OPT_VALIDATE_PLATFORM,
     dev: bool = DEFAULT_INSTALL_OPT_DEV,
     extras: Optional[List[str]] = None,
+    force_platform: Optional[str] = None,
 ) -> None:
     if extras is None:
         extras = []
@@ -1580,7 +1606,10 @@ def install(
                 error.args[0] + " Disable validation with `--no-validate-platform`."
             )
     with _render_lockfile_for_install(
-        lock_file, include_dev_dependencies=dev, extras=set(extras)
+        lock_file,
+        include_dev_dependencies=dev,
+        extras=set(extras),
+        force_platform=force_platform,
     ) as lockfile:
         if _auth is not None:
             with _add_auth(read_file(lockfile), _auth) as lockfile_with_auth:
@@ -1589,7 +1618,7 @@ def install(
             install_func(file=lockfile)
 
 
-@main.command("render", context_settings={"show_default": True})
+@main.command("render", context_settings=CONTEXT_SETTINGS)
 @click.option(
     "--dev-dependencies/--no-dev-dependencies",
     is_flag=True,
@@ -1670,7 +1699,7 @@ def render(
     )
 
 
-@main.command("render-lock-spec", context_settings={"show_default": True})
+@main.command("render-lock-spec", context_settings=CONTEXT_SETTINGS)
 @click.option(
     "--conda",
     default=None,

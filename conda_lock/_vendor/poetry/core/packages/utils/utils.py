@@ -1,16 +1,12 @@
 from __future__ import annotations
 
 import functools
-import posixpath
 import re
 import sys
 
 from contextlib import suppress
 from pathlib import Path
 from typing import TYPE_CHECKING
-from typing import Dict
-from typing import List
-from typing import Tuple
 from urllib.parse import unquote
 from urllib.parse import urlsplit
 from urllib.request import url2pathname
@@ -30,7 +26,7 @@ if TYPE_CHECKING:
 
     # Even though we've `from __future__ import annotations`, mypy doesn't seem to like
     # this as `dict[str, ...]`
-    ConvertedMarkers = Dict[str, List[List[Tuple[str, str]]]]
+    ConvertedMarkers = dict[str, list[list[tuple[str, str]]]]
 
 
 BZ2_EXTENSIONS = (".tar.bz2", ".tbz")
@@ -106,7 +102,7 @@ def is_url(name: str) -> bool:
     ]
 
 
-def strip_extras(path: str) -> tuple[str, str | None]:
+def strip_extras(path: str) -> tuple[Path, str | None]:
     m = re.match(r"^(.+)(\[[^\]]+\])$", path)
     extras = None
     if m:
@@ -115,13 +111,19 @@ def strip_extras(path: str) -> tuple[str, str | None]:
     else:
         path_no_extras = path
 
-    return path_no_extras, extras
+    return Path(path_no_extras), extras
 
 
-@functools.lru_cache(maxsize=None)
+@functools.cache
+def cached_is_dir(path: Path) -> bool:
+    """A cached version of `Path.is_dir`."""
+    return path.is_dir()
+
+
+@functools.cache
 def is_python_project(path: Path) -> bool:
     """Return true if the directory is a Python project"""
-    if not path.is_dir():
+    if not cached_is_dir(path):
         return False
 
     setup_py = path / "setup.py"
@@ -133,19 +135,19 @@ def is_python_project(path: Path) -> bool:
     return pyproject or setuptools_project
 
 
-def is_archive_file(name: str) -> bool:
+def is_archive_file(name: str | Path) -> bool:
     """Return True if `name` is a considered as an archive file."""
     ext = splitext(name)[1].lower()
-    if ext in ARCHIVE_EXTENSIONS:
-        return True
-    return False
+    return ext in ARCHIVE_EXTENSIONS
 
 
-def splitext(path: str) -> tuple[str, str]:
-    """Like os.path.splitext, but take off .tar too"""
-    base, ext = posixpath.splitext(path)
+def splitext(path: str | Path) -> tuple[str, str]:
+    """Like pathlib.Path.stem and suffix, but take off .tar too"""
+    if isinstance(path, str):
+        path = Path(path)
+    base, ext = path.stem, path.suffix
     if base.lower().endswith(".tar"):
-        ext = base[-4:] + ext
+        ext = f"{base[-4:]}{ext}"
         base = base[:-4]
     return base, ext
 
@@ -241,7 +243,9 @@ def create_nested_marker(
 
         marker = f'{name} == "{constraint.text}"'
     else:
-        assert isinstance(constraint, VersionRange)
+        assert isinstance(
+            constraint, VersionRange
+        ), f"Unexpected constraint of type {type(constraint)}"
         min_name = max_name = name
 
         parts = []

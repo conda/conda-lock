@@ -42,20 +42,22 @@ script:
 .. code-block:: bash
 
     $ make performance
-    fast_compiled        valid      ==>  0.0464646
-    fast_compiled        invalid    ==>  0.0030227
-    fast_file            valid      ==>  0.0461219
-    fast_file            invalid    ==>  0.0030608
-    fast_not_compiled    valid      ==> 11.4627202
-    fast_not_compiled    invalid    ==>  2.5726230
-    jsonschema           valid      ==>  7.5844927
-    jsonschema           invalid    ==>  1.9204665
-    jsonschema_compiled  valid      ==>  0.6938364
-    jsonschema_compiled  invalid    ==>  0.0359244
-    jsonspec             valid      ==>  9.0715843
-    jsonspec             invalid    ==>  2.1650488
-    validictory          valid      ==>  0.4874793
-    validictory          invalid    ==>  0.0232244
+    fast_compiled                  valid      ==>  0.0993900
+    fast_compiled                  invalid    ==>  0.0041089
+    fast_compiled_without_exc      valid      ==>  0.0465258
+    fast_compiled_without_exc      invalid    ==>  0.0023688
+    fast_file                      valid      ==>  0.0989483
+    fast_file                      invalid    ==>  0.0041104
+    fast_not_compiled              valid      ==> 11.9572681
+    fast_not_compiled              invalid    ==>  2.9512092
+    jsonschema                     valid      ==>  5.2233240
+    jsonschema                     invalid    ==>  1.3227916
+    jsonschema_compiled            valid      ==>  0.4447982
+    jsonschema_compiled            invalid    ==>  0.0231333
+    jsonspec                       valid      ==>  4.1450569
+    jsonspec                       invalid    ==>  1.0485777
+    validictory                    valid      ==>  0.2730411
+    validictory                    invalid    ==>  0.0183669
 
 This library follows and implements `JSON schema draft-04, draft-06, and draft-07
 <http://json-schema.org>`_. Sometimes it's not perfectly clear, so I recommend also
@@ -123,7 +125,7 @@ __all__ = (
 )
 
 
-def validate(definition, data, handlers={}, formats={}, use_default=True, use_formats=True):
+def validate(definition, data, handlers={}, formats={}, use_default=True, use_formats=True, detailed_exceptions=True):
     """
     Validation function for lazy programmers or for use cases when you need
     to call validation only once, so you do not have to compile it first.
@@ -139,12 +141,12 @@ def validate(definition, data, handlers={}, formats={}, use_default=True, use_fo
 
     Preferred is to use :any:`compile` function.
     """
-    return compile(definition, handlers, formats, use_default, use_formats)(data)
+    return compile(definition, handlers, formats, use_default, use_formats, detailed_exceptions)(data)
 
 
 #TODO: Change use_default to False when upgrading to version 3.
 # pylint: disable=redefined-builtin,dangerous-default-value,exec-used
-def compile(definition, handlers={}, formats={}, use_default=True, use_formats=True):
+def compile(definition, handlers={}, formats={}, use_default=True, use_formats=True, detailed_exceptions=True):
     """
     Generates validation function for validating JSON schema passed in ``definition``.
     Example:
@@ -200,13 +202,16 @@ def compile(definition, handlers={}, formats={}, use_default=True, use_formats=T
     off by passing `use_formats=False`. When disabled, custom formats are
     disabled as well. (Added in 2.19.0.)
 
+    If you don't need detailed exceptions, you can turn the details off and gain
+    additional performance by passing `detailed_exceptions=False`.
+
     Exception :any:`JsonSchemaDefinitionException` is raised when generating the
     code fails (bad definition).
 
     Exception :any:`JsonSchemaValueException` is raised from generated function when
     validation fails (data do not follow the definition).
     """
-    resolver, code_generator = _factory(definition, handlers, formats, use_default, use_formats)
+    resolver, code_generator = _factory(definition, handlers, formats, use_default, use_formats, detailed_exceptions)
     global_state = code_generator.global_state
     # Do not pass local state so it can recursively call itself.
     exec(code_generator.func_code, global_state)
@@ -217,7 +222,7 @@ def compile(definition, handlers={}, formats={}, use_default=True, use_formats=T
 
 
 # pylint: disable=dangerous-default-value
-def compile_to_code(definition, handlers={}, formats={}, use_default=True, use_formats=True):
+def compile_to_code(definition, handlers={}, formats={}, use_default=True, use_formats=True, detailed_exceptions=True):
     """
     Generates validation code for validating JSON schema passed in ``definition``.
     Example:
@@ -240,7 +245,7 @@ def compile_to_code(definition, handlers={}, formats={}, use_default=True, use_f
     Exception :any:`JsonSchemaDefinitionException` is raised when generating the
     code fails (bad definition).
     """
-    _, code_generator = _factory(definition, handlers, formats, use_default, use_formats)
+    _, code_generator = _factory(definition, handlers, formats, use_default, use_formats, detailed_exceptions)
     return (
         'VERSION = "' + VERSION + '"\n' +
         code_generator.global_state_code + '\n' +
@@ -248,7 +253,7 @@ def compile_to_code(definition, handlers={}, formats={}, use_default=True, use_f
     )
 
 
-def _factory(definition, handlers, formats={}, use_default=True, use_formats=True):
+def _factory(definition, handlers, formats={}, use_default=True, use_formats=True, detailed_exceptions=True):
     resolver = RefResolver.from_schema(definition, handlers=handlers, store={})
     code_generator = _get_code_generator_class(definition)(
         definition,
@@ -256,6 +261,7 @@ def _factory(definition, handlers, formats={}, use_default=True, use_formats=Tru
         formats=formats,
         use_default=use_default,
         use_formats=use_formats,
+        detailed_exceptions=detailed_exceptions,
     )
     return resolver, code_generator
 

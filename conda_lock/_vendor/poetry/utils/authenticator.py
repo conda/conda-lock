@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import contextlib
 import dataclasses
 import functools
 import logging
@@ -23,7 +22,7 @@ from requests_toolbelt import user_agent
 
 from conda_lock._vendor.poetry.__version__ import __version__
 from conda_lock._vendor.poetry.config.config import Config
-from conda_lock._vendor.poetry.exceptions import PoetryException
+from conda_lock._vendor.poetry.exceptions import PoetryError
 from conda_lock._vendor.poetry.utils.constants import REQUESTS_TIMEOUT
 from conda_lock._vendor.poetry.utils.constants import RETRY_AFTER_HEADER
 from conda_lock._vendor.poetry.utils.constants import STATUS_FORCELIST
@@ -78,17 +77,11 @@ class AuthenticatorRepositoryConfig:
     def certs(self, config: Config) -> RepositoryCertificateConfig:
         return RepositoryCertificateConfig.create(self.name, config)
 
-    @property
-    def http_credential_keys(self) -> list[str]:
-        return [self.url, self.netloc, self.name]
-
     def get_http_credentials(
-        self, password_manager: PasswordManager, username: str | None = None
+        self, password_manager: PasswordManager
     ) -> HTTPAuthCredential:
         # try with the repository name via the password manager
-        credential = HTTPAuthCredential(
-            **(password_manager.get_http_auth(self.name) or {})
-        )
+        credential = password_manager.get_http_auth(self.name)
 
         if credential.password is not None:
             return credential
@@ -167,8 +160,7 @@ class Authenticator:
     def close(self) -> None:
         for session in self._sessions_for_netloc.values():
             if session is not None:
-                with contextlib.suppress(AttributeError):
-                    session.close()
+                session.close()
 
     def __del__(self) -> None:
         self.close()
@@ -253,7 +245,7 @@ class Authenticator:
                 continue
 
         # this should never really be hit under any sane circumstance
-        raise PoetryException("Failed HTTP {} request", method.upper())
+        raise PoetryError("Failed HTTP {} request", method.upper())
 
     def _get_backoff(self, response: requests.Response | None, attempt: int) -> float:
         if response is not None:
@@ -274,15 +266,15 @@ class Authenticator:
         return self.request("post", url, **kwargs)
 
     def _get_credentials_for_repository(
-        self, repository: AuthenticatorRepositoryConfig, username: str | None = None
+        self, repository: AuthenticatorRepositoryConfig
     ) -> HTTPAuthCredential:
         # cache repository credentials by repository url to avoid multiple keyring
         # backend queries when packages are being downloaded from the same source
-        key = f"{repository.url}#username={username or ''}"
+        key = repository.url
 
         if key not in self._credentials:
             self._credentials[key] = repository.get_http_credentials(
-                password_manager=self._password_manager, username=username
+                password_manager=self._password_manager
             )
 
         return self._credentials[key]
@@ -352,9 +344,7 @@ class Authenticator:
     def get_pypi_token(self, name: str) -> str | None:
         return self._password_manager.get_pypi_token(name)
 
-    def get_http_auth(
-        self, name: str, username: str | None = None
-    ) -> HTTPAuthCredential | None:
+    def get_http_auth(self, name: str) -> HTTPAuthCredential | None:
         if name == "pypi":
             repository = AuthenticatorRepositoryConfig(
                 name, "https://upload.pypi.org/legacy/"
@@ -364,9 +354,7 @@ class Authenticator:
                 return None
             repository = self.configured_repositories[name]
 
-        return self._get_credentials_for_repository(
-            repository=repository, username=username
-        )
+        return self._get_credentials_for_repository(repository=repository)
 
     def get_certs_for_repository(self, name: str) -> RepositoryCertificateConfig:
         if name.lower() == "pypi" or name not in self.configured_repositories:

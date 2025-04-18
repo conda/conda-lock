@@ -4,6 +4,11 @@
     true,
     false
   ],
+  "3D-Slicer-1.0": [
+    "3D Slicer License v1.0",
+    false,
+    false
+  ],
   "AAL": [
     "Attribution Assurance License",
     true,
@@ -67,6 +72,11 @@
   "AGPL-3.0-or-later": [
     "GNU Affero General Public License v3.0 or later",
     true,
+    false
+  ],
+  "AMD-newlib": [
+    "AMD newlib License",
+    false,
     false
   ],
   "AMDPLPA": [
@@ -234,6 +244,11 @@
     true,
     false
   ],
+  "BSD-2-Clause-Darwin": [
+    "BSD 2-Clause - Ian Darwin variant",
+    false,
+    false
+  ],
   "BSD-2-Clause-FreeBSD": [
     "BSD 2-Clause FreeBSD License",
     false,
@@ -251,6 +266,11 @@
   ],
   "BSD-2-Clause-Views": [
     "BSD 2-Clause with views sentence",
+    false,
+    false
+  ],
+  "BSD-2-Clause-first-lines": [
+    "BSD 2-Clause - first lines requirement",
     false,
     false
   ],
@@ -449,8 +469,18 @@
     false,
     false
   ],
+  "Boehm-GC-without-fee": [
+    "Boehm-Demers-Weiser GC License (without fee)",
+    false,
+    false
+  ],
   "Borceux": [
     "Borceux license",
+    false,
+    false
+  ],
+  "Brian-Gladman-2-Clause": [
+    "Brian Gladman 2-Clause License",
     false,
     false
   ],
@@ -739,6 +769,16 @@
     false,
     false
   ],
+  "CC-PDM-1.0": [
+    "Creative    Commons Public Domain Mark 1.0 Universal",
+    false,
+    false
+  ],
+  "CC-SA-1.0": [
+    "Creative Commons Share Alike 1.0 Generic",
+    false,
+    false
+  ],
   "CC0-1.0": [
     "Creative Commons Zero v1.0 Universal",
     false,
@@ -839,6 +879,11 @@
     false,
     false
   ],
+  "CMU-Mach-nodoc": [
+    "CMU    Mach - no notices-in-documentation variant",
+    false,
+    false
+  ],
   "CNRI-Jython": [
     "CNRI Jython License",
     false,
@@ -886,6 +931,11 @@
   ],
   "Caldera-no-preamble": [
     "Caldera License (without preamble)",
+    false,
+    false
+  ],
+  "Catharon": [
+    "Catharon License",
     false,
     false
   ],
@@ -971,6 +1021,21 @@
   ],
   "DSDP": [
     "DSDP License",
+    false,
+    false
+  ],
+  "DocBook-Schema": [
+    "DocBook Schema License",
+    false,
+    false
+  ],
+  "DocBook-Stylesheet": [
+    "DocBook Stylesheet License",
+    false,
+    false
+  ],
+  "DocBook-XML": [
+    "DocBook XML License",
     false,
     false
   ],
@@ -1364,6 +1429,16 @@
     false,
     false
   ],
+  "Gutmann": [
+    "Gutmann License",
+    false,
+    false
+  ],
+  "HIDAPI": [
+    "HIDAPI License",
+    false,
+    false
+  ],
   "HP-1986": [
     "Hewlett-Packard 1986 License",
     false,
@@ -1384,6 +1459,21 @@
     false,
     false
   ],
+  "HPND-Fenneberg-Livingston": [
+    "Historical Permission Notice and Disclaimer - Fenneberg-Livingston variant",
+    false,
+    false
+  ],
+  "HPND-INRIA-IMAG": [
+    "Historical Permission Notice and Disclaimer    - INRIA-IMAG variant",
+    false,
+    false
+  ],
+  "HPND-Intel": [
+    "Historical Permission Notice and Disclaimer - Intel variant",
+    false,
+    false
+  ],
   "HPND-Kevlin-Henney": [
     "Historical Permission Notice and Disclaimer - Kevlin Henney variant",
     false,
@@ -1399,6 +1489,11 @@
     false,
     false
   ],
+  "HPND-Netrek": [
+    "Historical Permission Notice and Disclaimer - Netrek variant",
+    false,
+    false
+  ],
   "HPND-Pbmplus": [
     "Historical Permission Notice and Disclaimer - Pbmplus variant",
     false,
@@ -1406,6 +1501,11 @@
   ],
   "HPND-UC": [
     "Historical Permission Notice and Disclaimer - University of California variant",
+    false,
+    false
+  ],
+  "HPND-UC-export-US": [
+    "Historical Permission Notice and Disclaimer - University of California, US export warning",
     false,
     false
   ],
@@ -1424,8 +1524,23 @@
     false,
     false
   ],
+  "HPND-export-US-acknowledgement": [
+    "HPND with US Government export control warning and acknowledgment",
+    false,
+    false
+  ],
   "HPND-export-US-modify": [
     "HPND with US Government export control warning and modification rqmt",
+    false,
+    false
+  ],
+  "HPND-export2-US": [
+    "HPND with US Government export control and 2 disclaimers",
+    false,
+    false
+  ],
+  "HPND-merchantability-variant": [
+    "Historical Permission Notice and Disclaimer - merchantability variant",
     false,
     false
   ],
@@ -1446,6 +1561,11 @@
   ],
   "HPND-sell-variant-MIT-disclaimer": [
     "HPND sell variant with MIT disclaimer",
+    false,
+    false
+  ],
+  "HPND-sell-variant-MIT-disclaimer-rev": [
+    "HPND sell variant with MIT disclaimer - reverse",
     false,
     false
   ],
@@ -1526,6 +1646,11 @@
   ],
   "Inner-Net-2.0": [
     "Inner Net License v2.0",
+    false,
+    false
+  ],
+  "InnoSetup": [
+    "Inno Setup License",
     false,
     false
   ],
@@ -1779,6 +1904,11 @@
     false,
     false
   ],
+  "MIPS": [
+    "MIPS License",
+    false,
+    false
+  ],
   "MIT": [
     "MIT License",
     true,
@@ -1794,8 +1924,18 @@
     false,
     false
   ],
+  "MIT-Click": [
+    "MIT Click License",
+    false,
+    false
+  ],
   "MIT-Festival": [
     "MIT Festival Variant",
+    false,
+    false
+  ],
+  "MIT-Khronos-old": [
+    "MIT Khronos - old variant",
     false,
     false
   ],
@@ -1889,6 +2029,16 @@
     false,
     false
   ],
+  "Mackerras-3-Clause": [
+    "Mackerras 3-Clause License",
+    false,
+    false
+  ],
+  "Mackerras-3-Clause-acknowledgment": [
+    "Mackerras 3-Clause - acknowledgment variant",
+    false,
+    false
+  ],
   "MakeIndex": [
     "MakeIndex License",
     false,
@@ -1954,8 +2104,18 @@
     false,
     false
   ],
+  "NCBI-PD": [
+    "NCBI Public Domain Notice",
+    false,
+    false
+  ],
   "NCGL-UK-2.0": [
     "Non-Commercial Government Licence",
+    false,
+    false
+  ],
+  "NCL": [
+    "NCL Source Code License",
     false,
     false
   ],
@@ -2047,7 +2207,7 @@
   "Net-SNMP": [
     "Net-SNMP License",
     false,
-    false
+    true
   ],
   "NetCDF": [
     "NetCDF license",
@@ -2076,6 +2236,11 @@
   ],
   "O-UDA-1.0": [
     "Open Use of Data Agreement v1.0",
+    false,
+    false
+  ],
+  "OAR": [
+    "OAR License",
     false,
     false
   ],
@@ -2314,6 +2479,16 @@
     false,
     false
   ],
+  "OpenSSL-standalone": [
+    "OpenSSL License - standalone",
+    false,
+    false
+  ],
+  "OpenVision": [
+    "OpenVision License",
+    false,
+    false
+  ],
   "PADL": [
     "PADL License",
     false,
@@ -2332,6 +2507,11 @@
   "PHP-3.01": [
     "PHP License v3.01",
     true,
+    false
+  ],
+  "PPL": [
+    "Peer Production License",
+    false,
     false
   ],
   "PSF-2.0": [
@@ -2439,6 +2619,11 @@
     false,
     false
   ],
+  "Ruby-pty": [
+    "Ruby pty extension license",
+    false,
+    false
+  ],
   "SAX-PD": [
     "Sax Public Domain Notice",
     false,
@@ -2504,6 +2689,11 @@
     false,
     false
   ],
+  "SMAIL-GPL": [
+    "SMAIL General Public License",
+    false,
+    false
+  ],
   "SMLNJ": [
     "Standard ML of New Jersey License",
     false,
@@ -2534,6 +2724,11 @@
     false,
     false
   ],
+  "SSLeay-standalone": [
+    "SSLeay License - standalone",
+    false,
+    false
+  ],
   "SSPL-1.0": [
     "Server Side Public License, v 1",
     false,
@@ -2561,6 +2756,11 @@
   ],
   "Sendmail-8.23": [
     "Sendmail License 8.23",
+    false,
+    false
+  ],
+  "Sendmail-Open-Source-1.1": [
+    "Sendmail Open Source License v1.1",
     false,
     false
   ],
@@ -2601,6 +2801,16 @@
   ],
   "SugarCRM-1.1.3": [
     "SugarCRM Public License v1.1.3",
+    false,
+    false
+  ],
+  "Sun-PPP": [
+    "Sun PPP License",
+    false,
+    false
+  ],
+  "Sun-PPP-2000": [
+    "Sun PPP License (2000)",
     false,
     false
   ],
@@ -2684,6 +2894,16 @@
     false,
     false
   ],
+  "ThirdEye": [
+    "ThirdEye License",
+    false,
+    false
+  ],
+  "TrustedQSL": [
+    "TrustedQSL License",
+    false,
+    false
+  ],
   "UCAR": [
     "UCAR License",
     false,
@@ -2694,6 +2914,11 @@
     true,
     false
   ],
+  "UMich-Merit": [
+    "Michigan/Merit Networks License",
+    false,
+    false
+  ],
   "UPL-1.0": [
     "Universal Permissive License v1.0",
     true,
@@ -2701,6 +2926,11 @@
   ],
   "URT-RLE": [
     "Utah Raster Toolkit Run Length Encoded License",
+    false,
+    false
+  ],
+  "Ubuntu-font-1.0": [
+    "Ubuntu Font Licence v1.0",
     false,
     false
   ],
@@ -2761,7 +2991,7 @@
   ],
   "W3C-20150513": [
     "W3C Software Notice and Document License (2015-05-13)",
-    false,
+    true,
     false
   ],
   "WTFPL": [
@@ -2791,6 +3021,11 @@
   ],
   "X11-distribute-modifications-variant": [
     "X11 License Distribution Modification Variant",
+    false,
+    false
+  ],
+  "X11-swapped": [
+    "X11 swapped final paragraphs",
     false,
     false
   ],
@@ -2879,6 +3114,21 @@
     true,
     false
   ],
+  "any-OSI": [
+    "Any OSI License",
+    false,
+    false
+  ],
+  "any-OSI-perl-modules": [
+    "Any OSI License - Perl Modules",
+    false,
+    false
+  ],
+  "bcrypt-Solar-Designer": [
+    "bcrypt Solar Designer License",
+    false,
+    false
+  ],
   "blessing": [
     "SQLite Blessing",
     false,
@@ -2916,6 +3166,11 @@
   ],
   "curl": [
     "curl License",
+    false,
+    false
+  ],
+  "cve-tou": [
+    "Common Vulnerability Enumeration ToU License",
     false,
     false
   ],
@@ -2959,8 +3214,18 @@
     false,
     false
   ],
+  "generic-xts": [
+    "Generic XTS License",
+    false,
+    false
+  ],
   "gnuplot": [
     "gnuplot License",
+    false,
+    false
+  ],
+  "gtkbook": [
+    "gtkbook License",
     false,
     false
   ],
@@ -3029,6 +3294,11 @@
     false,
     false
   ],
+  "pkgconf": [
+    "pkgconf License",
+    false,
+    false
+  ],
   "pnmstitch": [
     "pnmstitch License",
     false,
@@ -3059,6 +3329,11 @@
     false,
     false
   ],
+  "softSurfer": [
+    "softSurfer License",
+    false,
+    false
+  ],
   "ssh-keyscan": [
     "ssh-keyscan License",
     false,
@@ -3069,6 +3344,11 @@
     false,
     false
   ],
+  "threeparttable": [
+    "threeparttable License",
+    false,
+    false
+  ],
   "ulem": [
     "ulem License",
     false,
@@ -3076,6 +3356,11 @@
   ],
   "w3m": [
     "w3m License",
+    false,
+    false
+  ],
+  "wwl": [
+    "WWL License",
     false,
     false
   ],
@@ -3101,6 +3386,11 @@
   ],
   "xpp": [
     "XPP License",
+    false,
+    false
+  ],
+  "xzoom": [
+    "xzoom License",
     false,
     false
   ],

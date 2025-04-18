@@ -147,9 +147,11 @@ subdirs:
     packages:
       __glibc: "2.17"
       __cuda: "11.4"
+      __archspec: "1 haswell"
   win-64:
     packages:
       __cuda: "11.4"
+      __archspec: "1 haswell"
 ```
 
 conda-lock will automatically use a `virtual-packages.yml` it finds in the the current working directory.  Alternatively one can be specified

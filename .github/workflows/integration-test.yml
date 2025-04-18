@@ -17,6 +17,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
+  # See also the same variable in test.yml
   MICROMAMBA_VERSION: 'latest'
 
 defaults:
@@ -30,7 +31,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ ubuntu-latest, macos-latest, windows-latest ]
-        python-version: [ "3.8", "3.12" ]
+        python-version: [ "3.9", "3.13" ]
     steps:
       - name: Set Conda platform
         run: |
@@ -55,7 +56,7 @@ jobs:
           pipx install -e .
       - name: run-test
         run: |
-          conda-lock --log-level=DEBUG --mamba -f tests/gdal/environment.yml -p $CONDA_PLATFORM
+          conda-lock --log-level=DEBUG --micromamba -f tests/gdal/environment.yml -p $CONDA_PLATFORM
           conda-lock render -p $CONDA_PLATFORM
           conda-lock render -p $CONDA_PLATFORM --kind=env
           cat conda-$CONDA_PLATFORM.lock
@@ -75,15 +76,25 @@ jobs:
       fail-fast: false
       matrix:
         os: [ ubuntu-latest, macos-latest, windows-latest ]
-        python-version: [ "3.8" ]
+        python-version: [ "3.9" ]
     steps:
+      - name: Set Conda platform
+        run: |
+          if [ "$RUNNER_OS" == "Linux" ]; then
+            echo "CONDA_PLATFORM=linux-64" >> $GITHUB_ENV
+          elif [ "$RUNNER_OS" == "macOS" ]; then
+            echo "CONDA_PLATFORM=osx-arm64" >> $GITHUB_ENV
+          elif [ "$RUNNER_OS" == "Windows" ]; then
+            echo "CONDA_PLATFORM=win-64" >> $GITHUB_ENV
+          fi
+      - name: Verify Conda platform
+        run: echo "Conda platform is $CONDA_PLATFORM"
       - name: Install Conda environment with Micromamba
         uses: mamba-org/setup-micromamba@v2
         with:
-          # # Temporarily pin the version due to
-          # # <https://github.com/mamba-org/mamba/issues/3467>
-          # micromamba-version: ${{ env.MICROMAMBA_VERSION }}
-          micromamba-version: 1.5.10-0
+          micromamba-version: ${{ env.MICROMAMBA_VERSION }}
+          # # Use micromamba-url instead of micromamba-version to test prereleases
+          # micromamba-url: https://github.com/mamba-org/micromamba-releases/releases/download/${{ env.MICROMAMBA_VERSION }}/micromamba-${{ env.CONDA_PLATFORM }}
           init-shell: bash
       - name: Download lockfiles
         uses: actions/download-artifact@v4
@@ -110,7 +121,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ ubuntu-latest, macos-latest, windows-latest ]
-        python-version: [ "3.8", "3.12" ]
+        python-version: [ "3.9", "3.13" ]
     steps:
       - uses: actions/checkout@eef61447b9ff4aafe5dcd4e0bbf5d482be7e7871 # v4
       - uses: conda-incubator/setup-miniconda@v3
@@ -152,7 +163,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ ubuntu-latest, macos-latest, windows-latest ]
-        python-version: [ "3.8" ]
+        python-version: [ "3.9" ]
     steps:
       - uses: conda-incubator/setup-miniconda@v3
         with:

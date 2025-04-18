@@ -46,6 +46,7 @@ class SystemGit:
             stdout=subprocess.DEVNULL,
             env=env,
             text=True,
+            encoding="utf-8",
         )
 
     @staticmethod

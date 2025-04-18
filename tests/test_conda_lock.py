@@ -25,6 +25,7 @@ import yaml
 
 from click.testing import CliRunner
 from click.testing import Result as CliResult
+from ensureconda.resolve import platform_subdir
 from flaky import flaky
 from freezegun import freeze_time
 
@@ -49,6 +50,7 @@ from conda_lock.conda_lock import (
     run_lock,
 )
 from conda_lock.conda_solver import (
+    _get_installed_conda_packages,
     _get_pkgs_dirs,
     extract_json_object,
     fake_conda_environment,
@@ -69,7 +71,6 @@ from conda_lock.lockfile.v2prelim.models import (
 from conda_lock.lookup import DEFAULT_MAPPING_URL, conda_name_to_pypi_name
 from conda_lock.models.channel import Channel
 from conda_lock.models.lock_spec import (
-    Dependency,
     PathDependency,
     VCSDependency,
     VersionedDependency,
@@ -421,9 +422,9 @@ def test_lock_poetry_ibis(
         all_categories.update(pkg.categories)
 
     for desired_category in extra_categories:
-        assert (
-            desired_category in all_categories
-        ), "Extra category not found in lockfile"
+        assert desired_category in all_categories, (
+            "Extra category not found in lockfile"
+        )
 
 
 def test_parse_environment_file(gdal_environment: Path):
@@ -872,9 +873,9 @@ def test_poetry_no_pypi_multiple_pyprojects(
         src_files=poetry_pyproject_toml_no_pypi_other_projects,
         mapping_url=DEFAULT_MAPPING_URL,
     )
-    assert (
-        spec.allow_pypi_requests is True
-    ), "PyPI requests should be allowed when all pyprojects.toml allow PyPI requests"
+    assert spec.allow_pypi_requests is True, (
+        "PyPI requests should be allowed when all pyprojects.toml allow PyPI requests"
+    )
     spec = make_lock_spec(
         src_files=[
             *poetry_pyproject_toml_no_pypi_other_projects,
@@ -882,9 +883,9 @@ def test_poetry_no_pypi_multiple_pyprojects(
         ],
         mapping_url=DEFAULT_MAPPING_URL,
     )
-    assert (
-        spec.allow_pypi_requests is False
-    ), "PyPI requests should be forbidden when at least one pyproject.toml forbids PyPI requests"
+    assert spec.allow_pypi_requests is False, (
+        "PyPI requests should be forbidden when at least one pyproject.toml forbids PyPI requests"
+    )
 
 
 def test_prepare_repositories_pool():
@@ -1167,9 +1168,9 @@ def test_explicit_toposorted() -> None:
             if dep.startswith("__"):
                 # This is a virtual package, so we don't need to check it
                 continue
-            assert (
-                dep in installed_names
-            ), f"{n=}, {line=}, {name=}, {dep=}, {installed_names=}"
+            assert dep in installed_names, (
+                f"{n=}, {line=}, {name=}, {dep=}, {installed_names=}"
+            )
 
         # Simulate installing the package
         installed_names.add(name)
@@ -1221,9 +1222,9 @@ def test_run_lock_with_input_metadata(
         inputs_metadata["environment.yml"].md5 == "5473161eb8500056d793df7ac720a36f"
     ), "Input md5 didn't match expectation"
     expected_shasum = "1177fb37f73bebd39bba9e504cb03495136b1961126475a5839da2e878b2afda"
-    assert (
-        inputs_metadata["environment.yml"].sha256 == expected_shasum
-    ), "Input shasum didn't match expectation"
+    assert inputs_metadata["environment.yml"].sha256 == expected_shasum, (
+        "Input shasum didn't match expectation"
+    )
 
 
 @pytest.fixture
@@ -1340,15 +1341,15 @@ def test_run_lock_with_git_metadata(
         git_metadata_zlib_environment.parent / DEFAULT_LOCKFILE_NAME
     )
 
-    assert (
-        lockfile.metadata.git_metadata is not None
-    ), "Git metadata was None, should be some value"
-    assert (
-        lockfile.metadata.git_metadata.git_user_name is not None
-    ), "Git metadata user.name was None, should be some value"
-    assert (
-        lockfile.metadata.git_metadata.git_user_email is not None
-    ), "Git metadata user.email was None, should be some value"
+    assert lockfile.metadata.git_metadata is not None, (
+        "Git metadata was None, should be some value"
+    )
+    assert lockfile.metadata.git_metadata.git_user_name is not None, (
+        "Git metadata user.name was None, should be some value"
+    )
+    assert lockfile.metadata.git_metadata.git_user_email is not None, (
+        "Git metadata user.email was None, should be some value"
+    )
     if current_user_name is None:
         config = repo.config_writer()
         config.remove_option("user", "name")
@@ -1379,12 +1380,12 @@ def test_run_lock_with_custom_metadata(
         custom_yaml_metadata.parent / DEFAULT_LOCKFILE_NAME
     )
 
-    assert (
-        lockfile.metadata.custom_metadata is not None
-    ), "Custom metadata was None unexpectedly"
-    assert (
-        lockfile.metadata.custom_metadata == EXPECTED_CUSTOM_FIELDS
-    ), "Custom metadata didn't get written as expected"
+    assert lockfile.metadata.custom_metadata is not None, (
+        "Custom metadata was None unexpectedly"
+    )
+    assert lockfile.metadata.custom_metadata == EXPECTED_CUSTOM_FIELDS, (
+        "Custom metadata didn't get written as expected"
+    )
 
 
 def test_run_lock_blas_mkl(
@@ -1988,17 +1989,17 @@ def test_aggregate_lock_specs_invalid_pip_repos():
         sources=[],
     )
 
-    spec_a_b = base_spec.copy(update={"pip_repositories": [repo_a, repo_b]})
+    spec_a_b = base_spec.model_copy(update={"pip_repositories": [repo_a, repo_b]})
     agg_spec = aggregate_lock_specs([base_spec, spec_a_b, spec_a_b], platforms=[])
     assert agg_spec.pip_repositories == spec_a_b.pip_repositories
 
     # swap the order of the two repositories, which is an error
-    spec_b_a = base_spec.copy(update={"pip_repositories": [repo_b, repo_a]})
+    spec_b_a = base_spec.model_copy(update={"pip_repositories": [repo_b, repo_a]})
     with pytest.raises(ChannelAggregationError):
         agg_spec = aggregate_lock_specs([base_spec, spec_a_b, spec_b_a], platforms=[])
 
     # We can combine ["a"] with ["b", "a"], but not with ["a", "b"].
-    spec_a = base_spec.copy(update={"pip_repositories": [repo_a]})
+    spec_a = base_spec.model_copy(update={"pip_repositories": [repo_a]})
     aggregate_lock_specs([base_spec, spec_a, spec_b_a], platforms=[])
     with pytest.raises(ChannelAggregationError):
         aggregate_lock_specs([base_spec, spec_a, spec_a_b], platforms=[])
@@ -2060,16 +2061,204 @@ def test_solve_arch_multiple_categories():
         assert numpy_deps[0].categories == {"test", "dev"}
 
 
-def _check_package_installed(package: str, prefix: str):
-    import glob
+def test_solve_arch_transitive_deps():
+    _conda_exe = determine_conda_executable(None, mamba=False, micromamba=False)
+    channels = [Channel.from_string("conda-forge")]
 
-    files = list(glob.glob(f"{prefix}/conda-meta/{package}-*.json"))
+    with tempfile.NamedTemporaryFile(dir=".") as tf:
+        spec = LockSpecification(
+            dependencies={
+                "linux-64": [
+                    VersionedDependency(
+                        name="python",
+                        version="=3.10.9",
+                        manager="conda",
+                        category="main",
+                        extras=[],
+                    ),
+                    VersionedDependency(
+                        name="pip",
+                        version="=24.2",
+                        manager="conda",
+                        category="main",
+                        extras=[],
+                    ),
+                    VersionedDependency(
+                        name="jupyter",
+                        version="=1.1.1",
+                        manager="pip",
+                        category="main",
+                        extras=[],
+                    ),
+                ],
+            },
+            channels=channels,
+            # NB: this file must exist for relative path resolution to work
+            # in create_lockfile_from_spec
+            sources=[Path(tf.name)],
+        )
+
+        vpr = default_virtual_package_repodata()
+        with vpr:
+            locked_deps = _solve_for_arch(
+                conda=_conda_exe,
+                spec=spec,
+                platform="linux-64",
+                channels=channels,
+                pip_repositories=[],
+                virtual_package_repo=vpr,
+                mapping_url=DEFAULT_MAPPING_URL,
+            )
+        python_deps = [dep for dep in locked_deps if dep.name == "python"]
+        assert len(python_deps) == 1
+        assert python_deps[0].categories == {"main"}
+
+        jupyter_deps = [dep for dep in locked_deps if dep.name == "jupyter"]
+        assert len(jupyter_deps) == 1
+        assert jupyter_deps[0].categories == {"main"}
+
+        # ipython is a transitive dependency of jupyter
+        ipython_deps = [dep for dep in locked_deps if dep.name == "ipython"]
+        assert len(ipython_deps) == 1
+        # Ensure that transitive dependencies are also properly tagged
+        assert ipython_deps[0].categories == {"main"}
+
+
+def test_solve_x86_64_microarch_level_1():
+    _conda_exe = determine_conda_executable(None, mamba=False, micromamba=False)
+    channels = [Channel.from_string("conda-forge")]
+
+    with tempfile.NamedTemporaryFile(dir=".") as tf:
+        spec = LockSpecification(
+            dependencies={
+                "linux-64": [
+                    VersionedDependency(
+                        name="_x86_64-microarch-level",
+                        version="=1",
+                        manager="conda",
+                        category="main",
+                        extras=[],
+                    ),
+                ],
+            },
+            channels=channels,
+            # NB: this file must exist for relative path resolution to work
+            # in create_lockfile_from_spec
+            sources=[Path(tf.name)],
+        )
+
+        vpr = default_virtual_package_repodata()
+        with vpr:
+            locked_deps = _solve_for_arch(
+                conda=_conda_exe,
+                spec=spec,
+                platform="linux-64",
+                channels=[*channels, vpr.channel],
+                pip_repositories=[],
+                virtual_package_repo=vpr,
+                mapping_url=DEFAULT_MAPPING_URL,
+            )
+
+        microarch_level_deps = [
+            dep for dep in locked_deps if dep.name == "_x86_64-microarch-level"
+        ]
+        assert len(microarch_level_deps) == 1
+        assert microarch_level_deps[0].version == "1"
+
+
+def test_solve_x86_64_microarch_level_2_exception():
+    _conda_exe = determine_conda_executable(None, mamba=False, micromamba=False)
+    channels = [Channel.from_string("conda-forge")]
+
+    with tempfile.NamedTemporaryFile(dir=".") as tf:
+        spec = LockSpecification(
+            dependencies={
+                "linux-64": [
+                    VersionedDependency(
+                        name="_x86_64-microarch-level",
+                        version="=2",
+                        manager="conda",
+                        category="main",
+                        extras=[],
+                    ),
+                ],
+            },
+            channels=channels,
+            # NB: this file must exist for relative path resolution to work
+            # in create_lockfile_from_spec
+            sources=[Path(tf.name)],
+        )
+
+        vpr = default_virtual_package_repodata()
+        with vpr:
+            with pytest.raises(subprocess.CalledProcessError):
+                _solve_for_arch(
+                    conda=_conda_exe,
+                    spec=spec,
+                    platform="linux-64",
+                    channels=[*channels, vpr.channel],
+                    pip_repositories=[],
+                    virtual_package_repo=vpr,
+                    mapping_url=DEFAULT_MAPPING_URL,
+                )
+
+
+def test_solve_x86_64_microarch_level_2_with_input_spec():
+    from conda_lock.virtual_package import virtual_package_repo_from_specification
+
+    _conda_exe = determine_conda_executable(None, mamba=False, micromamba=False)
+    channels = [Channel.from_string("conda-forge")]
+
+    with tempfile.NamedTemporaryFile(dir=".") as tf:
+        spec = LockSpecification(
+            dependencies={
+                "linux-64": [
+                    VersionedDependency(
+                        name="_x86_64-microarch-level",
+                        version="=2",
+                        manager="conda",
+                        category="main",
+                        extras=[],
+                    ),
+                ],
+            },
+            channels=channels,
+            # NB: this file must exist for relative path resolution to work
+            # in create_lockfile_from_spec
+            sources=[Path(tf.name)],
+        )
+
+        test_dir = TESTS_DIR.joinpath("test-archspec")
+        vspec = test_dir / "virtual-packages.yaml"
+        vpr = virtual_package_repo_from_specification(vspec)
+        with vpr:
+            locked_deps = _solve_for_arch(
+                conda=_conda_exe,
+                spec=spec,
+                platform="linux-64",
+                channels=[*channels, vpr.channel],
+                pip_repositories=[],
+                virtual_package_repo=vpr,
+                mapping_url=DEFAULT_MAPPING_URL,
+            )
+
+        microarch_level_deps = [
+            dep for dep in locked_deps if dep.name == "_x86_64-microarch-level"
+        ]
+        assert len(microarch_level_deps) == 1
+        assert microarch_level_deps[0].version == "2"
+
+
+def _check_package_installed(package: str, prefix: str, subdir: Optional[str] = None):
+    files = list(glob(f"{prefix}/conda-meta/{package}-*.json"))
     assert len(files) >= 1
     # TODO: validate that all the files are in there
     for fn in files:
         data = json.load(open(fn))
         for expected_file in data["files"]:
             assert (Path(prefix) / Path(expected_file)).exists()
+        if subdir is not None:
+            assert data["subdir"] == subdir
     return True
 
 
@@ -2503,8 +2692,6 @@ def test_virtual_packages(
 
     platform = "linux-64"
 
-    from click.testing import CliRunner
-
     for lockfile in glob(f"conda-{platform}.*"):
         os.unlink(lockfile)
 
@@ -2575,12 +2762,12 @@ def test_default_virtual_package_input_hash_stability():
     from conda_lock.virtual_package import default_virtual_package_repodata
 
     expected = {
-        "linux-64": "a949aac83da089258ce729fcd54dc0a3a1724ea325d67680d7a6d7cc9c0f1d1b",
-        "linux-aarch64": "f68603a3a28dbb03d20a25e1dacda3c42b6acc8a93bd31e13c4956115820cfa6",
-        "linux-ppc64le": "ababb6bc556ac8c9e27a499bf9b83b5757f6ded385caa0c3d7bf3f360dfe358d",
-        "osx-64": "b7eebe4be0654740f67e3023f2ede298f390119ef225f50ad7e7288ea22d5c93",
-        "osx-arm64": "cc82018d1b1809b9aebacacc5ed05ee6a4318b3eba039607d2a6957571f8bf2b",
-        "win-64": "44239e9f0175404e62e4a80bb8f4be72e38c536280d6d5e484e52fa04b45c9f6",
+        "linux-64": "ebfbb8130f916103373e6521bfb129825cded8b0c3e93f430cc834d8c3664244",
+        "linux-aarch64": "5418156c9b6c5ae92b8558087b5d39ee06c66b5ec405a91b4c7ee23d6cec41e2",
+        "linux-ppc64le": "7b111d5f69fb0bd81808d1a9272187ad719e5f03c63b3ebb600aca01355b8576",
+        "osx-64": "e2236a55963b8a15f6702e885eb44c7ce3f294c638cc91aa770e23435f77d18e",
+        "osx-arm64": "bb227bce8532d0eee9396306045e270525b110103f4c54be9ac35621baab3dcd",
+        "win-64": "1d34ea90abc99d31721cae03335543cbe16ad4e1eaa988e7a7f8563bda2f951d",
     }
 
     spec = LockSpecification(
@@ -2605,25 +2792,28 @@ def test_fake_conda_env(conda_exe: str, conda_lock_yaml: Path):
     with fake_conda_environment(
         lockfile_content.package, platform="linux-64"
     ) as prefix:
-        packages = json.loads(
-            subprocess.check_output(
-                [
-                    conda_exe,
-                    "list",
-                    "--debug",
-                    "-p",
-                    prefix,
-                    "--json",
-                ]
-            )
-        )
+        packages = _get_installed_conda_packages(conda_exe, "linux-64", prefix)
         locked = {
             p.name: p
             for p in lockfile_content.package
             if p.manager == "conda" and p.platform == "linux-64"
         }
-        assert len(packages) == len(locked)
-        for env_package in packages:
+        if len(packages) != len(locked):
+            # There's a discrepancy. Do further analysis and raise an error.
+            locked_names = set(locked.keys())
+            package_names = set(packages.keys())
+            if len(package_names) != len(packages):
+                raise RuntimeError(
+                    f"Found duplicate packages in conda list output: {packages}"
+                )
+            not_locked = package_names - locked_names
+            extra_locked = locked_names - package_names
+            raise RuntimeError(
+                f"Got {len(packages)} packages in conda list output, but "
+                f"{len(locked)} in lockfile: {not_locked} not in lockfile, "
+                f"{extra_locked} in lockfile but not in conda list output"
+            )
+        for env_package in packages.values():
             locked_package = locked[env_package["name"]]
 
             platform = env_package["platform"]
@@ -2651,8 +2841,55 @@ def test_fake_conda_env(conda_exe: str, conda_lock_yaml: Path):
             assert platform == path.parent.name
 
 
+def test_forced_platform(
+    conda_exe: str,
+    tmp_path: Path,
+    conda_lock_yaml: Path,
+    capsys: "pytest.CaptureFixture[str]",
+):
+    if is_micromamba(conda_exe):
+        pytest.skip(reason="micromamba tests are failing")
+    if platform_subdir() != "osx-arm64":
+        pytest.skip("Test is only relevant for macOS on ARM64")
+
+    root_prefix = tmp_path / "root_prefix"
+    root_prefix.mkdir(exist_ok=True)
+    prefix = root_prefix / "test_env"
+
+    package = "bzip2"
+    platform = "osx-64"
+    assert platform != platform_subdir()
+
+    install_args = [
+        "install",
+        "--conda",
+        conda_exe,
+        "--prefix",
+        str(prefix),
+        "--force-platform",
+        platform,
+        str(conda_lock_yaml),
+    ]
+    with capsys.disabled():
+        runner = CliRunner(mix_stderr=False)
+        result = runner.invoke(main, install_args, catch_exceptions=False)
+
+    print(result.stdout, file=sys.stdout)
+    print(result.stderr, file=sys.stderr)
+    if Path(conda_lock_yaml).exists():
+        logging.debug(
+            "lockfile contents: \n\n=======\n%s\n\n==========",
+            Path(conda_lock_yaml).read_text(),
+        )
+
+    assert _check_package_installed(
+        package=package,
+        prefix=str(prefix),
+        subdir=platform,
+    ), f"Package {package} does not exist in {prefix} environment"
+
+
 @pytest.mark.parametrize("placeholder", ["$QUETZ_API_KEY", "${QUETZ_API_KEY}"])
-@flaky
 def test_private_lock(
     quetz_server: "QuetzServerInfo",
     tmp_path: Path,
@@ -2667,10 +2904,7 @@ def test_private_lock(
             [conda_exe, "--version"], stdout=subprocess.PIPE, encoding="utf8"
         )
         logging.info("using micromamba version %s", res.stdout)
-        pytest.xfail("micromamba doesn't support our quetz server urls properly")
-    from ensureconda.resolve import platform_subdir
 
-    monkeypatch.setenv("QUETZ_API_KEY", quetz_server.api_key)
     monkeypatch.chdir(tmp_path)
 
     content = yaml.safe_dump(
@@ -2683,10 +2917,8 @@ def test_private_lock(
     (tmp_path / "environment.yml").write_text(content)
 
     with capsys.disabled():
-        from click.testing import CliRunner, Result
-
         runner = CliRunner(mix_stderr=False)
-        result: Result = runner.invoke(
+        result: CliResult = runner.invoke(
             main,
             [
                 "lock",
@@ -2694,16 +2926,22 @@ def test_private_lock(
                 conda_exe,
             ],
             catch_exceptions=False,
+            env=dict(os.environ, QUETZ_API_KEY=quetz_server.api_key),
         )
         assert result.exit_code == 0
 
-    def run_install():
+    def run_install(with_env: bool) -> CliResult:
         with capsys.disabled():
             runner = CliRunner(mix_stderr=False)
             env_name = uuid.uuid4().hex
             env_prefix = tmp_path / env_name
 
-            result: Result = runner.invoke(
+            if with_env:
+                env = dict(os.environ, QUETZ_API_KEY=quetz_server.api_key)
+            else:
+                env = dict(os.environ)
+
+            result: CliResult = runner.invoke(
                 main,
                 [
                     "install",
@@ -2714,17 +2952,18 @@ def test_private_lock(
                     str(tmp_path / "conda-lock.yml"),
                 ],
                 catch_exceptions=False,
+                env=env,
             )
 
         print(result.stdout, file=sys.stdout)
         print(result.stderr, file=sys.stderr)
-        assert result.exit_code == 0
+        return result
 
-    run_install()
+    result = run_install(with_env=True)
+    assert result.exit_code == 0
 
-    monkeypatch.delenv("QUETZ_API_KEY")
     with pytest.raises(MissingEnvVarError):
-        run_install()
+        run_install(with_env=False)
 
 
 def test_lookup_sources():
@@ -2778,10 +3017,8 @@ def test_lookup(
     monkeypatch.chdir(cwd)
     lookup_filename = str((cwd / lookup_source).absolute())
     with capsys.disabled():
-        from click.testing import CliRunner, Result
-
         runner = CliRunner(mix_stderr=False)
-        result: Result = runner.invoke(
+        result: CliResult = runner.invoke(
             main,
             ["lock", "--pypi_to_conda_lookup_file", lookup_filename],
             catch_exceptions=False,
@@ -2849,17 +3086,15 @@ def test_get_pkgs_dirs_mocked_output(info_file: str, expected: Optional[List[Pat
 
     with mock.patch("subprocess.check_output", return_value=command_output):
         # If expected is None, we expect a ValueError to be raised
-        with pytest.raises(
-            ValueError
-        ) if expected is None else contextlib.nullcontext():
+        with (
+            pytest.raises(ValueError) if expected is None else contextlib.nullcontext()
+        ):
             result = _get_pkgs_dirs(conda=conda, platform="linux-64", method=method)
             assert result == expected
 
 
 def test_cli_version(capsys: "pytest.CaptureFixture[str]"):
     """It should correctly report its version."""
-
-    from click.testing import CliRunner
 
     with capsys.disabled():
         runner = CliRunner(mix_stderr=False)
@@ -2965,9 +3200,9 @@ def test_pip_respects_glibc_version(
     manylinux_pattern = r"manylinux_(\d+)_(\d+).+\.whl"
     # Should return the first match so higher version first.
     manylinux_match = re.search(manylinux_pattern, cryptography_dep.url)
-    assert (
-        manylinux_match
-    ), "No match found for manylinux version in {cryptography_dep.url}"
+    assert manylinux_match, (
+        "No match found for manylinux version in {cryptography_dep.url}"
+    )
 
     manylinux_version = [int(each) for each in manylinux_match.groups()]
     # Make sure the manylinux wheel was built with glibc <= 2.17

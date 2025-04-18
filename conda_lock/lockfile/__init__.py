@@ -124,6 +124,12 @@ def apply_categories(
             # `dask-core` as packages that are planned to be installed.
             planned_items = extract_planned_items(_seperator_munge_get(planned, item))
 
+            if item != name:
+                # Add item to deps *after* extracting dependencies otherwise we do not
+                # properly mark all transitive dependencies as part of the same
+                # category.
+                deps.add(item)
+
             for planned_item in planned_items:
                 todo.extend(
                     dep_name(
@@ -135,7 +141,6 @@ def apply_categories(
                 )
             if todo:
                 item = todo.pop(0)
-                deps.add(item)
             else:
                 break
 
@@ -239,8 +244,8 @@ def write_conda_lock_file(
             if extras:
                 write_section(
                     f"""
-                    This lock contains optional dependency categories {', '.join(extras)}. Include them in the installed environment with:
-                        conda-lock install {' '.join('-e '+extra for extra in extras)} -n YOURENV {path.name}
+                    This lock contains optional dependency categories {", ".join(extras)}. Include them in the installed environment with:
+                        conda-lock install {" ".join("-e " + extra for extra in extras)} -n YOURENV {path.name}
                     """
                 )
             write_section(
@@ -248,7 +253,7 @@ def write_conda_lock_file(
                 To update a single package to the latest version compatible with the version constraints in the source:
                     conda-lock lock {metadata_flags} --lockfile {path.name} --update PACKAGE
                 To re-solve the entire environment, e.g. after changing a version constraint in the source file:
-                    conda-lock {metadata_flags}{' '.join('-f '+path for path in content.metadata.sources)} --lockfile {path.name}
+                    conda-lock {metadata_flags}{" ".join("-f " + path for path in content.metadata.sources)} --lockfile {path.name}
                 """
             )
         output = content.to_v1().dict_for_output()

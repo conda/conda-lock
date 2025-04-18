@@ -16,9 +16,18 @@ if TYPE_CHECKING:
 
 
 BASIC_CONSTRAINT = re.compile(r"^(!?==?)?\s*([^\s]+?)\s*$")
+STR_CMP_CONSTRAINT = re.compile(
+    r"""(?ix)^ # case insensitive and verbose mode
+    (?P<quote>['"]) # Single or double quotes
+    (?P<value>.+?) # The value itself inside quotes
+    \1 # Closing single of double quote
+    \s* # Space
+    (?P<op>(not\sin|in)) # Literal match of 'in' or 'not in'
+    $"""
+)
 
 
-@functools.lru_cache(maxsize=None)
+@functools.cache
 def parse_constraint(constraints: str) -> BaseConstraint:
     if constraints == "*":
         return AnyConstraint()
@@ -26,9 +35,7 @@ def parse_constraint(constraints: str) -> BaseConstraint:
     or_constraints = re.split(r"\s*\|\|?\s*", constraints.strip())
     or_groups = []
     for constraints in or_constraints:
-        and_constraints = re.split(
-            r"(?<!^)(?<![=>< ,]) *(?<!-)[, ](?!-) *(?!,|$)", constraints
-        )
+        and_constraints = re.split(r"\s*,\s*", constraints)
         constraint_objects = []
 
         if len(and_constraints) > 1:
@@ -53,9 +60,15 @@ def parse_constraint(constraints: str) -> BaseConstraint:
 
 
 def parse_single_constraint(constraint: str) -> Constraint:
+    # string comparator
+    if m := STR_CMP_CONSTRAINT.match(constraint):
+        op = m.group("op")
+        value = m.group("value").strip()
+        return Constraint(value, op)
+
     # Basic comparator
-    m = BASIC_CONSTRAINT.match(constraint)
-    if m:
+
+    if m := BASIC_CONSTRAINT.match(constraint):
         op = m.group(1)
         if op is None:
             op = "=="
