@@ -1754,7 +1754,7 @@ def render(
 @click.option(
     "-k",
     "--kind",
-    type=click.Choice(["pixi.toml"]),
+    type=click.Choice(["pixi.toml", "raw"]),
     multiple=True,
     help="Kind of lock specification to generate. Must be 'pixi.toml'.",
 )
@@ -1885,7 +1885,7 @@ def render_lock_spec(  # noqa: C901
     channel_overrides: Sequence[str],
     dev_dependencies: bool,
     files: Sequence[PathLike],
-    kind: Sequence[Literal["pixi.toml"]],
+    kind: Sequence[Literal["pixi.toml", "raw"]],
     filename_template: Optional[str],
     lockfile: Optional[PathLike],
     strip_auth: bool,
@@ -1906,9 +1906,12 @@ def render_lock_spec(  # noqa: C901
 ) -> None:
     """Combine source files into a single lock specification"""
     kinds = set(kind)
-    if kinds != {"pixi.toml"}:
+    if len(kinds) == 0:
+        raise ValueError("No kind specified. Add `--kind=pixi.toml` or `--kind=raw`.")
+    if not kinds <= {"pixi.toml", "raw"}:
         raise NotImplementedError(
-            "Only 'pixi.toml' is supported at the moment. Add `--kind=pixi.toml`."
+            "Only 'pixi.toml' and 'raw' are supported at the moment. "
+            "Add `--kind=pixi.toml` or `--kind=raw`."
         )
     if pixi_project_name is not None and "pixi.toml" not in kinds:
         raise ValueError("The --pixi-project-name option is only valid for pixi.toml")
@@ -2018,7 +2021,7 @@ def render_lock_spec(  # noqa: C901
 def do_render_lockspec(
     src_files: List[pathlib.Path],
     *,
-    kinds: AbstractSet[Literal["pixi.toml"]],
+    kinds: AbstractSet[Literal["pixi.toml", "raw"]],
     stdout: bool,
     platform_overrides: Optional[Sequence[str]] = None,
     channel_overrides: Optional[Sequence[str]] = None,
@@ -2046,6 +2049,15 @@ def do_render_lockspec(
         required_categories=required_categories if filter_categories else None,
         mapping_url=mapping_url,
     )
+    if "raw" in kinds:
+        if stdout:
+            warn(
+                "Raw lockspec is not intended to be stable "
+                "between any conda-lock versions."
+            )
+            print(lock_spec.model_dump_json(indent=2))
+        else:
+            raise NotImplementedError("Only stdout is supported at the moment.")
     if "pixi.toml" in kinds:
         pixi_toml = render_pixi_toml(
             lock_spec=lock_spec,
