@@ -5,15 +5,15 @@
 # available, unless you explicitly update the lock file.
 #
 # Install this environment as "YOURENV" with:
-#     conda-lock install -n YOURENV conda-lock.yml
+#     conda-lock install -n YOURENV conda-lock-v2.yml
 # This lock contains optional development dependencies. Include them in the installed environment with:
-#     conda-lock install --dev-dependencies -n YOURENV conda-lock.yml
+#     conda-lock install --dev-dependencies -n YOURENV conda-lock-v2.yml
 # This lock contains optional dependency categories test. Include them in the installed environment with:
-#     conda-lock install -e test -n YOURENV conda-lock.yml
+#     conda-lock install -e test -n YOURENV conda-lock-v2.yml
 # To update a single package to the latest version compatible with the version constraints in the source:
-#     conda-lock lock  --lockfile conda-lock.yml --update PACKAGE
+#     conda-lock lock  --lockfile conda-lock-v2.yml --update PACKAGE
 # To re-solve the entire environment, e.g. after changing a version constraint in the source file:
-#     conda-lock -f environment.yml -f test-dependencies.yml -f dev-dependencies.yml --lockfile conda-lock.yml
+#     conda-lock -f environment.yml -f test-dependencies.yml -f dev-dependencies.yml --lockfile conda-lock-v2.yml
 version: 1
 metadata:
   content_hash:
@@ -82,11 +82,12 @@ package:
   version: 2025.1.31
   manager: conda
   platform: linux-64
-  dependencies: {}
-  url: https://conda.anaconda.org/conda-forge/linux-64/ca-certificates-2025.1.31-hbcca054_0.conda
+  dependencies:
+    __unix: ''
+  url: https://conda.anaconda.org/conda-forge/noarch/ca-certificates-2025.1.31-hbd8a1cb_1.conda
   hash:
-    md5: 19f3a56f68d2fd06c516076bff482c52
-    sha256: bf832198976d559ab44d6cdb315642655547e26d826e34da67cbee6624cda189
+    md5: e74273d9fc5ab633d613cde474b55157
+    sha256: 43878eddf8eb46e3ba7fcbe77a2f8d00aab9a66d9ff63bc4d072b7af17481197
   category: main
   optional: false
 - name: colorama
@@ -102,15 +103,15 @@ package:
   category: test
   optional: true
 - name: dill
-  version: 0.3.9
+  version: 0.4.0
   manager: conda
   platform: linux-64
   dependencies:
     python: '>=3.9'
-  url: https://conda.anaconda.org/conda-forge/noarch/dill-0.3.9-pyhd8ed1ab_1.conda
+  url: https://conda.anaconda.org/conda-forge/noarch/dill-0.4.0-pyhd8ed1ab_0.conda
   hash:
-    md5: 5e11310fca410e9f31381157079dee55
-    sha256: 499be2f8e4397a46249e8e500535795704af27e56360ae0c964904140b41454a
+    md5: 885745570573eb6a08e021841928297a
+    sha256: 43dca52c96fde0c4845aaff02bcc92f25e1c2e5266ddefc2eac1a3de0960a3b1
   category: test
   optional: true
 - name: exceptiongroup
@@ -373,15 +374,15 @@ package:
   category: main
   optional: false
 - name: packaging
-  version: '24.2'
+  version: '25.0'
   manager: conda
   platform: linux-64
   dependencies:
     python: '>=3.8'
-  url: https://conda.anaconda.org/conda-forge/noarch/packaging-24.2-pyhd8ed1ab_2.conda
+  url: https://conda.anaconda.org/conda-forge/noarch/packaging-25.0-pyhd8ed1ab_0.conda
   hash:
-    md5: 3bfed7e6228ebf2f7b9eaa47f1b4e2aa
-    sha256: da157b19bcd398b9804c5c52fc000fcb8ab0525bdb9c70f95beaa0bb42f85af1
+    md5: 4088c0d078e2f5092ddf824495186229
+    sha256: f759df4f492ae481505dcceb3d4485a120ee798af26711c92de20944a1185621
   category: test
   optional: true
 - name: platformdirs
@@ -463,31 +464,31 @@ package:
   category: test
   optional: true
 - name: python
-  version: 3.13.2
+  version: 3.13.3
   manager: conda
   platform: linux-64
   dependencies:
     __glibc: '>=2.17,<3.0.a0'
     bzip2: '>=1.0.8,<2.0a0'
     ld_impl_linux-64: '>=2.36.1'
-    libexpat: '>=2.6.4,<3.0a0'
-    libffi: '>=3.4,<4.0a0'
+    libexpat: '>=2.7.0,<3.0a0'
+    libffi: '>=3.4.6,<3.5.0a0'
     libgcc: '>=13'
-    liblzma: '>=5.6.4,<6.0a0'
+    liblzma: '>=5.8.1,<6.0a0'
     libmpdec: '>=4.0.0,<5.0a0'
-    libsqlite: '>=3.48.0,<4.0a0'
+    libsqlite: '>=3.49.1,<4.0a0'
     libuuid: '>=2.38.1,<3.0a0'
     libzlib: '>=1.3.1,<2.0a0'
     ncurses: '>=6.5,<7.0a0'
-    openssl: '>=3.4.1,<4.0a0'
+    openssl: '>=3.5.0,<4.0a0'
     python_abi: 3.13.*
     readline: '>=8.2,<9.0a0'
     tk: '>=8.6.13,<8.7.0a0'
     tzdata: ''
-  url: https://conda.anaconda.org/conda-forge/linux-64/python-3.13.2-hf636f53_101_cp313.conda
+  url: https://conda.anaconda.org/conda-forge/linux-64/python-3.13.3-hf636f53_101_cp313.conda
   hash:
-    md5: a7902a3611fe773da3921cbbf7bc2c5c
-    sha256: cc1984ee54261cee6a2db75c65fc7d2967bc8c6e912d332614df15244d7730ef
+    md5: 10622e12d649154af0bd76bcf33a7c5c
+    sha256: eecb11ea60f8143deeb301eab2e04d04f7acb83659bb20fdfeacd431a5f31168
   category: main
   optional: false
 - name: python_abi
@@ -495,10 +496,10 @@ package:
   manager: conda
   platform: linux-64
   dependencies: {}
-  url: https://conda.anaconda.org/conda-forge/linux-64/python_abi-3.13-6_cp313.conda
+  url: https://conda.anaconda.org/conda-forge/noarch/python_abi-3.13-7_cp313.conda
   hash:
-    md5: ef1d8e55d61220011cceed0b94a920d2
-    sha256: 4cb3b498dac60c05ceeecfd63c6f046d8e94eec902b82238fd5af08e8f3cd048
+    md5: e84b44e6300f1703cb25d29120c5b1d8
+    sha256: 0595134584589064f56e67d3de1d8fcbb673a972946bce25fb593fb092fdcd97
   category: main
   optional: false
 - name: readline
@@ -515,7 +516,7 @@ package:
   category: main
   optional: false
 - name: ruff
-  version: 0.11.4
+  version: 0.11.6
   manager: conda
   platform: linux-64
   dependencies:
@@ -524,22 +525,22 @@ package:
     libstdcxx: '>=13'
     python: '>=3.13,<3.14.0a0'
     python_abi: 3.13.*
-  url: https://conda.anaconda.org/conda-forge/linux-64/ruff-0.11.4-py313h22842b3_0.conda
+  url: https://conda.anaconda.org/conda-forge/linux-64/ruff-0.11.6-py313h22842b3_0.conda
   hash:
-    md5: 6e1f9f8d2fb2171bcfd68ea3d56c1792
-    sha256: bc10e34b7d30b4810ca110dbebe57009cea66b31ea82368156b4317273161a7d
+    md5: bca7189dfbba4099a10a13b1f6c0eff4
+    sha256: fe2754bce292a702bd227baf7374326ea06777c35a195891f54fc3cc047d6b30
   category: dev
   optional: true
 - name: setuptools
-  version: 78.1.0
+  version: 79.0.0
   manager: conda
   platform: linux-64
   dependencies:
     python: '>=3.9'
-  url: https://conda.anaconda.org/conda-forge/noarch/setuptools-78.1.0-pyhff2d567_0.conda
+  url: https://conda.anaconda.org/conda-forge/noarch/setuptools-79.0.0-pyhff2d567_0.conda
   hash:
-    md5: a42da9837e46c53494df0044c3eb1f53
-    sha256: d4c74d2140f2fbc72fe5320cbd65f3fd1d1f7832ab4d7825c37c38ab82440ae2
+    md5: 36c8697843eb7573fe3dde0e36193a06
+    sha256: b0415e169a4b39ebe4fbbbb224a45607dcceb77162761dfd8bb94533a6ff9f97
   category: test
   optional: true
 - name: tk
