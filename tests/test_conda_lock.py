@@ -631,7 +631,7 @@ def test_choose_wheel() -> None:
         use_latest=[],
         pip_locked={},
         conda_locked={
-            "python": LockedDependency.parse_obj(
+            "python": LockedDependency.model_validate(
                 {
                     "name": "python",
                     "version": "3.9.7",
