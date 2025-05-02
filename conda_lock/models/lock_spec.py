@@ -121,9 +121,28 @@ class LockSpecification(BaseModel):
             ]
         if virtual_package_repo is not None:
             vpr_data = virtual_package_repo.all_repodata
+
+            # We don't actually use these values! I'm including them to indicate
+            # what I would have expected from the schema. See the code block
+            # immediately below for the actual values.
+            fallback_noarch: Union[SubdirMetadata, EmptyDict] = {
+                "info": {"subdir": "noarch"},
+                "packages": {},
+            }
+            fallback_platform: Union[SubdirMetadata, EmptyDict] = {
+                "info": {"subdir": platform},
+                "packages": {},
+            }
+
+            # It seems a bit of a schema violation, but the original implementation
+            # did this, so we have to keep it in order to preserve consistency of
+            # the hashes.
+            fallback_noarch = {}
+            fallback_platform = {}
+
             data["virtual_package_hash"] = {
-                "noarch": vpr_data.get("noarch", {}),
-                platform: vpr_data.get(platform, {}),
+                "noarch": vpr_data.get("noarch", fallback_noarch),
+                platform: vpr_data.get(platform, fallback_platform),
             }
         return data
 
