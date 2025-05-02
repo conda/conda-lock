@@ -772,13 +772,12 @@ def _solve_for_arch(
         if "python" not in conda_deps:
             raise ValueError("Got pip specs without Python")
 
-        platform_virtual_packages = (
-            virtual_package_repo.all_repodata.get(platform, {"packages": None})[
-                "packages"
-            ]
-            if virtual_package_repo
-            else None
-        )
+        if not virtual_package_repo:
+            platform_virtual_packages = None
+        else:
+            platform_virtual_packages = virtual_package_repo.all_repodata.get(
+                platform, {"packages": None}
+            )["packages"]
 
         pip_deps = solve_pypi(
             pip_specs=requested_deps_by_name["pip"],
