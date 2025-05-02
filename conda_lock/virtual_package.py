@@ -34,7 +34,7 @@ class FakePackage(BaseModel):
     timestamp: int = DEFAULT_TIME
     package_type: Optional[str] = "virtual_system"
 
-    def to_repodata_entry(self) -> Tuple[str, Dict[str, Any]]:
+    def to_repodata_entry(self, *, subdir: str) -> Tuple[str, Dict[str, Any]]:
         out = self.model_dump()
         if self.build_string:
             build = self.build_string
@@ -42,6 +42,7 @@ class FakePackage(BaseModel):
             build = str(self.build_number)
         out["depends"] = list(out["depends"])
         out["build"] = build
+        out["subdir"] = subdir
         fname = f"{self.name}-{self.version}-{build}.tar.bz2"
         return fname, out
 
@@ -98,8 +99,7 @@ class FakeRepoData(BaseModel):
         for pkg, subdirs in self.packages_by_subdir.items():
             if subdir not in subdirs:
                 continue
-            fname, info_dict = pkg.to_repodata_entry()
-            info_dict["subdir"] = subdir
+            fname, info_dict = pkg.to_repodata_entry(subdir=subdir)
             packages[fname] = info_dict
 
         (self.base_path / subdir).mkdir(exist_ok=True)
