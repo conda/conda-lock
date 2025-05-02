@@ -3,7 +3,7 @@ import json
 import pathlib
 import typing
 
-from typing import Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Union
 
 from pydantic import BaseModel, Field, field_validator
 from typing_extensions import Literal
@@ -83,15 +83,23 @@ class LockSpecification(BaseModel):
     def content_hash(
         self, virtual_package_repo: Optional[FakeRepoData]
     ) -> Dict[str, str]:
-        return {
-            platform: self.content_hash_for_platform(platform, virtual_package_repo)
-            for platform in self.platforms
-        }
+        result: dict[str, str] = {}
+        for platform in self.platforms:
+            content = self.content_for_platform(platform, virtual_package_repo)
+            env_spec = json.dumps(content, sort_keys=True)
+            hash = hashlib.sha256(env_spec.encode("utf-8")).hexdigest()
+            result[platform] = hash
+        return result
 
     def content_hash_for_platform(
         self, platform: str, virtual_package_repo: Optional[FakeRepoData]
     ) -> str:
-        data = {
+        return self.content_hash(virtual_package_repo)[platform]
+
+    def content_for_platform(
+        self, platform: str, virtual_package_repo: Optional[FakeRepoData]
+    ) -> dict[str, Any]:
+        data: dict[str, Any] = {
             "channels": [c.model_dump_json() for c in self.channels],
             "specs": [
                 p.model_dump()
@@ -110,9 +118,7 @@ class LockSpecification(BaseModel):
                 "noarch": vpr_data.get("noarch", {}),
                 platform: vpr_data.get(platform, {}),
             }
-
-        env_spec = json.dumps(data, sort_keys=True)
-        return hashlib.sha256(env_spec.encode("utf-8")).hexdigest()
+        return data
 
     @field_validator("channels", mode="before")
     @classmethod
