@@ -108,7 +108,7 @@ class LockSpecification(BaseModel):
             vpr_data = virtual_package_repo.all_repodata
             data["virtual_package_hash"] = {
                 "noarch": vpr_data.get("noarch", {}),
-                **{platform: vpr_data.get(platform, {})},
+                platform: vpr_data.get(platform, {}),
             }
 
         env_spec = json.dumps(data, sort_keys=True)
