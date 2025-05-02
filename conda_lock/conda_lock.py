@@ -775,10 +775,8 @@ def _solve_for_arch(
         if not virtual_package_repo:
             platform_virtual_packages = None
         else:
-            metadata_for_platform = virtual_package_repo.all_repodata.get(
-                platform, {"packages": None}
-            )
-            platform_virtual_packages = metadata_for_platform["packages"]
+            metadata_for_platform = virtual_package_repo.all_repodata.get(platform, {})
+            platform_virtual_packages = metadata_for_platform.get("packages")
 
         pip_deps = solve_pypi(
             pip_specs=requested_deps_by_name["pip"],
