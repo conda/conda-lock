@@ -3,11 +3,18 @@ import json
 import pathlib
 import typing
 
-from typing import Any, Dict, List, Optional, Union
+from typing import Dict, List, Optional, Union, cast
 
 from pydantic import BaseModel, Field, field_validator
 from typing_extensions import Literal
 
+from conda_lock.content_hash_types import (
+    EmptyDict,
+    PlatformSubdirStr,
+    SerializedDependency,
+    SerializedLockspec,
+    SubdirMetadata,
+)
 from conda_lock.models import StrictModel
 from conda_lock.models.channel import Channel
 from conda_lock.models.pip_repository import PipRepository
@@ -82,8 +89,8 @@ class LockSpecification(BaseModel):
 
     def content_hash(
         self, virtual_package_repo: Optional[FakeRepoData]
-    ) -> Dict[str, str]:
-        result: dict[str, str] = {}
+    ) -> Dict[PlatformSubdirStr, str]:
+        result: dict[PlatformSubdirStr, str] = {}
         for platform in self.platforms:
             content = self.content_for_platform(platform, virtual_package_repo)
             env_spec = json.dumps(content, sort_keys=True)
@@ -92,17 +99,17 @@ class LockSpecification(BaseModel):
         return result
 
     def content_hash_for_platform(
-        self, platform: str, virtual_package_repo: Optional[FakeRepoData]
+        self, platform: PlatformSubdirStr, virtual_package_repo: Optional[FakeRepoData]
     ) -> str:
         return self.content_hash(virtual_package_repo)[platform]
 
     def content_for_platform(
-        self, platform: str, virtual_package_repo: Optional[FakeRepoData]
-    ) -> dict[str, Any]:
-        data: dict[str, Any] = {
+        self, platform: PlatformSubdirStr, virtual_package_repo: Optional[FakeRepoData]
+    ) -> SerializedLockspec:
+        data: SerializedLockspec = {
             "channels": [c.model_dump_json() for c in self.channels],
             "specs": [
-                p.model_dump()
+                cast(SerializedDependency, p.model_dump())
                 for p in sorted(
                     self.dependencies[platform], key=lambda p: (p.manager, p.name)
                 )

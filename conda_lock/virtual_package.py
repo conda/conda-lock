@@ -6,10 +6,26 @@ import pathlib
 
 from collections import defaultdict
 from types import TracebackType
-from typing import Any, DefaultDict, Dict, Iterable, List, Optional, Set, Tuple, Type
+from typing import (
+    DefaultDict,
+    Dict,
+    Iterable,
+    List,
+    Optional,
+    Set,
+    Tuple,
+    Type,
+)
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
+from conda_lock.content_hash_types import (
+    HashableFakePackage,
+    HashableVirtualPackageRepresentation,
+    PackageNameStr,
+    PlatformSubdirStr,
+    SubdirMetadata,
+)
 from conda_lock.interfaces.vendored_conda import MatchSpec
 from conda_lock.models.channel import Channel
 
@@ -34,8 +50,10 @@ class FakePackage(BaseModel):
     timestamp: int = DEFAULT_TIME
     package_type: Optional[str] = "virtual_system"
 
-    def to_repodata_entry(self, *, subdir: str) -> Tuple[str, Dict[str, Any]]:
-        out = self.model_dump()
+    def to_repodata_entry(
+        self, *, subdir: PlatformSubdirStr
+    ) -> Tuple[str, HashableFakePackage]:
+        out: HashableFakePackage = self.model_dump()  # type: ignore[assignment]
         if self.build_string:
             build = self.build_string
         else:
@@ -49,10 +67,10 @@ class FakePackage(BaseModel):
 
 class FakeRepoData(BaseModel):
     base_path: pathlib.Path
-    packages_by_subdir: DefaultDict[FakePackage, Set[str]] = Field(
+    packages_by_subdir: DefaultDict[FakePackage, Set[PackageNameStr]] = Field(
         default_factory=lambda: defaultdict(set)  # type: ignore[arg-type,unused-ignore]
     )
-    all_subdirs: Set[str] = {
+    all_subdirs: Set[PlatformSubdirStr] = {
         "noarch",
         "linux-aarch64",
         "linux-ppc64le",
@@ -61,7 +79,7 @@ class FakeRepoData(BaseModel):
         "osx-arm64",
         "win-64",
     }
-    all_repodata: Dict[str, Dict[str, Any]] = {}
+    all_repodata: HashableVirtualPackageRepresentation = {}
     hash: Optional[str] = None
     old_env_vars: Dict[str, Optional[str]] = {}
 
@@ -87,15 +105,17 @@ class FakeRepoData(BaseModel):
         else:
             return f"file://{self.base_path.absolute().as_posix()}"
 
-    def add_package(self, package: FakePackage, subdirs: Iterable[str] = ()) -> None:
+    def add_package(
+        self, package: FakePackage, subdirs: Iterable[PlatformSubdirStr] = ()
+    ) -> None:
         subdirs = frozenset(subdirs)
         if not subdirs:
             subdirs = frozenset(["noarch"])
         self.packages_by_subdir[package].update(subdirs)
 
-    def _write_subdir(self, subdir: str) -> dict:
-        packages: dict = {}
-        out = {"info": {"subdir": subdir}, "packages": packages}
+    def _write_subdir(self, subdir: PlatformSubdirStr) -> SubdirMetadata:
+        packages: Dict[PackageNameStr, HashableFakePackage] = {}
+        out: SubdirMetadata = {"info": {"subdir": subdir}, "packages": packages}
         for pkg, subdirs in self.packages_by_subdir.items():
             if subdir not in subdirs:
                 continue
