@@ -1925,7 +1925,9 @@ def test_aggregate_lock_specs():
     assert actual.model_dump(exclude={"sources"}) == expected.model_dump(
         exclude={"sources"}
     )
-    assert actual.content_hash(None) == expected.content_hash(None)
+    assert actual.content_hash(virtual_package_repo=None) == expected.content_hash(
+        virtual_package_repo=None
+    )
 
 
 def test_aggregate_lock_specs_override_version():
