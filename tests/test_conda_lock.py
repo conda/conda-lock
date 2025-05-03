@@ -15,7 +15,18 @@ import uuid
 
 from glob import glob
 from pathlib import Path
-from typing import Any, ContextManager, Dict, List, Literal, Optional, Set, Tuple, Union
+from typing import (
+    Any,
+    ContextManager,
+    Dict,
+    List,
+    Literal,
+    Optional,
+    Set,
+    Tuple,
+    Union,
+    cast,
+)
 from unittest import mock
 from unittest.mock import MagicMock
 from urllib.parse import urldefrag, urlsplit
@@ -54,6 +65,11 @@ from conda_lock.conda_solver import (
     _get_pkgs_dirs,
     extract_json_object,
     fake_conda_environment,
+)
+from conda_lock.content_hash_types import (
+    HashableFakePackage,
+    PackageNameStr,
+    SubdirMetadata,
 )
 from conda_lock.errors import (
     ChannelAggregationError,
@@ -631,7 +647,7 @@ def test_choose_wheel() -> None:
         use_latest=[],
         pip_locked={},
         conda_locked={
-            "python": LockedDependency.parse_obj(
+            "python": LockedDependency.model_validate(
                 {
                     "name": "python",
                     "version": "3.9.7",
@@ -1909,7 +1925,9 @@ def test_aggregate_lock_specs():
     assert actual.model_dump(exclude={"sources"}) == expected.model_dump(
         exclude={"sources"}
     )
-    assert actual.content_hash(None) == expected.content_hash(None)
+    assert actual.content_hash(virtual_package_repo=None) == expected.content_hash(
+        virtual_package_repo=None
+    )
 
 
 def test_aggregate_lock_specs_override_version():
@@ -3229,7 +3247,20 @@ def test_platformenv_linux_platforms():
 
     # Check that we get the default platforms when the virtual packages are nonempty
     # but don't include __glibc
-    platform_virtual_packages = {"x.bz2": {"name": "not_glibc"}}
+    platform_virtual_packages: Dict[PackageNameStr, HashableFakePackage] = {
+        "x.bz2": {
+            "name": "__not_glibc",
+            "version": "1",
+            "subdir": "linux-64",
+            "build": "x86_64",
+            "build_number": 0,
+            "build_string": "x86_64",
+            "noarch": "",
+            "depends": [],
+            "timestamp": 1714857600,
+            "package_type": "virtual_system",
+        }
+    }
     e = PlatformEnv(
         python_version="3.12",
         platform="linux-64",
@@ -3240,7 +3271,10 @@ def test_platformenv_linux_platforms():
     # Check that we get the expected platforms when using the default repodata.
     # (This should include the glibc corresponding to the latest manylinux tag.)
     default_repodata = default_virtual_package_repodata()
-    platform_virtual_packages = default_repodata.all_repodata["linux-64"]["packages"]
+    platform_repodata = default_repodata.all_repodata["linux-64"]
+    assert "packages" in platform_repodata
+    platform_repodata = cast(SubdirMetadata, platform_repodata)
+    platform_virtual_packages = platform_repodata["packages"]
     e = PlatformEnv(
         python_version="3.12",
         platform="linux-64",
@@ -3271,9 +3305,18 @@ def test_platformenv_linux_platforms():
         "manylinux1_x86_64",
         "linux_x86_64",
     ]
-    platform_virtual_packages["__glibc-2.17-0.tar.bz2"] = dict(
-        name="__glibc", version="2.17"
-    )
+    platform_virtual_packages["__glibc-2.17-0.tar.bz2"] = {
+        "name": "__glibc",
+        "version": "2.17",
+        "build_string": "",
+        "build_number": 0,
+        "build": "0",
+        "noarch": "",
+        "depends": [],
+        "timestamp": 1577854800000,
+        "package_type": "virtual_system",
+        "subdir": "linux-64",
+    }
     e = PlatformEnv(
         python_version="3.12",
         platform="linux-64",
@@ -3282,9 +3325,18 @@ def test_platformenv_linux_platforms():
     assert e._platforms == restricted_platforms
 
     # Check that a warning is raised when there are multiple glibc versions
-    platform_virtual_packages["__glibc-2.28-0.tar.bz2"] = dict(
-        name="__glibc", version="2.28"
-    )
+    platform_virtual_packages["__glibc-2.28-0.tar.bz2"] = {
+        "name": "__glibc",
+        "version": "2.28",
+        "build_string": "",
+        "build_number": 0,
+        "build": "0",
+        "noarch": "",
+        "depends": [],
+        "timestamp": 1577854800000,
+        "package_type": "virtual_system",
+        "subdir": "linux-64",
+    }
     with pytest.warns(UserWarning):
         e = PlatformEnv(
             python_version="3.12",
