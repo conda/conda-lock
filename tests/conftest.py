@@ -7,7 +7,7 @@ import sys
 import typing
 
 from pathlib import Path
-from typing import Any, Iterable, NamedTuple, NoReturn
+from typing import Any, Iterable, NamedTuple
 
 import docker
 import filelock

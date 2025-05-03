@@ -181,7 +181,6 @@ extend-exclude = ["conda_lock/_vendor"]
 [tool.ruff.lint]
 ignore = [
     "E501",
-    "F401",
     "F403",
     # Disabled during migration to Ruff:
     "A001",

@@ -17,7 +17,6 @@ from conda_lock.src_parser.pyproject_toml import (
     parse_platforms_from_pyproject_toml,
     parse_pyproject_toml,
 )
-from conda_lock.virtual_package import FakeRepoData
 
 
 DEFAULT_PLATFORMS = ["linux-64", "osx-arm64", "osx-64", "win-64"]

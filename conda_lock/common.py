@@ -2,7 +2,6 @@ import json
 import os
 import pathlib
 import tempfile
-import typing
 import warnings
 
 from contextlib import contextmanager
