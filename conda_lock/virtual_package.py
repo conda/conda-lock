@@ -313,6 +313,7 @@ class VirtualPackageSpec(BaseModel):
 
 def virtual_package_repo_from_specification(
     virtual_package_spec_file: pathlib.Path,
+    add_duplicate_osx_package: bool = False,
 ) -> FakeRepoData:
     import yaml
 
@@ -340,6 +341,17 @@ def virtual_package_repo_from_specification(
                 ),
                 subdirs=[subdir],
             )
+
+    if add_duplicate_osx_package:
+        # This is to preserve exact consistency with previous versions of conda-lock.
+        # Previous versions of conda-lock would add the __osx package twice, once with
+        # version "10.15" and once with version "11.0". The package with version "10.15"
+        # is ignored by conda and mamba, but is still present in the virtual repodata,
+        # and contributes to the content hash.
+        # <https://github.com/conda/conda-lock/blob/f5323e7a71259ed17173401ec4cd728c6d161fe1/conda_lock/virtual_package.py#L191-L252>
+        package = VirtualPackage(name="__osx", version="10.15")
+        repodata.add_package(package, subdirs=["osx-64"])
+
     repodata.write()
     return repodata
 
