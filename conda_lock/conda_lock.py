@@ -50,7 +50,11 @@ from conda_lock.common import (
     write_file,
 )
 from conda_lock.conda_solver import solve_conda
-from conda_lock.content_hash_types import EmptyDict, HashableFakePackage, SubdirMetadata
+from conda_lock.content_hash_types import (
+    EmptyDict,
+    HashableVirtualPackage,
+    SubdirMetadata,
+)
 from conda_lock.errors import MissingEnvVarError, PlatformValidationError
 from conda_lock.export_lock_spec import EditableDependency, render_pixi_toml
 from conda_lock.invoke_conda import (
@@ -773,7 +777,7 @@ def _solve_for_arch(
         if "python" not in conda_deps:
             raise ValueError("Got pip specs without Python")
 
-        platform_virtual_packages: Optional[Dict[str, HashableFakePackage]]
+        platform_virtual_packages: Optional[Dict[str, HashableVirtualPackage]]
         if not virtual_package_repo:
             # Type checking seems to prove that this is unreachable.
             platform_virtual_packages = None

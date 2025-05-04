@@ -67,7 +67,7 @@ from conda_lock.conda_solver import (
     fake_conda_environment,
 )
 from conda_lock.content_hash_types import (
-    HashableFakePackage,
+    HashableVirtualPackage,
     PackageNameStr,
     SubdirMetadata,
 )
@@ -3247,7 +3247,7 @@ def test_platformenv_linux_platforms():
 
     # Check that we get the default platforms when the virtual packages are nonempty
     # but don't include __glibc
-    platform_virtual_packages: Dict[PackageNameStr, HashableFakePackage] = {
+    platform_virtual_packages: Dict[PackageNameStr, HashableVirtualPackage] = {
         "x.bz2": {
             "name": "__not_glibc",
             "version": "1",
