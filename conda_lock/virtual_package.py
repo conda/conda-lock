@@ -284,12 +284,12 @@ def virtual_package_repo_from_specification(
     repodata = _init_fake_repodata()
     for subdir, subdir_spec in spec.subdirs.items():
         for virtual_package, version in subdir_spec.packages.items():
-            ms = MatchSpec(f"{virtual_package} {version}")
+            ms = MatchSpec(f"{virtual_package} {version}")  # pyright: ignore[reportArgumentType]
             repodata.add_package(
                 FakePackage(
                     name=virtual_package,
                     version=str(ms.version),
-                    build_string=ms.get("build", ""),
+                    build_string=ms.get("build", ""),  # pyright: ignore[reportArgumentType]
                 ),
                 subdirs=[subdir],
             )

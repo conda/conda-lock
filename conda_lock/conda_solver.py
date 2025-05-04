@@ -101,7 +101,7 @@ def _to_match_spec(
     if conda_channel:
         kwargs["channel"] = conda_channel
 
-    ms = MatchSpec(**kwargs)
+    ms = MatchSpec(**kwargs)  # pyright: ignore[reportArgumentType]
     # Since MatchSpec doesn't round trip to the cli well
     if conda_channel:
         # this will return "channel_name::package_name"
@@ -178,7 +178,7 @@ def solve_conda(
     for action in dry_run_install["actions"]["FETCH"]:
         dependencies = {}
         for dep in action.get("depends") or []:
-            matchspec = MatchSpec(dep)
+            matchspec = MatchSpec(dep)  # pyright: ignore[reportArgumentType]
             name = matchspec.name
             version = (
                 matchspec.version.spec_str if matchspec.version is not None else ""
