@@ -39,7 +39,7 @@ DEFAULT_TIME = 1577854800000
 VirtualPackageVersion: TypeAlias = str
 
 
-class FakePackage(BaseModel):
+class VirtualPackage(BaseModel):
     """A minimal representation of the required metadata for a conda package"""
 
     model_config = ConfigDict(frozen=True)
@@ -70,7 +70,7 @@ class FakePackage(BaseModel):
 
 class FakeRepoData(BaseModel):
     base_path: pathlib.Path
-    packages_by_subdir: DefaultDict[FakePackage, Set[PackageNameStr]] = Field(
+    packages_by_subdir: DefaultDict[VirtualPackage, Set[PackageNameStr]] = Field(
         default_factory=lambda: defaultdict(set)  # type: ignore[arg-type,unused-ignore]
     )
     all_subdirs: Set[PlatformSubdirStr] = {
@@ -109,7 +109,7 @@ class FakeRepoData(BaseModel):
             return f"file://{self.base_path.absolute().as_posix()}"
 
     def add_package(
-        self, package: FakePackage, subdirs: Iterable[PlatformSubdirStr] = ()
+        self, package: VirtualPackage, subdirs: Iterable[PlatformSubdirStr] = ()
     ) -> None:
         subdirs = frozenset(subdirs)
         if not subdirs:
@@ -203,57 +203,59 @@ def default_virtual_package_repodata(
     """Define a reasonable modern set of virtual packages that should be safe enough to assume"""
     repodata = _init_fake_repodata()
 
-    unix_virtual = FakePackage(name="__unix", version="0")
+    unix_virtual = VirtualPackage(name="__unix", version="0")
     repodata.add_package(
         unix_virtual,
         subdirs=["linux-aarch64", "linux-ppc64le", "linux-64", "osx-64", "osx-arm64"],
     )
 
-    linux_virtual = FakePackage(name="__linux", version="5.10")
+    linux_virtual = VirtualPackage(name="__linux", version="5.10")
     repodata.add_package(
         linux_virtual, subdirs=["linux-aarch64", "linux-ppc64le", "linux-64"]
     )
 
-    win_virtual = FakePackage(name="__win", version="0")
+    win_virtual = VirtualPackage(name="__win", version="0")
     repodata.add_package(win_virtual, subdirs=["win-64"])
 
-    archspec_x86 = FakePackage(name="__archspec", version="1", build_string="x86_64")
+    archspec_x86 = VirtualPackage(name="__archspec", version="1", build_string="x86_64")
     repodata.add_package(archspec_x86, subdirs=["win-64", "linux-64", "osx-64"])
 
-    archspec_arm64 = FakePackage(name="__archspec", version="1", build_string="arm64")
+    archspec_arm64 = VirtualPackage(
+        name="__archspec", version="1", build_string="arm64"
+    )
     repodata.add_package(archspec_arm64, subdirs=["osx-arm64"])
 
-    archspec_aarch64 = FakePackage(
+    archspec_aarch64 = VirtualPackage(
         name="__archspec", version="1", build_string="aarch64"
     )
     repodata.add_package(archspec_aarch64, subdirs=["linux-aarch64"])
 
-    archspec_ppc64le = FakePackage(
+    archspec_ppc64le = VirtualPackage(
         name="__archspec", version="1", build_string="ppc64le"
     )
     repodata.add_package(archspec_ppc64le, subdirs=["linux-ppc64le"])
 
     # NOTE: Keep this in sync with the MANYLINUX_TAGS maximum in pypi_solver.py
-    glibc_virtual = FakePackage(name="__glibc", version="2.28")
+    glibc_virtual = VirtualPackage(name="__glibc", version="2.28")
     repodata.add_package(
         glibc_virtual, subdirs=["linux-aarch64", "linux-ppc64le", "linux-64"]
     )
 
     if cuda_version != "":
-        cuda_virtual = FakePackage(name="__cuda", version=cuda_version)
+        cuda_virtual = VirtualPackage(name="__cuda", version=cuda_version)
         repodata.add_package(
             cuda_virtual,
             subdirs=["linux-aarch64", "linux-ppc64le", "linux-64", "win-64"],
         )
 
     for osx_ver in OSX_VERSIONS_X86:
-        package = FakePackage(name="__osx", version=osx_ver)
+        package = VirtualPackage(name="__osx", version=osx_ver)
         repodata.add_package(package, subdirs=["osx-64"])
     for osx_ver in OSX_VERSIONS_X68_ARM64:
-        package = FakePackage(name="__osx", version=osx_ver)
+        package = VirtualPackage(name="__osx", version=osx_ver)
         repodata.add_package(package, subdirs=["osx-64", "osx-arm64"])
     for osx_ver in OSX_VERSIONS_ARM64:
-        package = FakePackage(name="__osx", version=osx_ver)
+        package = VirtualPackage(name="__osx", version=osx_ver)
         repodata.add_package(package, subdirs=["osx-arm64"])
     repodata.write()
     return repodata
@@ -297,7 +299,7 @@ def virtual_package_repo_from_specification(
         for virtual_package, version in subdir_spec.packages.items():
             ms = MatchSpec(f"{virtual_package} {version}")  # pyright: ignore[reportArgumentType]
             repodata.add_package(
-                FakePackage(
+                VirtualPackage(
                     name=virtual_package,
                     version=str(ms.version),
                     build_string=ms.get("build", ""),  # pyright: ignore[reportArgumentType]
