@@ -39,37 +39,66 @@ VirtualPackageVersion: TypeAlias = str
 
 
 class VirtualPackage(BaseModel):
-    """A minimal representation of the required metadata for a conda package"""
+    """A minimal representation of the required metadata for a virtual package.
+
+    This is used by our specification. It's then converted to a FullVirtualPackage
+    for computing the content hash. Then it's converted to a dict to be used in
+    repodata.json.
+    """
 
     model_config = ConfigDict(frozen=True)
 
     name: PackageNameStr
-    version: str = "1.0"
+    version: VirtualPackageVersion
     build_string: str = ""
+
+    def to_full_virtual_package(self) -> "FullVirtualPackage":
+        return FullVirtualPackage(
+            name=self.name,
+            version=self.version,
+            build_string=self.build_string,
+        )
+
+    def to_repodata_entry(
+        self, *, subdir: PlatformSubdirStr
+    ) -> Tuple[str, HashableVirtualPackage]:
+        p = self.to_full_virtual_package()
+        out: HashableVirtualPackage = {
+            "name": p.name,
+            "version": p.version,
+            "build_string": p.build_string,
+            "build_number": p.build_number,
+            "noarch": p.noarch,
+            "depends": list(p.depends),
+            "timestamp": p.timestamp,
+            "package_type": p.package_type,
+            "build": p.build,
+            "subdir": subdir,
+        }
+        fname = f"{self.name}-{self.version}-{p.build}.tar.bz2"
+        return fname, out
+
+
+class FullVirtualPackage(VirtualPackage):
+    """Everything necessary for repodata.json except subdir"""
+
     build_number: int = 0
     noarch: str = ""
     depends: Tuple[str, ...] = Field(default_factory=tuple)
     timestamp: int = DEFAULT_TIME
     package_type: Optional[str] = "virtual_system"
 
-    def to_repodata_entry(
-        self, *, subdir: PlatformSubdirStr
-    ) -> Tuple[str, HashableVirtualPackage]:
-        out: HashableVirtualPackage = self.model_dump()  # type: ignore[assignment]
+    @property
+    def build(self) -> str:
         if self.build_string:
-            build = self.build_string
+            return self.build_string
         else:
-            build = str(self.build_number)
-        out["depends"] = list(out["depends"])
-        out["build"] = build
-        out["subdir"] = subdir
-        fname = f"{self.name}-{self.version}-{build}.tar.bz2"
-        return fname, out
+            return str(self.build_number)
 
 
 class FakeRepoData(BaseModel):
     base_path: pathlib.Path
-    packages_by_subdir: DefaultDict[VirtualPackage, Set[PackageNameStr]] = Field(
+    packages_by_subdir: DefaultDict[FullVirtualPackage, Set[PackageNameStr]] = Field(
         default_factory=lambda: defaultdict(set)  # type: ignore[arg-type,unused-ignore]
     )
     all_subdirs: Set[PlatformSubdirStr] = {
@@ -113,7 +142,7 @@ class FakeRepoData(BaseModel):
         subdirs = frozenset(subdirs)
         if not subdirs:
             subdirs = frozenset(["noarch"])
-        self.packages_by_subdir[package].update(subdirs)
+        self.packages_by_subdir[package.to_full_virtual_package()].update(subdirs)
 
     def _write_subdir(self, subdir: PlatformSubdirStr) -> SubdirMetadata:
         packages: Dict[PackageNameStr, HashableVirtualPackage] = {}
