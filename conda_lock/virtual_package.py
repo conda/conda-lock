@@ -18,6 +18,7 @@ from typing import (
 )
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
+from typing_extensions import TypeAlias
 
 from conda_lock.content_hash_types import (
     HashableFakePackage,
@@ -35,13 +36,15 @@ logger = logging.getLogger(__name__)
 # datetime.datetime(2020, 1, 1).timestamp()
 DEFAULT_TIME = 1577854800000
 
+VirtualPackageVersion: TypeAlias = str
+
 
 class FakePackage(BaseModel):
     """A minimal representation of the required metadata for a conda package"""
 
     model_config = ConfigDict(frozen=True)
 
-    name: str
+    name: PackageNameStr
     version: str = "1.0"
     build_string: str = ""
     build_number: int = 0
@@ -193,7 +196,9 @@ OSX_VERSIONS_X68_ARM64 = ["11.0"]
 OSX_VERSIONS_ARM64: List[str] = []
 
 
-def default_virtual_package_repodata(cuda_version: str = "11.4") -> FakeRepoData:
+def default_virtual_package_repodata(
+    cuda_version: VirtualPackageVersion = "11.4",
+) -> FakeRepoData:
     """An empty cuda_version indicates that CUDA is unavailable."""
     """Define a reasonable modern set of virtual packages that should be safe enough to assume"""
     repodata = _init_fake_repodata()
@@ -255,11 +260,15 @@ def default_virtual_package_repodata(cuda_version: str = "11.4") -> FakeRepoData
 
 
 class VirtualPackageSpecSubdir(BaseModel):
-    packages: Dict[str, str]
+    """Virtual packages for a specific subdir in a virtual-packages.yaml file"""
+
+    packages: Dict[PackageNameStr, VirtualPackageVersion]
 
     @field_validator("packages")
     @classmethod
-    def validate_packages(cls, v: Dict[str, str]) -> Dict[str, str]:
+    def validate_packages(
+        cls, v: Dict[PackageNameStr, VirtualPackageVersion]
+    ) -> Dict[PackageNameStr, VirtualPackageVersion]:
         for package_name in v:
             if not package_name.startswith("__"):
                 raise ValueError(f"{package_name} is not a virtual package!")
@@ -267,7 +276,9 @@ class VirtualPackageSpecSubdir(BaseModel):
 
 
 class VirtualPackageSpec(BaseModel):
-    subdirs: Dict[str, VirtualPackageSpecSubdir]
+    """Virtual packages specified in a virtual-packages.yaml file"""
+
+    subdirs: Dict[PlatformSubdirStr, VirtualPackageSpecSubdir]
 
 
 def virtual_package_repo_from_specification(
