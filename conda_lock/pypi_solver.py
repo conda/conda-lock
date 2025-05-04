@@ -25,7 +25,7 @@ from conda_lock._vendor.cleo.io.null_io import NullIO
 from conda_lock._vendor.cleo.io.outputs.output import Verbosity
 from conda_lock._vendor.cleo.io.outputs.stream_output import StreamOutput
 from conda_lock._vendor.poetry.repositories.http_repository import HTTPRepository
-from conda_lock.content_hash_types import HashableFakePackage
+from conda_lock.content_hash_types import HashableVirtualPackage
 from conda_lock.interfaces.vendored_poetry import (
     Chooser,
     Config,
@@ -84,7 +84,7 @@ class PlatformEnv(VirtualEnv):
         self,
         *,
         platform: str,
-        platform_virtual_packages: Optional[Dict[str, HashableFakePackage]] = None,
+        platform_virtual_packages: Optional[Dict[str, HashableVirtualPackage]] = None,
         python_version: Optional[str] = None,
     ):
         super().__init__(path=Path(sys.prefix))
@@ -157,7 +157,7 @@ class PlatformEnv(VirtualEnv):
 
 
 def _extract_glibc_version_from_virtual_packages(
-    platform_virtual_packages: Dict[str, HashableFakePackage],
+    platform_virtual_packages: Dict[str, HashableVirtualPackage],
 ) -> Optional[Version]:
     """Get the glibc version from the "package" repodata of a chosen platform.
 
@@ -217,7 +217,7 @@ def _glibc_version_from_manylinux_tag(tag: str) -> Version:
 
 
 def _compute_compatible_manylinux_tags(
-    platform_virtual_packages: Optional[Dict[str, HashableFakePackage]],
+    platform_virtual_packages: Optional[Dict[str, HashableVirtualPackage]],
 ) -> List[str]:
     """Determine the manylinux tags that are compatible with the given platform.
 
@@ -488,7 +488,7 @@ def solve_pypi(
     conda_locked: Dict[str, LockedDependency],
     python_version: str,
     platform: str,
-    platform_virtual_packages: Optional[Dict[str, HashableFakePackage]] = None,
+    platform_virtual_packages: Optional[Dict[str, HashableVirtualPackage]] = None,
     pip_repositories: Optional[List[PipRepository]] = None,
     allow_pypi_requests: bool = True,
     verbose: bool = False,

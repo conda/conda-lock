@@ -21,7 +21,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 from typing_extensions import TypeAlias
 
 from conda_lock.content_hash_types import (
-    HashableFakePackage,
+    HashableVirtualPackage,
     HashableVirtualPackageRepresentation,
     PackageNameStr,
     PlatformSubdirStr,
@@ -55,8 +55,8 @@ class VirtualPackage(BaseModel):
 
     def to_repodata_entry(
         self, *, subdir: PlatformSubdirStr
-    ) -> Tuple[str, HashableFakePackage]:
-        out: HashableFakePackage = self.model_dump()  # type: ignore[assignment]
+    ) -> Tuple[str, HashableVirtualPackage]:
+        out: HashableVirtualPackage = self.model_dump()  # type: ignore[assignment]
         if self.build_string:
             build = self.build_string
         else:
@@ -117,7 +117,7 @@ class FakeRepoData(BaseModel):
         self.packages_by_subdir[package].update(subdirs)
 
     def _write_subdir(self, subdir: PlatformSubdirStr) -> SubdirMetadata:
-        packages: Dict[PackageNameStr, HashableFakePackage] = {}
+        packages: Dict[PackageNameStr, HashableVirtualPackage] = {}
         out: SubdirMetadata = {"info": {"subdir": subdir}, "packages": packages}
         for pkg, subdirs in self.packages_by_subdir.items():
             if subdir not in subdirs:
