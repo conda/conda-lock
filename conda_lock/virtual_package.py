@@ -27,7 +27,6 @@ from conda_lock.content_hash_types import (
     PlatformSubdirStr,
     SubdirMetadata,
 )
-from conda_lock.interfaces.vendored_conda import MatchSpec
 from conda_lock.models.channel import Channel
 
 
@@ -297,12 +296,18 @@ def virtual_package_repo_from_specification(
     repodata = _init_fake_repodata()
     for subdir, subdir_spec in spec.subdirs.items():
         for virtual_package, version in subdir_spec.packages.items():
-            ms = MatchSpec(f"{virtual_package} {version}")  # pyright: ignore[reportArgumentType]
+            # Split version and build string if present
+            version_parts = version.split(" ", 1)
+            assert len(version_parts) in (1, 2)
+            if len(version_parts) == 1:
+                version, build_string = version, ""
+            else:
+                version, build_string = version_parts
             repodata.add_package(
                 VirtualPackage(
                     name=virtual_package,
-                    version=str(ms.version),
-                    build_string=ms.get("build", ""),  # pyright: ignore[reportArgumentType]
+                    version=version,
+                    build_string=build_string,
                 ),
                 subdirs=[subdir],
             )
