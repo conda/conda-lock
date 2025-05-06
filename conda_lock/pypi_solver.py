@@ -409,7 +409,7 @@ def get_requirements(
             # https://github.com/conda/conda-lock/blob/ac31f5ddf2951ed4819295238ccf062fb2beb33c/conda_lock/_vendor/poetry/installation/executor.py#L557
             else:
                 link = chooser.choose_for(op.package)
-                url = _get_url(link)
+                url = _get_stripped_url(link)
                 hash = _compute_hash(link, lock_spec_hashes.get(op.package.name))
             if source_repository:
                 url = source_repository.normalize_solver_url(url)
@@ -431,10 +431,43 @@ def get_requirements(
     return requirements
 
 
-def _get_url(link: Link) -> str:
+def _get_stripped_url(link: Link) -> str:
+    """Get the URL for a package link, stripping credentials.
+
+    Basic case, do nothing:
+    >>> _get_stripped_url(Link(url="http://example.com/path/to/file"))
+    'http://example.com/path/to/file'
+
+    Strip credentials:
+    >>> _get_stripped_url(Link(url="http://user:pass@example.com/path/to/file"))
+    'http://example.com/path/to/file'
+
+    Handle a port:
+    >>> _get_stripped_url(Link(url="http://example.com:8080/path/to/file"))
+    'http://example.com:8080/path/to/file'
+
+    Strip credentials while handling a port:
+    >>> _get_stripped_url(Link(url="http://user:pass@example.com:8080/path/to/file"))
+    'http://example.com:8080/path/to/file'
+
+    General case:
+    >>> _get_stripped_url(Link(url="https://user:pass@example.com:8080/path/to/file?query#fragment"))
+    'https://example.com:8080/path/to/file?query'
+    """
     parsed_url = urlsplit(link.url)
-    link.url = link.url.replace(parsed_url.netloc, str(parsed_url.hostname))
-    return link.url_without_fragment
+    # Reconstruct the URL with just hostname:port, no credentials
+    clean_netloc = f"{parsed_url.hostname}"
+    if parsed_url.port is not None:
+        clean_netloc = f"{clean_netloc}:{parsed_url.port}"
+    return urlunsplit(
+        (
+            parsed_url.scheme,
+            clean_netloc,
+            parsed_url.path,
+            parsed_url.query,
+            "",  # Remove fragment
+        )
+    )
 
 
 def _compute_hash(link: Link, lock_spec_hash: Optional[str]) -> HashModel:

@@ -47,7 +47,7 @@ repos:
       (?x)^(
         ^conda_lock/_vendor/.*\.pyi$
         | ^tests/test-local-pip/setup\.py$
-        | ^tests/test-pip-repositories/fake-private-package-1\.0\.0/setup\.py$
+        | ^tests/test-pip-repositories/fake-private-package.*-1\.0\.0/setup\.py$
       )
     # First exclude is due to:
     #   conda_lock/_vendor/conda/__init__.py: error: Duplicate module named "conda_lock._vendor.conda" (also at "conda_lock/_vendor/conda.pyi")
