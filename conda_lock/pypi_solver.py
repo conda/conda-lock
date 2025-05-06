@@ -455,8 +455,19 @@ def _get_stripped_url(link: Link) -> str:
     'https://example.com:8080/path/to/file?query'
     """
     parsed_url = urlsplit(link.url)
-    link.url = link.url.replace(parsed_url.netloc, str(parsed_url.hostname))
-    return link.url_without_fragment
+    # Reconstruct the URL with just hostname:port, no credentials
+    clean_netloc = f"{parsed_url.hostname}"
+    if parsed_url.port is not None:
+        clean_netloc = f"{clean_netloc}:{parsed_url.port}"
+    return urlunsplit(
+        (
+            parsed_url.scheme,
+            clean_netloc,
+            parsed_url.path,
+            parsed_url.query,
+            "",  # Remove fragment
+        )
+    )
 
 
 def _compute_hash(link: Link, lock_spec_hash: Optional[str]) -> HashModel:
