@@ -1437,6 +1437,7 @@ def lock(
         channel_overrides=channel_overrides,
         kinds=kind,
         lockfile_path=None if lockfile is None else pathlib.Path(lockfile),
+        check_input_hash=check_input_hash,
         extras=extras_,
         virtual_package_spec=virtual_package_spec,
         with_cuda=with_cuda,
@@ -1457,9 +1458,7 @@ def lock(
                 lockfile_content = _strip_auth_from_lockfile(lockfile_content)
                 write_file(lockfile_content, os.path.join(filename_template_dir, file))
     else:
-        lock_func(
-            filename_template=filename_template, check_input_hash=check_input_hash
-        )
+        lock_func(filename_template=filename_template)
 
 
 DEFAULT_INSTALL_OPT_MAMBA = HAVE_MAMBA
