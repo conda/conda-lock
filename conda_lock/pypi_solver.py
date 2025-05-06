@@ -432,6 +432,28 @@ def get_requirements(
 
 
 def _get_stripped_url(link: Link) -> str:
+    """Get the URL for a package link, stripping credentials.
+
+    Basic case, do nothing:
+    >>> _get_stripped_url(Link(url="http://example.com/path/to/file"))
+    'http://example.com/path/to/file'
+
+    Strip credentials:
+    >>> _get_stripped_url(Link(url="http://user:pass@example.com/path/to/file"))
+    'http://example.com/path/to/file'
+
+    Handle a port:
+    >>> _get_stripped_url(Link(url="http://example.com:8080/path/to/file"))
+    'http://example.com:8080/path/to/file'
+
+    Strip credentials while handling a port:
+    >>> _get_stripped_url(Link(url="http://user:pass@example.com:8080/path/to/file"))
+    'http://example.com:8080/path/to/file'
+
+    General case:
+    >>> _get_stripped_url(Link(url="https://user:pass@example.com:8080/path/to/file?query#fragment"))
+    'https://example.com:8080/path/to/file?query'
+    """
     parsed_url = urlsplit(link.url)
     link.url = link.url.replace(parsed_url.netloc, str(parsed_url.hostname))
     return link.url_without_fragment
