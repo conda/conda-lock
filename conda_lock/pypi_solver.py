@@ -409,7 +409,7 @@ def get_requirements(
             # https://github.com/conda/conda-lock/blob/ac31f5ddf2951ed4819295238ccf062fb2beb33c/conda_lock/_vendor/poetry/installation/executor.py#L557
             else:
                 link = chooser.choose_for(op.package)
-                url = _get_url(link)
+                url = _get_stripped_url(link)
                 hash = _compute_hash(link, lock_spec_hashes.get(op.package.name))
             if source_repository:
                 url = source_repository.normalize_solver_url(url)
@@ -431,7 +431,7 @@ def get_requirements(
     return requirements
 
 
-def _get_url(link: Link) -> str:
+def _get_stripped_url(link: Link) -> str:
     parsed_url = urlsplit(link.url)
     link.url = link.url.replace(parsed_url.netloc, str(parsed_url.hostname))
     return link.url_without_fragment
