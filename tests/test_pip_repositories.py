@@ -1,5 +1,6 @@
 import base64
 import os
+import re
 import tarfile
 
 from io import BytesIO
@@ -101,11 +102,14 @@ def mock_private_pypi(  # noqa: C901
                     response.raw.write(file_handler.read())
                 response.raw.seek(0)
 
-            url = urlparse(request.url)
             if fixture_request.param == "response_url_with_credentials":
                 response.url = request.url
             else:
-                response.url = request.url.replace(url.netloc, url.hostname)
+                # Strip credentials using regex, preserving port if present:
+                # ^([^:]+://) - Capture group 1: scheme (http:// or https://)
+                # [^@]+@     - Match and remove credentials (anything up to @)
+                # \1         - Replace with just the captured scheme
+                response.url = re.sub(r"^([^:]+://)[^@]+@", r"\1", request.url)
             response.reason = reason
             return response
 
