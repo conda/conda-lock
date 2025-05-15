@@ -1,0 +1,6 @@
+channels:
+- conda-forge
+dependencies:
+- python
+platforms:
+- linux-64

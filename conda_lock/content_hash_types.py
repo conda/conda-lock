@@ -20,7 +20,7 @@ PlatformSubdirStr: TypeAlias = str
 PackageNameStr: TypeAlias = str
 
 
-class HashableFakePackage(TypedDict):
+class HashableVirtualPackage(TypedDict):
     """A dict that represents a fake package when computing the lockfile content hash"""
 
     name: PackageNameStr
@@ -73,7 +73,7 @@ class RepoMetadataInfo(TypedDict):
 
 class SubdirMetadata(TypedDict):
     info: RepoMetadataInfo
-    packages: Dict[PackageNameStr, HashableFakePackage]
+    packages: Dict[PackageNameStr, HashableVirtualPackage]
 
 
 class EmptyDict(TypedDict):
