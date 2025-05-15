@@ -160,7 +160,8 @@ substitute = [
     # Rapidfuzz is a dependency of cleo but is only used to suggest similar names
     # for CLI apps. We don't need this functionality in conda-lock, and removing
     # this import allows us to drop it as a dependency.
-    { match = 'from rapidfuzz.distance import Levenshtein', replace = ''}
+    { match = 'from rapidfuzz.distance import Levenshtein', replace = ''},
+    { match = '__version__ = metadata\.version\("poetry"\)', replace = '__version__ = "2.0.1"' },
 ]
 
 [tool.conda-lock]

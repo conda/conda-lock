@@ -2,7 +2,7 @@
 cleo==2.1.0
 poetry==2.0.1
 poetry-core==2.0.1
-grayskull==2.7.3
+grayskull==2.9.1
 
 # install conda from github since it's not available on pypi
 git+https://github.com/conda/conda.git@24.7.1

@@ -25,6 +25,9 @@ dos2unix conda_lock/_vendor/poetry/core/_vendor/lark/grammars/*
 dos2unix conda_lock/_vendor/poetry/core/_vendor/fastjsonschema/*
 dos2unix conda_lock/_vendor/poetry/core/_vendor/lark/LICENSE
 
+# Make the vendored file compatible with Python 3.9:
+sed -i '1s/^/from __future__ import annotations\n\n/' conda_lock/_vendor/grayskull/strategy/parse_poetry_version.py
+
 echo Downloading missing licenses...
 for package in poetry poetry-core cleo; do
   curl -s "https://raw.githubusercontent.com/python-poetry/${package}/master/LICENSE" > "conda_lock/_vendor/${package}.LICENSE"
