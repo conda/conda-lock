@@ -72,7 +72,7 @@ def pypi_name_to_conda_name(name: str, mapping_url: str) -> str:
         if res is not None:
             return res
 
-    logger.warning(f"Could not find conda name for {cname}. Assuming identity.")
+    logger.debug(f"Could not find conda name for {cname}. Assuming identity.")
     return cname
 
 
