@@ -311,6 +311,38 @@ class VirtualPackageSpec(BaseModel):
     subdirs: Dict[PlatformSubdirStr, VirtualPackageSpecSubdir]
 
 
+def _parse_virtual_package_spec(
+    virtual_package_name: PackageNameStr, version_spec: str
+) -> VirtualPackage:
+    """Parse a virtual package specification into a VirtualPackage object.
+
+    Args:
+        virtual_package_name: The name of the virtual package (should start with '__')
+        version_spec: The version specification string, optionally including a build string
+            separated by a space
+
+    Returns:
+        A VirtualPackage object with the parsed name, version, and build string
+
+    Examples:
+        >>> _parse_virtual_package_spec("__unix", "0")
+        VirtualPackage(name='__unix', version='0', build_string='')
+        >>> _parse_virtual_package_spec("__archspec", "1 x86_64")
+        VirtualPackage(name='__archspec', version='1', build_string='x86_64')
+    """
+    version_parts = version_spec.split(" ", 1)
+    assert len(version_parts) in (1, 2)
+    if len(version_parts) == 1:
+        parsed_version, build_string = version_spec, ""
+    else:
+        parsed_version, build_string = version_parts
+    return VirtualPackage(
+        name=virtual_package_name,
+        version=parsed_version,
+        build_string=build_string,
+    )
+
+
 def virtual_package_repo_from_specification(
     virtual_package_spec_file: pathlib.Path,
     add_duplicate_osx_package: bool = False,
@@ -321,26 +353,15 @@ def virtual_package_repo_from_specification(
         data = yaml.safe_load(fp)
     logging.debug("Virtual package spec: %s", data)
 
-    spec = VirtualPackageSpec.model_validate(data)
+    virtual_package_spec = VirtualPackageSpec.model_validate(data)
 
     repodata = _init_fake_repodata()
-    for subdir, subdir_spec in spec.subdirs.items():
-        for virtual_package, version in subdir_spec.packages.items():
-            # Split version and build string if present
-            version_parts = version.split(" ", 1)
-            assert len(version_parts) in (1, 2)
-            if len(version_parts) == 1:
-                version, build_string = version, ""
-            else:
-                version, build_string = version_parts
-            repodata.add_package(
-                VirtualPackage(
-                    name=virtual_package,
-                    version=version,
-                    build_string=build_string,
-                ),
-                subdirs=[subdir],
+    for subdir, subdir_spec in virtual_package_spec.subdirs.items():
+        for virtual_package_name, version_spec in subdir_spec.packages.items():
+            virtual_package = _parse_virtual_package_spec(
+                virtual_package_name, version_spec
             )
+            repodata.add_package(virtual_package, subdirs=[subdir])
 
     if add_duplicate_osx_package:
         # This is to preserve exact consistency with previous versions of conda-lock.
