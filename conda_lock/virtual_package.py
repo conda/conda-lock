@@ -5,12 +5,13 @@ import os
 import pathlib
 
 from collections import defaultdict
+from importlib.resources import path
 from types import TracebackType
 from typing import (
     DefaultDict,
     Dict,
     Iterable,
-    List,
+    Literal,
     Optional,
     Set,
     Tuple,
@@ -36,6 +37,10 @@ logger = logging.getLogger(__name__)
 DEFAULT_TIME = 1577854800000
 
 VirtualPackageVersion: TypeAlias = str
+
+
+with path("conda_lock", "default-virtual-packages.yaml") as p:
+    DEFAULT_VIRTUAL_PACKAGES_YAML_PATH = p
 
 
 class VirtualPackage(BaseModel):
@@ -219,73 +224,16 @@ def _init_fake_repodata() -> FakeRepoData:
     return repodata
 
 
-OSX_VERSIONS_X86 = ["10.15"]
-OSX_VERSIONS_X68_ARM64 = ["11.0"]
-OSX_VERSIONS_ARM64: List[str] = []
-
-
 def default_virtual_package_repodata(
-    cuda_version: VirtualPackageVersion = "11.4",
+    cuda_version: Literal["default", ""] | VirtualPackageVersion = "default",
 ) -> FakeRepoData:
     """An empty cuda_version indicates that CUDA is unavailable."""
     """Define a reasonable modern set of virtual packages that should be safe enough to assume"""
-    repodata = _init_fake_repodata()
-
-    unix_virtual = VirtualPackage(name="__unix", version="0")
-    repodata.add_package(
-        unix_virtual,
-        subdirs=["linux-aarch64", "linux-ppc64le", "linux-64", "osx-64", "osx-arm64"],
+    repodata = virtual_package_repo_from_specification(
+        DEFAULT_VIRTUAL_PACKAGES_YAML_PATH,
+        override_cuda_version=cuda_version,
+        add_duplicate_osx_package=True,
     )
-
-    linux_virtual = VirtualPackage(name="__linux", version="5.10")
-    repodata.add_package(
-        linux_virtual, subdirs=["linux-aarch64", "linux-ppc64le", "linux-64"]
-    )
-
-    win_virtual = VirtualPackage(name="__win", version="0")
-    repodata.add_package(win_virtual, subdirs=["win-64"])
-
-    archspec_x86 = VirtualPackage(name="__archspec", version="1", build_string="x86_64")
-    repodata.add_package(archspec_x86, subdirs=["win-64", "linux-64", "osx-64"])
-
-    archspec_arm64 = VirtualPackage(
-        name="__archspec", version="1", build_string="arm64"
-    )
-    repodata.add_package(archspec_arm64, subdirs=["osx-arm64"])
-
-    archspec_aarch64 = VirtualPackage(
-        name="__archspec", version="1", build_string="aarch64"
-    )
-    repodata.add_package(archspec_aarch64, subdirs=["linux-aarch64"])
-
-    archspec_ppc64le = VirtualPackage(
-        name="__archspec", version="1", build_string="ppc64le"
-    )
-    repodata.add_package(archspec_ppc64le, subdirs=["linux-ppc64le"])
-
-    # NOTE: Keep this in sync with the MANYLINUX_TAGS maximum in pypi_solver.py
-    glibc_virtual = VirtualPackage(name="__glibc", version="2.28")
-    repodata.add_package(
-        glibc_virtual, subdirs=["linux-aarch64", "linux-ppc64le", "linux-64"]
-    )
-
-    if cuda_version != "":
-        cuda_virtual = VirtualPackage(name="__cuda", version=cuda_version)
-        repodata.add_package(
-            cuda_virtual,
-            subdirs=["linux-aarch64", "linux-ppc64le", "linux-64", "win-64"],
-        )
-
-    for osx_ver in OSX_VERSIONS_X86:
-        package = VirtualPackage(name="__osx", version=osx_ver)
-        repodata.add_package(package, subdirs=["osx-64"])
-    for osx_ver in OSX_VERSIONS_X68_ARM64:
-        package = VirtualPackage(name="__osx", version=osx_ver)
-        repodata.add_package(package, subdirs=["osx-64", "osx-arm64"])
-    for osx_ver in OSX_VERSIONS_ARM64:
-        package = VirtualPackage(name="__osx", version=osx_ver)
-        repodata.add_package(package, subdirs=["osx-arm64"])
-    repodata.write()
     return repodata
 
 
@@ -346,6 +294,7 @@ def _parse_virtual_package_spec(
 def virtual_package_repo_from_specification(
     virtual_package_spec_file: pathlib.Path,
     add_duplicate_osx_package: bool = False,
+    override_cuda_version: Literal["default", ""] | VirtualPackageVersion = "default",
 ) -> FakeRepoData:
     import yaml
 
@@ -358,6 +307,12 @@ def virtual_package_repo_from_specification(
     repodata = _init_fake_repodata()
     for subdir, subdir_spec in virtual_package_spec.subdirs.items():
         for virtual_package_name, version_spec in subdir_spec.packages.items():
+            # Override the CUDA version if specified.
+            if virtual_package_name == "__cuda" and override_cuda_version != "default":
+                if override_cuda_version == "":
+                    continue
+                version_spec = override_cuda_version
+
             virtual_package = _parse_virtual_package_spec(
                 virtual_package_name, version_spec
             )
