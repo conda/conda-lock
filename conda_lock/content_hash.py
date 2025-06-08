@@ -135,6 +135,14 @@ def _is_vpr_default(
     (If so, we may need to allow equivalent legacy versions of the default VPR
     to support backwards compatibility so that we don't unnecessarily reject a
     good hash.)
+
+    >>> _is_vpr_default(default_virtual_package_repodata(), "linux-64")
+    True
+
+    >>> from conda_lock.virtual_package import _init_fake_repodata
+    >>> repodata = _init_fake_repodata()
+    >>> _is_vpr_default(repodata, "linux-64")
+    False
     """
     if virtual_package_repo is None:
         return True
