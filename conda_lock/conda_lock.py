@@ -50,6 +50,7 @@ from conda_lock.common import (
     write_file,
 )
 from conda_lock.conda_solver import solve_conda
+from conda_lock.content_hash import compute_content_hashes
 from conda_lock.content_hash_types import (
     EmptyDict,
     HashableVirtualPackage,
@@ -377,9 +378,7 @@ def make_lock_files(  # noqa: C901
                     update
                     or platform not in platforms_already_locked
                     or not check_input_hash
-                    or lock_spec.content_hash_for_platform(
-                        platform, virtual_package_repo
-                    )
+                    or compute_content_hashes(lock_spec, virtual_package_repo)[platform]
                     != original_lock_content.metadata.content_hash[platform]
                 ):
                     platforms_to_lock.append(platform)
@@ -916,12 +915,12 @@ def create_lockfile_from_spec(
         inputs_metadata = None
 
     custom_metadata = get_custom_metadata(metadata_yamls=metadata_yamls)
-    content_hash = spec.content_hash(virtual_package_repo)
+    content_hashes = compute_content_hashes(spec, virtual_package_repo)
 
     return Lockfile(
         package=[locked[k] for k in locked],
         metadata=LockMeta(
-            content_hash=content_hash,
+            content_hash=content_hashes,
             channels=[c for c in spec.channels],
             platforms=spec.platforms,
             sources=list(meta_sources.keys()),

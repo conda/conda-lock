@@ -66,6 +66,7 @@ from conda_lock.conda_solver import (
     extract_json_object,
     fake_conda_environment,
 )
+from conda_lock.content_hash import compute_content_hashes
 from conda_lock.content_hash_types import (
     HashableVirtualPackage,
     PackageNameStr,
@@ -1925,9 +1926,11 @@ def test_aggregate_lock_specs():
     assert actual.model_dump(exclude={"sources"}) == expected.model_dump(
         exclude={"sources"}
     )
-    assert actual.content_hash(virtual_package_repo=None) == expected.content_hash(
-        virtual_package_repo=None
+    actual_content_hashes = compute_content_hashes(actual, virtual_package_repo=None)
+    expected_content_hashes = compute_content_hashes(
+        expected, virtual_package_repo=None
     )
+    assert actual_content_hashes == expected_content_hashes
 
 
 def test_aggregate_lock_specs_override_version():
@@ -2773,7 +2776,7 @@ def test_virtual_package_input_hash_stability():
     vpr = virtual_package_repo_from_specification(vspec)
 
     expected = "8ee5fc79fca4cb7732d2e88443209e0a3a354da9899cb8899d94f9b1dcccf975"
-    assert spec.content_hash(vpr) == {"linux-64": expected}
+    assert compute_content_hashes(spec, vpr) == {"linux-64": expected}
 
 
 def test_default_virtual_package_input_hash_stability():
@@ -2794,7 +2797,7 @@ def test_default_virtual_package_input_hash_stability():
         sources=[],
     )
     vpr = default_virtual_package_repodata()
-    assert spec.content_hash(vpr) == expected
+    assert compute_content_hashes(spec, vpr) == expected
 
 
 @pytest.fixture
