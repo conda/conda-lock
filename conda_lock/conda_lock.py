@@ -356,6 +356,16 @@ def make_lock_files(  # noqa: C901
         virtual_package_repo = virtual_package_repo_from_specification(
             virtual_package_spec
         )
+        if with_cuda is not None:
+            if with_cuda == "":
+                logger.warning(
+                    "Ignoring --without-cuda in favor of --virtual-package-spec"
+                )
+            else:
+                logger.warning(
+                    f"Ignoring --with-cuda {with_cuda} in favor of "
+                    "--virtual-package-spec"
+                )
         cuda_specified = True
     else:
         if with_cuda is None:
