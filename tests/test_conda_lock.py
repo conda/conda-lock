@@ -4,7 +4,7 @@ import json
 import logging
 import os
 import pathlib
-import platform
+import platform as builtin_module_platform
 import re
 import shutil
 import subprocess
@@ -66,7 +66,10 @@ from conda_lock.conda_solver import (
     extract_json_object,
     fake_conda_environment,
 )
-from conda_lock.content_hash import compute_content_hashes
+from conda_lock.content_hash import (
+    backwards_compatible_content_hashes,
+    compute_content_hashes,
+)
 from conda_lock.content_hash_types import (
     HashableVirtualPackage,
     PackageNameStr,
@@ -1465,7 +1468,7 @@ def test_run_lock_with_update(
     conda_exe: str,
     _conda_exe_type: str,
 ):
-    if platform.system().lower() == "windows":
+    if builtin_module_platform.system().lower() == "windows":
         if _conda_exe_type in ("conda", "mamba"):
             pytest.skip(
                 reason="this test just takes too long on windows, due to the slow conda solver"
@@ -2797,7 +2800,8 @@ def test_default_virtual_package_input_hash_stability():
         sources=[],
     )
     vpr = default_virtual_package_repodata()
-    assert compute_content_hashes(spec, vpr) == expected
+    for platform, hash in expected.items():
+        assert hash in backwards_compatible_content_hashes(spec, vpr, platform)
 
 
 @pytest.fixture

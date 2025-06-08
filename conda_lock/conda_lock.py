@@ -50,7 +50,10 @@ from conda_lock.common import (
     write_file,
 )
 from conda_lock.conda_solver import solve_conda
-from conda_lock.content_hash import compute_content_hashes
+from conda_lock.content_hash import (
+    backwards_compatible_content_hashes,
+    compute_content_hashes,
+)
 from conda_lock.content_hash_types import (
     EmptyDict,
     HashableVirtualPackage,
@@ -378,8 +381,10 @@ def make_lock_files(  # noqa: C901
                     update
                     or platform not in platforms_already_locked
                     or not check_input_hash
-                    or compute_content_hashes(lock_spec, virtual_package_repo)[platform]
-                    != original_lock_content.metadata.content_hash[platform]
+                    or original_lock_content.metadata.content_hash[platform]
+                    not in backwards_compatible_content_hashes(
+                        lock_spec, virtual_package_repo, platform
+                    )
                 ):
                     platforms_to_lock.append(platform)
                     if platform in platforms_already_locked:

@@ -23,7 +23,7 @@ representation.
 import hashlib
 import json
 
-from typing import Dict, Optional, Union, cast
+from typing import Dict, Optional, Set, Union, cast
 
 from conda_lock.content_hash_types import (
     EmptyDict,
@@ -34,7 +34,7 @@ from conda_lock.content_hash_types import (
     SubdirMetadata,
 )
 from conda_lock.models.lock_spec import LockSpecification
-from conda_lock.virtual_package import FakeRepoData
+from conda_lock.virtual_package import FakeRepoData, default_virtual_package_repodata
 
 
 def compute_content_hashes(
@@ -43,14 +43,14 @@ def compute_content_hashes(
 ) -> Dict[PlatformSubdirStr, str]:
     result: dict[PlatformSubdirStr, str] = {}
     for platform in lock_spec.platforms:
-        content = content_for_platform(lock_spec, platform, virtual_package_repo)
+        content = _content_for_platform(lock_spec, platform, virtual_package_repo)
         env_spec = json.dumps(content, sort_keys=True)
         hash = hashlib.sha256(env_spec.encode("utf-8")).hexdigest()
         result[platform] = hash
     return result
 
 
-def content_for_platform(
+def _content_for_platform(
     lock_spec: LockSpecification,
     platform: PlatformSubdirStr,
     virtual_package_repo: Optional[FakeRepoData],
@@ -70,12 +70,12 @@ def content_for_platform(
         ]
     if virtual_package_repo is not None:
         serialized_lockspec["virtual_package_hash"] = (
-            virtual_package_content_for_platform(virtual_package_repo, platform)
+            _virtual_package_content_for_platform(virtual_package_repo, platform)
         )
     return serialized_lockspec
 
 
-def virtual_package_content_for_platform(
+def _virtual_package_content_for_platform(
     virtual_package_repo: FakeRepoData,
     platform: PlatformSubdirStr,
 ) -> HashableVirtualPackageRepresentation:
@@ -109,3 +109,41 @@ def virtual_package_content_for_platform(
         platform: vpr_data.get(platform, fallback_platform),
     }
     return result
+
+
+def backwards_compatible_content_hashes(
+    lock_spec: LockSpecification,
+    virtual_package_repo: Optional[FakeRepoData],
+    platform: PlatformSubdirStr,
+) -> Set[str]:
+    """Verify that the content hash matches the given lock specification."""
+    # This is the nominal content hash.
+    allowed_hashes = {compute_content_hashes(lock_spec, virtual_package_repo)[platform]}
+
+    # Also allow for equivalent legacy versions of the default VPR to support backwards
+    # compatibility so that we don't unnecessarily reject a good hash.
+    if _is_vpr_default(virtual_package_repo, platform):
+        ...
+    return allowed_hashes
+
+
+def _is_vpr_default(
+    virtual_package_repo: Optional[FakeRepoData], platform: PlatformSubdirStr
+) -> bool:
+    """Check if the virtual package repo for the given platform is the default one.
+
+    (If so, we may need to allow equivalent legacy versions of the default VPR
+    to support backwards compatibility so that we don't unnecessarily reject a
+    good hash.)
+    """
+    if virtual_package_repo is None:
+        return True
+
+    default_vpr = default_virtual_package_repodata()
+    default_vpr_content = _virtual_package_content_for_platform(default_vpr, platform)
+    default_vpr_content_json = json.dumps(default_vpr_content, sort_keys=True)
+
+    vpr_content = _virtual_package_content_for_platform(virtual_package_repo, platform)
+    vpr_content_json = json.dumps(vpr_content, sort_keys=True)
+
+    return default_vpr_content_json == vpr_content_json
