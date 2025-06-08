@@ -44,10 +44,23 @@ def compute_content_hashes(
     result: dict[PlatformSubdirStr, str] = {}
     for platform in lock_spec.platforms:
         content = _content_for_platform(lock_spec, platform, virtual_package_repo)
-        env_spec = json.dumps(content, sort_keys=True)
-        hash = hashlib.sha256(env_spec.encode("utf-8")).hexdigest()
-        result[platform] = hash
+        result[platform] = _dict_to_hash(content)
     return result
+
+
+def _dict_to_json(d: SerializedLockspec | HashableVirtualPackageRepresentation) -> str:
+    """Produce a canonical JSON representation of the given dict."""
+    return json.dumps(d, sort_keys=True)
+
+
+def _json_to_hash(s: str) -> str:
+    """Hash the given JSON string."""
+    return hashlib.sha256(s.encode("utf-8")).hexdigest()
+
+
+def _dict_to_hash(d: SerializedLockspec | HashableVirtualPackageRepresentation) -> str:
+    """Hash the given dict."""
+    return _json_to_hash(_dict_to_json(d))
 
 
 def _content_for_platform(
@@ -149,9 +162,9 @@ def _is_vpr_default(
 
     default_vpr = default_virtual_package_repodata()
     default_vpr_content = _virtual_package_content_for_platform(default_vpr, platform)
-    default_vpr_content_json = json.dumps(default_vpr_content, sort_keys=True)
+    default_vpr_content_json = _dict_to_json(default_vpr_content)
 
     vpr_content = _virtual_package_content_for_platform(virtual_package_repo, platform)
-    vpr_content_json = json.dumps(vpr_content, sort_keys=True)
+    vpr_content_json = _dict_to_json(vpr_content)
 
     return default_vpr_content_json == vpr_content_json
