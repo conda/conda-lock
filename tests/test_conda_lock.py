@@ -2785,6 +2785,24 @@ def test_virtual_package_input_hash_stability():
 def test_default_virtual_package_input_hash_stability():
     from conda_lock.virtual_package import default_virtual_package_repodata
 
+    # This is the hash that conda-lock v2 would produce.
+    expected = {
+        "linux-64": "a949aac83da089258ce729fcd54dc0a3a1724ea325d67680d7a6d7cc9c0f1d1b",
+        "linux-aarch64": "f68603a3a28dbb03d20a25e1dacda3c42b6acc8a93bd31e13c4956115820cfa6",
+        "linux-ppc64le": "ababb6bc556ac8c9e27a499bf9b83b5757f6ded385caa0c3d7bf3f360dfe358d",
+        "osx-64": "b7eebe4be0654740f67e3023f2ede298f390119ef225f50ad7e7288ea22d5c93",
+        "osx-arm64": "cc82018d1b1809b9aebacacc5ed05ee6a4318b3eba039607d2a6957571f8bf2b",
+        "win-64": "44239e9f0175404e62e4a80bb8f4be72e38c536280d6d5e484e52fa04b45c9f6",
+    }
+    spec = LockSpecification(
+        dependencies={platform: [] for platform in expected.keys()},
+        channels=[],
+        sources=[],
+    )
+    vpr = default_virtual_package_repodata()
+    assert compute_content_hashes(spec, vpr) == expected
+
+    # This is the hash that conda-lock v3.0.0, v3.0.1, and v3.0.2 would produce.
     expected = {
         "linux-64": "ebfbb8130f916103373e6521bfb129825cded8b0c3e93f430cc834d8c3664244",
         "linux-aarch64": "5418156c9b6c5ae92b8558087b5d39ee06c66b5ec405a91b4c7ee23d6cec41e2",
@@ -2793,13 +2811,6 @@ def test_default_virtual_package_input_hash_stability():
         "osx-arm64": "bb227bce8532d0eee9396306045e270525b110103f4c54be9ac35621baab3dcd",
         "win-64": "1d34ea90abc99d31721cae03335543cbe16ad4e1eaa988e7a7f8563bda2f951d",
     }
-
-    spec = LockSpecification(
-        dependencies={platform: [] for platform in expected.keys()},
-        channels=[],
-        sources=[],
-    )
-    vpr = default_virtual_package_repodata()
     for platform, hash in expected.items():
         assert hash in backwards_compatible_content_hashes(spec, vpr, platform)
 
