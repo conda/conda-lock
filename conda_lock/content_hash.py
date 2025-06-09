@@ -34,14 +34,21 @@ from conda_lock.content_hash_types import (
     SubdirMetadata,
 )
 from conda_lock.models.lock_spec import LockSpecification
-from conda_lock.virtual_package import FakeRepoData, default_virtual_package_repodata
+from conda_lock.virtual_package import FakeRepoData
 
 
 def compute_content_hashes(
     lock_spec: LockSpecification,
     virtual_package_repo: Optional[FakeRepoData],
+    reproduce_v2_behavior: bool = True,
 ) -> Dict[PlatformSubdirStr, str]:
     result: dict[PlatformSubdirStr, str] = {}
+
+    # This is done so that conda-lock >=3.0.3 will produce the same content
+    # hashes as conda-lock v2.
+    if reproduce_v2_behavior and virtual_package_repo is not None:
+        virtual_package_repo = _reinsert_spurious_build_number(virtual_package_repo)
+
     for platform in lock_spec.platforms:
         content = _content_for_platform(lock_spec, platform, virtual_package_repo)
         result[platform] = _dict_to_hash(content)
@@ -130,41 +137,145 @@ def backwards_compatible_content_hashes(
     platform: PlatformSubdirStr,
 ) -> Set[str]:
     """Verify that the content hash matches the given lock specification."""
-    # This is the nominal content hash.
-    allowed_hashes = {compute_content_hashes(lock_spec, virtual_package_repo)[platform]}
+    if virtual_package_repo is None:
+        return {
+            compute_content_hashes(
+                lock_spec, virtual_package_repo, reproduce_v2_behavior=False
+            )[platform]
+        }
 
-    # Also allow for equivalent legacy versions of the default VPR to support backwards
-    # compatibility so that we don't unnecessarily reject a good hash.
-    if _is_vpr_default(virtual_package_repo, platform):
-        ...
+    # Also allow for equivalent legacy versions of the VPR to support
+    # backwards compatibility so that we don't unnecessarily reject a good hash.
+    # This list will be combinatorially expanded in the following steps.
+    virtual_package_repo_variants = [virtual_package_repo]
+
+    # Support both with and without the redundant __osx=10.15 package.
+    for vpr in virtual_package_repo_variants.copy():
+        if platform == "osx-64" and _contains_osx_11_0_0_tar_bz2(vpr):
+            virtual_package_repo_variants.append(add_or_remove_osx_10_15_0_tar_bz2(vpr))
+
+    # Reinsert spurious build number in build string
+    for vpr in virtual_package_repo_variants.copy():
+        virtual_package_repo_variants.append(_reinsert_spurious_build_number(vpr))
+
+    allowed_hashes = {
+        compute_content_hashes(lock_spec, vpr, reproduce_v2_behavior=False)[platform]
+        for vpr in virtual_package_repo_variants
+    }
     return allowed_hashes
 
 
-def _is_vpr_default(
-    virtual_package_repo: Optional[FakeRepoData], platform: PlatformSubdirStr
-) -> bool:
-    """Check if the virtual package repo for the given platform is the default one.
+def add_or_remove_osx_10_15_0_tar_bz2(
+    virtual_package_repo: FakeRepoData,
+) -> FakeRepoData:
+    """Add or remove the __osx 10.15 virtual package.
 
-    (If so, we may need to allow equivalent legacy versions of the default VPR
-    to support backwards compatibility so that we don't unnecessarily reject a
-    good hash.)
+    Adds __osx 10.15 if it is not present, and removes it if it is present.
+    This way, whichever convention we start with, the opposite convention will be
+    produced.
 
-    >>> _is_vpr_default(default_virtual_package_repodata(), "linux-64")
-    True
-
-    >>> from conda_lock.virtual_package import _init_fake_repodata
-    >>> repodata = _init_fake_repodata()
-    >>> _is_vpr_default(repodata, "linux-64")
-    False
+    Rationale:
+    In 6f69901 we started generating the default repodata based on
+    default-virtual-packages.yaml instead of programmatically. But there was a bug
+    in which we added both __osx 10.15 and 11.0. The extra 10.15 is ignored by conda
+    and mamba, and 11.0 takes precedence. We added an option to readd the 10.15 package
+    in 777dfbf.
     """
-    if virtual_package_repo is None:
-        return True
+    result = virtual_package_repo.model_copy(deep=True)
 
-    default_vpr = default_virtual_package_repodata()
-    default_vpr_content = _virtual_package_content_for_platform(default_vpr, platform)
-    default_vpr_content_json = _dict_to_json(default_vpr_content)
+    # We know this isn't empty because we only call this when 11.0 is present.
+    rd: SubdirMetadata = cast(SubdirMetadata, result.all_repodata["osx-64"])
 
-    vpr_content = _virtual_package_content_for_platform(virtual_package_repo, platform)
-    vpr_content_json = _dict_to_json(vpr_content)
+    packages = rd["packages"]
+    if "__osx-10.15-0.tar.bz2" in packages:
+        del packages["__osx-10.15-0.tar.bz2"]
+    else:
+        packages["__osx-10.15-0.tar.bz2"] = {
+            "name": "__osx",
+            "version": "10.15",
+            "build_string": "",
+            "build_number": 0,
+            "noarch": "",
+            "depends": [],
+            "timestamp": 1577854800000,
+            "package_type": "virtual_system",
+            "build": "0",
+            "subdir": "osx-64",
+        }
+    return result
 
-    return default_vpr_content_json == vpr_content_json
+
+def _contains_osx_11_0_0_tar_bz2(virtual_package_repo: FakeRepoData) -> bool:
+    rd = virtual_package_repo.all_repodata.get("osx-64", {})
+    if "packages" not in rd:
+        return False
+    rd = cast(SubdirMetadata, rd)
+    return rd["packages"].get("__osx-11.0-0.tar.bz2") == {
+        "name": "__osx",
+        "version": "11.0",
+        "build_string": "",
+        "build_number": 0,
+        "noarch": "",
+        "depends": [],
+        "timestamp": 1577854800000,
+        "package_type": "virtual_system",
+        "build": "0",
+        "subdir": "osx-64",
+    }
+
+
+def _reinsert_spurious_build_number(virtual_package_repo: FakeRepoData) -> FakeRepoData:
+    """Reinsert the spurious build number in the build string.
+
+    This was introduced in v3.0.3 to reproduce the content hash of the v2 lockfiles.
+    <https://github.com/conda/conda-lock/pull/776>
+
+    Without the spurious build number:
+
+    ```json
+    "__archspec-1-x86_64.tar.bz2": {
+        "build": "x86_64",
+        "build_number": 0,
+        "build_string": "x86_64",
+        "depends": [],
+        "name": "__archspec",
+        "noarch": "",
+        "package_type": "virtual_system",
+        "subdir": "linux-64",
+        "timestamp": 1577854800000,
+        "version": "1"
+    }
+    ```
+
+    With the spurious build number:
+    ```json
+    "__archspec-1-x86_64_0.tar.bz2": {
+        "build": "x86_64_0",
+        "build_number": 0,
+        "build_string": "x86_64",
+        "depends": [],
+        "name": "__archspec",
+        "noarch": "",
+        "package_type": "virtual_system",
+        "subdir": "linux-64",
+        "timestamp": 1577854800000,
+        "version": "1"
+    }
+    ```
+    """
+    result = virtual_package_repo.model_copy(deep=True)
+    for platform in result.all_repodata:
+        rd = result.all_repodata[platform]
+        if "packages" in rd:
+            rd = cast(SubdirMetadata, rd)
+            for package_name, package_data in rd["packages"].copy().items():
+                name = package_data["name"]
+                version = package_data["version"]
+                build_string = package_data["build_string"]
+                build_number = package_data["build_number"]
+                if len(build_string) > 0:
+                    package_data["build"] = f"{build_string}_{build_number}"
+                    new_name = f"{name}-{version}-{build_string}_{build_number}.tar.bz2"
+                    rd["packages"][new_name] = package_data
+                    del rd["packages"][package_name]
+    return result
