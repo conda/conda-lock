@@ -55,7 +55,9 @@ def compute_content_hashes(
     return result
 
 
-def _dict_to_json(d: SerializedLockspec | HashableVirtualPackageRepresentation) -> str:
+def _dict_to_json(
+    d: Union[SerializedLockspec, HashableVirtualPackageRepresentation],
+) -> str:
     """Produce a canonical JSON representation of the given dict."""
     return json.dumps(d, sort_keys=True)
 
@@ -65,7 +67,9 @@ def _json_to_hash(s: str) -> str:
     return hashlib.sha256(s.encode("utf-8")).hexdigest()
 
 
-def _dict_to_hash(d: SerializedLockspec | HashableVirtualPackageRepresentation) -> str:
+def _dict_to_hash(
+    d: Union[SerializedLockspec, HashableVirtualPackageRepresentation],
+) -> str:
     """Hash the given dict."""
     return _json_to_hash(_dict_to_json(d))
 

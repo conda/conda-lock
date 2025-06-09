@@ -16,6 +16,7 @@ from typing import (
     Set,
     Tuple,
     Type,
+    Union,
 )
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
@@ -225,7 +226,7 @@ def _init_fake_repodata() -> FakeRepoData:
 
 
 def default_virtual_package_repodata(
-    cuda_version: Literal["default", ""] | VirtualPackageVersion = "default",
+    cuda_version: Union[Literal["default", ""], VirtualPackageVersion] = "default",
 ) -> FakeRepoData:
     """An empty cuda_version indicates that CUDA is unavailable."""
     """Define a reasonable modern set of virtual packages that should be safe enough to assume"""
@@ -294,7 +295,9 @@ def _parse_virtual_package_spec(
 def virtual_package_repo_from_specification(
     virtual_package_spec_file: pathlib.Path,
     add_duplicate_osx_package: bool = False,
-    override_cuda_version: Literal["default", ""] | VirtualPackageVersion = "default",
+    override_cuda_version: Union[
+        Literal["default", ""], VirtualPackageVersion
+    ] = "default",
 ) -> FakeRepoData:
     import yaml
 
