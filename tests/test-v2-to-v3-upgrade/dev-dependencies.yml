@@ -1,6 +1,3 @@
 category: dev
 dependencies:
-  - mypy
   - ruff
-platform:
-  - linux-64

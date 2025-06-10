@@ -1,25 +1,38 @@
 # Test v2 to v3 upgrade
 
-I generated conda-lock.yml using v2.5.8 with the following command:
+> [!NOTE]
+> Obligatory reminder that `content_hash` is fundamentally flawed: <https://github.com/conda/conda-lock/issues/432#issuecomment-1637071282>.
+
+With the respective versions, I generated lockfiles with the following commands:
 
 ```bash
-conda-lock -f environment.yml -f test-dependencies.yml -f dev-dependencies.yml --lockfile conda-lock-v2.yml
+conda-lock -f environment.yml -f test-dependencies.yml -f dev-dependencies.yml -f pyproject.toml --lockfile conda-lock-v2.5.8.yml
+conda-lock -f environment.yml -f test-dependencies.yml -f dev-dependencies.yml -f pyproject.toml --lockfile conda-lock-v3.0.2.yml
+conda-lock -f environment.yml -f test-dependencies.yml -f dev-dependencies.yml -f pyproject.toml --lockfile conda-lock-v3.0.3.yml
 ```
 
-When I run
+From any of the later patch versions (v2.5.8 and v3.0.3 but not v3.0.2), running
 
 ```bash
-conda-lock -f environment.yml -f test-dependencies.yml -f dev-dependencies.yml --check-input-hash
+conda-lock -f environment.yml -f test-dependencies.yml -f dev-dependencies.yml -f pyproject.toml --lockfile conda-lock-v2.5.8.yml --check-input-hash
+conda-lock -f environment.yml -f test-dependencies.yml -f dev-dependencies.yml -f pyproject.toml --lockfile conda-lock-v3.0.2.yml --check-input-hash
+conda-lock -f environment.yml -f test-dependencies.yml -f dev-dependencies.yml -f pyproject.toml --lockfile conda-lock-v3.0.3.yml --check-input-hash
 ```
 
-I get the following output:
+results in
 
-```
-Spec hash already locked for ['linux-64']. Skipping solve.
+```text
+Spec hash already locked for ['linux-64', 'linux-aarch64', 'linux-ppc64le', 'osx-64', 'osx-arm64', 'win-64']. Skipping solve.
 ```
 
-Switching to v3, I run the following command:
+Moreover, the input hashes produced by v2.5.8 and v3.0.3 are identical:
 
-```
-conda-lock -f environment.yml -f test-dependencies.yml -f dev-dependencies.yml --lockfile conda-lock-v3.yml
+```yaml
+  content_hash:
+    linux-64: 4e3086c79ebb7044f221959819fbca22e3ad4144b2723482e48f2cffef1cb948
+    linux-aarch64: 07b90c11b3b0bb858767afd42d753952d0f1c6df852771b0d5d2d3f495628cfa
+    linux-ppc64le: 39107ca32794f20f9b443d2d44862b5d06184164df3f851f56901fd0d69483e9
+    osx-64: d8bfcbde7a20bc50b27ca25139f0d18ee48d21905c7482722c120793713144b1
+    osx-arm64: e5b0208328748fdbbf872160bf8e5aff48d3fd5f38fde26e12dcd72a32d5a0d7
+    win-64: a67c2def7fa06f94d92df2f17e7c7c940efbb0998a92788a2c1c4feddd605579
 ```
