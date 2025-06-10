@@ -23,6 +23,7 @@ representation.
 import hashlib
 import json
 
+from copy import deepcopy
 from typing import Dict, Optional, Set, Union, cast
 
 from conda_lock.content_hash_types import (
@@ -40,17 +41,39 @@ from conda_lock.virtual_package import FakeRepoData
 def compute_content_hashes(
     lock_spec: LockSpecification,
     virtual_package_repo: Optional[FakeRepoData],
-    reproduce_v2_behavior: bool = True,
+    reinsert_spurious_build_number: bool = True,
+    remove_new_nulls: bool = True,
 ) -> Dict[PlatformSubdirStr, str]:
+    """Compute the content hashes for the given lock specification.
+
+    Args:
+        lock_spec: The lock specification to compute the content hashes for.
+
+        virtual_package_repo: The virtual package repository to use.
+            If None, the content hash is computed without the VPR.
+
+        reinsert_spurious_build_number: Whether to reinsert the spurious build
+            number in the build string of the VPR. This prevents the content hash
+            from changing when upgrading from v2 to v3.0.3.
+
+        remove_new_nulls: Whether to remove newly added fields from the package
+            specs when they are null. This prevents the content hash from changing
+            when upgrading from v2 to v3.0.3.
+
+    Returns:
+        A dictionary of platform-specific content hashes.
+    """
     result: dict[PlatformSubdirStr, str] = {}
 
     # This is done so that conda-lock >=3.0.3 will produce the same content
     # hashes as conda-lock v2.
-    if reproduce_v2_behavior and virtual_package_repo is not None:
+    if reinsert_spurious_build_number and virtual_package_repo is not None:
         virtual_package_repo = _reinsert_spurious_build_number(virtual_package_repo)
 
     for platform in lock_spec.platforms:
         content = _content_for_platform(lock_spec, platform, virtual_package_repo)
+        if remove_new_nulls:
+            content = _remove_new_nulls(content)
         result[platform] = _dict_to_hash(content)
     return result
 
@@ -140,18 +163,24 @@ def backwards_compatible_content_hashes(
     virtual_package_repo: Optional[FakeRepoData],
     platform: PlatformSubdirStr,
 ) -> Set[str]:
-    """Verify that the content hash matches the given lock specification."""
+    """Compute a set of content hashes for equivalent lock specifications.
+
+    Computing multiple content hashes allows us to support previous versions of
+    the content hash computation for backwards compatibility.
+    """
     if virtual_package_repo is None:
         return {
             compute_content_hashes(
-                lock_spec, virtual_package_repo, reproduce_v2_behavior=False
+                lock_spec, virtual_package_repo, reinsert_spurious_build_number=False
             )[platform]
         }
 
-    # Also allow for equivalent legacy versions of the VPR to support
-    # backwards compatibility so that we don't unnecessarily reject a good hash.
-    # This list will be combinatorially expanded in the following steps.
-    virtual_package_repo_variants = [virtual_package_repo]
+    virtual_package_repo_variants: list[FakeRepoData] = []
+    if virtual_package_repo is not None:
+        # Allow for equivalent legacy versions of the VPR to support
+        # backwards compatibility so that we don't unnecessarily reject a good hash.
+        # This list will be combinatorially expanded in the following steps.
+        virtual_package_repo_variants = [virtual_package_repo]
 
     # Support both with and without the redundant __osx=10.15 package.
     for vpr in virtual_package_repo_variants.copy():
@@ -162,10 +191,32 @@ def backwards_compatible_content_hashes(
     for vpr in virtual_package_repo_variants.copy():
         virtual_package_repo_variants.append(_reinsert_spurious_build_number(vpr))
 
-    allowed_hashes = {
-        compute_content_hashes(lock_spec, vpr, reproduce_v2_behavior=False)[platform]
-        for vpr in virtual_package_repo_variants
-    }
+    if len(virtual_package_repo_variants) == 0:
+        assert virtual_package_repo is None
+        virtual_package_repo_variants = [None]
+
+    allowed_hashes: Set[str] = set()
+    for vpr in virtual_package_repo_variants:
+        # We don't need to reinsert the spurious build number since we already
+        # enumerated all the VPR variants.
+        # We do need to include both possible values of remove_new_nulls, because
+        # that affects the package specs, not the VPR.
+        allowed_hashes.add(
+            compute_content_hashes(
+                lock_spec,
+                vpr,
+                reinsert_spurious_build_number=False,
+                remove_new_nulls=False,
+            )[platform]
+        )
+        allowed_hashes.add(
+            compute_content_hashes(
+                lock_spec,
+                vpr,
+                reinsert_spurious_build_number=False,
+                remove_new_nulls=True,
+            )[platform]
+        )
     return allowed_hashes
 
 
@@ -282,4 +333,19 @@ def _reinsert_spurious_build_number(virtual_package_repo: FakeRepoData) -> FakeR
                     new_name = f"{name}-{version}-{build_string}_{build_number}.tar.bz2"
                     rd["packages"][new_name] = package_data
                     del rd["packages"][package_name]
+    return result
+
+
+def _remove_new_nulls(content: SerializedLockspec) -> SerializedLockspec:
+    """Remove newly added fields from the VPR when they are null.
+
+    New fields added in v3.0.0 that are usually None but were absent in v2
+    would alter the content hash, so we remove them for backwards compatibility.
+    """
+    result = deepcopy(content)
+    for spec in result["specs"]:
+        if "markers" in spec and spec["markers"] is None:
+            del spec["markers"]
+        if "subdirectory" in spec and spec["subdirectory"] is None:
+            del spec["subdirectory"]
     return result
