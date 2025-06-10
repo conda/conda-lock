@@ -2815,6 +2815,41 @@ def test_default_virtual_package_input_hash_stability():
         assert hash in backwards_compatible_content_hashes(spec, vpr, platform)
 
 
+def test_default_virtual_package_input_hash_stability_cuda_version():
+    from conda_lock.virtual_package import default_virtual_package_repodata
+
+    CUDA_VERSION = "9.0"
+
+    # This is the hash that conda-lock v2 would produce.
+    expected = {
+        "linux-64": "0257887bdd38bfe371e508a3d00710f82bcc0ffa06ae87a088aa2854fb6f5525",
+        "linux-aarch64": "4c3242ac2adfe9f8d3e34b377db8da48a834c7a3a126cfa84e385cf1bd6bc55f",
+        "linux-ppc64le": "f551f44ac5ea6e3155a05ad2b024049f93857043c44df5a067cc0207d99b397d",
+        "osx-64": "b7eebe4be0654740f67e3023f2ede298f390119ef225f50ad7e7288ea22d5c93",
+        "osx-arm64": "cc82018d1b1809b9aebacacc5ed05ee6a4318b3eba039607d2a6957571f8bf2b",
+        "win-64": "cf8f3a86e85e953c5a760709b9485c2035de349350924d9f38dfd3161b41842b",
+    }
+    spec = LockSpecification(
+        dependencies={platform: [] for platform in expected.keys()},
+        channels=[],
+        sources=[],
+    )
+    vpr = default_virtual_package_repodata(cuda_version=CUDA_VERSION)
+    assert compute_content_hashes(spec, vpr) == expected
+
+    # This is the hash that conda-lock v3.0.0, v3.0.1, and v3.0.2 would produce.
+    expected = {
+        "linux-64": "3e46169a88764ee0b4c1a906bb8bb4e47ee346f2d3fcca166d144615f76c7b4f",
+        "linux-aarch64": "9548afc17f91da634ae3b841313f1a7bd5596fbfea35e5597d2eb599c4317d2f",
+        "linux-ppc64le": "2a9e00acf651dc0bbb19a12b076388616c90257b37a76ef5c5fb9ed669986157",
+        "osx-64": "e2236a55963b8a15f6702e885eb44c7ce3f294c638cc91aa770e23435f77d18e",
+        "osx-arm64": "bb227bce8532d0eee9396306045e270525b110103f4c54be9ac35621baab3dcd",
+        "win-64": "c1effdfa1f4ce1f8c63c64c02d2b395801f792a45dff966c72fa7e36126a7bd7",
+    }
+    for platform, hash in expected.items():
+        assert hash in backwards_compatible_content_hashes(spec, vpr, platform)
+
+
 @pytest.fixture
 def conda_lock_yaml():
     return (
