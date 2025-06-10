@@ -932,7 +932,7 @@ def test_spec_poetry(poetry_pyproject_toml: Path):
 
     spec = make_lock_spec(
         src_files=[poetry_pyproject_toml],
-        required_categories={"main", "dev"},
+        filtered_categories={"main", "dev"},
         mapping_url=DEFAULT_MAPPING_URL,
     )
     for plat in spec.platforms:
@@ -943,7 +943,7 @@ def test_spec_poetry(poetry_pyproject_toml: Path):
 
     spec = make_lock_spec(
         src_files=[poetry_pyproject_toml],
-        required_categories={"main"},
+        filtered_categories={"main"},
         mapping_url=DEFAULT_MAPPING_URL,
     )
     for plat in spec.platforms:

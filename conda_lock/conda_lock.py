@@ -261,6 +261,22 @@ def fn_to_dist_name(fn: str) -> str:
     return fn
 
 
+def _compute_filtered_categories(
+    include_dev_dependencies: bool, extras: Optional[AbstractSet[str]]
+) -> AbstractSet[str]:
+    """Compute the selected subset of categories when filtering.
+
+    Includes `main`, `dev` unless disabled by the flag, and any explicitly specified
+    extras.
+    """
+    filtered_categories = {"main"}
+    if include_dev_dependencies:
+        filtered_categories.add("dev")
+    if extras is not None:
+        filtered_categories.update(extras)
+    return filtered_categories
+
+
 def make_lock_files(  # noqa: C901
     *,
     conda: PathLike,
@@ -323,18 +339,17 @@ def make_lock_files(  # noqa: C901
     metadata_yamls:
         YAML or JSON file(s) containing structured metadata to add to metadata section of the lockfile.
     """
-
     # Compute lock specification
-    required_categories = {"main"}
-    if include_dev_dependencies:
-        required_categories.add("dev")
-    if extras is not None:
-        required_categories.update(extras)
+    filtered_categories: Optional[AbstractSet[str]] = None
+    if filter_categories:
+        filtered_categories = _compute_filtered_categories(
+            include_dev_dependencies=include_dev_dependencies, extras=extras
+        )
     lock_spec = make_lock_spec(
         src_files=src_files,
         channel_overrides=channel_overrides,
         platform_overrides=platform_overrides,
-        required_categories=required_categories if filter_categories else None,
+        filtered_categories=filtered_categories,
         mapping_url=mapping_url,
     )
 
@@ -2055,16 +2070,16 @@ def do_render_lockspec(
     if len(src_files) == 0:
         src_files = handle_no_specified_source_files(lockfile_path)
 
-    required_categories = {"main"}
-    if include_dev_dependencies:
-        required_categories.add("dev")
-    if extras is not None:
-        required_categories.update(extras)
+    filtered_categories: Optional[AbstractSet[str]] = None
+    if filter_categories:
+        filtered_categories = _compute_filtered_categories(
+            include_dev_dependencies=include_dev_dependencies, extras=extras
+        )
     lock_spec = make_lock_spec(
         src_files=src_files,
         channel_overrides=channel_overrides,
         platform_overrides=platform_overrides,
-        required_categories=required_categories if filter_categories else None,
+        filtered_categories=filtered_categories,
         mapping_url=mapping_url,
     )
     if "raw" in kinds:

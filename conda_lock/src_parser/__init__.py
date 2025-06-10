@@ -84,10 +84,10 @@ def make_lock_spec(
     channel_overrides: Optional[Sequence[str]] = None,
     pip_repository_overrides: Optional[Sequence[str]] = None,
     platform_overrides: Optional[Sequence[str]] = None,
-    required_categories: Optional[AbstractSet[str]] = None,
+    filtered_categories: Optional[AbstractSet[str]] = None,
     mapping_url: str,
 ) -> LockSpecification:
-    """Generate the lockfile specs from a set of input src_files.  If required_categories is set filter out specs that do not match those"""
+    """Generate the lockfile specs from a set of input src_files.  If filtered_categories is set filter out specs that do not match those"""
     platforms = (
         list(platform_overrides)
         if platform_overrides
@@ -117,7 +117,7 @@ def make_lock_spec(
         else aggregated_lock_spec.pip_repositories
     )
 
-    if required_categories is None:
+    if filtered_categories is None:
         dependencies = aggregated_lock_spec.dependencies
     else:
         # Filtering based on category (e.g. "main" or "dev") was requested.
@@ -129,7 +129,7 @@ def make_lock_spec(
             platform: [
                 d
                 for d in dependencies
-                if dep_has_category(d, categories=required_categories)
+                if dep_has_category(d, categories=filtered_categories)
             ]
             for platform, dependencies in aggregated_lock_spec.dependencies.items()
         }
