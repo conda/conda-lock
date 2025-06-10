@@ -1,0 +1,15 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "example-pyproject-dependencies"
+dependencies = [
+    "requests @ git+https://github.com/requests/requests.git@main",
+    "cowsay @ https://github.com/VaasuDevanS/cowsay-python/archive/refs/tags/v6.1.tar.gz#sha256=bf7009e6d62c8da0f33b2b2dfd4538ebf712e4d9ce0dde1be5ac8986c09aabe2",
+    "tomli",
+    "httpx[cli]",
+]
+
+[tool.conda-lock]
+default-non-conda-source = "pip"

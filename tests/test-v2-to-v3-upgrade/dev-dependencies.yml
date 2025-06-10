@@ -1,0 +1,3 @@
+category: dev
+dependencies:
+  - ruff

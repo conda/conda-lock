@@ -1,0 +1,40 @@
+subdirs:
+  linux-64:
+    packages:
+      __unix: "0"
+      __linux: "5.10"
+      __archspec: "1 x86_64"
+      # NOTE: Keep this in sync with the MANYLINUX_TAGS maximum in pypi_solver.py
+      __glibc: "2.28"
+      __cuda: "11.4"
+  linux-aarch64:
+    packages:
+      __unix: "0"
+      __linux: "5.10"
+      __archspec: "1 aarch64"
+      # NOTE: Keep this in sync with the MANYLINUX_TAGS maximum in pypi_solver.py
+      __glibc: "2.28"
+      __cuda: "11.4"
+  linux-ppc64le:
+    packages:
+      __unix: "0"
+      __linux: "5.10"
+      __archspec: "1 ppc64le"
+      # NOTE: Keep this in sync with the MANYLINUX_TAGS maximum in pypi_solver.py
+      __glibc: "2.28"
+      __cuda: "11.4"
+  osx-64:
+    packages:
+      __unix: "0"
+      __archspec: "1 x86_64"
+      __osx: "11.0"
+  osx-arm64:
+    packages:
+      __unix: "0"
+      __archspec: "1 arm64"
+      __osx: "11.0"
+  win-64:
+    packages:
+      __win: "0"
+      __archspec: "1 x86_64"
+      __cuda: "11.4"

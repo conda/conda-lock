@@ -4,7 +4,7 @@ import json
 import logging
 import os
 import pathlib
-import platform
+import platform as builtin_module_platform
 import re
 import shutil
 import subprocess
@@ -66,8 +66,12 @@ from conda_lock.conda_solver import (
     extract_json_object,
     fake_conda_environment,
 )
+from conda_lock.content_hash import (
+    backwards_compatible_content_hashes,
+    compute_content_hashes,
+)
 from conda_lock.content_hash_types import (
-    HashableFakePackage,
+    HashableVirtualPackage,
     PackageNameStr,
     SubdirMetadata,
 )
@@ -928,7 +932,7 @@ def test_spec_poetry(poetry_pyproject_toml: Path):
 
     spec = make_lock_spec(
         src_files=[poetry_pyproject_toml],
-        required_categories={"main", "dev"},
+        filtered_categories={"main", "dev"},
         mapping_url=DEFAULT_MAPPING_URL,
     )
     for plat in spec.platforms:
@@ -939,7 +943,7 @@ def test_spec_poetry(poetry_pyproject_toml: Path):
 
     spec = make_lock_spec(
         src_files=[poetry_pyproject_toml],
-        required_categories={"main"},
+        filtered_categories={"main"},
         mapping_url=DEFAULT_MAPPING_URL,
     )
     for plat in spec.platforms:
@@ -1464,7 +1468,7 @@ def test_run_lock_with_update(
     conda_exe: str,
     _conda_exe_type: str,
 ):
-    if platform.system().lower() == "windows":
+    if builtin_module_platform.system().lower() == "windows":
         if _conda_exe_type in ("conda", "mamba"):
             pytest.skip(
                 reason="this test just takes too long on windows, due to the slow conda solver"
@@ -1925,9 +1929,11 @@ def test_aggregate_lock_specs():
     assert actual.model_dump(exclude={"sources"}) == expected.model_dump(
         exclude={"sources"}
     )
-    assert actual.content_hash(virtual_package_repo=None) == expected.content_hash(
-        virtual_package_repo=None
+    actual_content_hashes = compute_content_hashes(actual, virtual_package_repo=None)
+    expected_content_hashes = compute_content_hashes(
+        expected, virtual_package_repo=None
     )
+    assert actual_content_hashes == expected_content_hashes
 
 
 def test_aggregate_lock_specs_override_version():
@@ -2773,12 +2779,30 @@ def test_virtual_package_input_hash_stability():
     vpr = virtual_package_repo_from_specification(vspec)
 
     expected = "8ee5fc79fca4cb7732d2e88443209e0a3a354da9899cb8899d94f9b1dcccf975"
-    assert spec.content_hash(vpr) == {"linux-64": expected}
+    assert compute_content_hashes(spec, vpr) == {"linux-64": expected}
 
 
 def test_default_virtual_package_input_hash_stability():
     from conda_lock.virtual_package import default_virtual_package_repodata
 
+    # This is the hash that conda-lock v2 would produce.
+    expected = {
+        "linux-64": "a949aac83da089258ce729fcd54dc0a3a1724ea325d67680d7a6d7cc9c0f1d1b",
+        "linux-aarch64": "f68603a3a28dbb03d20a25e1dacda3c42b6acc8a93bd31e13c4956115820cfa6",
+        "linux-ppc64le": "ababb6bc556ac8c9e27a499bf9b83b5757f6ded385caa0c3d7bf3f360dfe358d",
+        "osx-64": "b7eebe4be0654740f67e3023f2ede298f390119ef225f50ad7e7288ea22d5c93",
+        "osx-arm64": "cc82018d1b1809b9aebacacc5ed05ee6a4318b3eba039607d2a6957571f8bf2b",
+        "win-64": "44239e9f0175404e62e4a80bb8f4be72e38c536280d6d5e484e52fa04b45c9f6",
+    }
+    spec = LockSpecification(
+        dependencies={platform: [] for platform in expected.keys()},
+        channels=[],
+        sources=[],
+    )
+    vpr = default_virtual_package_repodata()
+    assert compute_content_hashes(spec, vpr) == expected
+
+    # This is the hash that conda-lock v3.0.0, v3.0.1, and v3.0.2 would produce.
     expected = {
         "linux-64": "ebfbb8130f916103373e6521bfb129825cded8b0c3e93f430cc834d8c3664244",
         "linux-aarch64": "5418156c9b6c5ae92b8558087b5d39ee06c66b5ec405a91b4c7ee23d6cec41e2",
@@ -2787,14 +2811,43 @@ def test_default_virtual_package_input_hash_stability():
         "osx-arm64": "bb227bce8532d0eee9396306045e270525b110103f4c54be9ac35621baab3dcd",
         "win-64": "1d34ea90abc99d31721cae03335543cbe16ad4e1eaa988e7a7f8563bda2f951d",
     }
+    for platform, hash in expected.items():
+        assert hash in backwards_compatible_content_hashes(spec, vpr, platform)
 
+
+def test_default_virtual_package_input_hash_stability_cuda_version():
+    from conda_lock.virtual_package import default_virtual_package_repodata
+
+    CUDA_VERSION = "9.0"
+
+    # This is the hash that conda-lock v2 would produce.
+    expected = {
+        "linux-64": "0257887bdd38bfe371e508a3d00710f82bcc0ffa06ae87a088aa2854fb6f5525",
+        "linux-aarch64": "4c3242ac2adfe9f8d3e34b377db8da48a834c7a3a126cfa84e385cf1bd6bc55f",
+        "linux-ppc64le": "f551f44ac5ea6e3155a05ad2b024049f93857043c44df5a067cc0207d99b397d",
+        "osx-64": "b7eebe4be0654740f67e3023f2ede298f390119ef225f50ad7e7288ea22d5c93",
+        "osx-arm64": "cc82018d1b1809b9aebacacc5ed05ee6a4318b3eba039607d2a6957571f8bf2b",
+        "win-64": "cf8f3a86e85e953c5a760709b9485c2035de349350924d9f38dfd3161b41842b",
+    }
     spec = LockSpecification(
         dependencies={platform: [] for platform in expected.keys()},
         channels=[],
         sources=[],
     )
-    vpr = default_virtual_package_repodata()
-    assert spec.content_hash(vpr) == expected
+    vpr = default_virtual_package_repodata(cuda_version=CUDA_VERSION)
+    assert compute_content_hashes(spec, vpr) == expected
+
+    # This is the hash that conda-lock v3.0.0, v3.0.1, and v3.0.2 would produce.
+    expected = {
+        "linux-64": "3e46169a88764ee0b4c1a906bb8bb4e47ee346f2d3fcca166d144615f76c7b4f",
+        "linux-aarch64": "9548afc17f91da634ae3b841313f1a7bd5596fbfea35e5597d2eb599c4317d2f",
+        "linux-ppc64le": "2a9e00acf651dc0bbb19a12b076388616c90257b37a76ef5c5fb9ed669986157",
+        "osx-64": "e2236a55963b8a15f6702e885eb44c7ce3f294c638cc91aa770e23435f77d18e",
+        "osx-arm64": "bb227bce8532d0eee9396306045e270525b110103f4c54be9ac35621baab3dcd",
+        "win-64": "c1effdfa1f4ce1f8c63c64c02d2b395801f792a45dff966c72fa7e36126a7bd7",
+    }
+    for platform, hash in expected.items():
+        assert hash in backwards_compatible_content_hashes(spec, vpr, platform)
 
 
 @pytest.fixture
@@ -3247,7 +3300,7 @@ def test_platformenv_linux_platforms():
 
     # Check that we get the default platforms when the virtual packages are nonempty
     # but don't include __glibc
-    platform_virtual_packages: Dict[PackageNameStr, HashableFakePackage] = {
+    platform_virtual_packages: Dict[PackageNameStr, HashableVirtualPackage] = {
         "x.bz2": {
             "name": "__not_glibc",
             "version": "1",
