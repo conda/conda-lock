@@ -24,7 +24,7 @@ import hashlib
 import json
 
 from copy import deepcopy
-from typing import Dict, Optional, Set, Union, cast
+from typing import Dict, Optional, Sequence, Set, Union, cast
 
 from conda_lock.content_hash_types import (
     EmptyDict,
@@ -167,19 +167,22 @@ def backwards_compatible_content_hashes(
 
     Computing multiple content hashes allows us to support previous versions of
     the content hash computation for backwards compatibility.
-    """
-    if virtual_package_repo is None:
-        return {
-            compute_content_hashes(
-                lock_spec, virtual_package_repo, reinsert_spurious_build_number=False
-            )[platform]
-        }
 
+    We could have adopted a more targeted strategy for producing specific variants
+    of the VPR, but the VPR can also be customized, so it's hard to know exactly
+    how it's constructed. Therefore we just enumerate all possible variants to be safe.
+
+    Note that VPR=None is only used for old tests, and it corresponds to the case where
+    VPR is unspecified rather than default. (TODO: replace those tests and eliminate
+    this special case?)
+    """
     virtual_package_repo_variants: list[FakeRepoData] = []
     if virtual_package_repo is not None:
         # Allow for equivalent legacy versions of the VPR to support
         # backwards compatibility so that we don't unnecessarily reject a good hash.
         # This list will be combinatorially expanded in the following steps.
+        # (If the VPR is None, we leave the list empty, effectively skipping the
+        # enumeration.)
         virtual_package_repo_variants = [virtual_package_repo]
 
     # Support both with and without the redundant __osx=10.15 package.
@@ -191,28 +194,34 @@ def backwards_compatible_content_hashes(
     for vpr in virtual_package_repo_variants.copy():
         virtual_package_repo_variants.append(_reinsert_spurious_build_number(vpr))
 
-    if len(virtual_package_repo_variants) == 0:
-        assert virtual_package_repo is None
-        virtual_package_repo_variants = [None]
+    # Compute virtual_package_repo parameter values to iterate over.
+    vprs: Sequence[Optional[FakeRepoData]]
+    if virtual_package_repo is None:
+        assert len(virtual_package_repo_variants) == 0
+        vprs = [None]
+    else:
+        assert len(virtual_package_repo_variants) > 0
+        vprs = virtual_package_repo_variants
 
+    # Compute the content hashes for the given lock specification and VPR variants.
     allowed_hashes: Set[str] = set()
-    for vpr in virtual_package_repo_variants:
-        # We don't need to reinsert the spurious build number since we already
-        # enumerated all the VPR variants.
+    for vpr_or_none in vprs:
+        # We don't need to check cases involving reinserting the spurious build number
+        # in the VPR since that's already covered by the VPR variants.
         # We do need to include both possible values of remove_new_nulls, because
         # that affects the package specs, not the VPR.
         allowed_hashes.add(
             compute_content_hashes(
-                lock_spec,
-                vpr,
+                lock_spec=lock_spec,
+                virtual_package_repo=vpr_or_none,
                 reinsert_spurious_build_number=False,
                 remove_new_nulls=False,
             )[platform]
         )
         allowed_hashes.add(
             compute_content_hashes(
-                lock_spec,
-                vpr,
+                lock_spec=lock_spec,
+                virtual_package_repo=vpr_or_none,
                 reinsert_spurious_build_number=False,
                 remove_new_nulls=True,
             )[platform]
