@@ -1,7 +1,7 @@
 import logging
 import pathlib
 
-from typing import AbstractSet, List, Optional, Sequence, Set
+from typing import AbstractSet, List, Optional, Sequence
 
 import yaml
 
@@ -16,7 +16,6 @@ from conda_lock.virtual_package import default_virtual_package_repodata
 logger = logging.getLogger(__name__)
 
 
-
 def _create_lock_spec_for_check(
     files: List[pathlib.Path],
     mapping_url: str,
@@ -27,6 +26,22 @@ def _create_lock_spec_for_check(
     filter_categories: bool,
     with_cuda: Optional[str],
 ) -> Optional[LockSpecification]:
+    """
+    Create a lock specification for checking against a lockfile.
+
+    Args:
+        files: List of source files (e.g., pyproject.toml, environment.yml).
+        mapping_url: URL to the mapping file for converting package names.
+        channel_overrides: Sequence of channels to override those in source files.
+        platform_overrides: Sequence of platforms to override those in source files.
+        include_dev_dependencies: Whether to include development dependencies.
+        extras: Optional set of extras to include.
+        filter_categories: Whether to filter dependencies by categories.
+        with_cuda: CUDA version to assume for virtual packages.
+
+    Returns:
+        A LockSpecification object, or None if an error occurs.
+    """
     try:
         filtered_categories: Optional[AbstractSet[str]] = None
         if filter_categories:
@@ -55,8 +70,25 @@ def _compare_packages_for_platform(
     files: List[pathlib.Path],
     platform: str,
     lockfile_packages: List[LockedDependency],
-    spec_packages: Set[str],
+    spec_packages: AbstractSet[str],
 ) -> bool:
+    """
+    Compare packages for a given platform between the lockfile and the lock spec.
+
+    This ensures that:
+    1. Every dependency in the spec is present in the lockfile for the platform.
+    2. There are no extra root packages in the lockfile that are not in the spec.
+
+    Args:
+        lockfile_path: Path to the lockfile, used for error messages.
+        files: List of source files, used for error messages.
+        platform: The platform being checked.
+        lockfile_packages: List of locked dependencies from the lockfile for the platform.
+        spec_packages: Set of dependency names from the lock specification for the platform.
+
+    Returns:
+        True if packages are consistent, False otherwise.
+    """
     all_lockfile_packages_for_platform = {p.name for p in lockfile_packages}
 
     all_dependency_names = set()
@@ -70,8 +102,8 @@ def _compare_packages_for_platform(
 
     logger.debug(f"Root packages for {platform}: {lockfile_root_packages_for_platform}")
 
-    # ensure every dependency in the spec is in the lockfile
-    if not spec_packages.issubset(all_lockfile_packages_for_platform):
+    # ensure every dependency in the spec is in the lockfile and makes sure lockfile version is valid against lockfile spec
+    if not spec_packages <= all_lockfile_packages_for_platform:
         missing_packages = spec_packages - all_lockfile_packages_for_platform
         logger.error(
             f"For platform {platform}, {lockfile_path.name} is missing packages required "
@@ -101,10 +133,29 @@ def _check_platform_dependencies(
     filter_categories: bool,
     kind: str,
 ) -> bool:
+    """
+    Check dependencies for a single platform.
+
+    This function dispatches to the correct comparison logic based on the lockfile kind
+    and categories.
+
+    Args:
+        lockfile_path: Path to the lockfile.
+        files: List of source files.
+        lockfile_obj: The parsed Lockfile object.
+        lock_spec: The LockSpecification object.
+        platform: The platform to check.
+        categories_to_check: Set of categories to check.
+        filter_categories: Whether to filter categories.
+        kind: The kind of lockfile.
+
+    Returns:
+        True if dependencies are consistent, False otherwise.
+    """
     logger.info(f"Checking platform {platform}...")
 
     if kind != "lock":
-        packages_for_check = [
+        lockfile_pkgs_to_check = [
             p
             for p in lockfile_obj.package
             if p.platform == platform
@@ -112,19 +163,16 @@ def _check_platform_dependencies(
                 not filter_categories or p.categories.intersection(categories_to_check)
             )
         ]
-        spec_packages_for_platform = {
-            d.name for d in lock_spec.dependencies.get(platform, [])
-        }
         return _compare_packages_for_platform(
             lockfile_path=lockfile_path,
             files=files,
             platform=platform,
-            lockfile_packages=packages_for_check,
-            spec_packages=spec_packages_for_platform,
+            lockfile_packages=lockfile_pkgs_to_check,
+            spec_packages={d.name for d in lock_spec.dependencies.get(platform, [])},
         )
     else:
         for category in categories_to_check:
-            packages_for_check = [
+            lockfile_pkgs_to_check = [
                 p
                 for p in lockfile_obj.package
                 if p.platform == platform and category in p.categories
@@ -138,7 +186,7 @@ def _check_platform_dependencies(
                 lockfile_path=lockfile_path,
                 files=files,
                 platform=platform,
-                lockfile_packages=packages_for_check,
+                lockfile_packages=lockfile_pkgs_to_check,
                 spec_packages=spec_packages_for_platform,
             ):
                 return False
@@ -157,7 +205,18 @@ def check_lockfile(
     with_cuda: Optional[str] = None,
 ) -> bool:
     """
-    Check if conda-lock.yml is in sync with pyproject.toml dependencies.
+    Check if a lockfile is in sync with the source files.
+
+    Args:
+        lockfile_path: Path to the conda-lock.yml file.
+        files: List of source files to generate a lock specification from.
+        mapping_url: URL to the mapping file.
+        channel_overrides: A list of channels to override the channels in the lock specification.
+        platform_overrides: A list of platforms to override the platforms in the lock specification.
+        include_dev_dependencies: If true, include dev dependencies in the lock specification.
+        extras: A set of extras to include in the lock specification.
+        filter_categories: If true, filter the lock specification by categories.
+        with_cuda: The version of cuda to use for virtual packages.
 
     Returns:
         True if validation passes, False if there are issues.
