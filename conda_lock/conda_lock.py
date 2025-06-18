@@ -40,6 +40,7 @@ from ensureconda.api import ensureconda
 from ensureconda.resolve import platform_subdir
 from typing_extensions import Literal
 
+from conda_lock.check_lockfile import _check_platform_dependencies, _create_lock_spec_for_check
 from conda_lock.click_helpers import OrderedGroup
 from conda_lock.common import (
     read_file,
@@ -1248,34 +1249,25 @@ def check_lockfile(
         logger.exception(f"Error reading {lockfile_path}")
         return False
 
-    kind = _detect_lockfile_kind(lockfile_path)
-    # create the lock spec
-    try:
-        filtered_categories: Optional[AbstractSet[str]] = None
-        if filter_categories:
-            filtered_categories = _compute_filtered_categories(
-                include_dev_dependencies=include_dev_dependencies, extras=extras
-            )
-        if with_cuda is None:
-            with_cuda = "default"
-
-        virtual_package_repo = default_virtual_package_repodata(cuda_version=with_cuda)
-        with virtual_package_repo:
-            lock_spec = make_lock_spec(
-                src_files=files,
-                mapping_url=mapping_url,
-                channel_overrides=channel_overrides,
-                platform_overrides=platform_overrides,
-                filtered_categories=filtered_categories,
-            )
-    except (FileNotFoundError, OSError) as e:
-        logger.exception(f"Error creating lock spec from {files}: {e}")
+    lock_spec = _create_lock_spec_for_check(
+        files=files,
+        mapping_url=mapping_url,
+        channel_overrides=channel_overrides,
+        platform_overrides=platform_overrides,
+        include_dev_dependencies=include_dev_dependencies,
+        extras=extras,
+        filter_categories=filter_categories,
+        with_cuda=with_cuda,
+    )
+    if lock_spec is None:
         return False
 
     platforms_in_lockfile = set(lockfile_obj.metadata.platforms)
     platforms_in_spec = set(lock_spec.platforms)
 
-    platforms_to_check = sorted(list(platforms_in_lockfile.intersection(platforms_in_spec)))
+    platforms_to_check = sorted(
+        list(platforms_in_lockfile.intersection(platforms_in_spec))
+    )
 
     if not platforms_to_check:
         logger.error("No common platforms found between lockfile and source files.")
@@ -1284,128 +1276,20 @@ def check_lockfile(
     categories_to_check = _compute_filtered_categories(
         include_dev_dependencies=include_dev_dependencies, extras=extras
     )
+    kind = _detect_lockfile_kind(lockfile_path)
 
     for platform in platforms_to_check:
-        logger.info(f"Checking platform {platform}...")
-
-        if kind != "lock":
-            # Filter packages from lockfile for current platform and categories
-            packages_for_check = [
-                p
-                for p in lockfile_obj.package
-                if p.platform == platform
-                and (
-                    not filter_categories
-                    or p.categories.intersection(categories_to_check)
-                )
-            ]
-
-            all_lockfile_packages_for_platform = {p.name for p in packages_for_check}
-
-            all_dependency_names = set()
-            for pkg in packages_for_check:
-                if pkg.dependencies:
-                    all_dependency_names.update(pkg.dependencies.keys())
-
-            lockfile_root_packages_for_platform = (
-                all_lockfile_packages_for_platform - all_dependency_names
-            )
-
-            logger.debug(
-                f"Root packages for {platform}: {lockfile_root_packages_for_platform}"
-            )
-
-            lock_spec_packages_for_platform = {
-                d.name for d in lock_spec.dependencies.get(platform, [])
-            }
-
-            # ensure every dependency in the spec is in the lockfile
-            if not lock_spec_packages_for_platform.issubset(
-                all_lockfile_packages_for_platform
-            ):
-                missing_packages = (
-                    lock_spec_packages_for_platform - all_lockfile_packages_for_platform
-                )
-                logger.error(
-                    f"For platform {platform}, {lockfile_path.name} is missing packages required "
-                    f"by {', '.join(str(f) for f in files)}: {missing_packages}. "
-                    "Run `conda-lock lock` to update the lockfile."
-                )
-                return False
-
-            # ensure no extra packages in the lockfile
-            if not lockfile_root_packages_for_platform.issubset(
-                lock_spec_packages_for_platform
-            ):
-                extra_packages = (
-                    lockfile_root_packages_for_platform
-                    - lock_spec_packages_for_platform
-                )
-                logger.error(
-                    f"For platform {platform}, {lockfile_path.name} contains packages not required by the lockspec: {extra_packages} "
-                    "Run `conda-lock lock` to update the lockfile."
-                )
-                return False
-        else:
-            for category in categories_to_check:
-                # Filter packages from lockfile for current platform and categories
-                packages_for_check = [
-                    p
-                    for p in lockfile_obj.package
-                    if p.platform == platform and category in p.categories
-                ]
-
-                all_lockfile_packages_for_platform = {
-                    p.name for p in packages_for_check
-                }
-
-                all_dependency_names = set()
-                for pkg in packages_for_check:
-                    if pkg.dependencies:
-                        all_dependency_names.update(pkg.dependencies.keys())
-
-                lockfile_root_packages_for_platform = (
-                    all_lockfile_packages_for_platform - all_dependency_names
-                )
-
-                logger.debug(
-                    f"Root packages for {platform}: {lockfile_root_packages_for_platform}"
-                )
-
-                lock_spec_packages_for_platform = {
-                    d.name
-                    for d in lock_spec.dependencies.get(platform, [])
-                    if d.category == category
-                }
-
-                # ensure every dependency in the spec is in the lockfile
-                if not lock_spec_packages_for_platform.issubset(
-                    all_lockfile_packages_for_platform
-                ):
-                    missing_packages = (
-                        lock_spec_packages_for_platform
-                        - all_lockfile_packages_for_platform
-                    )
-                    logger.error(
-                        f"For platform {platform}, {lockfile_path.name} is missing packages required "
-                        f"by {', '.join(str(f) for f in files)}: {missing_packages}. "
-                        "Run `conda-lock lock` to update the lockfile."
-                    )
-                    return False
-
-                # ensure no extra packages in the lockfile
-                if not lockfile_root_packages_for_platform.issubset(
-                    lock_spec_packages_for_platform
-                ):
-                    extra_packages = (
-                        lockfile_root_packages_for_platform
-                        - lock_spec_packages_for_platform
-                    )
-                    logger.error(
-                        f"For platform {platform}, {lockfile_path.name} contains packages not required by the lockspec: {extra_packages} "
-                        "Run `conda-lock lock` to update the lockfile."
-                    )
-                    return False
+        if not _check_platform_dependencies(
+            lockfile_path=lockfile_path,
+            files=files,
+            lockfile_obj=lockfile_obj,
+            lock_spec=lock_spec,
+            platform=platform,
+            categories_to_check=categories_to_check,
+            filter_categories=filter_categories,
+            kind=kind,
+        ):
+            return False
 
     logger.info(
         f"{lockfile_path.name} successfully validated for platforms: {', '.join(platforms_to_check)}"
