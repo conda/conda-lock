@@ -1221,6 +1221,198 @@ def run_lock(
     )
 
 
+def check_lockfile(
+    lockfile_path: pathlib.Path,
+    files: List[pathlib.Path],
+    mapping_url: str,
+    channel_overrides: Optional[Sequence[str]] = None,
+    platform_overrides: Optional[Sequence[str]] = None,
+    include_dev_dependencies: bool = True,
+    extras: Optional[AbstractSet[str]] = None,
+    filter_categories: bool = False,
+    with_cuda: Optional[str] = None,
+) -> bool:
+    """
+    Check if conda-lock.yml is in sync with pyproject.toml dependencies.
+
+    Returns:
+        True if validation passes, False if there are issues.
+    """
+    if not lockfile_path.exists():
+        logger.error(f"Error: {lockfile_path} not found")
+        return False
+
+    try:
+        lockfile_obj = parse_conda_lock_file(lockfile_path)
+    except (yaml.error.YAMLError, FileNotFoundError):
+        logger.exception(f"Error reading {lockfile_path}")
+        return False
+
+    kind = _detect_lockfile_kind(lockfile_path)
+    # create the lock spec
+    try:
+        filtered_categories: Optional[AbstractSet[str]] = None
+        if filter_categories:
+            filtered_categories = _compute_filtered_categories(
+                include_dev_dependencies=include_dev_dependencies, extras=extras
+            )
+        if with_cuda is None:
+            with_cuda = "default"
+
+        virtual_package_repo = default_virtual_package_repodata(cuda_version=with_cuda)
+        with virtual_package_repo:
+            lock_spec = make_lock_spec(
+                src_files=files,
+                mapping_url=mapping_url,
+                channel_overrides=channel_overrides,
+                platform_overrides=platform_overrides,
+                filtered_categories=filtered_categories,
+            )
+    except (FileNotFoundError, OSError) as e:
+        logger.exception(f"Error creating lock spec from {files}: {e}")
+        return False
+
+    platforms_in_lockfile = set(lockfile_obj.metadata.platforms)
+    platforms_in_spec = set(lock_spec.platforms)
+
+    platforms_to_check = sorted(list(platforms_in_lockfile.intersection(platforms_in_spec)))
+
+    if not platforms_to_check:
+        logger.error("No common platforms found between lockfile and source files.")
+        return False
+
+    categories_to_check = _compute_filtered_categories(
+        include_dev_dependencies=include_dev_dependencies, extras=extras
+    )
+
+    for platform in platforms_to_check:
+        logger.info(f"Checking platform {platform}...")
+
+        if kind != "lock":
+            # Filter packages from lockfile for current platform and categories
+            packages_for_check = [
+                p
+                for p in lockfile_obj.package
+                if p.platform == platform
+                and (
+                    not filter_categories
+                    or p.categories.intersection(categories_to_check)
+                )
+            ]
+
+            all_lockfile_packages_for_platform = {p.name for p in packages_for_check}
+
+            all_dependency_names = set()
+            for pkg in packages_for_check:
+                if pkg.dependencies:
+                    all_dependency_names.update(pkg.dependencies.keys())
+
+            lockfile_root_packages_for_platform = (
+                all_lockfile_packages_for_platform - all_dependency_names
+            )
+
+            logger.debug(
+                f"Root packages for {platform}: {lockfile_root_packages_for_platform}"
+            )
+
+            lock_spec_packages_for_platform = {
+                d.name for d in lock_spec.dependencies.get(platform, [])
+            }
+
+            # ensure every dependency in the spec is in the lockfile
+            if not lock_spec_packages_for_platform.issubset(
+                all_lockfile_packages_for_platform
+            ):
+                missing_packages = (
+                    lock_spec_packages_for_platform - all_lockfile_packages_for_platform
+                )
+                logger.error(
+                    f"For platform {platform}, {lockfile_path.name} is missing packages required "
+                    f"by {', '.join(str(f) for f in files)}: {missing_packages}. "
+                    "Run `conda-lock lock` to update the lockfile."
+                )
+                return False
+
+            # ensure no extra packages in the lockfile
+            if not lockfile_root_packages_for_platform.issubset(
+                lock_spec_packages_for_platform
+            ):
+                extra_packages = (
+                    lockfile_root_packages_for_platform
+                    - lock_spec_packages_for_platform
+                )
+                logger.error(
+                    f"For platform {platform}, {lockfile_path.name} contains packages not required by the lockspec: {extra_packages} "
+                    "Run `conda-lock lock` to update the lockfile."
+                )
+                return False
+        else:
+            # For 'lock' kind, we need to check each category separately
+            for category in categories_to_check:
+                # Filter packages from lockfile for current platform and categories
+                packages_for_check = [
+                    p
+                    for p in lockfile_obj.package
+                    if p.platform == platform and category in p.categories
+                ]
+
+                all_lockfile_packages_for_platform = {
+                    p.name for p in packages_for_check
+                }
+
+                all_dependency_names = set()
+                for pkg in packages_for_check:
+                    if pkg.dependencies:
+                        all_dependency_names.update(pkg.dependencies.keys())
+
+                lockfile_root_packages_for_platform = (
+                    all_lockfile_packages_for_platform - all_dependency_names
+                )
+
+                logger.debug(
+                    f"Root packages for {platform}: {lockfile_root_packages_for_platform}"
+                )
+
+                lock_spec_packages_for_platform = {
+                    d.name
+                    for d in lock_spec.dependencies.get(platform, [])
+                    if d.category == category
+                }
+
+                # ensure every dependency in the spec is in the lockfile
+                if not lock_spec_packages_for_platform.issubset(
+                    all_lockfile_packages_for_platform
+                ):
+                    missing_packages = (
+                        lock_spec_packages_for_platform
+                        - all_lockfile_packages_for_platform
+                    )
+                    logger.error(
+                        f"For platform {platform}, {lockfile_path.name} is missing packages required "
+                        f"by {', '.join(str(f) for f in files)}: {missing_packages}. "
+                        "Run `conda-lock lock` to update the lockfile."
+                    )
+                    return False
+
+                # ensure no extra packages in the lockfile
+                if not lockfile_root_packages_for_platform.issubset(
+                    lock_spec_packages_for_platform
+                ):
+                    extra_packages = (
+                        lockfile_root_packages_for_platform
+                        - lock_spec_packages_for_platform
+                    )
+                    logger.error(
+                        f"For platform {platform}, {lockfile_path.name} contains packages not required by the lockspec: {extra_packages} "
+                        "Run `conda-lock lock` to update the lockfile."
+                    )
+                    return False
+
+    logger.info(
+        f"{lockfile_path.name} successfully validated for platforms: {', '.join(platforms_to_check)}"
+    )
+    return True
+
 @click.group(cls=OrderedGroup, default="lock", default_if_no_args=True)
 @click.version_option()
 def main() -> None:
@@ -2112,6 +2304,112 @@ def _handle_exception_post_mortem(
     import pdb
 
     pdb.post_mortem(exc_traceback)
+
+
+@main.command("check", context_settings=CONTEXT_SETTINGS)
+@click.option(
+    "-f",
+    "--file",
+    "files",
+    type=click.Path(),
+    multiple=True,
+    help="path to a conda environment specification(s)",
+)
+@click.option(
+    "--lockfile",
+    default=DEFAULT_LOCKFILE_NAME,
+    help="Path to the conda-lock.yml to check",
+)
+@click.option(
+    "--pypi_to_conda_lookup_file",
+    type=str,
+    help="Location of the lookup file containing Pypi package names to conda names.",
+)
+@click.option(
+    "--log-level",
+    help="Log level.",
+    default="INFO",
+    type=click.Choice(["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]),
+)
+@click.option(
+    "-p",
+    "--platform",
+    multiple=True,
+    help="check lock files for the following platforms",
+)
+@click.option(
+    "-c",
+    "--channel",
+    "channel_overrides",
+    multiple=True,
+    help="""Override the channels to use when solving the environment. These will replace the channels as listed in the various source files.""",
+)
+@click.option(
+    "--dev-dependencies/--no-dev-dependencies",
+    is_flag=True,
+    default=True,
+    help="include dev dependencies in the check (where applicable)",
+)
+@click.option(
+    "-e",
+    "--extras",
+    "--category",
+    default=[],
+    type=str,
+    multiple=True,
+    help="When used in conjunction with input sources that support extras/categories (pyproject.toml) will add the deps from those extras to the check",
+)
+@click.option(
+    "--filter-categories",
+    "--filter-extras",
+    is_flag=True,
+    default=False,
+    help="In conjunction with extras this will prune out dependencies that do not have the extras specified when loading files.",
+)
+@click.option(
+    "--with-cuda",
+    "with_cuda",
+    type=str,
+    default=None,
+    help="Specify cuda version to use in virtual packages. Avoids warning about implicit acceptance of cuda dependencies. Ignored if virtual packages are specified.",
+)
+def click_check(
+    files: Sequence[PathLike],
+    lockfile: PathLike,
+    pypi_to_conda_lookup_file: Optional[str],
+    log_level: TLogLevel,
+    platform: Sequence[str],
+    channel_overrides: Sequence[str],
+    dev_dependencies: bool,
+    extras: Sequence[str],
+    filter_categories: bool,
+    with_cuda: Optional[str] = None,
+) -> None:
+    """Check if the lockfile is consistent with the environment specification."""
+    logging.basicConfig(level=log_level)
+    lockfile_path = pathlib.Path(lockfile)
+    environment_files = [pathlib.Path(file) for file in files]
+    if len(environment_files) == 0:
+        environment_files = handle_no_specified_source_files(lockfile_path)
+
+    mapping_url = (
+        DEFAULT_MAPPING_URL
+        if pypi_to_conda_lookup_file is None
+        else pypi_to_conda_lookup_file
+    )
+
+    if not check_lockfile(
+        lockfile_path,
+        environment_files,
+        mapping_url,
+        channel_overrides=channel_overrides,
+        platform_overrides=platform,
+        include_dev_dependencies=dev_dependencies,
+        extras=set(extras),
+        filter_categories=filter_categories,
+        with_cuda=with_cuda,
+    ):
+        sys.exit(1)
 
 
 if __name__ == "__main__":
