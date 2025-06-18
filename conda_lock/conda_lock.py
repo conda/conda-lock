@@ -40,7 +40,6 @@ from ensureconda.api import ensureconda
 from ensureconda.resolve import platform_subdir
 from typing_extensions import Literal
 
-from conda_lock.check_lockfile import _check_platform_dependencies, _create_lock_spec_for_check
 from conda_lock.click_helpers import OrderedGroup
 from conda_lock.common import (
     read_file,
@@ -1239,6 +1238,11 @@ def check_lockfile(
     Returns:
         True if validation passes, False if there are issues.
     """
+    from conda_lock.check_lockfile import (
+        _check_platform_dependencies,
+        _create_lock_spec_for_check,
+    )
+
     if not lockfile_path.exists():
         logger.error(f"Error: {lockfile_path} not found")
         return False
@@ -1295,6 +1299,7 @@ def check_lockfile(
         f"{lockfile_path.name} successfully validated for platforms: {', '.join(platforms_to_check)}"
     )
     return True
+
 
 @click.group(cls=OrderedGroup, default="lock", default_if_no_args=True)
 @click.version_option()
