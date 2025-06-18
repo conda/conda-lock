@@ -1347,7 +1347,6 @@ def check_lockfile(
                 )
                 return False
         else:
-            # For 'lock' kind, we need to check each category separately
             for category in categories_to_check:
                 # Filter packages from lockfile for current platform and categories
                 packages_for_check = [
