@@ -1,12 +1,12 @@
 import pytest
 import yaml
 
-from conda_lock.conda_lock import check_lockfile
+from conda_lock.check_lockfile import check_lockfile
 from conda_lock.lookup import DEFAULT_MAPPING_URL
 
 
 @pytest.fixture
-def lockfile(tmp_path):
+def lock_lockfile(tmp_path):
     lockfile_content = {
         "version": 2,
         "metadata": {
@@ -85,11 +85,11 @@ dev-dependencies = { "pytest" = { version = "^7.1.2", manager = "conda" } }
     return pyproject_path
 
 
-def test_check_success(lockfile, pyproject_toml):
-    assert check_lockfile(lockfile, [pyproject_toml], DEFAULT_MAPPING_URL)
+def test_check_success(lock_lockfile, pyproject_toml):
+    assert check_lockfile(lock_lockfile, [pyproject_toml], DEFAULT_MAPPING_URL)
 
 
-def test_check_missing_package(lockfile, tmp_path):
+def test_check_missing_package(lock_lockfile, tmp_path):
     pyproject_content = """
 [build-system]
 requires = ["poetry-core>=1.0.0"]
@@ -101,10 +101,10 @@ dependencies = { python = ">=3.10", requests = ">=2.28.1,<3.0.0", numpy = "*" }
     pyproject_path = tmp_path / "pyproject.toml"
     pyproject_path.write_text(pyproject_content)
 
-    assert not check_lockfile(lockfile, [pyproject_path], DEFAULT_MAPPING_URL)
+    assert not check_lockfile(lock_lockfile, [pyproject_path], DEFAULT_MAPPING_URL)
 
 
-def test_check_extra_package(lockfile, tmp_path):
+def test_check_extra_package(lock_lockfile, tmp_path):
     pyproject_content = """
 [build-system]
 requires = ["poetry-core>=1.0.0"]
@@ -116,12 +116,12 @@ dependencies = { python = ">=3.10" }
     pyproject_path = tmp_path / "pyproject.toml"
     pyproject_path.write_text(pyproject_content)
 
-    assert not check_lockfile(lockfile, [pyproject_path], DEFAULT_MAPPING_URL)
+    assert not check_lockfile(lock_lockfile, [pyproject_path], DEFAULT_MAPPING_URL)
 
 
-def test_check_filter_extras(lockfile, pyproject_toml):
+def test_check_filter_extras(lock_lockfile, pyproject_toml):
     is_valid = check_lockfile(
-        lockfile,
+        lock_lockfile,
         [pyproject_toml],
         DEFAULT_MAPPING_URL,
         filter_categories=True,
@@ -130,21 +130,22 @@ def test_check_filter_extras(lockfile, pyproject_toml):
     assert is_valid
 
 
-def test_check_with_cuda(lockfile, pyproject_toml):
+def test_check_with_cuda(lock_lockfile, pyproject_toml):
     assert check_lockfile(
-        lockfile, [pyproject_toml], DEFAULT_MAPPING_URL, with_cuda="11.4"
+        lock_lockfile, [pyproject_toml], DEFAULT_MAPPING_URL, with_cuda="11.4"
     )
 
 
-def test_check_inconsistent_category(lockfile, pyproject_toml):
-    with open(lockfile) as f:
+def test_check_inconsistent_category(lock_lockfile, pyproject_toml):
+    with open(lock_lockfile) as f:
         lock_data = yaml.safe_load(f)
 
+    # make lockfile inconsistent by changing a category
     for pkg in lock_data["package"]:
         if pkg["name"] == "pytest":
             pkg["categories"] = ["main"]
 
-    inconsistent_lockfile_path = lockfile.parent / "inconsistent-lock.yml"
+    inconsistent_lockfile_path = lock_lockfile.parent / "inconsistent-lock.yml"
     with open(inconsistent_lockfile_path, "w") as f:
         yaml.dump(lock_data, f)
 
@@ -156,8 +157,8 @@ def test_check_inconsistent_category(lockfile, pyproject_toml):
     )
 
 
-def test_check_extra_package_in_category(lockfile, pyproject_toml):
-    with open(lockfile) as f:
+def test_check_extra_package_in_category(lock_lockfile, pyproject_toml):
+    with open(lock_lockfile) as f:
         lock_data = yaml.safe_load(f)
 
     # Add an extra package to the 'main' category
@@ -174,7 +175,7 @@ def test_check_extra_package_in_category(lockfile, pyproject_toml):
         }
     )
 
-    inconsistent_lockfile_path = lockfile.parent / "extra-package-lock.yml"
+    inconsistent_lockfile_path = lock_lockfile.parent / "extra-package-lock.yml"
     with open(inconsistent_lockfile_path, "w") as f:
         yaml.dump(lock_data, f)
 
@@ -185,14 +186,14 @@ def test_check_extra_package_in_category(lockfile, pyproject_toml):
     )
 
 
-def test_check_missing_package_in_category(lockfile, pyproject_toml):
-    with open(lockfile) as f:
+def test_check_missing_package_in_category(lock_lockfile, pyproject_toml):
+    with open(lock_lockfile) as f:
         lock_data = yaml.safe_load(f)
 
     # Remove a package from the 'main' category
     lock_data["package"] = [p for p in lock_data["package"] if p["name"] != "requests"]
 
-    inconsistent_lockfile_path = lockfile.parent / "missing-package-lock.yml"
+    inconsistent_lockfile_path = lock_lockfile.parent / "missing-package-lock.yml"
     with open(inconsistent_lockfile_path, "w") as f:
         yaml.dump(lock_data, f)
 
@@ -203,9 +204,9 @@ def test_check_missing_package_in_category(lockfile, pyproject_toml):
     )
 
 
-def test_check_no_common_platforms(lockfile, pyproject_toml):
+def test_check_no_common_platforms(lock_lockfile, pyproject_toml):
     assert not check_lockfile(
-        lockfile,
+        lock_lockfile,
         [pyproject_toml],
         DEFAULT_MAPPING_URL,
         platform_overrides=["osx-64"],
