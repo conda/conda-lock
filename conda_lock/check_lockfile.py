@@ -5,10 +5,13 @@ from typing import AbstractSet, List, Optional, Sequence
 
 import yaml
 
+from packaging.specifiers import SpecifierSet
+from packaging.version import Version
+
 from conda_lock.conda_lock import _compute_filtered_categories, _detect_lockfile_kind
 from conda_lock.lockfile import parse_conda_lock_file
 from conda_lock.lockfile.v2prelim.models import LockedDependency, Lockfile
-from conda_lock.models.lock_spec import LockSpecification
+from conda_lock.models.lock_spec import Dependency, LockSpecification
 from conda_lock.src_parser import make_lock_spec
 from conda_lock.virtual_package import default_virtual_package_repodata
 
@@ -65,12 +68,12 @@ def _create_lock_spec_for_check(
         return None
 
 
-def _compare_packages_for_platform(
+def _compare_packages(
     lockfile_path: pathlib.Path,
     files: List[pathlib.Path],
     platform: str,
     lockfile_packages: List[LockedDependency],
-    spec_packages: AbstractSet[str],
+    spec_packages: List[Dependency],
 ) -> bool:
     """
     Compare packages for a given platform between the lockfile and the lock spec.
@@ -84,7 +87,7 @@ def _compare_packages_for_platform(
         files: List of source files, used for error messages.
         platform: The platform being checked.
         lockfile_packages: List of locked dependencies from the lockfile for the platform.
-        spec_packages: Set of dependency names from the lock specification for the platform.
+        spec_packages: List of dependency from the lock specification for the platform.
 
     Returns:
         True if packages are consistent, False otherwise.
@@ -102,6 +105,14 @@ def _compare_packages_for_platform(
 
     logger.debug(f"Root packages for {platform}: {lockfile_root_packages_for_platform}")
 
+    # LEFT OFF
+    spec_packages_dict = {p.name: p.version for p in spec_packages}
+    for lockfile_pkg in lockfile_packages:
+        assert lockfile_pkg.name in spec_packages_dict
+        assert SpecifierSet(spec_packages_dict[lockfile_pkg.name]).contains(
+            Version(lockfile_pkg.version)
+        )
+    
     # ensure every dependency in the spec is in the lockfile and makes sure lockfile version is valid against lockfile spec
     if not spec_packages <= all_lockfile_packages_for_platform:
         missing_packages = spec_packages - all_lockfile_packages_for_platform
@@ -163,12 +174,12 @@ def _check_platform_dependencies(
                 not filter_categories or p.categories.intersection(categories_to_check)
             )
         ]
-        return _compare_packages_for_platform(
+        return _compare_packages(
             lockfile_path=lockfile_path,
             files=files,
             platform=platform,
             lockfile_packages=lockfile_pkgs_to_check,
-            spec_packages={d.name for d in lock_spec.dependencies.get(platform, [])},
+            spec_packages=lock_spec.dependencies.get(platform, []),
         )
     else:
         for category in categories_to_check:
@@ -177,12 +188,12 @@ def _check_platform_dependencies(
                 for p in lockfile_obj.package
                 if p.platform == platform and category in p.categories
             ]
-            spec_packages_for_platform = {
-                d.name
+            spec_packages_for_platform = [
+                d
                 for d in lock_spec.dependencies.get(platform, [])
                 if d.category == category
-            }
-            if not _compare_packages_for_platform(
+            ]
+            if not _compare_packages(
                 lockfile_path=lockfile_path,
                 files=files,
                 platform=platform,
