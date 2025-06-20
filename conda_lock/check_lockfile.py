@@ -78,9 +78,12 @@ def _compare_packages(
     """
     Compare packages for a given platform between the lockfile and the lock spec.
 
+    Packages are assumed to have already been filtered by platform and category.
+
     This ensures that:
-    1. Every dependency in the spec is present in the lockfile for the platform.
-    2. There are no extra root packages in the lockfile that are not in the spec.
+    1. No spec dependencies are missing from the lockfile.
+    2. No extra packages in the lockfile that are not in the spec.
+    3. The versions of the packages in the lockfile are valid against the spec.
 
     Args:
         lockfile_path: Path to the lockfile, used for error messages.
@@ -105,14 +108,18 @@ def _compare_packages(
 
     logger.debug(f"Root packages for {platform}: {lockfile_root_packages_for_platform}")
 
+    # I saw pyspark twice in a lockfile (once managed by pip (v3.5) and once by conda (v4)).  How will that affect things?  Have pip override conda packages with the same name?
+
     # LEFT OFF
+    # compare specfile versions with lockfile versions if they exist.  If they don't exist, just check the name and source?
+    breakpoint()
     spec_packages_dict = {p.name: p.version for p in spec_packages}
     for lockfile_pkg in lockfile_packages:
         assert lockfile_pkg.name in spec_packages_dict
         assert SpecifierSet(spec_packages_dict[lockfile_pkg.name]).contains(
             Version(lockfile_pkg.version)
         )
-    
+
     # ensure every dependency in the spec is in the lockfile and makes sure lockfile version is valid against lockfile spec
     if not spec_packages <= all_lockfile_packages_for_platform:
         missing_packages = spec_packages - all_lockfile_packages_for_platform
@@ -166,22 +173,32 @@ def _check_platform_dependencies(
     logger.info(f"Checking platform {platform}...")
 
     if kind != "lock":
-        lockfile_pkgs_to_check = [
-            p
-            for p in lockfile_obj.package
-            if p.platform == platform
-            and (
-                not filter_categories or p.categories.intersection(categories_to_check)
-            )
-        ]
-        return _compare_packages(
-            lockfile_path=lockfile_path,
-            files=files,
-            platform=platform,
-            lockfile_packages=lockfile_pkgs_to_check,
-            spec_packages=lock_spec.dependencies.get(platform, []),
-        )
+        # implementation detail: we should split the spec and lockfile packages by category
+        # and compare them separately
+
+        # in lock lockfiles we can compare categories, to ensure those are correct
+        for category in categories_to_check:
+            lockfile_pkgs_to_check = [
+                p
+                for p in lockfile_obj.package
+                if p.platform == platform and category in p.categories
+            ]
+            spec_packages_for_platform = [
+                d
+                for d in lock_spec.dependencies.get(platform, [])
+                if d.category == category
+            ]
+            if not _compare_packages(
+                lockfile_path=lockfile_path,
+                files=files,
+                platform=platform,
+                lockfile_packages=lockfile_pkgs_to_check,
+                spec_packages=spec_packages_for_platform,
+            ):
+                return False
     else:
+        # env and explicit lockfiles don't have categories included in the lockfile
+        # so instead we ...
         for category in categories_to_check:
             lockfile_pkgs_to_check = [
                 p
@@ -273,6 +290,7 @@ def check_lockfile(
     kind = _detect_lockfile_kind(lockfile_path)
 
     for platform in platforms_to_check:
+        # main function
         if not _check_platform_dependencies(
             lockfile_path=lockfile_path,
             files=files,
