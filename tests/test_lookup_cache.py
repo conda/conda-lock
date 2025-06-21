@@ -256,7 +256,7 @@ def test_concurrent_cached_download_file(tmp_path):
 
     # Use multiprocessing Manager to share state between processes
     with multiprocessing.Manager() as manager:
-        results: multiprocessing.Queue[bytes] = multiprocessing.Queue()
+        results = manager.Queue()
         process_names_emitting_lock_warnings = manager.list()
         process_names_calling_requests_get = manager.list()
         request_count = manager.Value("i", 0)
