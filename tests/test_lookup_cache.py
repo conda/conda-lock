@@ -253,51 +253,64 @@ def test_download_mapping_file(tmp_path):
 def test_concurrent_cached_download_file(tmp_path):
     """Test concurrent access to cached_download_file with 5 processes."""
     url = "https://example.com/test.json"
-    results: multiprocessing.Queue[bytes] = multiprocessing.Queue()
-    process_names_emitting_lock_warnings: multiprocessing.Queue[str] = (
-        multiprocessing.Queue()
-    )
-    process_names_calling_requests_get: multiprocessing.Queue[str] = (
-        multiprocessing.Queue()
-    )
 
-    def mock_get(*args, **kwargs):
-        time.sleep(6)
-        response = MagicMock()
-        response.content = b"content"
-        response.status_code = 200
-        process_name = multiprocessing.current_process().name
-        process_names_calling_requests_get.put(process_name)
-        return response
+    # Use multiprocessing Manager to share state between processes
+    with multiprocessing.Manager() as manager:
+        results: multiprocessing.Queue[bytes] = multiprocessing.Queue()
+        process_names_emitting_lock_warnings = manager.list()
+        process_names_calling_requests_get = manager.list()
+        request_count = manager.Value("i", 0)
 
-    def download_file(result_queue):
-        """Download the file in a process and store the result in a queue."""
-        import random
+        def download_file(
+            result_queue,
+            process_names_emitting_lock_warnings,
+            process_names_calling_requests_get,
+            request_count,
+        ):
+            """Download the file in a process and store the result in a queue."""
+            import random
 
-        # Randomize which process calls cached_download_file first
-        time.sleep(random.uniform(0, 0.1))
-        result = cached_download_file(
-            url, cache_subdir_name="test_cache", cache_root=tmp_path
-        )
-        result_queue.put(result)
+            def mock_get(*args, **kwargs):
+                time.sleep(6)
+                response = MagicMock()
+                response.content = b"content"
+                response.status_code = 200
+                process_name = multiprocessing.current_process().name
+                process_names_calling_requests_get.append(process_name)
+                request_count.value += 1
+                return response
 
-    with patch("requests.get", side_effect=mock_get) as mock_get, patch(
-        "conda_lock.lookup_cache.logger"
-    ) as mock_logger:
-        # Set up the logger to record which processes emit warnings
-        def mock_warning(msg, *args, **kwargs):
-            if "Failed to acquire lock" in msg:
-                process_names_emitting_lock_warnings.put(
-                    multiprocessing.current_process().name
+            def mock_warning(msg, *args, **kwargs):
+                if "Failed to acquire lock" in msg:
+                    process_names_emitting_lock_warnings.append(
+                        multiprocessing.current_process().name
+                    )
+
+            # Randomize which process calls cached_download_file first
+            time.sleep(random.uniform(0, 0.1))
+
+            with patch(
+                "conda_lock.lookup_cache.requests.get", side_effect=mock_get
+            ), patch(
+                "conda_lock.lookup_cache.logger.warning", side_effect=mock_warning
+            ):
+                result = cached_download_file(
+                    url, cache_subdir_name="test_cache", cache_root=tmp_path
                 )
-
-        mock_logger.warning.side_effect = mock_warning
+                result_queue.put(result)
 
         # Create and start 5 processes
         process_names = [f"CachedDownloadFileProcess-{i}" for i in range(5)]
         processes = [
             multiprocessing.Process(
-                target=download_file, args=(results,), name=process_name
+                target=download_file,
+                args=(
+                    results,
+                    process_names_emitting_lock_warnings,
+                    process_names_calling_requests_get,
+                    request_count,
+                ),
+                name=process_name,
             )
             for process_name in process_names
         ]
@@ -315,23 +328,18 @@ def test_concurrent_cached_download_file(tmp_path):
 
         # We expect one process to have made the request and the other four
         # to have emitted warnings.
-        process_names_calling_requests_get_list = []
-        while not process_names_calling_requests_get.empty():
-            process_names_calling_requests_get_list.append(
-                process_names_calling_requests_get.get()
-            )
-
-        process_names_emitting_lock_warnings_list = []
-        while not process_names_emitting_lock_warnings.empty():
-            process_names_emitting_lock_warnings_list.append(
-                process_names_emitting_lock_warnings.get()
-            )
+        process_names_calling_requests_get_list = list(
+            process_names_calling_requests_get
+        )
+        process_names_emitting_lock_warnings_list = list(
+            process_names_emitting_lock_warnings
+        )
 
         assert (
             len(process_names_calling_requests_get_list)
             == 1
             == len(set(process_names_calling_requests_get_list))
-            == mock_get.call_count
+            == request_count.value
         ), f"{process_names_calling_requests_get_list=}"
         assert (
             len(process_names_emitting_lock_warnings_list)
