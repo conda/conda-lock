@@ -1,6 +1,5 @@
+import multiprocessing
 import os
-import queue
-import threading
 import time
 
 from pathlib import Path
@@ -252,26 +251,30 @@ def test_download_mapping_file(tmp_path):
 
 
 def test_concurrent_cached_download_file(tmp_path):
-    """Test concurrent access to cached_download_file with 5 threads."""
+    """Test concurrent access to cached_download_file with 5 processes."""
     url = "https://example.com/test.json"
-    results: queue.Queue[bytes] = queue.Queue()
-    thread_names_emitting_lock_warnings: queue.Queue[str] = queue.Queue()
-    thread_names_calling_requests_get: queue.Queue[str] = queue.Queue()
+    results: multiprocessing.Queue[bytes] = multiprocessing.Queue()
+    process_names_emitting_lock_warnings: multiprocessing.Queue[str] = (
+        multiprocessing.Queue()
+    )
+    process_names_calling_requests_get: multiprocessing.Queue[str] = (
+        multiprocessing.Queue()
+    )
 
     def mock_get(*args, **kwargs):
         time.sleep(6)
         response = MagicMock()
         response.content = b"content"
         response.status_code = 200
-        thread_name = threading.current_thread().name
-        thread_names_calling_requests_get.put(thread_name)
+        process_name = multiprocessing.current_process().name
+        process_names_calling_requests_get.put(process_name)
         return response
 
     def download_file(result_queue):
-        """Download the file in a thread and store the result in a queue."""
+        """Download the file in a process and store the result in a queue."""
         import random
 
-        # Randomize which thread calls cached_download_file first
+        # Randomize which process calls cached_download_file first
         time.sleep(random.uniform(0, 0.1))
         result = cached_download_file(
             url, cache_subdir_name="test_cache", cache_root=tmp_path
@@ -281,42 +284,61 @@ def test_concurrent_cached_download_file(tmp_path):
     with patch("requests.get", side_effect=mock_get) as mock_get, patch(
         "conda_lock.lookup_cache.logger"
     ) as mock_logger:
-        # Set up the logger to record which threads emit warnings
+        # Set up the logger to record which processes emit warnings
         def mock_warning(msg, *args, **kwargs):
             if "Failed to acquire lock" in msg:
-                thread_names_emitting_lock_warnings.put(threading.current_thread().name)
+                process_names_emitting_lock_warnings.put(
+                    multiprocessing.current_process().name
+                )
 
         mock_logger.warning.side_effect = mock_warning
 
-        # Create and start 5 threads
-        thread_names = [f"CachedDownloadFileThread-{i}" for i in range(5)]
-        threads = [
-            threading.Thread(target=download_file, args=(results,), name=thread_name)
-            for thread_name in thread_names
+        # Create and start 5 processes
+        process_names = [f"CachedDownloadFileProcess-{i}" for i in range(5)]
+        processes = [
+            multiprocessing.Process(
+                target=download_file, args=(results,), name=process_name
+            )
+            for process_name in process_names
         ]
-        for thread in threads:
-            thread.start()
-        for thread in threads:
-            thread.join()
+        for process in processes:
+            process.start()
+        for process in processes:
+            process.join()
 
         # Collect results from the queue
-        assert results.qsize() == len(threads)
-        assert all(result == b"content" for result in results.queue)
+        assert results.qsize() == len(processes)
+        results_list = []
+        while not results.empty():
+            results_list.append(results.get())
+        assert all(result == b"content" for result in results_list)
 
-        # We expect one thread to have made the request and the other four
+        # We expect one process to have made the request and the other four
         # to have emitted warnings.
+        process_names_calling_requests_get_list = []
+        while not process_names_calling_requests_get.empty():
+            process_names_calling_requests_get_list.append(
+                process_names_calling_requests_get.get()
+            )
+
+        process_names_emitting_lock_warnings_list = []
+        while not process_names_emitting_lock_warnings.empty():
+            process_names_emitting_lock_warnings_list.append(
+                process_names_emitting_lock_warnings.get()
+            )
+
         assert (
-            thread_names_calling_requests_get.qsize()
+            len(process_names_calling_requests_get_list)
             == 1
-            == len(set(thread_names_calling_requests_get.queue))
+            == len(set(process_names_calling_requests_get_list))
             == mock_get.call_count
-        ), f"{thread_names_calling_requests_get.queue=}"
+        ), f"{process_names_calling_requests_get_list=}"
         assert (
-            thread_names_emitting_lock_warnings.qsize()
+            len(process_names_emitting_lock_warnings_list)
             == 4
-            == len(set(thread_names_emitting_lock_warnings.queue))
-        ), f"{thread_names_emitting_lock_warnings.queue=}"
-        assert set(thread_names) == set(
-            thread_names_calling_requests_get.queue
-            + thread_names_emitting_lock_warnings.queue
+            == len(set(process_names_emitting_lock_warnings_list))
+        ), f"{process_names_emitting_lock_warnings_list=}"
+        assert set(process_names) == set(
+            process_names_calling_requests_get_list
+            + process_names_emitting_lock_warnings_list
         )
