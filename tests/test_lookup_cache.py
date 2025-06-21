@@ -1,5 +1,6 @@
 import multiprocessing
 import os
+import random
 import time
 
 from pathlib import Path
@@ -14,6 +15,44 @@ from conda_lock.lookup_cache import (
     clear_old_files_from_cache,
     uncached_download_file,
 )
+
+
+def _concurrent_download_worker(
+    url,
+    cache_root,
+    result_queue,
+    process_names_emitting_lock_warnings,
+    process_names_calling_requests_get,
+    request_count,
+):
+    """Download the file in a process and store the result in a queue."""
+
+    def mock_get(*args, **kwargs):
+        time.sleep(6)
+        response = MagicMock()
+        response.content = b"content"
+        response.status_code = 200
+        process_name = multiprocessing.current_process().name
+        process_names_calling_requests_get.append(process_name)
+        request_count.value += 1
+        return response
+
+    def mock_warning(msg, *args, **kwargs):
+        if "Failed to acquire lock" in msg:
+            process_names_emitting_lock_warnings.append(
+                multiprocessing.current_process().name
+            )
+
+    # Randomize which process calls cached_download_file first
+    time.sleep(random.uniform(0, 0.1))
+
+    with patch("conda_lock.lookup_cache.requests.get", side_effect=mock_get), patch(
+        "conda_lock.lookup_cache.logger.warning", side_effect=mock_warning
+    ):
+        result = cached_download_file(
+            url, cache_subdir_name="test_cache", cache_root=cache_root
+        )
+        result_queue.put(result)
 
 
 @pytest.fixture
@@ -261,50 +300,14 @@ def test_concurrent_cached_download_file(tmp_path):
         process_names_calling_requests_get = manager.list()
         request_count = manager.Value("i", 0)
 
-        def download_file(
-            result_queue,
-            process_names_emitting_lock_warnings,
-            process_names_calling_requests_get,
-            request_count,
-        ):
-            """Download the file in a process and store the result in a queue."""
-            import random
-
-            def mock_get(*args, **kwargs):
-                time.sleep(6)
-                response = MagicMock()
-                response.content = b"content"
-                response.status_code = 200
-                process_name = multiprocessing.current_process().name
-                process_names_calling_requests_get.append(process_name)
-                request_count.value += 1
-                return response
-
-            def mock_warning(msg, *args, **kwargs):
-                if "Failed to acquire lock" in msg:
-                    process_names_emitting_lock_warnings.append(
-                        multiprocessing.current_process().name
-                    )
-
-            # Randomize which process calls cached_download_file first
-            time.sleep(random.uniform(0, 0.1))
-
-            with patch(
-                "conda_lock.lookup_cache.requests.get", side_effect=mock_get
-            ), patch(
-                "conda_lock.lookup_cache.logger.warning", side_effect=mock_warning
-            ):
-                result = cached_download_file(
-                    url, cache_subdir_name="test_cache", cache_root=tmp_path
-                )
-                result_queue.put(result)
-
         # Create and start 5 processes
         process_names = [f"CachedDownloadFileProcess-{i}" for i in range(5)]
         processes = [
             multiprocessing.Process(
-                target=download_file,
+                target=_concurrent_download_worker,
                 args=(
+                    url,
+                    tmp_path,
                     results,
                     process_names_emitting_lock_warnings,
                     process_names_calling_requests_get,
