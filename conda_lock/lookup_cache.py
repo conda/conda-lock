@@ -57,14 +57,17 @@ def cached_download_file(
     cache.mkdir(parents=True, exist_ok=True)
     clear_old_files_from_cache(cache, max_age_seconds=max_age_seconds)
 
-    destination_lock = (cache / cached_filename_for_url(url)).with_suffix(".lock")
+    destination = cache / cached_filename_for_url(url)
+    destination_lock = destination.with_suffix(".lock")
 
     # Wait for any other process to finish downloading the file.
     # This way we can use the result from the current download without
     # spawning multiple concurrent downloads.
     while True:
         try:
+            logger.debug(f"Attempting to acquire lock on {destination_lock}")
             with FileLock(str(destination_lock), timeout=5):
+                logger.debug(f"Successfully acquired lock on {destination_lock}")
                 return _download_to_or_read_from_cache(
                     url,
                     cache=cache,
@@ -75,6 +78,33 @@ def cached_download_file(
                 f"Failed to acquire lock on {destination_lock}, it is likely "
                 f"being downloaded by another process. Retrying..."
             )
+
+
+def _is_cached_file_fresh(
+    destination: Path, dont_check_if_newer_than_seconds: float
+) -> bool:
+    """Check if a cached file exists and is fresh enough to use without checking.
+
+    (In this context, "checking" means that later, beyond the scope of this function,
+    we will query the server with an ETag to see if the file has changed or if we
+    get a 304 Not Modified response.)
+
+    A file is "fresh" if its age is positive and less than
+    `dont_check_if_newer_than_seconds`.
+
+    Returns True if the file is fresh, False otherwise.
+    """
+    if destination.is_file():
+        age_seconds = get_age_seconds(destination)
+        if age_seconds is None:
+            raise RuntimeError(f"Error checking age of {destination}")
+        if 0 <= age_seconds < dont_check_if_newer_than_seconds:
+            logger.debug(
+                f"Using cached file {destination} of age {age_seconds}s "
+                f"without checking for updates"
+            )
+            return True
+    return False
 
 
 def _download_to_or_read_from_cache(
@@ -93,22 +123,14 @@ def _download_to_or_read_from_cache(
     destination_etag = destination.with_suffix(".etag")
     request_headers = {"User-Agent": "conda-lock"}
     # Return the contents immediately if the file is fresh
-    if destination.is_file():
-        age_seconds = get_age_seconds(destination)
-        if age_seconds is None:
-            raise RuntimeError(f"Error checking age of {destination}")
-        if 0 <= age_seconds < dont_check_if_newer_than_seconds:
-            logger.debug(
-                f"Using cached mapping {destination} of age {age_seconds}s "
-                f"without checking for updates"
-            )
-            return destination.read_bytes()
-        # Add the ETag from the last download, if it exists, to the headers.
-        # The ETag is used to avoid downloading the file if it hasn't changed remotely.
-        # Otherwise, download the file and cache the contents and ETag.
-        if destination_etag.is_file():
-            old_etag = destination_etag.read_text().strip()
-            request_headers["If-None-Match"] = old_etag
+    if _is_cached_file_fresh(destination, dont_check_if_newer_than_seconds):
+        return destination.read_bytes()
+    # Add the ETag from the last download, if it exists, to the headers.
+    # The ETag is used to avoid downloading the file if it hasn't changed remotely.
+    # Otherwise, download the file and cache the contents and ETag.
+    if destination.is_file() and destination_etag.is_file():
+        old_etag = destination_etag.read_text().strip()
+        request_headers["If-None-Match"] = old_etag
     # Download the file and cache the result.
     logger.debug(f"Requesting {url}")
     res = requests.get(url, headers=request_headers)

@@ -62,6 +62,7 @@ def determine_conda_executable(
             if is_micromamba(candidate):
                 if determine_micromamba_version(str(candidate)) < Version("0.17"):
                     mamba_root_prefix()
+            logger.debug(f"Found conda executable: {candidate}")
             return candidate
     raise RuntimeError("Could not find conda (or compatible) executable")
 
