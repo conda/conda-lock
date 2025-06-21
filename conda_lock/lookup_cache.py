@@ -57,14 +57,17 @@ def cached_download_file(
     cache.mkdir(parents=True, exist_ok=True)
     clear_old_files_from_cache(cache, max_age_seconds=max_age_seconds)
 
-    destination_lock = (cache / cached_filename_for_url(url)).with_suffix(".lock")
+    destination = cache / cached_filename_for_url(url)
+    destination_lock = destination.with_suffix(".lock")
 
     # Wait for any other process to finish downloading the file.
     # This way we can use the result from the current download without
     # spawning multiple concurrent downloads.
     while True:
         try:
+            logger.debug(f"Attempting to acquire lock on {destination_lock}")
             with FileLock(str(destination_lock), timeout=5):
+                logger.debug(f"Successfully acquired lock on {destination_lock}")
                 return _download_to_or_read_from_cache(
                     url,
                     cache=cache,
