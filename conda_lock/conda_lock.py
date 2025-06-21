@@ -1160,7 +1160,6 @@ def run_lock(
     _conda_exe = determine_conda_executable(
         conda_exe, mamba=mamba, micromamba=micromamba
     )
-    logger.debug(f"Using conda executable: {_conda_exe}")
     version_info = subprocess.check_output(
         [_conda_exe, "--version"], encoding="utf-8"
     ).strip()
