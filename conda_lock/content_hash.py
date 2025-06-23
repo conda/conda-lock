@@ -23,8 +23,9 @@ representation.
 import hashlib
 import json
 
+from collections.abc import Sequence
 from copy import deepcopy
-from typing import Dict, Optional, Sequence, Set, Union, cast
+from typing import Dict, Optional, Set, Union, cast
 
 from conda_lock.content_hash_types import (
     EmptyDict,

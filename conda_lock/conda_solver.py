@@ -9,18 +9,15 @@ import sys
 import tempfile
 import time
 
+from collections.abc import Iterable, Iterator, MutableSequence, Sequence
 from contextlib import contextmanager
 from textwrap import dedent
 from typing import (
     Any,
     Dict,
-    Iterable,
-    Iterator,
     List,
     Literal,
-    MutableSequence,
     Optional,
-    Sequence,
 )
 from urllib.parse import urlsplit, urlunsplit
 

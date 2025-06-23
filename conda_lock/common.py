@@ -4,16 +4,13 @@ import pathlib
 import tempfile
 import warnings
 
+from collections.abc import Iterable, Iterator, Mapping, Sequence
 from contextlib import contextmanager
 from itertools import chain
 from typing import (
     Any,
     Dict,
-    Iterable,
-    Iterator,
     List,
-    Mapping,
-    Sequence,
     TypeVar,
     Union,
 )

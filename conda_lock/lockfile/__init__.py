@@ -1,15 +1,13 @@
 import pathlib
 
 from collections import defaultdict
+from collections.abc import Collection, Mapping, Sequence
 from textwrap import dedent
 from typing import (
-    Collection,
     DefaultDict,
     Dict,
     List,
-    Mapping,
     Optional,
-    Sequence,
     Set,
     Union,
 )

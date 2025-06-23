@@ -5,15 +5,14 @@ import pathlib
 import sys
 import warnings
 
+from collections.abc import Mapping, Sequence
 from functools import partial
 from typing import (
     AbstractSet,
     Any,
     Dict,
     List,
-    Mapping,
     Optional,
-    Sequence,
     Tuple,
 )
 from urllib.parse import urldefrag

@@ -1,7 +1,8 @@
 import logging
 import pathlib
 
-from typing import AbstractSet, List, Optional, Sequence
+from collections.abc import Sequence
+from typing import AbstractSet, List, Optional
 
 from conda_lock.common import ordered_union
 from conda_lock.models.channel import Channel

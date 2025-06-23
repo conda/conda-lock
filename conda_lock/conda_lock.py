@@ -14,6 +14,7 @@ import subprocess
 import sys
 import tempfile
 
+from collections.abc import Iterator, Sequence
 from contextlib import contextmanager
 from functools import partial
 from importlib.metadata import distribution
@@ -22,10 +23,8 @@ from typing import (
     AbstractSet,
     Any,
     Dict,
-    Iterator,
     List,
     Optional,
-    Sequence,
     Set,
     Tuple,
     Type,

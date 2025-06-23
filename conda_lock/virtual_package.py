@@ -5,12 +5,12 @@ import os
 import pathlib
 
 from collections import defaultdict
+from collections.abc import Iterable
 from importlib.resources import path
 from types import TracebackType
 from typing import (
     DefaultDict,
     Dict,
-    Iterable,
     Literal,
     Optional,
     Set,

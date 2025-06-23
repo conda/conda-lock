@@ -2,7 +2,7 @@ import json
 import logging
 import time
 
-from functools import lru_cache
+from functools import cache
 from pathlib import Path
 from typing import Dict, TypedDict
 
@@ -24,7 +24,7 @@ class MappingEntry(TypedDict):
     pypi_name: NormalizedName
 
 
-@lru_cache(maxsize=None)
+@cache
 def _get_pypi_lookup(mapping_url: str) -> Dict[NormalizedName, MappingEntry]:
     url = mapping_url
     if url.startswith("http://") or url.startswith("https://"):
@@ -76,7 +76,7 @@ def pypi_name_to_conda_name(name: str, mapping_url: str) -> str:
     return cname
 
 
-@lru_cache(maxsize=None)
+@cache
 def _get_conda_lookup(mapping_url: str) -> Dict[str, MappingEntry]:
     """
     Reverse grayskull name mapping to map conda names onto PyPI

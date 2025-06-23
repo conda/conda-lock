@@ -8,8 +8,9 @@ import subprocess
 import tempfile
 import threading
 
+from collections.abc import Iterator, Sequence
 from logging import getLogger
-from typing import IO, Dict, Iterator, List, Optional, Sequence, Union
+from typing import IO, Dict, List, Optional, Union
 
 from ensureconda.api import determine_micromamba_version, ensureconda
 from packaging.version import Version
