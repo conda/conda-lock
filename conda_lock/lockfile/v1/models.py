@@ -6,9 +6,9 @@ import logging
 import pathlib
 
 from collections import namedtuple
+from collections.abc import Set
 from typing import (
     TYPE_CHECKING,
-    AbstractSet,
     Any,
     ClassVar,
     Optional,
@@ -116,7 +116,7 @@ class GitMeta(StrictModel):
     @classmethod
     def create(
         cls,
-        metadata_choices: AbstractSet[MetadataOption],
+        metadata_choices: Set[MetadataOption],
         src_files: list[pathlib.Path],
     ) -> "GitMeta | None":
         try:
@@ -180,7 +180,7 @@ class InputMeta(StrictModel):
 
     @classmethod
     def create(
-        cls, metadata_choices: AbstractSet[MetadataOption], src_file: pathlib.Path
+        cls, metadata_choices: Set[MetadataOption], src_file: pathlib.Path
     ) -> "InputMeta":
         if MetadataOption.InputSha in metadata_choices:
             sha256 = cls.get_input_sha256(src_file=src_file)
