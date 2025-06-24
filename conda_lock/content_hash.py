@@ -25,7 +25,7 @@ import json
 
 from collections.abc import Sequence
 from copy import deepcopy
-from typing import Dict, Optional, Set, Union, cast
+from typing import Optional, Union, cast
 
 from conda_lock.content_hash_types import (
     EmptyDict,
@@ -44,7 +44,7 @@ def compute_content_hashes(
     virtual_package_repo: Optional[FakeRepoData],
     reinsert_spurious_build_number: bool = True,
     remove_new_nulls: bool = True,
-) -> Dict[PlatformSubdirStr, str]:
+) -> dict[PlatformSubdirStr, str]:
     """Compute the content hashes for the given lock specification.
 
     Args:
@@ -163,7 +163,7 @@ def backwards_compatible_content_hashes(
     lock_spec: LockSpecification,
     virtual_package_repo: Optional[FakeRepoData],
     platform: PlatformSubdirStr,
-) -> Set[str]:
+) -> set[str]:
     """Compute a set of content hashes for equivalent lock specifications.
 
     Computing multiple content hashes allows us to support previous versions of
@@ -205,7 +205,7 @@ def backwards_compatible_content_hashes(
         vprs = virtual_package_repo_variants
 
     # Compute the content hashes for the given lock specification and VPR variants.
-    allowed_hashes: Set[str] = set()
+    allowed_hashes: set[str] = set()
     for vpr_or_none in vprs:
         # We don't need to check cases involving reinserting the spurious build number
         # in the VPR since that's already covered by the VPR variants.

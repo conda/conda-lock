@@ -26,7 +26,7 @@ DEFAULT_PLATFORMS = ["linux-64", "osx-arm64", "osx-64", "win-64"]
 logger = logging.getLogger(__name__)
 
 
-def _parse_platforms_from_srcs(src_files: List[pathlib.Path]) -> List[str]:
+def _parse_platforms_from_srcs(src_files: list[pathlib.Path]) -> list[str]:
     """
     Parse a sequence of dependency specifications from source files
 
@@ -35,7 +35,7 @@ def _parse_platforms_from_srcs(src_files: List[pathlib.Path]) -> List[str]:
     src_files :
         Files to parse for dependencies
     """
-    all_file_platforms: List[List[str]] = []
+    all_file_platforms: list[list[str]] = []
     for src_file in src_files:
         if src_file.name == "meta.yaml":
             continue
@@ -48,8 +48,8 @@ def _parse_platforms_from_srcs(src_files: List[pathlib.Path]) -> List[str]:
 
 
 def _parse_source_files(
-    src_files: List[pathlib.Path], *, platforms: List[str], mapping_url: str
-) -> List[LockSpecification]:
+    src_files: list[pathlib.Path], *, platforms: list[str], mapping_url: str
+) -> list[LockSpecification]:
     """
     Parse a sequence of dependency specifications from source files
 
@@ -60,7 +60,7 @@ def _parse_source_files(
     platforms :
         Target platforms to render environment.yaml and meta.yaml files for
     """
-    desired_envs: List[LockSpecification] = []
+    desired_envs: list[LockSpecification] = []
     for src_file in src_files:
         if src_file.name == "meta.yaml":
             desired_envs.append(parse_meta_yaml_file(src_file, platforms=platforms))
@@ -81,7 +81,7 @@ def _parse_source_files(
 
 def make_lock_spec(
     *,
-    src_files: List[pathlib.Path],
+    src_files: list[pathlib.Path],
     channel_overrides: Optional[Sequence[str]] = None,
     pip_repository_overrides: Optional[Sequence[str]] = None,
     platform_overrides: Optional[Sequence[str]] = None,

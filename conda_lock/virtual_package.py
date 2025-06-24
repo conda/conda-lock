@@ -9,13 +9,8 @@ from collections.abc import Iterable
 from importlib.resources import path
 from types import TracebackType
 from typing import (
-    DefaultDict,
-    Dict,
     Literal,
     Optional,
-    Set,
-    Tuple,
-    Type,
     Union,
 )
 
@@ -67,7 +62,7 @@ class VirtualPackage(BaseModel):
 
     def to_repodata_entry(
         self, *, subdir: PlatformSubdirStr
-    ) -> Tuple[str, HashableVirtualPackage]:
+    ) -> tuple[str, HashableVirtualPackage]:
         p = self.to_full_virtual_package()
         out: HashableVirtualPackage = {
             "name": p.name,
@@ -90,7 +85,7 @@ class FullVirtualPackage(VirtualPackage):
 
     build_number: int = 0
     noarch: str = ""
-    depends: Tuple[str, ...] = Field(default_factory=tuple)
+    depends: tuple[str, ...] = Field(default_factory=tuple)
     timestamp: int = DEFAULT_TIME
     package_type: Optional[str] = "virtual_system"
 
@@ -104,10 +99,10 @@ class FullVirtualPackage(VirtualPackage):
 
 class FakeRepoData(BaseModel):
     base_path: pathlib.Path
-    packages_by_subdir: DefaultDict[FullVirtualPackage, Set[PackageNameStr]] = Field(
+    packages_by_subdir: defaultdict[FullVirtualPackage, set[PackageNameStr]] = Field(
         default_factory=lambda: defaultdict(set)  # type: ignore[arg-type,unused-ignore]
     )
-    all_subdirs: Set[PlatformSubdirStr] = {
+    all_subdirs: set[PlatformSubdirStr] = {
         "noarch",
         "linux-aarch64",
         "linux-ppc64le",
@@ -118,7 +113,7 @@ class FakeRepoData(BaseModel):
     }
     all_repodata: HashableVirtualPackageRepresentation = {}
     hash: Optional[str] = None
-    old_env_vars: Dict[str, Optional[str]] = {}
+    old_env_vars: dict[str, Optional[str]] = {}
 
     @property
     def channel_url(self) -> str:
@@ -151,7 +146,7 @@ class FakeRepoData(BaseModel):
         self.packages_by_subdir[package.to_full_virtual_package()].update(subdirs)
 
     def _write_subdir(self, subdir: PlatformSubdirStr) -> SubdirMetadata:
-        packages: Dict[PackageNameStr, HashableVirtualPackage] = {}
+        packages: dict[PackageNameStr, HashableVirtualPackage] = {}
         out: SubdirMetadata = {"info": {"subdir": subdir}, "packages": packages}
         for pkg, subdirs in self.packages_by_subdir.items():
             if subdir not in subdirs:
@@ -193,7 +188,7 @@ class FakeRepoData(BaseModel):
 
     def __exit__(
         self,
-        exc_type: Optional[Type[BaseException]],
+        exc_type: Optional[type[BaseException]],
         exc: Optional[BaseException],
         traceback: Optional[TracebackType],
     ) -> None:
@@ -241,13 +236,13 @@ def default_virtual_package_repodata(
 class VirtualPackageSpecSubdir(BaseModel):
     """Virtual packages for a specific subdir in a virtual-packages.yaml file"""
 
-    packages: Dict[PackageNameStr, VirtualPackageVersion]
+    packages: dict[PackageNameStr, VirtualPackageVersion]
 
     @field_validator("packages")
     @classmethod
     def validate_packages(
-        cls, v: Dict[PackageNameStr, VirtualPackageVersion]
-    ) -> Dict[PackageNameStr, VirtualPackageVersion]:
+        cls, v: dict[PackageNameStr, VirtualPackageVersion]
+    ) -> dict[PackageNameStr, VirtualPackageVersion]:
         for package_name in v:
             if not package_name.startswith("__"):
                 raise ValueError(f"{package_name} is not a virtual package!")
@@ -257,7 +252,7 @@ class VirtualPackageSpecSubdir(BaseModel):
 class VirtualPackageSpec(BaseModel):
     """Virtual packages specified in a virtual-packages.yaml file"""
 
-    subdirs: Dict[PlatformSubdirStr, VirtualPackageSpecSubdir]
+    subdirs: dict[PlatformSubdirStr, VirtualPackageSpecSubdir]
 
 
 def _parse_virtual_package_spec(

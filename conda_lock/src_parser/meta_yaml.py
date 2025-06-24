@@ -1,6 +1,6 @@
 import pathlib
 
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 import jinja2
 import yaml
@@ -28,7 +28,7 @@ class UndefinedNeverFail(jinja2.Undefined):
         Be sure to clear the all_undefined_names list before calling template.render().
     """
 
-    all_undefined_names: List[Optional[str]] = []
+    all_undefined_names: list[Optional[str]] = []
 
     def __init__(  # type: ignore
         self,
@@ -86,7 +86,7 @@ class UndefinedNeverFail(jinja2.Undefined):
 def parse_meta_yaml_file(
     meta_yaml_file: pathlib.Path,
     *,
-    platforms: List[str],
+    platforms: list[str],
 ) -> LockSpecification:
     """Parse a simple meta-yaml file for dependencies assuming the target platforms.
 
@@ -130,7 +130,7 @@ def parse_meta_yaml_file(
 def _parse_meta_yaml_file_for_platform(
     meta_yaml_file: pathlib.Path,
     platform: str,
-) -> List[Dependency]:
+) -> list[Dependency]:
     """Parse a simple meta-yaml file for dependencies, assuming the target platform.
 
     * This does not support multi-output files and will ignore all lines with selectors other than platform
@@ -145,7 +145,7 @@ def _parse_meta_yaml_file_for_platform(
 
         meta_yaml_data = yaml.safe_load(rendered)
 
-    dependencies: List[Dependency] = []
+    dependencies: list[Dependency] = []
 
     def add_spec(spec: str, category: str) -> None:
         if spec is None:
@@ -154,7 +154,7 @@ def _parse_meta_yaml_file_for_platform(
         dep = conda_spec_to_versioned_dep(spec, category)
         dependencies.append(dep)
 
-    def add_requirements_from_recipe_or_output(yaml_data: Dict[str, Any]) -> None:
+    def add_requirements_from_recipe_or_output(yaml_data: dict[str, Any]) -> None:
         for s in get_in(["requirements", "host"], yaml_data, []):
             add_spec(s, "main")
         for s in get_in(["requirements", "run"], yaml_data, []):

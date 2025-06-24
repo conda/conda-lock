@@ -18,12 +18,8 @@ from pathlib import Path
 from typing import (
     Any,
     ContextManager,
-    Dict,
-    List,
     Literal,
     Optional,
-    Set,
-    Tuple,
     Union,
     cast,
 )
@@ -142,7 +138,7 @@ def reset_global_conda_pkgs_dir():
     reset_conda_pkgs_dir()
 
 
-def clone_test_dir(name: Union[str, List[str]], tmp_path: Path) -> Path:
+def clone_test_dir(name: Union[str, list[str]], tmp_path: Path) -> Path:
     if isinstance(name, str):
         name = [name]
     test_dir = TESTS_DIR.joinpath(*name)
@@ -384,11 +380,11 @@ def include_dev_dependencies(request: Any) -> bool:
     return request.param
 
 
-JSON_FIELDS: Dict[str, str] = {"json_unique_field": "test1", "common_field": "test2"}
+JSON_FIELDS: dict[str, str] = {"json_unique_field": "test1", "common_field": "test2"}
 
-YAML_FIELDS: Dict[str, str] = {"yaml_unique_field": "test3", "common_field": "test4"}
+YAML_FIELDS: dict[str, str] = {"yaml_unique_field": "test3", "common_field": "test4"}
 
-EXPECTED_CUSTOM_FIELDS: Dict[str, str] = {
+EXPECTED_CUSTOM_FIELDS: dict[str, str] = {
     "json_unique_field": "test1",
     "yaml_unique_field": "test3",
     "common_field": "test4",
@@ -436,7 +432,7 @@ def test_lock_poetry_ibis(
     )
     lockfile = parse_conda_lock_file(pyproject.parent / DEFAULT_LOCKFILE_NAME)
 
-    all_categories: Set[str] = set()
+    all_categories: set[str] = set()
 
     for pkg in lockfile.package:
         all_categories.update(pkg.categories)
@@ -745,7 +741,7 @@ def test_choose_wheel() -> None:
     ],
 )
 def test_parse_pip_requirement(
-    requirement: str, parsed: "Dict[str, str | None]"
+    requirement: str, parsed: "dict[str, str | None]"
 ) -> None:
     assert parse_pip_requirement(requirement) == parsed
 
@@ -887,7 +883,7 @@ def test_parse_poetry_no_pypi(poetry_pyproject_toml_no_pypi: Path):
 
 def test_poetry_no_pypi_multiple_pyprojects(
     poetry_pyproject_toml_no_pypi: Path,
-    poetry_pyproject_toml_no_pypi_other_projects: List[Path],
+    poetry_pyproject_toml_no_pypi_other_projects: list[Path],
 ):
     spec = make_lock_spec(
         src_files=poetry_pyproject_toml_no_pypi_other_projects,
@@ -1171,7 +1167,7 @@ def test_explicit_toposorted() -> None:
 
     # We do a simulated installation run, and keep track of the packages
     # that have been installed so far in installed_names
-    installed_names: Set[str] = set()
+    installed_names: set[str] = set()
 
     # Simulate installing each package in the order it appears in the lockfile.
     # Verify that each package is installed after all of its dependencies.
@@ -1428,7 +1424,7 @@ def update_environment(tmp_path: Path) -> Path:
 
 
 @pytest.fixture
-def update_environment_filter_platform(tmp_path: Path) -> Tuple[Path, Path, Path]:
+def update_environment_filter_platform(tmp_path: Path) -> tuple[Path, Path, Path]:
     test_dir = clone_test_dir("test-update-filter-platform", tmp_path)
     files = (
         test_dir / "conda-lock.yml",
@@ -1441,7 +1437,7 @@ def update_environment_filter_platform(tmp_path: Path) -> Tuple[Path, Path, Path
 
 
 @pytest.fixture
-def update_environment_dependency_removal(tmp_path: Path) -> Tuple[Path, Path]:
+def update_environment_dependency_removal(tmp_path: Path) -> tuple[Path, Path]:
     test_dir = clone_test_dir("test-dependency-removal", tmp_path)
 
     return (
@@ -1451,7 +1447,7 @@ def update_environment_dependency_removal(tmp_path: Path) -> Tuple[Path, Path]:
 
 
 @pytest.fixture
-def update_environment_move_pip_dependency(tmp_path: Path) -> Tuple[Path, Path]:
+def update_environment_move_pip_dependency(tmp_path: Path) -> tuple[Path, Path]:
     test_dir = clone_test_dir("test-move-pip-dependency", tmp_path)
 
     return (
@@ -1518,7 +1514,7 @@ def test_run_lock_with_update(
 @pytest.mark.timeout(120)
 def test_run_lock_with_update_filter_platform(
     monkeypatch: "pytest.MonkeyPatch",
-    update_environment_filter_platform: Tuple[Path, Path, Path],
+    update_environment_filter_platform: tuple[Path, Path, Path],
     conda_exe: str,
 ):
     """Test that when updating for one platform, other platforms are not updated."""
@@ -1557,7 +1553,7 @@ def test_run_lock_with_update_filter_platform(
 @pytest.mark.timeout(120)
 def test_remove_dependency(
     monkeypatch: "pytest.MonkeyPatch",
-    update_environment_dependency_removal: Tuple[Path, Path],
+    update_environment_dependency_removal: tuple[Path, Path],
     conda_exe: str,
 ):
     pre_env = update_environment_dependency_removal[0]
@@ -1579,7 +1575,7 @@ def test_remove_dependency(
 @pytest.mark.timeout(120)
 def test_move_dependency_from_pip_section(
     monkeypatch: "pytest.MonkeyPatch",
-    update_environment_move_pip_dependency: Tuple[Path, Path],
+    update_environment_move_pip_dependency: tuple[Path, Path],
     conda_exe: str,
 ):
     pre_env = update_environment_move_pip_dependency[0]
@@ -2464,7 +2460,7 @@ def test_install_multiple_subcategories(
     tmp_path: Path,
     conda_exe: str,
     install_multiple_categories_lockfile: Path,
-    categories: List[str],
+    categories: list[str],
     install_lock,
 ):
     root_prefix = tmp_path / "root_prefix"
@@ -2668,7 +2664,7 @@ def test__strip_auth_from_lockfile(lockfile: str, stripped_lockfile: str):
         ),
     ),
 )
-def test__add_auth_to_line(line: str, auth: Dict[str, str], line_with_auth: str):
+def test__add_auth_to_line(line: str, auth: dict[str, str], line_with_auth: str):
     assert _add_auth_to_line(line, auth) == line_with_auth
 
 
@@ -2692,7 +2688,7 @@ def auth_():
     ),
 )
 def test__add_auth_to_lockfile(
-    stripped_lockfile: str, lockfile_with_auth: str, auth: Dict[str, str]
+    stripped_lockfile: str, lockfile_with_auth: str, auth: dict[str, str]
 ):
     assert _add_auth_to_lockfile(stripped_lockfile, auth) == lockfile_with_auth
 
@@ -3142,7 +3138,7 @@ def test_get_pkgs_dirs(conda_exe):
         ),
     ],
 )
-def test_get_pkgs_dirs_mocked_output(info_file: str, expected: Optional[List[Path]]):
+def test_get_pkgs_dirs_mocked_output(info_file: str, expected: Optional[list[Path]]):
     """Test _get_pkgs_dirs with mocked subprocess.check_output."""
     info_path = TESTS_DIR / "test-get-pkgs-dirs" / info_file
     command_output = info_path.read_bytes()
@@ -3236,7 +3232,7 @@ def test_manylinux_tags():
 
     # Verify that the default repodata uses the highest glibc version
     default_repodata = default_virtual_package_repodata()
-    glibc_versions_in_default_repodata: Set[Version] = {
+    glibc_versions_in_default_repodata: set[Version] = {
         Version(package.version)
         for package in default_repodata.packages_by_subdir
         if package.name == "__glibc"
@@ -3300,7 +3296,7 @@ def test_platformenv_linux_platforms():
 
     # Check that we get the default platforms when the virtual packages are nonempty
     # but don't include __glibc
-    platform_virtual_packages: Dict[PackageNameStr, HashableVirtualPackage] = {
+    platform_virtual_packages: dict[PackageNameStr, HashableVirtualPackage] = {
         "x.bz2": {
             "name": "__not_glibc",
             "version": "1",
@@ -3470,7 +3466,7 @@ def test_when_merging_lockfiles_content_hashes_are_updated(
         mapping_url=DEFAULT_MAPPING_URL,
     )
 
-    def get_content_hashes_for_lock_file(lock_file: Path) -> typing.Dict[str, str]:
+    def get_content_hashes_for_lock_file(lock_file: Path) -> dict[str, str]:
         lock_file_dict = yaml.safe_load(lock_file.read_text())
         return lock_file_dict["metadata"]["content_hash"]
 

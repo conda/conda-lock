@@ -11,8 +11,6 @@ from typing import (
     AbstractSet,
     Any,
     ClassVar,
-    Dict,
-    List,
     Optional,
     Union,
 )
@@ -50,7 +48,7 @@ class BaseLockedDependency(StrictModel):
     version: str
     manager: Literal["conda", "pip"]
     platform: str
-    dependencies: Dict[str, str] = {}
+    dependencies: dict[str, str] = {}
     url: str
     hash: HashModel
     source: Optional[DependencySource] = None
@@ -119,7 +117,7 @@ class GitMeta(StrictModel):
     def create(
         cls,
         metadata_choices: AbstractSet[MetadataOption],
-        src_files: List[pathlib.Path],
+        src_files: list[pathlib.Path],
     ) -> "GitMeta | None":
         try:
             import git
@@ -215,14 +213,14 @@ class InputMeta(StrictModel):
 
 
 class LockMeta(StrictModel):
-    content_hash: Dict[str, str] = Field(
+    content_hash: dict[str, str] = Field(
         ..., description="Hash of dependencies for each target platform"
     )
-    channels: List[Channel] = Field(
+    channels: list[Channel] = Field(
         ..., description="Channels used to resolve dependencies", validate_default=True
     )
-    platforms: List[str] = Field(..., description="Target platforms")
-    sources: List[str] = Field(
+    platforms: list[str] = Field(..., description="Target platforms")
+    sources: list[str] = Field(
         ...,
         description="paths to source files, relative to the parent directory of the lockfile",
     )
@@ -235,11 +233,11 @@ class LockMeta(StrictModel):
             "Metadata dealing with the git repo the lockfile was created in and the user that created it"
         ),
     )
-    inputs_metadata: Optional[Dict[str, InputMeta]] = Field(
+    inputs_metadata: Optional[dict[str, InputMeta]] = Field(
         default=None,
         description="Metadata dealing with the input files used to create the lockfile",
     )
-    custom_metadata: Optional[Dict[str, str]] = Field(
+    custom_metadata: Optional[dict[str, str]] = Field(
         default=None,
         description="Custom metadata provided by the user to be added to the lockfile",
     )
@@ -286,8 +284,8 @@ class LockMeta(StrictModel):
 
     @field_validator("channels", mode="before")
     @classmethod
-    def ensure_channels(cls, v: List[Union[str, Channel]]) -> List[Channel]:
-        res: List[Channel] = []
+    def ensure_channels(cls, v: list[Union[str, Channel]]) -> list[Channel]:
+        res: list[Channel] = []
         for e in v:
             if isinstance(e, str):
                 res.append(Channel.from_string(e))
@@ -299,10 +297,10 @@ class LockMeta(StrictModel):
 class Lockfile(StrictModel):
     version: ClassVar[int] = 1
 
-    package: List[LockedDependency]
+    package: list[LockedDependency]
     metadata: LockMeta
 
-    def dict_for_output(self) -> Dict[str, Any]:
+    def dict_for_output(self) -> dict[str, Any]:
         """Convert the lockfile to a dictionary that can be written to a file."""
         return {
             "version": Lockfile.version,
