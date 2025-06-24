@@ -1,8 +1,8 @@
 import logging
 import pathlib
 
-from collections.abc import Sequence
-from typing import AbstractSet, List, Optional
+from collections.abc import Sequence, Set
+from typing import Optional
 
 from conda_lock.common import ordered_union
 from conda_lock.models.channel import Channel
@@ -85,7 +85,7 @@ def make_lock_spec(
     channel_overrides: Optional[Sequence[str]] = None,
     pip_repository_overrides: Optional[Sequence[str]] = None,
     platform_overrides: Optional[Sequence[str]] = None,
-    filtered_categories: Optional[AbstractSet[str]] = None,
+    filtered_categories: Optional[Set[str]] = None,
     mapping_url: str,
 ) -> LockSpecification:
     """Generate the lockfile specs from a set of input src_files.  If filtered_categories is set filter out specs that do not match those"""
@@ -123,7 +123,7 @@ def make_lock_spec(
     else:
         # Filtering based on category (e.g. "main" or "dev") was requested.
         # Thus we need to filter the specs based on the category.
-        def dep_has_category(d: Dependency, categories: AbstractSet[str]) -> bool:
+        def dep_has_category(d: Dependency, categories: Set[str]) -> bool:
             return d.category in categories
 
         dependencies = {
