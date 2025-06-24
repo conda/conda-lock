@@ -5,13 +5,9 @@ import pathlib
 import sys
 import warnings
 
-from collections.abc import Mapping, Sequence
+from collections.abc import Mapping, Sequence, Set
 from functools import partial
-from typing import (
-    AbstractSet,
-    Any,
-    Optional,
-)
+from typing import Any, Optional
 from urllib.parse import urldefrag
 
 
@@ -639,7 +635,7 @@ def parse_requirements_pyproject_toml(
     main_tag: str,
     optional_tag: str,
     mapping_url: str,
-    dev_tags: AbstractSet[str] = {"dev", "test"},
+    dev_tags: Set[str] = {"dev", "test"},
 ) -> LockSpecification:
     """
     PEP621 and flit
