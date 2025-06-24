@@ -17,7 +17,6 @@ from glob import glob
 from pathlib import Path
 from typing import (
     Any,
-    ContextManager,
     Literal,
     Optional,
     Union,
@@ -2368,7 +2367,7 @@ def test_install(
 
     prefix = root_prefix / "test_env"
 
-    context: ContextManager
+    context: contextlib.AbstractContextManager
     if sys.platform.lower().startswith("linux"):
         context = contextlib.nullcontext()
     else:
@@ -2425,7 +2424,7 @@ def test_install_with_pip_deps(
     package = "requests"
     prefix = root_prefix / "test_env"
 
-    context: ContextManager
+    context: contextlib.AbstractContextManager
     if sys.platform.lower().startswith("linux"):
         context = contextlib.nullcontext()
     else:
@@ -2467,7 +2466,7 @@ def test_install_multiple_subcategories(
     root_prefix.mkdir(exist_ok=True)
     prefix = root_prefix / "test_env"
 
-    context: ContextManager
+    context: contextlib.AbstractContextManager
     if sys.platform.lower().startswith("linux"):
         context = contextlib.nullcontext()
     else:
