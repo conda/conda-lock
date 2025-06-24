@@ -3,14 +3,7 @@ import pathlib
 from collections import defaultdict
 from collections.abc import Collection, Mapping, Sequence
 from textwrap import dedent
-from typing import (
-    DefaultDict,
-    Dict,
-    List,
-    Optional,
-    Set,
-    Union,
-)
+from typing import Optional, Union
 
 import yaml
 
