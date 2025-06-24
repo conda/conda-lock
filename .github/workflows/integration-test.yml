@@ -90,7 +90,7 @@ jobs:
       - name: Verify Conda platform
         run: echo "Conda platform is $CONDA_PLATFORM"
       - name: Install Conda environment with Micromamba
-        uses: mamba-org/setup-micromamba@v2
+        uses: mamba-org/setup-micromamba@b09ef9b599704322748535812ca03efb2625677b # v2
         with:
           micromamba-version: ${{ env.MICROMAMBA_VERSION }}
           # # Use micromamba-url instead of micromamba-version to test prereleases
@@ -124,7 +124,7 @@ jobs:
         python-version: [ "3.9", "3.13" ]
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
-      - uses: conda-incubator/setup-miniconda@v3
+      - uses: conda-incubator/setup-miniconda@e5457fe695e3787d415a42160e580fd154de1899 # v3
         with:
           auto-activate-base: true
           python-version: ${{ matrix.python-version }}
@@ -165,7 +165,7 @@ jobs:
         os: [ ubuntu-latest, macos-latest, windows-latest ]
         python-version: [ "3.9" ]
     steps:
-      - uses: conda-incubator/setup-miniconda@v3
+      - uses: conda-incubator/setup-miniconda@e5457fe695e3787d415a42160e580fd154de1899 # v3
         with:
           auto-activate-base: true
           python-version: ${{ matrix.python-version }}

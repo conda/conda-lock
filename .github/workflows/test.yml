@@ -109,7 +109,7 @@ jobs:
           ls -al "${LOCKFILE_DIR}"
           echo "LOCKFILE_DIR=${LOCKFILE_DIR}" >> $GITHUB_ENV
 
-      - uses: mamba-org/setup-micromamba@v2
+      - uses: mamba-org/setup-micromamba@b09ef9b599704322748535812ca03efb2625677b # v2
         with:
           micromamba-version: ${{ env.MICROMAMBA_VERSION }}
           # # Use micromamba-url instead of micromamba-version to test prereleases
@@ -145,7 +145,7 @@ jobs:
             --splits="${{ matrix.pytest-split-group-size }}" \
             --group="${{ matrix.pytest-split-group-index }}"
 
-      - uses: codecov/codecov-action@v5
+      - uses: codecov/codecov-action@18283e04ce6e62d37312384ff67231eb8fd56d24 # v5
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
 

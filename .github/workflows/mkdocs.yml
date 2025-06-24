@@ -29,7 +29,7 @@ jobs:
           fetch-depth: 0       # Fetch all history for .GitInfo and .Lastmod
 
       - name: Install dependencies
-        uses: "mamba-org/setup-micromamba@v2"
+        uses: "mamba-org/setup-micromamba@b09ef9b599704322748535812ca03efb2625677b" # v2
         with:
           micromamba-version: "${{ env.MICROMAMBA_VERSION }}"
           environment-file: "environments/dev-environment.yaml"
@@ -42,7 +42,7 @@ jobs:
         run: mkdocs build
 
       - name: Deploy
-        uses: peaceiris/actions-gh-pages@v4
+        uses: peaceiris/actions-gh-pages@e9c66a37f080288a11235e32cbe2dc5fb3a679cc # v4
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./site

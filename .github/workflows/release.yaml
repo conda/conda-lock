@@ -55,4 +55,4 @@ jobs:
         name: dist-files
         path: dist
     - name: Publish a Python distribution to PyPI
-      uses: pypa/gh-action-pypi-publish@v1.12.4
+      uses: pypa/gh-action-pypi-publish@7f25271a4aa483500f742f9492b2ab5648d61011 # v1.12.4
