@@ -46,8 +46,9 @@ def _concurrent_download_worker(
     # Randomize which process calls cached_download_file first
     time.sleep(random.uniform(0, 0.1))
 
-    with patch("conda_lock.lookup_cache.requests.get", side_effect=mock_get), patch(
-        "conda_lock.lookup_cache.logger.warning", side_effect=mock_warning
+    with (
+        patch("conda_lock.lookup_cache.requests.get", side_effect=mock_get),
+        patch("conda_lock.lookup_cache.logger.warning", side_effect=mock_warning),
     ):
         result = cached_download_file(
             url, cache_subdir_name="test_cache", cache_root=cache_root

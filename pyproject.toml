@@ -25,7 +25,24 @@ classifiers = [
     "Programming Language :: Python :: 3.13",
 ]
 dynamic = ["version"]
-license-files = { paths = ["LICENSE"] }
+license-files = [
+    "LICENSE",
+    "conda_lock/_vendor/conda.LICENSE",
+    "conda_lock/_vendor/conda/_vendor/appdirs.LICENSE.txt",
+    "conda_lock/_vendor/conda/auxlib/LICENSE",
+    "conda_lock/_vendor/conda/_vendor/py_cpuinfo.LICENSE",
+    "conda_lock/_vendor/conda/_vendor/distro.LICENSE.txt",
+    "conda_lock/_vendor/conda/_vendor/frozendict/LICENSE.txt",
+    "conda_lock/_vendor/cleo.LICENSE",
+    "conda_lock/_vendor/poetry.LICENSE",
+    "conda_lock/_vendor/poetry_core.LICENSE",
+    "conda_lock/_vendor/poetry/core/_vendor/fastjsonschema/LICENSE",
+    "conda_lock/_vendor/poetry/core/_vendor/lark/LICENSE",
+    "conda_lock/_vendor/poetry/core/_vendor/packaging/LICENSE",
+    "conda_lock/_vendor/poetry/core/_vendor/packaging/LICENSE.APACHE",
+    "conda_lock/_vendor/poetry/core/_vendor/packaging/LICENSE.BSD",
+    "conda_lock/_vendor/poetry/core/_vendor/tomli/LICENSE",
+]
 dependencies = [
     # conda-lock dependencies
     "click >=8.0",
@@ -175,7 +192,6 @@ cachecontrol-with-filecache = ">=0.12.9"
 
 
 [tool.ruff]
-target-version = "py38"
 line-length = 88
 extend-exclude = ["conda_lock/_vendor"]
 

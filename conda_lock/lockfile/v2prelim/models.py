@@ -1,5 +1,5 @@
 from collections import defaultdict
-from typing import ClassVar, Dict, List, Optional, Set
+from typing import ClassVar, Optional
 
 from conda_lock.lockfile.v1.models import (
     BaseLockedDependency,
@@ -18,9 +18,9 @@ from conda_lock.models import StrictModel
 
 
 class LockedDependency(BaseLockedDependency):
-    categories: Set[str] = set()
+    categories: set[str] = set()
 
-    def to_v1(self) -> List[LockedDependencyV1]:
+    def to_v1(self) -> list[LockedDependencyV1]:
         """Convert a v2 dependency into a list of v1 dependencies.
 
         In case a v2 dependency might contain multiple categories, but a v1 dependency
@@ -49,7 +49,7 @@ class LockedDependency(BaseLockedDependency):
 class Lockfile(StrictModel):
     version: ClassVar[int] = 2
 
-    package: List[LockedDependency]
+    package: list[LockedDependency]
     metadata: LockMeta
 
     def merge(self, other: "Optional[Lockfile]") -> "Lockfile":
@@ -73,7 +73,7 @@ class Lockfile(StrictModel):
         theirs = {d.key(): d for d in other.package}
 
         # Pick ours preferentially
-        package: List[LockedDependency] = []
+        package: list[LockedDependency] = []
         for key in sorted(set(ours.keys()).union(theirs.keys())):
             if key not in ours or key[-1] not in self.metadata.platforms:
                 package.append(theirs[key])
@@ -105,11 +105,11 @@ class Lockfile(StrictModel):
         ]
 
     @staticmethod
-    def _toposort(package: List[LockedDependency]) -> List[LockedDependency]:
+    def _toposort(package: list[LockedDependency]) -> list[LockedDependency]:
         platforms = {d.platform for d in package}
 
         # Resort the conda packages topologically
-        final_package: List[LockedDependency] = []
+        final_package: list[LockedDependency] = []
         for platform in sorted(platforms):
             from conda_lock.interfaces.vendored_conda import toposort
 
@@ -118,7 +118,7 @@ class Lockfile(StrictModel):
             # other conda packages, but good enough
             for manager in ["conda", "pip"]:
                 lookup = defaultdict(set)
-                packages: Dict[str, LockedDependency] = {}
+                packages: dict[str, LockedDependency] = {}
 
                 for d in package:
                     if d.platform != platform:
@@ -158,7 +158,7 @@ class Lockfile(StrictModel):
 
 
 def _locked_dependency_v1_to_v2(
-    package_entries_per_category: List[LockedDependencyV1],
+    package_entries_per_category: list[LockedDependencyV1],
 ) -> LockedDependency:
     """Convert a LockedDependency from v1 to v2.
 
@@ -198,7 +198,7 @@ def lockfile_v1_to_v2(lockfile_v1: LockfileV1) -> Lockfile:
     Entries may share the same key if they represent a dependency
     belonging to multiple categories. They must be collected here.
     """
-    dependencies_for_key: Dict[LockKey, List[LockedDependencyV1]] = defaultdict(list)
+    dependencies_for_key: dict[LockKey, list[LockedDependencyV1]] = defaultdict(list)
     for dep in lockfile_v1.package:
         dependencies_for_key[dep.key()].append(dep)
 
@@ -216,8 +216,8 @@ def lockfile_v1_to_v2(lockfile_v1: LockfileV1) -> Lockfile:
 class UpdateSpecification:
     def __init__(
         self,
-        locked: Optional[List[LockedDependency]] = None,
-        update: Optional[List[str]] = None,
+        locked: Optional[list[LockedDependency]] = None,
+        update: Optional[list[str]] = None,
     ):
         self.locked = locked or []
         self.update = update or []

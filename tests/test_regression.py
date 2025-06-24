@@ -8,7 +8,7 @@ import textwrap
 
 from pathlib import Path
 from textwrap import dedent
-from typing import List, Union
+from typing import Union
 
 import pytest
 
@@ -23,7 +23,7 @@ from conda_lock.src_parser.environment_yaml import parse_environment_file
 TEST_DIR = Path(__file__).parent
 
 
-def clone_test_dir(name: Union[str, List[str]], tmp_path: Path) -> Path:
+def clone_test_dir(name: Union[str, list[str]], tmp_path: Path) -> Path:
     if isinstance(name, str):
         name = [name]
     test_dir = TEST_DIR.joinpath(*name)
@@ -70,7 +70,7 @@ def test_conda_pip_regressions_gh290(
     tmp_path: Path,
     mamba_exe: str,
     monkeypatch: "pytest.MonkeyPatch",
-    test_dir: List[str],
+    test_dir: list[str],
     filename: str,
 ):
     """Simple test that asserts that these engieonments can be locked"""

@@ -5,7 +5,7 @@ import tarfile
 
 from io import BytesIO
 from pathlib import Path
-from typing import Optional, Tuple
+from typing import Optional
 from urllib.parse import urlparse
 
 import pytest
@@ -113,7 +113,7 @@ def mock_private_pypi(  # noqa: C901
             response.reason = reason
             return response
 
-        def _parse_auth(request: requests.Request) -> Tuple[str, str]:
+        def _parse_auth(request: requests.Request) -> tuple[str, str]:
             url = urlparse(request.url)
             if url.username:
                 assert url.password is not None

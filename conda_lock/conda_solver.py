@@ -9,18 +9,13 @@ import sys
 import tempfile
 import time
 
+from collections.abc import Iterable, Iterator, MutableSequence, Sequence
 from contextlib import contextmanager
 from textwrap import dedent
 from typing import (
     Any,
-    Dict,
-    Iterable,
-    Iterator,
-    List,
     Literal,
-    MutableSequence,
     Optional,
-    Sequence,
 )
 from urllib.parse import urlsplit, urlunsplit
 
@@ -50,8 +45,8 @@ class FetchAction(TypedDict):
     """
 
     channel: str
-    constrains: Optional[List[str]]
-    depends: Optional[List[str]]
+    constrains: Optional[list[str]]
+    depends: Optional[list[str]]
     fn: str
     md5: str
     sha256: Optional[str]
@@ -77,8 +72,8 @@ class LinkAction(TypedDict):
 
 
 class InstallActions(TypedDict):
-    LINK: List[LinkAction]
-    FETCH: List[FetchAction]
+    LINK: list[LinkAction]
+    FETCH: list[FetchAction]
 
 
 class DryRunInstall(TypedDict):
@@ -120,13 +115,13 @@ def extract_json_object(proc_stdout: str) -> str:
 
 def solve_conda(
     conda: PathLike,
-    specs: Dict[str, Dependency],
-    locked: Dict[str, LockedDependency],
-    update: List[str],
+    specs: dict[str, Dependency],
+    locked: dict[str, LockedDependency],
+    update: list[str],
     platform: str,
-    channels: List[Channel],
+    channels: list[Channel],
     mapping_url: str,
-) -> Dict[str, LockedDependency]:
+) -> dict[str, LockedDependency]:
     """
     Solve (or update a previous solution of) conda specs for the given platform
 
@@ -212,7 +207,7 @@ def solve_conda(
 
 
 def _get_repodata_record(
-    pkgs_dirs: List[pathlib.Path], dist_name: str
+    pkgs_dirs: list[pathlib.Path], dist_name: str
 ) -> Optional[FetchAction]:
     """Get the repodata_record.json of a given distribution from the package cache.
 
@@ -243,7 +238,7 @@ def _get_pkgs_dirs(
     conda: PathLike,
     platform: str,
     method: Optional[Literal["config", "info"]] = None,
-) -> List[pathlib.Path]:
+) -> list[pathlib.Path]:
     """Extract the package cache directories from the conda configuration."""
     if method is None:
         method = "config" if is_micromamba(conda) else "info"
@@ -255,8 +250,8 @@ def _get_pkgs_dirs(
     env = conda_env_override(platform)
     output = subprocess.check_output(args, env=env).decode()
     json_object_str = extract_json_object(output)
-    json_object: Dict[str, Any] = json.loads(json_object_str)
-    pkgs_dirs_list: List[str]
+    json_object: dict[str, Any] = json.loads(json_object_str)
+    pkgs_dirs_list: list[str]
     if "pkgs_dirs" in json_object:
         pkgs_dirs_list = json_object["pkgs_dirs"]
     elif "package cache" in json_object:
@@ -318,7 +313,7 @@ def _reconstruct_fetch_actions(
 def solve_specs_for_arch(
     conda: PathLike,
     channels: Sequence[Channel],
-    specs: List[str],
+    specs: list[str],
     platform: str,
 ) -> DryRunInstall:
     """
@@ -397,7 +392,7 @@ def _get_installed_conda_packages(
     conda: PathLike,
     platform: str,
     prefix: str,
-) -> Dict[str, LinkAction]:
+) -> dict[str, LinkAction]:
     """
     Get the installed conda packages for the given prefix.
 
@@ -429,7 +424,7 @@ def _get_installed_conda_packages(
             # Re-raise if it's a different error.
             raise
     decoded_output = output.decode("utf-8")
-    installed: Dict[str, LinkAction] = {
+    installed: dict[str, LinkAction] = {
         entry["name"]: entry for entry in json.loads(decoded_output)
     }
     return installed
@@ -437,9 +432,9 @@ def _get_installed_conda_packages(
 
 def update_specs_for_arch(
     conda: PathLike,
-    specs: List[str],
-    locked: Dict[str, LockedDependency],
-    update: List[str],
+    specs: list[str],
+    locked: dict[str, LockedDependency],
+    update: list[str],
     platform: str,
     channels: Sequence[Channel],
 ) -> DryRunInstall:

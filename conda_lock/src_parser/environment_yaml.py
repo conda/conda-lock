@@ -2,8 +2,6 @@ import pathlib
 import re
 import sys
 
-from typing import List, Tuple
-
 import yaml
 
 from conda_lock.models.lock_spec import Dependency, LockSpecification
@@ -18,7 +16,7 @@ _whitespace = re.compile(r"\s+")
 _conda_package_pattern = re.compile(r"^(?P<name>[A-Za-z0-9_-]+)\s?(?P<version>.*)?$")
 
 
-def parse_conda_requirement(req: str) -> Tuple[str, str]:
+def parse_conda_requirement(req: str) -> tuple[str, str]:
     match = _conda_package_pattern.match(req)
     if match:
         return match.group("name"), _whitespace.sub("", match.group("version"))
@@ -32,7 +30,7 @@ def _parse_environment_file_for_platform(
     category: str,
     platform: str,
     mapping_url: str,
-) -> List[Dependency]:
+) -> list[Dependency]:
     """
     Parse dependencies from a conda environment specification for an
     assumed target platform.
@@ -52,7 +50,7 @@ def _parse_environment_file_for_platform(
     mapping_specs = [x for x in specs if not isinstance(x, str)]
     specs = [x for x in specs if isinstance(x, str)]
 
-    dependencies: List[Dependency] = []
+    dependencies: list[Dependency] = []
     for spec in specs:
         dependencies.append(conda_spec_to_versioned_dep(spec, category))
 
@@ -92,7 +90,7 @@ def _parse_environment_file_for_platform(
     return dependencies
 
 
-def parse_platforms_from_env_file(environment_file: pathlib.Path) -> List[str]:
+def parse_platforms_from_env_file(environment_file: pathlib.Path) -> list[str]:
     """
     Parse the list of platforms from an environment-yaml file
     """
@@ -108,7 +106,7 @@ def parse_platforms_from_env_file(environment_file: pathlib.Path) -> List[str]:
 
 def parse_environment_file(
     environment_file: pathlib.Path,
-    platforms: List[str],
+    platforms: list[str],
     mapping_url: str,
 ) -> LockSpecification:
     """Parse a simple environment-yaml file for dependencies assuming the target platforms.
@@ -125,14 +123,14 @@ def parse_environment_file(
         content = fo.read()
 
     env_yaml_data = yaml.safe_load(content)
-    channels: List[str] = env_yaml_data.get("channels", [])
+    channels: list[str] = env_yaml_data.get("channels", [])
     try:
         # conda-lock will use `--override-channels` so nodefaults is redundant.
         channels.remove("nodefaults")
     except ValueError:
         pass
 
-    pip_repositories: List[str] = env_yaml_data.get("pip-repositories", [])
+    pip_repositories: list[str] = env_yaml_data.get("pip-repositories", [])
 
     # These extension fields are nonstandard
     category: str = env_yaml_data.get("category") or "main"

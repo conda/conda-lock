@@ -8,8 +8,9 @@ import subprocess
 import tempfile
 import threading
 
+from collections.abc import Iterator, Sequence
 from logging import getLogger
-from typing import IO, Dict, Iterator, List, Optional, Sequence, Union
+from typing import IO, Optional, Union
 
 from ensureconda.api import determine_micromamba_version, ensureconda
 from packaging.version import Version
@@ -266,7 +267,7 @@ def _stderr_to_log(stderr: IO[str]) -> list[str]:
     return lines
 
 
-def conda_env_override(platform: str) -> Dict[str, str]:
+def conda_env_override(platform: str) -> dict[str, str]:
     env = dict(os.environ)
     env.update(
         {
@@ -279,7 +280,7 @@ def conda_env_override(platform: str) -> Dict[str, str]:
     return env
 
 
-def _get_conda_flags(channels: Sequence[Channel], platform: str) -> List[str]:
+def _get_conda_flags(channels: Sequence[Channel], platform: str) -> list[str]:
     args = []
     conda_flags = os.environ.get("CONDA_FLAGS")
     if conda_flags:

@@ -4,8 +4,6 @@ There is incidentally also a lot of virtual package stuff here.
 """
 
 from typing import (
-    Dict,
-    List,
     Literal,
     Optional,
     Union,
@@ -29,7 +27,7 @@ class HashableVirtualPackage(TypedDict):
     build_number: int
     build: str
     noarch: str
-    depends: List[str]
+    depends: list[str]
     timestamp: int
     package_type: Optional[str]
     subdir: PlatformSubdirStr
@@ -40,7 +38,7 @@ class SerializedDependency(TypedDict):
     name: str
     manager: Literal["conda", "pip"]
     category: str
-    extras: List[str]
+    extras: list[str]
     markers: NotRequired[Optional[str]]
     # Note, markers was added in conda-lock v3
 
@@ -52,7 +50,7 @@ class SerializedDependency(TypedDict):
 
     # URLDependency fields:
     url: NotRequired[str]
-    hashes: NotRequired[List[str]]
+    hashes: NotRequired[list[str]]
 
     # VCSDependency fields:
     source: NotRequired[str]
@@ -73,20 +71,20 @@ class RepoMetadataInfo(TypedDict):
 
 class SubdirMetadata(TypedDict):
     info: RepoMetadataInfo
-    packages: Dict[PackageNameStr, HashableVirtualPackage]
+    packages: dict[PackageNameStr, HashableVirtualPackage]
 
 
 class EmptyDict(TypedDict):
     pass
 
 
-HashableVirtualPackageRepresentation: "TypeAlias" = Dict[
+HashableVirtualPackageRepresentation: "TypeAlias" = dict[
     PlatformSubdirStr, Union[SubdirMetadata, EmptyDict]
 ]
 
 
 class SerializedLockspec(TypedDict):
-    channels: List[str]
-    specs: List[SerializedDependency]
-    pip_repositories: NotRequired[List[str]]
+    channels: list[str]
+    specs: list[SerializedDependency]
+    pip_repositories: NotRequired[list[str]]
     virtual_package_hash: NotRequired[HashableVirtualPackageRepresentation]

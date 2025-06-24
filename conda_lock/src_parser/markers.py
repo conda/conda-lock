@@ -6,7 +6,7 @@ be attached to dependency specifications.
 <https://www.python.org/dev/peps/pep-0508/#environment-markers>
 """
 
-from typing import Set, Union
+from typing import Union
 
 from conda_lock.common import warn
 from conda_lock.interfaces.vendored_poetry_markers import (
@@ -21,7 +21,7 @@ from conda_lock.interfaces.vendored_poetry_markers import (
 from conda_lock.pypi_solver import PlatformEnv
 
 
-def get_names(marker: Union[BaseMarker, str]) -> Set[str]:
+def get_names(marker: Union[BaseMarker, str]) -> set[str]:
     """Extract all environment marker names from a marker expression.
 
     >>> names = get_names(

@@ -1,5 +1,5 @@
 from collections import defaultdict
-from typing import Any, Dict, List, NamedTuple, Optional, Set, Tuple, Union
+from typing import Any, NamedTuple, Optional, Union
 
 from tomlkit import TOMLDocument, comment, document, inline_table, item, table
 from tomlkit.items import InlineTable, Table
@@ -39,7 +39,7 @@ def render_pixi_toml(
     lock_spec: LockSpecification,
     project_name: Optional[str] = None,
     with_cuda: Optional[str] = None,
-    editables: Optional[List[EditableDependency]] = None,
+    editables: Optional[list[EditableDependency]] = None,
 ) -> TOMLDocument:
     """Render a pixi.toml from a LockSpecification as a tomlkit TOMLDocument."""
     pixi_toml = document()
@@ -55,7 +55,7 @@ def render_pixi_toml(
     if project_name is None:
         project_name = "project-name-placeholder"
     all_platforms = sorted(lock_spec.dependencies.keys())
-    all_categories: Set[str] = set()
+    all_categories: set[str] = set()
     for platform in all_platforms:
         for dep in lock_spec.dependencies[platform]:
             all_categories.add(dep.category)
@@ -90,7 +90,7 @@ def render_pixi_toml(
     # The dependency tables
     arranged_deps = arrange_for_toml(lock_spec, editables=editables)
     for key, deps_by_name in arranged_deps.items():
-        header_sequence: List[str] = toml_header_sequence(key)
+        header_sequence: list[str] = toml_header_sequence(key)
 
         # Keys are package names, values are version numbers or matchspecs.
         inner_dict = {
@@ -154,7 +154,7 @@ def toml_dependency_value(
     ... )
     {'version': '*', 'extras': ['io', 'parallel']}
     """
-    matchspec: Dict[str, Any] = {}
+    matchspec: dict[str, Any] = {}
     if isinstance(dep, VersionedDependency):
         matchspec["version"] = dep.version or "*"
         if dep.manager == "pip" and matchspec["version"][0].isdigit():
@@ -185,7 +185,7 @@ def toml_dependency_value(
         raise ValueError(f"Unknown dependency type {dep}")
 
 
-def _dict_to_inline_table(d: Dict[str, Any]) -> InlineTable:
+def _dict_to_inline_table(d: dict[str, Any]) -> InlineTable:
     """Convert a dictionary to a TOML inline table."""
     table = inline_table()
     table.update(d)
@@ -195,16 +195,16 @@ def _dict_to_inline_table(d: Dict[str, Any]) -> InlineTable:
 def arrange_for_toml(
     lock_spec: LockSpecification,
     *,
-    editables: Optional[List[EditableDependency]] = None,
-) -> Dict[TomlTableKey, Dict[str, Union[Dependency, EditableDependency]]]:
+    editables: Optional[list[EditableDependency]] = None,
+) -> dict[TomlTableKey, dict[str, Union[Dependency, EditableDependency]]]:
     """Arrange dependencies into a structured dictionary for TOML generation."""
     unified_deps = unify_platform_independent_deps(
         lock_spec.dependencies, editables=editables
     )
 
     # Stick all the dependencies into the correct TOML table
-    unsorted_result: Dict[
-        TomlTableKey, Dict[str, Union[Dependency, EditableDependency]]
+    unsorted_result: dict[
+        TomlTableKey, dict[str, Union[Dependency, EditableDependency]]
     ] = defaultdict(dict)
     for dep_key, dep in unified_deps.items():
         toml_key = TomlTableKey(
@@ -234,7 +234,7 @@ def arrange_for_toml(
     return sorted_result
 
 
-def toml_ordering(item: Tuple[TomlTableKey, dict]) -> Tuple[str, str, str]:
+def toml_ordering(item: tuple[TomlTableKey, dict]) -> tuple[str, str, str]:
     """Make a sort key to properly order the dependency tables in the pixi.toml.
 
     The main category = default feature comes first. Then the other categories.
@@ -273,7 +273,7 @@ def toml_ordering(item: Tuple[TomlTableKey, dict]) -> Tuple[str, str, str]:
     return category, platform, key.manager
 
 
-def toml_header_sequence(key: TomlTableKey) -> List[str]:
+def toml_header_sequence(key: TomlTableKey) -> list[str]:
     """Generates a TOML header based on the dependency type, platform, and manager.
 
     >>> toml_header_sequence(
@@ -323,7 +323,7 @@ def toml_header_sequence(key: TomlTableKey) -> List[str]:
     return parts
 
 
-def toml_environments_table(all_categories: Set[str]) -> Table:
+def toml_environments_table(all_categories: set[str]) -> Table:
     r"""Define the environments section of a pixi.toml file.
 
     >>> environments_table = toml_environments_table({"main", "dev", "docs"})
