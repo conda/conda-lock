@@ -14,17 +14,12 @@ import subprocess
 import sys
 import tempfile
 
-from collections.abc import Iterator, Sequence
+from collections.abc import Iterator, Sequence, Set
 from contextlib import contextmanager
 from functools import partial
 from importlib.metadata import distribution
 from types import TracebackType
-from typing import (
-    AbstractSet,
-    Any,
-    Optional,
-    Union,
-)
+from typing import Any, Optional, Union
 from urllib.parse import urlsplit
 
 import click
@@ -256,8 +251,8 @@ def fn_to_dist_name(fn: str) -> str:
 
 
 def _compute_filtered_categories(
-    include_dev_dependencies: bool, extras: Optional[AbstractSet[str]]
-) -> AbstractSet[str]:
+    include_dev_dependencies: bool, extras: Optional[Set[str]]
+) -> Set[str]:
     """Compute the selected subset of categories when filtering.
 
     Includes `main`, `dev` unless disabled by the flag, and any explicitly specified
@@ -284,9 +279,9 @@ def make_lock_files(  # noqa: C901
     include_dev_dependencies: bool = True,
     filename_template: Optional[str] = None,
     filter_categories: bool = False,
-    extras: Optional[AbstractSet[str]] = None,
+    extras: Optional[Set[str]] = None,
     check_input_hash: bool = False,
-    metadata_choices: AbstractSet[MetadataOption] = frozenset(),
+    metadata_choices: Set[MetadataOption] = frozenset(),
     metadata_yamls: Sequence[pathlib.Path] = (),
     with_cuda: Optional[str] = None,
     strip_auth: bool = False,
@@ -334,7 +329,7 @@ def make_lock_files(  # noqa: C901
         YAML or JSON file(s) containing structured metadata to add to metadata section of the lockfile.
     """
     # Compute lock specification
-    filtered_categories: Optional[AbstractSet[str]] = None
+    filtered_categories: Optional[Set[str]] = None
     if filter_categories:
         filtered_categories = _compute_filtered_categories(
             include_dev_dependencies=include_dev_dependencies, extras=extras
@@ -498,7 +493,7 @@ def do_render(
     kinds: Sequence[Union[Literal["env"], Literal["explicit"]]],
     include_dev_dependencies: bool = True,
     filename_template: Optional[str] = None,
-    extras: Optional[AbstractSet[str]] = None,
+    extras: Optional[Set[str]] = None,
     check_input_hash: bool = False,
     override_platform: Optional[Sequence[str]] = None,
 ) -> None:
@@ -605,7 +600,7 @@ def render_lockfile_for_platform(  # noqa: C901
     *,
     lockfile: Lockfile,
     include_dev_dependencies: bool,
-    extras: Optional[AbstractSet[str]],
+    extras: Optional[Set[str]],
     kind: Union[Literal["env"], Literal["explicit"]],
     platform: str,
     suppress_warning_for_pip_and_explicit: bool = False,
@@ -867,7 +862,7 @@ def create_lockfile_from_spec(
     platforms: Optional[list[str]] = None,
     lockfile_path: pathlib.Path,
     update_spec: Optional[UpdateSpecification] = None,
-    metadata_choices: AbstractSet[MetadataOption] = frozenset(),
+    metadata_choices: Set[MetadataOption] = frozenset(),
     metadata_yamls: Sequence[pathlib.Path] = (),
     strip_auth: bool = False,
     virtual_package_repo: FakeRepoData,
@@ -1017,7 +1012,7 @@ def _strip_auth_from_lockfile(lockfile: str) -> str:
 def _render_lockfile_for_install(
     filename: pathlib.Path,
     include_dev_dependencies: bool = True,
-    extras: Optional[AbstractSet[str]] = None,
+    extras: Optional[Set[str]] = None,
     force_platform: Optional[str] = None,
 ) -> Iterator[pathlib.Path]:
     """
@@ -1171,12 +1166,12 @@ def run_lock(
     kinds: Optional[Sequence[TKindAll]] = None,
     lockfile_path: Optional[pathlib.Path] = None,
     check_input_hash: bool = False,
-    extras: Optional[AbstractSet[str]] = None,
+    extras: Optional[Set[str]] = None,
     virtual_package_spec: Optional[pathlib.Path] = None,
     with_cuda: Optional[str] = None,
     update: Optional[Sequence[str]] = None,
     filter_categories: bool = False,
-    metadata_choices: AbstractSet[MetadataOption] = frozenset(),
+    metadata_choices: Set[MetadataOption] = frozenset(),
     metadata_yamls: Sequence[pathlib.Path] = (),
     strip_auth: bool = False,
     mapping_url: str,
@@ -2047,12 +2042,12 @@ def render_lock_spec(  # noqa: C901
 def do_render_lockspec(
     src_files: list[pathlib.Path],
     *,
-    kinds: AbstractSet[Literal["pixi.toml", "raw"]],
+    kinds: Set[Literal["pixi.toml", "raw"]],
     stdout: bool,
     platform_overrides: Optional[Sequence[str]] = None,
     channel_overrides: Optional[Sequence[str]] = None,
     include_dev_dependencies: bool = True,
-    extras: Optional[AbstractSet[str]] = None,
+    extras: Optional[Set[str]] = None,
     filter_categories: bool = False,
     lockfile_path: Optional[pathlib.Path] = None,
     with_cuda: Optional[str] = None,
@@ -2063,7 +2058,7 @@ def do_render_lockspec(
     if len(src_files) == 0:
         src_files = handle_no_specified_source_files(lockfile_path)
 
-    filtered_categories: Optional[AbstractSet[str]] = None
+    filtered_categories: Optional[Set[str]] = None
     if filter_categories:
         filtered_categories = _compute_filtered_categories(
             include_dev_dependencies=include_dev_dependencies, extras=extras
