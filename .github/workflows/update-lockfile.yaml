@@ -1,5 +1,8 @@
 name: Run conda-lock to update dependencies
 
+# Disable default permissions and grant minimal required permissions
+permissions: {}
+
 on:
   workflow_dispatch:
   schedule:
@@ -21,6 +24,9 @@ jobs:
         # <https://github.com/mamba-org/provision-with-micromamba#important>
         shell: bash -l {0}
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: write  # for uploading artifacts
     steps:
     - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
       with:
@@ -53,6 +59,10 @@ jobs:
   create-pr:
     needs: create-lockfiles
     runs-on: ubuntu-latest
+    permissions:
+      contents: write     # for creating pull requests
+      pull-requests: write # for creating pull requests
+      actions: read       # for downloading artifacts
     steps:
     - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
       with:

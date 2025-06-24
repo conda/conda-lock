@@ -7,6 +7,9 @@ on:
     branches:
       - main
 
+# Disable default permissions and grant minimal required permissions
+permissions: {}
+
 concurrency:
   # Concurrency group that uses the workflow name and PR number if available
   # or commit SHA as a fallback. If a new build is triggered under that
@@ -27,6 +30,9 @@ defaults:
 jobs:
   lock-gdal:
     runs-on: ${{ matrix.os }}
+    permissions:
+      contents: read
+      actions: write  # for uploading artifacts
     strategy:
       fail-fast: false
       matrix:
@@ -74,6 +80,9 @@ jobs:
   install-gdal-with-micromamba:
     runs-on: ${{ matrix.os }}
     needs: lock-gdal
+    permissions:
+      contents: read
+      actions: read  # for downloading artifacts
     strategy:
       fail-fast: false
       matrix:
@@ -119,6 +128,9 @@ jobs:
   install-gdal-with-conda-lock:
     runs-on: ${{ matrix.os }}
     needs: lock-gdal
+    permissions:
+      contents: read
+      actions: read  # for downloading artifacts
     strategy:
       fail-fast: false
       matrix:
@@ -163,6 +175,9 @@ jobs:
   install-gdal-with-conda:
     runs-on: ${{ matrix.os }}
     needs: lock-gdal
+    permissions:
+      contents: read
+      actions: read  # for downloading artifacts
     strategy:
       fail-fast: false
       matrix:

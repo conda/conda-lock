@@ -29,6 +29,10 @@ jobs:
         )
       )
     runs-on: ubuntu-latest
+    permissions:
+      contents: write        # for committing changes
+      pull-requests: write   # for creating pull requests
+      issues: write          # for commenting on issues
     steps:
       - if: github.event_name == 'issue_comment'
         uses: peter-evans/create-or-update-comment@71345be0265236311c031f5c7866368bd1eff043 # v4.0.0

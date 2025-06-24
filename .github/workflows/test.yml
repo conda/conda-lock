@@ -1,5 +1,8 @@
 name: test
 
+# Disable default permissions and grant minimal required permissions
+permissions: {}
+
 on:
   pull_request:
   push:
@@ -22,7 +25,10 @@ env:
 jobs:
   test:
     name: pytest py${{ matrix.python-version }} on ${{ matrix.os }} (${{ matrix.pytest-split-group-index }}/${{ matrix.pytest-split-group-size }})
-    runs-on: ${{ matrix.os }}-latest
+    runs-on: ${{ matrix.os }}
+    permissions:
+      contents: read
+      actions: write  # for uploading artifacts
     strategy:
       fail-fast: false
       matrix:
@@ -165,6 +171,9 @@ jobs:
     name: Aggregate test durations
     runs-on: ubuntu-latest
     needs: test
+    permissions:
+      contents: read
+      actions: write  # for downloading and uploading artifacts
     steps:
       - name: Download test durations
         uses: actions/download-artifact@v4

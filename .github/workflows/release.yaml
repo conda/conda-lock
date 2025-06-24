@@ -1,5 +1,8 @@
 name: publish
 
+# Disable default permissions and grant minimal required permissions
+permissions: {}
+
 on:
   release:
     types:
@@ -10,6 +13,9 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: write  # for uploading artifacts
     steps:
     - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
       with:
@@ -43,13 +49,15 @@ jobs:
         path: dist
 
   publish:
+    name: Publish Python 🐍 distributions 📦 to PyPI
     runs-on: ubuntu-latest
     if: ${{ github.event_name == 'release' }}
     needs: build
     # Run this job in an isolated GHA environment containing the OIDC credentials.
     environment: release
     permissions:
-      id-token: write
+      id-token: write  # for trusted publishing to PyPI
+      actions: read    # for downloading artifacts
     steps:
     - uses: actions/download-artifact@v4
       with:
