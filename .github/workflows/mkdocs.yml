@@ -27,6 +27,7 @@ jobs:
         with:
           submodules: "recursive"
           fetch-depth: 0       # Fetch all history for .GitInfo and .Lastmod
+          persist-credentials: false
 
       - name: Install dependencies
         uses: "mamba-org/setup-micromamba@b09ef9b599704322748535812ca03efb2625677b" # v2
