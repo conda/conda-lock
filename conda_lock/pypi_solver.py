@@ -539,8 +539,8 @@ def solve_pypi(
         allow_pypi_requests, pip_repositories=pip_repositories
     )
 
-    installed = []  # type: List[PoetryPackage]
-    locked = []  # type: List[PoetryPackage]
+    installed: list[PoetryPackage] = []
+    locked: list[PoetryPackage] = []
 
     python_packages = dict()
     locked_dep: LockedDependency
