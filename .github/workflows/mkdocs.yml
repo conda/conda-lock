@@ -10,9 +10,8 @@ defaults:
   run:
     shell: "bash -l {0}"
 
-permissions:
-  contents: write
-  pages: write
+# Deny all permissions by default
+permissions: {}
 
 env:
   MICROMAMBA_VERSION: 'latest'
@@ -22,6 +21,9 @@ jobs:
     name: Deploy docs
     runs-on: ubuntu-latest
     concurrency: ci-${{ github.ref }}
+    permissions:
+      contents: read    # to checkout the code
+      pages: write      # to deploy to Pages
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
         with:

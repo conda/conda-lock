@@ -1,5 +1,8 @@
 name: Update Repository
 
+# Deny all permissions by default
+permissions: {}
+
 on:
   # every Sunday at 00:36 UTC
   # https://crontab.guru/#36_2_*_*_0
