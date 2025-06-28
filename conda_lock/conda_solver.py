@@ -487,34 +487,18 @@ def update_specs_for_arch(
 
         updated = {entry["name"]: entry for entry in dryrun_install["actions"]["LINK"]}
         for package in set(installed).difference(updated):
-            entry = installed[package]
-            fn = f"{entry['dist_name']}.tar.bz2"
-            channel = f"{entry['base_url']}/{entry['platform']}"
-            url = f"{channel}/{fn}"
-            md5 = locked[package].hash.md5
-            if md5 is None:
-                raise RuntimeError("Conda packages require non-null md5 hashes")
-            sha256 = locked[package].hash.sha256
-            dryrun_install["actions"]["FETCH"].append(
-                {
-                    "name": entry["name"],
-                    "channel": channel,
-                    "url": url,
-                    "fn": fn,
-                    "md5": md5,
-                    "sha256": sha256,
-                    "version": entry["version"],
-                    "depends": [
-                        f"{k} {v}".strip()
-                        for k, v in locked[entry["name"]].dependencies.items()
-                    ],
-                    "constrains": [],
-                    "subdir": entry["platform"],
-                    "timestamp": 0,
-                }
-            )
-            dryrun_install["actions"]["LINK"].append(entry)
-        return _reconstruct_fetch_actions(conda, platform, dryrun_install)
+            # This is the case where the package is unchanged.
+            # First create a FETCH action based on the original lockfile entry.
+            original_lockfile_entry = locked[package]
+            original_fetch_action = original_lockfile_entry.to_fetch_action()
+            dryrun_install["actions"]["FETCH"].append(original_fetch_action)
+
+            # Then create a LINK action to indicate that the package is installed.
+            installed_link_action = installed[package]
+            dryrun_install["actions"]["LINK"].append(installed_link_action)
+
+        reconstructed = _reconstruct_fetch_actions(conda, platform, dryrun_install)
+        return reconstructed
 
 
 @contextmanager
