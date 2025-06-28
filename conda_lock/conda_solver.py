@@ -19,8 +19,6 @@ from typing import (
 )
 from urllib.parse import urlsplit, urlunsplit
 
-from typing_extensions import TypedDict
-
 from conda_lock.interfaces.vendored_conda import MatchSpec
 from conda_lock.invoke_conda import (
     PathLike,
@@ -32,52 +30,11 @@ from conda_lock.invoke_conda import (
 from conda_lock.lockfile import apply_categories
 from conda_lock.lockfile.v2prelim.models import HashModel, LockedDependency
 from conda_lock.models.channel import Channel, normalize_url_with_placeholders
+from conda_lock.models.dry_run_install import DryRunInstall, FetchAction, LinkAction
 from conda_lock.models.lock_spec import Dependency, VersionedDependency
 
 
 logger = logging.getLogger(__name__)
-
-
-class FetchAction(TypedDict):
-    """
-    FETCH actions include all the entries from the corresponding package's
-    repodata.json
-    """
-
-    channel: str
-    constrains: Optional[list[str]]
-    depends: Optional[list[str]]
-    fn: str
-    md5: str
-    sha256: Optional[str]
-    name: str
-    subdir: str
-    timestamp: int
-    url: str
-    version: str
-
-
-class LinkAction(TypedDict):
-    """
-    LINK actions include only entries from conda-meta, notably missing
-    dependency and constraint information
-    """
-
-    base_url: str
-    channel: str
-    dist_name: str
-    name: str
-    platform: str
-    version: str
-
-
-class InstallActions(TypedDict):
-    LINK: list[LinkAction]
-    FETCH: list[FetchAction]
-
-
-class DryRunInstall(TypedDict):
-    actions: InstallActions
 
 
 def _to_match_spec(
