@@ -19,12 +19,16 @@ from typing import (
 if TYPE_CHECKING:
     from hashlib import _Hash
 
+from pathlib import PurePosixPath
+from urllib.parse import SplitResult, urlsplit, urlunsplit
+
 from pydantic import Field, ValidationInfo, field_validator
 from typing_extensions import Literal
 
 from conda_lock.common import ordered_union, relative_path
 from conda_lock.models import StrictModel
 from conda_lock.models.channel import Channel
+from conda_lock.models.dry_run_install import FetchAction
 
 
 logger = logging.getLogger(__name__)
@@ -63,6 +67,83 @@ class BaseLockedDependency(StrictModel):
         if (info.data["manager"] == "conda") and (v.md5 is None):
             raise ValueError("conda package hashes must use MD5")
         return v
+
+    @field_validator("url")
+    @classmethod
+    def validate_url(cls, v: str) -> str:
+        if not v:
+            raise ValueError("URL cannot be empty")
+        return v
+
+    def to_fetch_action(self) -> FetchAction:
+        """
+        Build a FETCH action from this LockedDependency.
+
+        This method is used to create a representation of a conda package
+        that can be used by the installer.
+
+        This is particularly useful during a lockfile update (`--update`).
+        For packages that are not being updated, conda-lock determines their
+        details by inspecting the state of the solver's fake environment
+        (e.g., via `conda list --json`). However, this inspection does not
+        reveal the original package's file extension (`.conda` vs. `.tar.bz2`),
+        as that information is not stored in the installed package metadata.
+
+        By using this method on an existing `LockedDependency` from the old
+        lockfile, we can use the stored `url` to accurately preserve the
+        original filename and extension.
+        """
+        if self.manager != "conda":
+            raise ValueError("Only conda packages can be converted to FETCH actions")
+        if self.hash.md5 is None:
+            raise RuntimeError(
+                "Conda packages are already validated to have an MD5 hash"
+            )
+        # Parse the stored URL
+        parts = urlsplit(self.url)
+        path = PurePosixPath(parts.path)
+
+        # platform directory is the parent of the filename
+        parsed_platform = path.parent.name  # e.g. "linux-64"
+        # Note that self.platform is the concrete target platform.
+        # Noarch packages can be installed on any platform, so such
+        # a mismatch is no contradiction.
+        if self.platform != parsed_platform and parsed_platform != "noarch":
+            raise ValueError(
+                f"Platform mismatch for package {self.name} {self.version}. "
+                f"Expected '{self.platform}' but URL '{self.url}' contains '{parsed_platform}'."
+            )
+        filename_with_extension = path.name  # e.g. "tzdata-2022g-h191b570_0.conda"
+
+        # base_url is everything up to the platform directory
+        base_url_path = str(path.parent.parent)  # e.g. "/conda-forge"
+        base_url_parts = SplitResult(
+            scheme=parts.scheme,  # e.g. "https"
+            netloc=parts.netloc,  # e.g. "user:pass@conda.anaconda.org"
+            path=base_url_path,  # e.g. "/conda-forge"
+            query="",
+            fragment="",
+        )
+        base_url = urlunsplit(
+            base_url_parts
+        )  # e.g. "https://user:pass@conda.anaconda.org/conda-forge"
+
+        channel_url = f"{base_url}/{self.platform}"  # e.g. "https://user:pass@conda.anaconda.org/conda-forge/linux-64"
+
+        fetch_action = FetchAction(
+            name=self.name,
+            version=self.version,
+            channel=channel_url,
+            url=self.url,
+            fn=filename_with_extension,
+            md5=self.hash.md5,
+            sha256=self.hash.sha256,
+            depends=[f"{k} {v}".strip() for k, v in self.dependencies.items()],
+            constrains=[],
+            subdir=self.platform,
+            timestamp=0,
+        )
+        return fetch_action
 
 
 class LockedDependency(BaseLockedDependency):

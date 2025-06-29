@@ -653,7 +653,7 @@ def test_choose_wheel() -> None:
                     "manager": "conda",
                     "platform": "linux-64",
                     "dependencies": {},
-                    "url": "",
+                    "url": "https://conda.anaconda.org/conda-forge/linux-64/python-3.9.7-hf930737_3_cpython.tar.bz2",
                     "hash": {
                         "md5": "deadbeef",
                     },
