@@ -44,3 +44,4 @@ dependencies:
 - types-freezegun
 - types-setuptools
 - wheel
+- zizmor
