@@ -51,6 +51,7 @@ from conda_lock.conda_lock import (
     extract_input_hash,
     install,
     main,
+    make_lock_files,
     make_lock_spec,
     render_lockfile_for_platform,
     run_lock,
@@ -3478,3 +3479,71 @@ def test_when_merging_lockfiles_content_hashes_are_updated(
     )
     postupdate_hashes = get_content_hashes_for_lock_file(work_path / "conda-lock.yml")
     assert preupdate_hashes != postupdate_hashes
+
+
+def test_update_with_changed_channels_raises_error(
+    tmp_path: Path, conda_exe: str
+) -> None:
+    """Test that updating with changed channels raises an error."""
+
+    # Create a simple environment file
+    environment_yml = tmp_path / "environment.yml"
+    environment_yml.write_text("""
+channels:
+  - conda-forge
+dependencies:
+  - python=3.9
+""")
+    from conda_lock.lockfile.v1.models import (
+        HashModel,
+        LockedDependency,
+        Lockfile,
+        LockMeta,
+    )
+
+    # Create an existing lockfile with different channels
+    lockfile_path = tmp_path / "conda-lock.yml"
+    existing_lockfile = Lockfile(
+        package=[
+            LockedDependency(
+                name="python",
+                version="3.9.18",
+                manager="conda",
+                platform="linux-64",
+                url="https://conda.anaconda.org/defaults/linux-64/python-3.9.18-h955ad1f_0.conda",
+                hash=HashModel(md5="abc123", sha256="def456"),
+                category="main",
+                optional=False,
+            )
+        ],
+        metadata=LockMeta(
+            content_hash={"linux-64": "test_hash"},
+            channels=[
+                Channel.from_string("defaults")
+            ],  # Different from environment.yml
+            platforms=["linux-64"],
+            sources=["environment.yml"],
+        ),
+    )
+
+    # Write the existing lockfile
+    with open(lockfile_path, "w") as f:
+        yaml.dump(existing_lockfile.dict_for_output(), f)
+
+    # Try to update - this should raise an error
+    with pytest.raises(RuntimeError) as exc_info:
+        make_lock_files(
+            conda=conda_exe,
+            src_files=[environment_yml],
+            kinds=["lock"],
+            lockfile_path=lockfile_path,
+            update=["python"],  # Try to update python
+            mapping_url=DEFAULT_MAPPING_URL,
+        )
+
+    # Verify the error message contains the expected information
+    error_msg = str(exc_info.value)
+    assert "channel configuration has changed" in error_msg
+    assert "defaults" in error_msg
+    assert "conda-forge" in error_msg
+    assert "without the --update flag" in error_msg
