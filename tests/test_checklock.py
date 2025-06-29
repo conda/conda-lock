@@ -4,6 +4,29 @@ import yaml
 from conda_lock.check_lockfile import check_lockfile
 from conda_lock.lookup import DEFAULT_MAPPING_URL
 
+# I need to test:
+# - if a dependency is added to the env spec
+# - if a dependency is removed from the env spec
+# - if a dependency version is updated in the env spec, but lockfile still compatible
+# - if a dependency version is updated in the env spec, and lockfil no longer compatible
+# - if a depnedency is changed from main to dev category in the env spec
+# - if a dependency is changed from dev to main category in the env spec
+# - make sure only the indicated categories are checked (e.g. add or remove a dev dependency, but only check main category, and ensure it passes)
+# - make sure to test case like below
+# [build-system]
+# requires = ["poetry-core>=1.0.0"]
+# build-backend = "poetry.core.masonry.api"
+# 
+# [tool.poetry.dependencies]
+# mailgun = { version = "*", source = "pypi" }  # only depends on requests
+# requests = "<2.32"
+# 
+# [tool.conda-lock]
+# channels = ['conda-forge']
+# platforms = ['linux-64']
+
+
+
 
 @pytest.fixture
 def lock_lockfile(tmp_path):

@@ -1,8 +1,8 @@
 import logging
 import pathlib
+import re
 
 from collections import defaultdict
-import re
 from typing import AbstractSet, List, Optional, Sequence
 
 import yaml
@@ -10,11 +10,6 @@ import yaml
 from packaging.specifiers import SpecifierSet
 from packaging.version import Version
 
-from conda_lock._vendor.poetry.core.constraints.version import (
-    parse_constraint as _parse_constraint,
-)
-
-# from poetry.core.semver import parse_constraint  # wrong way to use vendored poetry
 from conda_lock.conda_lock import _compute_filtered_categories, _detect_lockfile_kind
 from conda_lock.lockfile import parse_conda_lock_file
 from conda_lock.lockfile.v2prelim.models import LockedDependency, Lockfile
@@ -128,27 +123,26 @@ def _check_packages(
         # VCSDependency
         """
         if isinstance(constraints, VersionedDependency):
-            if constraints.manager == "pip":
-                constraint = SpecifierSet(
-                    convert_poetry_to_pep440(constraints.version))
-            else:
-                constraint = constraints.version
+            constraint = SpecifierSet(convert_poetry_to_pep440(constraints.version))
             return Version(pkg.version) in SpecifierSet(constraint)
         elif isinstance(constraints, URLDependency):
             # TODO: check somehow
             logger.warning(
-                f"URLDependency {constraints.name} is not checked for version compatibility.")
+                f"URLDependency {constraints.name} is not checked for version compatibility."
+            )
             return True
         elif isinstance(constraints, VCSDependency):
             # TODO: check somehow
             logging.warning(
-                f"VCSDependency {constraints.name} is not checked for version compatibility.")
+                f"VCSDependency {constraints.name} is not checked for version compatibility."
+            )
             # check if vcs matches?
             return True
         elif isinstance(constraints, PathDependency):
             # TODO: check somehow
             logger.warning(
-                f"PathDependency {constraints.name} is not checked for version compatibility.")
+                f"PathDependency {constraints.name} is not checked for version compatibility."
+            )
             return True
         else:
             raise Exception(f"Unhandled dependency type: {type(constraints)}")
@@ -216,13 +210,6 @@ def _check_platform_dependencies(
         raise NotImplementedError(
             f"Lockfile kind {kind} is not supported for checking dependencies."
         )
-    # implementation detail: we should split the spec and lockfile packages by category
-    # and compare them separately
-
-    # TODO: check conda and pip managed stuff separately or just assume pip takes precedence over conda?  # https://github.com/conda/conda-lock/issues/479#issuecomment-2992825287
-
-    # env_spec := dict[str, List[Dependency]]
-    # I want a data class which holds the packages easy to filter by platform, category, and manager
 
     class EnvSpecFilter:
         def __init__(self, env_spec: LockSpecification, platform: str):
@@ -348,6 +335,7 @@ def check_lockfile(
     )
     return True
 
+
 def convert_poetry_to_pep440(poetry_spec: str) -> str:
     """
     Converts a Poetry version specification to a PEP 440-compliant
@@ -363,11 +351,11 @@ def convert_poetry_to_pep440(poetry_spec: str) -> str:
         raise TypeError("The poetry_spec must be a string.")
 
     spec_parts = []
-    for part in poetry_spec.split(','):
+    for part in poetry_spec.split(","):
         part = part.strip()
-        if part.startswith(('>=', '<=', '==', '!=', '>', '<')):
+        if part.startswith((">=", "<=", "==", "!=", ">", "<")):
             spec_parts.append(part)
-        elif part.startswith('^'):
+        elif part.startswith("^"):
             version_str = part[1:]
             version = Version(version_str)
             parts = list(version.release)
@@ -378,7 +366,7 @@ def convert_poetry_to_pep440(poetry_spec: str) -> str:
             else:
                 upper_bound = f"0.0.{version.micro + 1}"
             spec_parts.append(f">={version_str},<{upper_bound}")
-        elif part.startswith('~'):
+        elif part.startswith("~"):
             version_str = part[1:]
             version = Version(version_str)
             parts = list(version.release)
@@ -389,21 +377,21 @@ def convert_poetry_to_pep440(poetry_spec: str) -> str:
             else:
                 upper_bound = f"{version.major + 1}.0.0"
             spec_parts.append(f">={version_str},<{upper_bound}")
-        elif '*' in part:
-            if part == '*':
+        elif "*" in part:
+            if part == "*":
                 spec_parts.append(">=0.0.0")
             else:
-                base_version = part.replace('*', '0')
+                base_version = part.replace("*", "0")
                 version = Version(base_version)
                 parts = list(version.release)
                 if len(parts) == 2:
                     upper_bound = f"{version.major + 1}.0.0"
-                else: # len(parts) == 3
+                else:  # len(parts) == 3
                     upper_bound = f"{version.major}.{version.minor + 1}.0"
                 spec_parts.append(f">={base_version},<{upper_bound}")
         else:
             # Assumes an exact version or already compliant specifier
-            if re.match(r'^\d+(\.\d+)*$', part):
+            if re.match(r"^\d+(\.\d+)*$", part):
                 spec_parts.append(f"=={part}")
             else:
                 spec_parts.append(part)
