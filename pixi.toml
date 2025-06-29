@@ -86,6 +86,7 @@ types-requests = "*"
 types-setuptools = "*"
 types-toml = "*"
 wheel = "*"
+zizmor = "*"
 
 [environments]
 # Redefine the default environment to include all categories.
