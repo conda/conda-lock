@@ -6,7 +6,7 @@ Conda-lock will attempt to make an educated guess at the desired environment spe
 
 This is **not** guaranteed to work for complex recipes with many selectors and outputs or complex use of jinja templates.
 
-For multi-output recipes, conda-lock will fuse all the dependencies together.  If that doesn't work for your case fall back to specifying the specification as an [environment.yml](/src_environment_yml)
+For multi-output recipes, conda-lock will fuse all the dependencies together.  If that doesn't work for your case fall back to specifying the specification as an [environment.yml](src_environment_yml.md)
 
 ```{.yaml title="meta.yaml"}
 
