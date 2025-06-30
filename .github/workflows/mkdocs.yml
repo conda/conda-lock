@@ -3,6 +3,7 @@ on:
   push:
     branches:
       - main
+  workflow_dispatch:
 
 # Default to bash in login mode; key to activating conda environment
 # https://github.com/mamba-org/provision-with-micromamba#IMPORTANT
