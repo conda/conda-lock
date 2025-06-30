@@ -1118,7 +1118,7 @@ dependency.</p>
 <p>These can be referenced as follows</p>
 <div class="highlight"><pre><span></span><code>conda-lock<span class="w"> </span>--extra<span class="w"> </span>mysql<span class="w"> </span>--extra<span class="w"> </span>pgsql<span class="w"> </span>-f<span class="w"> </span>pyproject.toml
 </code></pre></div>
-<p>When generating lockfiles that make use of extras it is recommended to make use of <code>--filename-template</code> covered <a href="#file-naming">here</a>.</p>
+<p>When generating lockfiles that make use of extras it is recommended to make use of <code>--filename-template</code> covered <a href="../flags/#-filename-template">here</a>.</p>
 <div class="admonition note">
 <p>By default conda-lock will attempt to solve for <em>ALL</em> extras it discovers in sources.  This allows you to render explicit locks with subsets
 of extras.</p>
@@ -1150,7 +1150,7 @@ toml file.  All extensions live in the <code>tool.conda-lock</code> section.</p>
 <span class="p">]</span>
 </code></pre></div>
 <h3 id="platforms">Platforms</h3>
-<p>Like in <a href="/src_environment_yml#platform-specification">environment.yml</a>, you can specify default platforms to target:</p>
+<p>Like in <a href="../src_environment_yml/#platform-specification">environment.yml</a>, you can specify default platforms to target:</p>
 <div class="highlight"><span class="filename">pyproject.toml</span><pre><span></span><code><span class="k">[tool.conda-lock]</span>
 <span class="n">platforms</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span>
 <span class="w">    </span><span class="s1">&#39;osx-arm64&#39;</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;linux-64&#39;</span>
