@@ -28,7 +28,7 @@ jobs:
         with:
           submodules: "recursive"
           fetch-depth: 0       # Fetch all history for .GitInfo and .Lastmod
-          persist-credentials: false
+          persist-credentials: true
 
       - name: Configure Git Credentials
         run: |
@@ -54,6 +54,5 @@ jobs:
           restore-keys: |
             mkdocs-material-
 
-      - run: pip install mkdocs-material
       - name: Deploy with mkdocs
         run: mkdocs gh-deploy --force

@@ -95,7 +95,7 @@ flag.
 conda-lock --extra mysql --extra pgsql -f pyproject.toml
 ```
 
-When generating lockfiles that make use of extras it is recommended to make use of `--filename-template` covered [here](#file-naming).
+When generating lockfiles that make use of extras it is recommended to make use of `--filename-template` covered [here](#-filename-template).
 
 !!! note ""
 
