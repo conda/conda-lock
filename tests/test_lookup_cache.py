@@ -1,9 +1,16 @@
 import multiprocessing
 import os
+import queue
 import random
+import threading
 import time
 
+from contextlib import nullcontext
+from multiprocessing.managers import SyncManager
+from multiprocessing.process import BaseProcess
+from multiprocessing.queues import Queue as mp_Queue
 from pathlib import Path
+from typing import Any, Callable, Literal, Union
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -289,19 +296,50 @@ def test_download_mapping_file(tmp_path):
         assert result == result2 == result3
 
 
-def test_concurrent_cached_download_file(tmp_path):
-    """Test concurrent access to cached_download_file with 5 processes."""
+@pytest.mark.parametrize("concurrency_method", ["multiprocessing", "multithreading"])
+def test_concurrent_cached_download_file(
+    tmp_path: Path, concurrency_method: Literal["multiprocessing", "multithreading"]
+):
+    """Test concurrent access to cached_download_file with 5 processes/threads."""
     url = "https://example.com/test.json"
 
-    # Use multiprocessing Manager to share state between processes
-    manager_context = multiprocessing.Manager()
-    results = manager_context.Queue()
-    worker_names_emitting_lock_warnings = manager_context.Queue()
-    worker_names_calling_requests_get = manager_context.Queue()
-    request_count = manager_context.Value("i", 0)
-    current_worker_func = multiprocessing.current_process
-    Worker = multiprocessing.Process
-    worker_name_prefix = "CachedDownloadFileProcess"
+    # Simple counter object for threading
+    class Counter:
+        def __init__(self):
+            self.value = 0
+
+    manager_context: Union[SyncManager, nullcontext[Any]]
+    results: Union[mp_Queue[bytes], queue.Queue[bytes]]
+    worker_names_emitting_lock_warnings: Union[mp_Queue[str], queue.Queue[str]]
+    worker_names_calling_requests_get: Union[mp_Queue[str], queue.Queue[str]]
+    request_count: Any
+    current_worker_func: Union[
+        Callable[[], BaseProcess], Callable[[], threading.Thread]
+    ]
+    Worker: Union[type[multiprocessing.Process], type[threading.Thread]]
+    worker_name_prefix: str
+
+    if concurrency_method == "multiprocessing":
+        # Use multiprocessing Manager to share state between processes
+        manager_context = multiprocessing.Manager()
+        results = manager_context.Queue()
+        worker_names_emitting_lock_warnings = manager_context.Queue()
+        worker_names_calling_requests_get = manager_context.Queue()
+        request_count = manager_context.Value("i", 0)
+        current_worker_func = multiprocessing.current_process
+        Worker = multiprocessing.Process
+        worker_name_prefix = "CachedDownloadFileProcess"
+    elif concurrency_method == "multithreading":
+        manager_context = nullcontext()
+        results = queue.Queue()
+        worker_names_emitting_lock_warnings = queue.Queue()
+        worker_names_calling_requests_get = queue.Queue()
+        request_count = Counter()
+        current_worker_func = threading.current_thread
+        Worker = threading.Thread
+        worker_name_prefix = "CachedDownloadFileThread"
+    else:
+        raise ValueError(f"Invalid concurrency method: {concurrency_method}")
 
     with manager_context:
         # Create and start 5 workers
