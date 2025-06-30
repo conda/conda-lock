@@ -21,29 +21,28 @@ def _concurrent_download_worker(
     url,
     cache_root,
     result_queue,
-    process_names_emitting_lock_warnings,
-    process_names_calling_requests_get,
+    worker_names_emitting_lock_warnings,
+    worker_names_calling_requests_get,
     request_count,
+    current_worker_func,
 ):
-    """Download the file in a process and store the result in a queue."""
+    """Download the file in a worker and store the result in a queue."""
 
     def mock_get(*args, **kwargs):
         time.sleep(6)
         response = MagicMock()
         response.content = b"content"
         response.status_code = 200
-        process_name = multiprocessing.current_process().name
-        process_names_calling_requests_get.append(process_name)
+        worker_name = current_worker_func().name
+        worker_names_calling_requests_get.put(worker_name)
         request_count.value += 1
         return response
 
     def mock_warning(msg, *args, **kwargs):
         if "Failed to acquire lock" in msg:
-            process_names_emitting_lock_warnings.append(
-                multiprocessing.current_process().name
-            )
+            worker_names_emitting_lock_warnings.put(current_worker_func().name)
 
-    # Randomize which process calls cached_download_file first
+    # Randomize which worker calls cached_download_file first
     time.sleep(random.uniform(0, 0.1))
 
     with (
@@ -295,62 +294,73 @@ def test_concurrent_cached_download_file(tmp_path):
     url = "https://example.com/test.json"
 
     # Use multiprocessing Manager to share state between processes
-    with multiprocessing.Manager() as manager:
-        results = manager.Queue()
-        process_names_emitting_lock_warnings = manager.list()
-        process_names_calling_requests_get = manager.list()
-        request_count = manager.Value("i", 0)
+    manager_context = multiprocessing.Manager()
+    results = manager_context.Queue()
+    worker_names_emitting_lock_warnings = manager_context.Queue()
+    worker_names_calling_requests_get = manager_context.Queue()
+    request_count = manager_context.Value("i", 0)
+    current_worker_func = multiprocessing.current_process
+    Worker = multiprocessing.Process
+    worker_name_prefix = "CachedDownloadFileProcess"
 
-        # Create and start 5 processes
-        process_names = [f"CachedDownloadFileProcess-{i}" for i in range(5)]
-        processes = [
-            multiprocessing.Process(
+    with manager_context:
+        # Create and start 5 workers
+        worker_names = [f"{worker_name_prefix}-{i}" for i in range(5)]
+        workers = [
+            Worker(
                 target=_concurrent_download_worker,
                 args=(
                     url,
                     tmp_path,
                     results,
-                    process_names_emitting_lock_warnings,
-                    process_names_calling_requests_get,
+                    worker_names_emitting_lock_warnings,
+                    worker_names_calling_requests_get,
                     request_count,
+                    current_worker_func,
                 ),
-                name=process_name,
+                name=worker_name,
             )
-            for process_name in process_names
+            for worker_name in worker_names
         ]
-        for process in processes:
-            process.start()
-        for process in processes:
-            process.join()
+        for worker in workers:
+            worker.start()
+        for worker in workers:
+            worker.join()
 
         # Collect results from the queue
-        assert results.qsize() == len(processes)
+        assert results.qsize() == len(workers)
         results_list = []
         while not results.empty():
             results_list.append(results.get())
         assert all(result == b"content" for result in results_list)
 
-        # We expect one process to have made the request and the other four
-        # to have emitted warnings.
-        process_names_calling_requests_get_list = list(
-            process_names_calling_requests_get
-        )
-        process_names_emitting_lock_warnings_list = list(
-            process_names_emitting_lock_warnings
-        )
+        # Collect worker names from queues
+        worker_names_calling_requests_get_list = []
+        while not worker_names_calling_requests_get.empty():
+            worker_names_calling_requests_get_list.append(
+                worker_names_calling_requests_get.get()
+            )
 
+        worker_names_emitting_lock_warnings_list = []
+        while not worker_names_emitting_lock_warnings.empty():
+            worker_names_emitting_lock_warnings_list.append(
+                worker_names_emitting_lock_warnings.get()
+            )
+
+        # We expect one worker to have made the request and the other four
+        # to have emitted warnings.
         assert (
-            len(process_names_calling_requests_get_list)
+            len(worker_names_calling_requests_get_list)
             == 1
-            == len(set(process_names_calling_requests_get_list))
+            == len(set(worker_names_calling_requests_get_list))
             == request_count.value
-        ), f"{process_names_calling_requests_get_list=}"
+        ), f"{worker_names_calling_requests_get_list=}"
         assert (
-            len(process_names_emitting_lock_warnings_list)
+            len(worker_names_emitting_lock_warnings_list)
             == 4
-            == len(set(process_names_emitting_lock_warnings_list))
-        ), f"{process_names_emitting_lock_warnings_list=}"
-        assert set(process_names) == set(
-            process_names_calling_requests_get_list
-            + process_names_emitting_lock_warnings_list
+            == len(set(worker_names_emitting_lock_warnings_list))
+        ), f"{worker_names_emitting_lock_warnings_list=}"
+        assert set(worker_names) == set(
+            worker_names_calling_requests_get_list
+            + worker_names_emitting_lock_warnings_list
         )
