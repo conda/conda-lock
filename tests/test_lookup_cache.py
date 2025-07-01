@@ -24,6 +24,9 @@ from conda_lock.lookup_cache import (
 )
 
 
+NUM_WORKERS_IN_CONCURRENT_TEST = 5
+
+
 def _concurrent_download_worker(
     url,
     cache_root,
@@ -353,8 +356,10 @@ def test_concurrent_cached_download_file(
         raise ValueError(f"Invalid concurrency method: {concurrency_method}")
 
     with manager_context:
-        # Create and start 5 workers
-        worker_names = [f"{worker_name_prefix}-{i}" for i in range(5)]
+        # Create and start the workers
+        worker_names = [
+            f"{worker_name_prefix}-{i}" for i in range(NUM_WORKERS_IN_CONCURRENT_TEST)
+        ]
         workers = [
             Worker(
                 target=_concurrent_download_worker,
@@ -411,14 +416,17 @@ def test_concurrent_cached_download_file(
             == request_count.value
         ), status_message
 
-        # Four workers should have emitted timeout warnings
+        # All non-downloading workers should have emitted timeout warnings
+        expected_warning_count = NUM_WORKERS_IN_CONCURRENT_TEST - 1
         assert (
             len(worker_names_emitting_lock_warnings_list)
-            == 4
+            == expected_warning_count
             == len(set(worker_names_emitting_lock_warnings_list))
         ), status_message
 
-        # The 4 + 1 workers should be disjoint, making up the total of 5 workers.
+        # The worker calling get should be disjoint from the workers emitting timeout
+        # warnings. Equivalently, the downloader plus the warning emitters should account
+        # for every worker.
         assert set(worker_names) == set(
             worker_names_calling_requests_get_list
             + worker_names_emitting_lock_warnings_list
