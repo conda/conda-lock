@@ -34,16 +34,22 @@ def _concurrent_download_worker(
     current_worker_func,
 ):
     """Download the file in a worker and store the result in a queue."""
+    from requests import get as original_get
 
     def mock_get(*args, **kwargs):
-        time.sleep(6)
-        response = MagicMock()
-        response.content = b"content"
-        response.status_code = 200
-        worker_name = current_worker_func().name
-        worker_names_calling_requests_get.put(worker_name)
-        request_count.value += 1
-        return response
+        request_url = args[0] if args else kwargs.get("url")
+        # Only mock the expected URL used by this worker; delegate all other URLs
+        if request_url == url:
+            time.sleep(6)
+            response = MagicMock()
+            response.content = b"content"
+            response.status_code = 200
+            worker_name = current_worker_func().name
+            worker_names_calling_requests_get.put(worker_name)
+            request_count.value += 1
+            return response
+        else:
+            return original_get(*args, **kwargs)
 
     def mock_warning(msg, *args, **kwargs):
         if "Failed to acquire lock" in msg:
@@ -301,7 +307,7 @@ def test_concurrent_cached_download_file(
     tmp_path: Path, concurrency_method: Literal["multiprocessing", "multithreading"]
 ):
     """Test concurrent access to cached_download_file with 5 processes/threads."""
-    url = "https://example.com/test.json"
+    url = f"https://example.com/test-{concurrency_method}.json"
 
     # Simple counter object for threading
     class Counter:
