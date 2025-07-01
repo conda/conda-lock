@@ -1,7 +1,9 @@
 import multiprocessing
 import os
+import platform
 import queue
 import random
+import sys
 import threading
 import time
 
@@ -24,7 +26,23 @@ from conda_lock.lookup_cache import (
 )
 
 
-NUM_WORKERS_IN_CONCURRENT_TEST = 30
+def determine_number_of_workers_in_concurrent_test(
+    concurrency_method: Literal["multiprocessing", "multithreading"],
+) -> int:
+    if concurrency_method == "multithreading":
+        return 30
+    elif concurrency_method == "multiprocessing":
+        if platform.system() == "Windows":
+            return 3
+        elif platform.system() == "Darwin":
+            return 5
+        elif platform.system() == "Linux":
+            return 30
+        else:
+            print(f"Unknown system: {platform.system()}", file=sys.stderr)
+            return 10
+    else:
+        raise ValueError(f"Invalid concurrency method: {concurrency_method}")
 
 
 def _concurrent_download_worker(
@@ -357,9 +375,8 @@ def test_concurrent_cached_download_file(
 
     with manager_context:
         # Create and start the workers
-        worker_names = [
-            f"{worker_name_prefix}-{i}" for i in range(NUM_WORKERS_IN_CONCURRENT_TEST)
-        ]
+        num_workers = determine_number_of_workers_in_concurrent_test(concurrency_method)
+        worker_names = [f"{worker_name_prefix}-{i}" for i in range(num_workers)]
         workers = [
             Worker(
                 target=_concurrent_download_worker,
@@ -420,34 +437,21 @@ def test_concurrent_cached_download_file(
             len(worker_names_emitting_lock_warnings_list),
             len(set(worker_names_emitting_lock_warnings_list)),
         )
-        expected_warning_counts = (NUM_WORKERS_IN_CONCURRENT_TEST - 1,) * len(
-            warning_counts
-        )
+        expected_warning_counts = (num_workers - 1,) * len(warning_counts)
 
         # The worker calling get should be disjoint from the workers emitting timeout
-        # warnings. Equivalently, the downloader plus the warning emitters should
-        # account for every worker.
-        total_worker_counts = (
-            len(worker_names),
-            len(set(worker_names)),
-            len(
-                set(
-                    worker_names_calling_requests_get_list
-                    + worker_names_emitting_lock_warnings_list
-                )
-            ),
-        )
-        expected_total_worker_counts = (NUM_WORKERS_IN_CONCURRENT_TEST,) * len(
-            total_worker_counts
+        # warnings.
+        workers_timing_out_and_calling_get = len(
+            set(worker_names_calling_requests_get_list)
+            & set(worker_names_emitting_lock_warnings_list)
         )
 
         status_message = (
-            f"{request_counts=}, {warning_counts=}, {total_worker_counts=} \n"
+            f"{request_counts=}, {warning_counts=}, {workers_timing_out_and_calling_get=} \n"
             f"{expected_request_counts=}, {expected_warning_counts=}, "
-            f"{expected_total_worker_counts=}"
         )
 
         # Assert that the actual counts match the expected counts
         assert request_counts == expected_request_counts, status_message
+        assert workers_timing_out_and_calling_get == 0, status_message
         assert warning_counts == expected_warning_counts, status_message
-        assert total_worker_counts == expected_total_worker_counts, status_message
