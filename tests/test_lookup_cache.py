@@ -40,7 +40,12 @@ def _concurrent_download_worker(
         request_url = args[0] if args else kwargs.get("url")
         # Only mock the expected URL used by this worker; delegate all other URLs
         if request_url == url:
-            time.sleep(6)
+            # Workers start after 0-100 ms jitter
+            # Timeout occurs after 5 seconds
+            # Sleep of 9 should ensure all workers not grabbing the lock
+            # will actually time out. Sometimes it takes a while for subprocesses
+            # to start, so we offer a generous buffer on top of the 5 seconds.
+            time.sleep(9)
             response = MagicMock()
             response.content = b"content"
             response.status_code = 200
