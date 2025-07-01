@@ -394,40 +394,60 @@ def test_concurrent_cached_download_file(
             worker_names_calling_requests_get_list.append(
                 worker_names_calling_requests_get.get()
             )
+        worker_names_calling_requests_get_list = sorted(
+            worker_names_calling_requests_get_list
+        )
 
         worker_names_emitting_lock_warnings_list = []
         while not worker_names_emitting_lock_warnings.empty():
             worker_names_emitting_lock_warnings_list.append(
                 worker_names_emitting_lock_warnings.get()
             )
-
-        # We expect one worker to have made the request and the other four
-        # to have emitted timeout warnings.
-        status_message = (
-            f"{worker_names_calling_requests_get_list=}, "
-            f"{worker_names_emitting_lock_warnings_list=}, {request_count.value=}"
+        worker_names_emitting_lock_warnings_list = sorted(
+            worker_names_emitting_lock_warnings_list
         )
 
-        # One and only one worker should have called requests.get
-        assert (
-            len(worker_names_calling_requests_get_list)
-            == 1
-            == len(set(worker_names_calling_requests_get_list))
-            == request_count.value
-        ), status_message
+        # We expect exactly one worker to have made the request
+        request_counts = (
+            len(worker_names_calling_requests_get_list),
+            len(set(worker_names_calling_requests_get_list)),
+            request_count.value,
+        )
+        expected_request_counts = (1,) * len(request_counts)
 
-        # All non-downloading workers should have emitted timeout warnings
-        expected_warning_count = NUM_WORKERS_IN_CONCURRENT_TEST - 1
-        assert (
-            len(worker_names_emitting_lock_warnings_list)
-            == expected_warning_count
-            == len(set(worker_names_emitting_lock_warnings_list))
-        ), status_message
+        # We expect all non-downloading workers to have emitted timeout warnings
+        warning_counts = (
+            len(worker_names_emitting_lock_warnings_list),
+            len(set(worker_names_emitting_lock_warnings_list)),
+        )
+        expected_warning_counts = (NUM_WORKERS_IN_CONCURRENT_TEST - 1,) * len(
+            warning_counts
+        )
 
         # The worker calling get should be disjoint from the workers emitting timeout
-        # warnings. Equivalently, the downloader plus the warning emitters should account
-        # for every worker.
-        assert set(worker_names) == set(
-            worker_names_calling_requests_get_list
-            + worker_names_emitting_lock_warnings_list
-        ), status_message
+        # warnings. Equivalently, the downloader plus the warning emitters should
+        # account for every worker.
+        total_worker_counts = (
+            len(worker_names),
+            len(set(worker_names)),
+            len(
+                set(
+                    worker_names_calling_requests_get_list
+                    + worker_names_emitting_lock_warnings_list
+                )
+            ),
+        )
+        expected_total_worker_counts = (NUM_WORKERS_IN_CONCURRENT_TEST,) * len(
+            total_worker_counts
+        )
+
+        status_message = (
+            f"{request_counts=}, {warning_counts=}, {total_worker_counts=} \n"
+            f"{expected_request_counts=}, {expected_warning_counts=}, "
+            f"{expected_total_worker_counts=}"
+        )
+
+        # Assert that the actual counts match the expected counts
+        assert request_counts == expected_request_counts, status_message
+        assert warning_counts == expected_warning_counts, status_message
+        assert total_worker_counts == expected_total_worker_counts, status_message
