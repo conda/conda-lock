@@ -24,7 +24,7 @@ from conda_lock.lookup_cache import (
 )
 
 
-NUM_WORKERS_IN_CONCURRENT_TEST = 5
+NUM_WORKERS_IN_CONCURRENT_TEST = 30
 
 
 def _concurrent_download_worker(
