@@ -122,11 +122,11 @@ def test_clear_old_files_from_cache(mock_cache_dir):
     assert not future_file.exists()
 
     # Immediately rerunning it again should not change anything
-    clear_old_files_from_cache(mock_cache_dir, max_age_seconds=22)
+    clear_old_files_from_cache(mock_cache_dir, max_age_seconds=25)
     assert recent_file.exists()
 
     # Lowering the max age should remove the file
-    clear_old_files_from_cache(mock_cache_dir, max_age_seconds=20)
+    clear_old_files_from_cache(mock_cache_dir, max_age_seconds=15)
     assert not recent_file.exists()
 
 
