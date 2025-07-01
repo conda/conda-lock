@@ -392,23 +392,29 @@ def test_concurrent_cached_download_file(
             )
 
         # We expect one worker to have made the request and the other four
-        # to have emitted warnings.
+        # to have emitted timeout warnings.
         status_message = (
             f"{worker_names_calling_requests_get_list=}, "
             f"{worker_names_emitting_lock_warnings_list=}, {request_count.value=}"
         )
+
+        # One and only one worker should have called requests.get
         assert (
             len(worker_names_calling_requests_get_list)
             == 1
             == len(set(worker_names_calling_requests_get_list))
             == request_count.value
         ), status_message
+
+        # Four workers should have emitted timeout warnings
         assert (
             len(worker_names_emitting_lock_warnings_list)
             == 4
             == len(set(worker_names_emitting_lock_warnings_list))
         ), status_message
+
+        # The 4 + 1 workers should be disjoint, making up the total of 5 workers.
         assert set(worker_names) == set(
             worker_names_calling_requests_get_list
             + worker_names_emitting_lock_warnings_list
-        )
+        ), status_message
