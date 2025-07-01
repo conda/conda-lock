@@ -393,17 +393,21 @@ def test_concurrent_cached_download_file(
 
         # We expect one worker to have made the request and the other four
         # to have emitted warnings.
+        status_message = (
+            f"{worker_names_calling_requests_get_list=}, "
+            f"{worker_names_emitting_lock_warnings_list=}, {request_count.value=}"
+        )
         assert (
             len(worker_names_calling_requests_get_list)
             == 1
             == len(set(worker_names_calling_requests_get_list))
             == request_count.value
-        ), f"{worker_names_calling_requests_get_list=}"
+        ), status_message
         assert (
             len(worker_names_emitting_lock_warnings_list)
             == 4
             == len(set(worker_names_emitting_lock_warnings_list))
-        ), f"{worker_names_emitting_lock_warnings_list=}"
+        ), status_message
         assert set(worker_names) == set(
             worker_names_calling_requests_get_list
             + worker_names_emitting_lock_warnings_list
