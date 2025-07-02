@@ -1,6 +1,5 @@
 import hashlib
 import logging
-import platform
 import re
 
 from datetime import datetime
@@ -22,9 +21,10 @@ CLEAR_CACHE_AFTER_SECONDS = 60 * 60 * 24 * 2  # 2 days
 DONT_CHECK_IF_NEWER_THAN_SECONDS = 60 * 5  # 5 minutes
 """If the cached file is newer than this, just use it without checking for updates."""
 
-WINDOWS_TIME_EPSILON = 0.005
-"""Windows has issues with file timestamps, so we add this small offset
-to ensure that newly created files have a positive age.
+TIMESTAMP_RESOLUTION_SECONDS = 5
+"""Some filesystems may have a limited resolution for file modification times.
+We tolerate a small amount of timestamp inaccuracy that might lead to files having
+a negative age.
 """
 
 
@@ -199,14 +199,14 @@ def clear_old_files_from_cache(cache: Path, *, max_age_seconds: float) -> None:
 def get_age_seconds(path: Path) -> Optional[float]:
     """Return the age of a file in seconds.
 
-    On Windows, the age of a new file is sometimes slightly negative, so we add a small
-    offset to ensure that the age is positive.
+    On some filesystems, the age of a new file is sometimes slightly negative due to
+    timestamp resolution. We treat negative ages within a small tolerance of zero
+    as zero, which is important for the freshness check.
     """
     try:
         raw_age = datetime.now().timestamp() - path.stat().st_mtime
     except FileNotFoundError:
         return None
-    if platform.system() == "Windows":
-        return raw_age + WINDOWS_TIME_EPSILON
-    else:
-        return raw_age
+    if -TIMESTAMP_RESOLUTION_SECONDS <= raw_age < 0:
+        return 0.0
+    return raw_age

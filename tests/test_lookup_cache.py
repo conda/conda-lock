@@ -1,9 +1,18 @@
 import multiprocessing
 import os
+import platform
+import queue
 import random
+import sys
+import threading
 import time
 
+from contextlib import nullcontext
+from multiprocessing.managers import SyncManager
+from multiprocessing.process import BaseProcess
+from multiprocessing.queues import Queue as mp_Queue
 from pathlib import Path
+from typing import Any, Callable, Literal, Union
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -17,33 +26,62 @@ from conda_lock.lookup_cache import (
 )
 
 
+def determine_number_of_workers_in_concurrent_test(
+    concurrency_method: Literal["multiprocessing", "multithreading"],
+) -> int:
+    if concurrency_method == "multithreading":
+        return 30
+    elif concurrency_method == "multiprocessing":
+        if platform.system() == "Windows":
+            return 3
+        elif platform.system() == "Darwin":
+            return 5
+        elif platform.system() == "Linux":
+            return 30
+        else:
+            print(f"Unknown system: {platform.system()}", file=sys.stderr)
+            return 10
+    else:
+        raise ValueError(f"Invalid concurrency method: {concurrency_method}")
+
+
 def _concurrent_download_worker(
     url,
     cache_root,
     result_queue,
-    process_names_emitting_lock_warnings,
-    process_names_calling_requests_get,
+    worker_names_emitting_lock_warnings,
+    worker_names_calling_requests_get,
     request_count,
+    current_worker_func,
 ):
-    """Download the file in a process and store the result in a queue."""
+    """Download the file in a worker and store the result in a queue."""
+    from requests import get as original_get
 
     def mock_get(*args, **kwargs):
-        time.sleep(6)
-        response = MagicMock()
-        response.content = b"content"
-        response.status_code = 200
-        process_name = multiprocessing.current_process().name
-        process_names_calling_requests_get.append(process_name)
-        request_count.value += 1
-        return response
+        request_url = args[0] if args else kwargs.get("url")
+        # Only mock the expected URL used by this worker; delegate all other URLs
+        if request_url == url:
+            # Workers start after 0-100 ms jitter
+            # Timeout occurs after 5 seconds
+            # Sleep of 9 should ensure all workers not grabbing the lock
+            # will actually time out. Sometimes it takes a while for subprocesses
+            # to start, so we offer a generous buffer on top of the 5 seconds.
+            time.sleep(9)
+            response = MagicMock()
+            response.content = b"content"
+            response.status_code = 200
+            worker_name = current_worker_func().name
+            worker_names_calling_requests_get.put(worker_name)
+            request_count.value += 1
+            return response
+        else:
+            return original_get(*args, **kwargs)
 
     def mock_warning(msg, *args, **kwargs):
         if "Failed to acquire lock" in msg:
-            process_names_emitting_lock_warnings.append(
-                multiprocessing.current_process().name
-            )
+            worker_names_emitting_lock_warnings.put(current_worker_func().name)
 
-    # Randomize which process calls cached_download_file first
+    # Randomize which worker calls cached_download_file first
     time.sleep(random.uniform(0, 0.1))
 
     with (
@@ -110,11 +148,11 @@ def test_clear_old_files_from_cache(mock_cache_dir):
     assert not future_file.exists()
 
     # Immediately rerunning it again should not change anything
-    clear_old_files_from_cache(mock_cache_dir, max_age_seconds=22)
+    clear_old_files_from_cache(mock_cache_dir, max_age_seconds=25)
     assert recent_file.exists()
 
     # Lowering the max age should remove the file
-    clear_old_files_from_cache(mock_cache_dir, max_age_seconds=20)
+    clear_old_files_from_cache(mock_cache_dir, max_age_seconds=15)
     assert not recent_file.exists()
 
 
@@ -290,67 +328,130 @@ def test_download_mapping_file(tmp_path):
         assert result == result2 == result3
 
 
-def test_concurrent_cached_download_file(tmp_path):
-    """Test concurrent access to cached_download_file with 5 processes."""
-    url = "https://example.com/test.json"
+@pytest.mark.parametrize("concurrency_method", ["multiprocessing", "multithreading"])
+def test_concurrent_cached_download_file(
+    tmp_path: Path, concurrency_method: Literal["multiprocessing", "multithreading"]
+):
+    """Test concurrent access to cached_download_file with 5 processes/threads."""
+    url = f"https://example.com/test-{concurrency_method}.json"
 
-    # Use multiprocessing Manager to share state between processes
-    with multiprocessing.Manager() as manager:
-        results = manager.Queue()
-        process_names_emitting_lock_warnings = manager.list()
-        process_names_calling_requests_get = manager.list()
-        request_count = manager.Value("i", 0)
+    # Simple counter object for threading
+    class Counter:
+        def __init__(self):
+            self.value = 0
 
-        # Create and start 5 processes
-        process_names = [f"CachedDownloadFileProcess-{i}" for i in range(5)]
-        processes = [
-            multiprocessing.Process(
+    manager_context: Union[SyncManager, nullcontext[Any]]
+    results: Union[mp_Queue[bytes], queue.Queue[bytes]]
+    worker_names_emitting_lock_warnings: Union[mp_Queue[str], queue.Queue[str]]
+    worker_names_calling_requests_get: Union[mp_Queue[str], queue.Queue[str]]
+    request_count: Any
+    current_worker_func: Union[
+        Callable[[], BaseProcess], Callable[[], threading.Thread]
+    ]
+    Worker: Union[type[multiprocessing.Process], type[threading.Thread]]
+    worker_name_prefix: str
+
+    if concurrency_method == "multiprocessing":
+        # Use multiprocessing Manager to share state between processes
+        manager_context = multiprocessing.Manager()
+        results = manager_context.Queue()
+        worker_names_emitting_lock_warnings = manager_context.Queue()
+        worker_names_calling_requests_get = manager_context.Queue()
+        request_count = manager_context.Value("i", 0)
+        current_worker_func = multiprocessing.current_process
+        Worker = multiprocessing.Process
+        worker_name_prefix = "CachedDownloadFileProcess"
+    elif concurrency_method == "multithreading":
+        manager_context = nullcontext()
+        results = queue.Queue()
+        worker_names_emitting_lock_warnings = queue.Queue()
+        worker_names_calling_requests_get = queue.Queue()
+        request_count = Counter()
+        current_worker_func = threading.current_thread
+        Worker = threading.Thread
+        worker_name_prefix = "CachedDownloadFileThread"
+    else:
+        raise ValueError(f"Invalid concurrency method: {concurrency_method}")
+
+    with manager_context:
+        # Create and start the workers
+        num_workers = determine_number_of_workers_in_concurrent_test(concurrency_method)
+        worker_names = [f"{worker_name_prefix}-{i}" for i in range(num_workers)]
+        workers = [
+            Worker(
                 target=_concurrent_download_worker,
                 args=(
                     url,
                     tmp_path,
                     results,
-                    process_names_emitting_lock_warnings,
-                    process_names_calling_requests_get,
+                    worker_names_emitting_lock_warnings,
+                    worker_names_calling_requests_get,
                     request_count,
+                    current_worker_func,
                 ),
-                name=process_name,
+                name=worker_name,
             )
-            for process_name in process_names
+            for worker_name in worker_names
         ]
-        for process in processes:
-            process.start()
-        for process in processes:
-            process.join()
+        for worker in workers:
+            worker.start()
+        for worker in workers:
+            worker.join()
 
         # Collect results from the queue
-        assert results.qsize() == len(processes)
+        assert results.qsize() == len(workers)
         results_list = []
         while not results.empty():
             results_list.append(results.get())
         assert all(result == b"content" for result in results_list)
 
-        # We expect one process to have made the request and the other four
-        # to have emitted warnings.
-        process_names_calling_requests_get_list = list(
-            process_names_calling_requests_get
-        )
-        process_names_emitting_lock_warnings_list = list(
-            process_names_emitting_lock_warnings
+        # Collect worker names from queues
+        worker_names_calling_requests_get_list = []
+        while not worker_names_calling_requests_get.empty():
+            worker_names_calling_requests_get_list.append(
+                worker_names_calling_requests_get.get()
+            )
+        worker_names_calling_requests_get_list = sorted(
+            worker_names_calling_requests_get_list
         )
 
-        assert (
-            len(process_names_calling_requests_get_list)
-            == 1
-            == len(set(process_names_calling_requests_get_list))
-            == request_count.value
-        ), f"{process_names_calling_requests_get_list=}"
-        assert (
-            len(process_names_emitting_lock_warnings_list)
-            == 4
-            == len(set(process_names_emitting_lock_warnings_list))
-        ), f"{process_names_emitting_lock_warnings_list=}"
-        assert set(process_names) == set(
-            process_names_calling_requests_get_list
-            + process_names_emitting_lock_warnings_list
+        worker_names_emitting_lock_warnings_list = []
+        while not worker_names_emitting_lock_warnings.empty():
+            worker_names_emitting_lock_warnings_list.append(
+                worker_names_emitting_lock_warnings.get()
+            )
+        worker_names_emitting_lock_warnings_list = sorted(
+            worker_names_emitting_lock_warnings_list
         )
+
+        # We expect exactly one worker to have made the request
+        request_counts = (
+            len(worker_names_calling_requests_get_list),
+            len(set(worker_names_calling_requests_get_list)),
+            request_count.value,
+        )
+        expected_request_counts = (1,) * len(request_counts)
+
+        # We expect all non-downloading workers to have emitted timeout warnings
+        warning_counts = (
+            len(worker_names_emitting_lock_warnings_list),
+            len(set(worker_names_emitting_lock_warnings_list)),
+        )
+        expected_warning_counts = (num_workers - 1,) * len(warning_counts)
+
+        # The worker calling get should be disjoint from the workers emitting timeout
+        # warnings.
+        workers_timing_out_and_calling_get = len(
+            set(worker_names_calling_requests_get_list)
+            & set(worker_names_emitting_lock_warnings_list)
+        )
+
+        status_message = (
+            f"{request_counts=}, {warning_counts=}, {workers_timing_out_and_calling_get=} \n"
+            f"{expected_request_counts=}, {expected_warning_counts=}, "
+        )
+
+        # Assert that the actual counts match the expected counts
+        assert request_counts == expected_request_counts, status_message
+        assert workers_timing_out_and_calling_get == 0, status_message
+        assert warning_counts == expected_warning_counts, status_message
