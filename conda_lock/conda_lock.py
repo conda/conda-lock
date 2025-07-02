@@ -385,6 +385,18 @@ def make_lock_files(  # noqa: C901
         if original_lock_content is not None:
             platforms_already_locked = list(original_lock_content.metadata.platforms)
             if update is not None:
+                # Check if channels have changed since lockfile was last generated
+                if lock_spec.channels != original_lock_content.metadata.channels:
+                    raise RuntimeError(
+                        "The channel configuration has changed since the lockfile was last generated. "
+                        "A partial update cannot be safely performed when channels have been modified, "
+                        "as this could result in packages being resolved from different channels with "
+                        "different priorities.\n\n"
+                        f"Original channels: {[c.url for c in original_lock_content.metadata.channels]}\n"
+                        f"New channels: {[c.url for c in lock_spec.channels]}\n\n"
+                        "Please regenerate the lockfile from scratch by running the same command "
+                        "without the --update flag."
+                    )
                 # Narrow `update` sequence to list for mypy
                 update = list(update)
             update_spec = UpdateSpecification(
