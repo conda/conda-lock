@@ -53,6 +53,12 @@ def aggregate_lock_specs(
         )
     except ValueError as e:
         raise ChannelAggregationError(*e.args)
+    try:
+        output_recipe = unify_output_recipe(
+            [lock_spec.output_recipe for lock_spec in lock_specs]
+        )
+    except ValueError as e:
+        raise ChannelAggregationError(*e.args)
 
     return LockSpecification(
         dependencies=dependencies,
@@ -64,6 +70,7 @@ def aggregate_lock_specs(
         allow_pypi_requests=all(
             lock_spec.allow_pypi_requests for lock_spec in lock_specs
         ),
+        output_recipe=output_recipe,
     )
 
 
@@ -107,3 +114,16 @@ def unify_package_sources(
                 f"{collection} is not an ordered subset at the end of {result}"
             )
     return result
+
+def unify_output_recipe(
+    collections: list[dict],
+) -> dict:
+    """Unify the output recipe from multiple lock specs.
+
+    The output recipe must be the same for all lock specs.
+    """
+    if not collections:
+        return {}
+    if not all(c == collections[0] for c in collections):
+        raise ValueError("Output recipe must be the same for all lock specs.")
+    return collections[0]

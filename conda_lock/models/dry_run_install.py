@@ -18,6 +18,7 @@ class FetchAction(TypedDict):
     timestamp: int
     url: str
     version: str
+    build: Optional[str]
 
 
 class LinkAction(TypedDict):

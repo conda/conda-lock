@@ -98,7 +98,6 @@ def solve_conda(
         Channels to query
 
     """
-
     conda_specs = [
         _to_match_spec(dep.name, dep.version, dep.build, dep.conda_channel)
         for dep in specs.values()
@@ -140,6 +139,7 @@ def solve_conda(
         locked_dependency = LockedDependency(
             name=action["name"],
             version=action["version"],
+            build=action["build"],
             manager="conda",
             platform=platform,
             dependencies=dependencies,

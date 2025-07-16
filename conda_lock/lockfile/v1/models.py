@@ -114,6 +114,9 @@ class BaseLockedDependency(StrictModel):
                 f"Expected '{self.platform}' but URL '{self.url}' contains '{parsed_platform}'."
             )
         filename_with_extension = path.name  # e.g. "tzdata-2022g-h191b570_0.conda"
+        build = self.build or filename_with_extension.split("-")[-1].split(".")[0]
+        if not self.build:
+            self.build = build
 
         # base_url is everything up to the platform directory
         base_url_path = str(path.parent.parent)  # e.g. "/conda-forge"
@@ -135,6 +138,7 @@ class BaseLockedDependency(StrictModel):
             version=self.version,
             channel=channel_url,
             url=self.url,
+            build=build,
             fn=filename_with_extension,
             md5=self.hash.md5,
             sha256=self.hash.sha256,

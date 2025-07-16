@@ -141,4 +141,5 @@ def make_lock_spec(
         pip_repositories=pip_repositories,
         sources=aggregated_lock_spec.sources,
         allow_pypi_requests=aggregated_lock_spec.allow_pypi_requests,
+        output_recipe=aggregated_lock_spec.output_recipe,
     )
