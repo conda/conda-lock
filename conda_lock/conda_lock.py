@@ -621,39 +621,6 @@ def do_render(
             file=sys.stderr,
         )
 
-def render_recipe(
-    *,
-    lockfile: Lockfile,
-    output_recipe: dict,
-) -> list[str]:
-    lockfile_contents = [
-        "package:",
-        f"  name: {output_recipe['name']}",
-        f"  version: {output_recipe['version']}",
-        f"build:",
-        f"  string: {output_recipe['build']['string']}",
-        "requirements:",
-        "  run_constraints:",
-    ]
-    lockfile.alphasort_inplace()
-
-    excludes = output_recipe.get("exclude_patterns", [])
-    exclude_pattern = None
-    if excludes:
-        exclude_pattern = re.compile("|".join([f".*{e}.*" for e in excludes if e]))
-    for p in lockfile.package:
-        if p.manager == "pip":
-            warnings.warn(f"Pip dependencies are not supported in recipes: {p.name}")
-        elif p.manager == "conda":
-            # exclude virtual packages
-            if not p.name.startswith("__") and exclude_pattern and not exclude_pattern.match(p.name):
-                lockfile_contents.append(f"    - {p.name} {p.version} {p.build}")
-
-    lockfile_contents.append("about:")
-    lockfile_contents.append(f"  summary: A pinning package for a {output_recipe['name']} environment, to be used as a set of constraints at build time for other recipes.")
-    
-    return lockfile_contents
-
 
 def render_lockfile_for_platform(  # noqa: C901
     *,
@@ -808,10 +775,28 @@ def render_lockfile_for_platform(  # noqa: C901
                 "argument."
             )
     elif kind == "recipe":
-        lockfile_contents.extend(render_recipe(
-            lockfile=lockfile,
-            output_recipe=output_recipe,
-        ))
+        lockfile_contents = [
+            "package:",
+            f"  name: {output_recipe['name']}",
+            f"  version: {output_recipe['version']}",
+            f"build:",
+            f"  string: {output_recipe['build']['string']}",
+            "requirements:",
+            "  run_constraints:",
+        ]
+        lockfile.alphasort_inplace()
+
+        excludes = output_recipe.get("exclude_patterns", [])
+        exclude_pattern = None
+        if excludes:
+            exclude_pattern = re.compile("|".join([f".*{e}.*" for e in excludes if e]))
+        for p in conda_deps:
+            # exclude virtual packages
+            if not p.name.startswith("__") and exclude_pattern and not exclude_pattern.match(p.name):
+                lockfile_contents.append(f"    - {p.name} {p.version} {p.build}")
+
+        lockfile_contents.append("about:")
+        lockfile_contents.append(f"  summary: A pinning package for a {output_recipe['name']} environment, to be used as a set of constraints at build time for other recipes.")
     else:
         raise ValueError(f"Unrecognised lock kind {kind}.")
 
