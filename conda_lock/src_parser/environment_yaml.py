@@ -134,6 +134,7 @@ def parse_environment_file(
 
     # These extension fields are nonstandard
     category: str = env_yaml_data.get("category") or "main"
+    output_recipe: dict = env_yaml_data.get("output_recipe", {})
 
     # Parse with selectors for each target platform
     dep_map = {
@@ -148,4 +149,5 @@ def parse_environment_file(
         channels=channels,  # type: ignore
         pip_repositories=pip_repositories,  # type: ignore
         sources=[environment_file],
+        output_recipe=output_recipe,
     )

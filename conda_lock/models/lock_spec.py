@@ -72,6 +72,7 @@ class LockSpecification(BaseModel):
     sources: list[pathlib.Path]
     pip_repositories: list[PipRepository] = Field(default_factory=list)
     allow_pypi_requests: bool = True
+    output_recipe: dict = {}
 
     @property
     def platforms(self) -> list[str]:
