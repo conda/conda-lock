@@ -309,5 +309,8 @@ def write_conda_lock_file(
                     conda-lock {metadata_flags}{" ".join("-f " + path for path in content.metadata.sources)} --lockfile {path.name}
                 """
             )
-        output = content.to_v1().dict_for_output()
+        pathlib.Path("outputv2.json").write_text(content.model_dump_json(indent=2))
+        content_v1 = content.to_v1()
+        pathlib.Path("outputv1.json").write_text(content_v1.model_dump_json(indent=2))
+        output = content_v1.dict_for_output()
         yaml.dump(output, stream=f, sort_keys=False)
