@@ -314,3 +314,7 @@ def write_conda_lock_file(
         pathlib.Path("outputv1.json").write_text(content_v1.model_dump_json(indent=2))
         output = content_v1.dict_for_output()
         yaml.dump(output, stream=f, sort_keys=False)
+
+    # Verify round-trip consistency by reading back the lockfile and checking again
+    parsed_lockfile = parse_conda_lock_file(path)
+    _verify_no_missing_conda_packages(parsed_lockfile)
