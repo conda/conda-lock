@@ -41,6 +41,7 @@ def _verify_no_missing_conda_packages(content: Lockfile) -> None:
     Raises:
         InconsistentCondaDependencies: If any conda dependency is missing
     """
+    print("------------------VERIFYING CONDA DEPENDENCY CONSISTENCY------------------")
     # Build a mapping of (name, platform) -> LockedDependency for conda packages
     conda_packages: dict[tuple[str, str], LockedDependency] = {}
     for package in content.package:
@@ -51,12 +52,17 @@ def _verify_no_missing_conda_packages(content: Lockfile) -> None:
     missing_dependencies: set[tuple[str, str]] = set()
     for (_primary_dep_name, platform), dependency in conda_packages.items():
         subdependencies = dependency.dependencies
+        satisfied_deps = []
         for subdep_name in subdependencies:
             if subdep_name.startswith("__"):
                 # Virtual packages like __linux are not real packages so not present
                 continue
             if (subdep_name, platform) not in conda_packages:
                 missing_dependencies.add((subdep_name, platform))
+            else:
+                satisfied_deps.append(subdep_name)
+        if len(satisfied_deps) > 0:
+            print(f"Satisfied dependencies for {_primary_dep_name}: {satisfied_deps}")
 
     if missing_dependencies:
         error_msg = (
@@ -75,6 +81,7 @@ def _verify_no_missing_conda_packages(content: Lockfile) -> None:
                     error_msg += f"    - {subdep_name}\n"
         error_msg += "\n\nThis indicates that the conda dependency graph is incomplete."
         raise InconsistentCondaDependencies(error_msg)
+    print("------------------CONDA DEPENDENCY CONSISTENCY VERIFIED-------------------")
 
 
 def _seperator_munge_get(
