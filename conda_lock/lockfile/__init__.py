@@ -240,6 +240,8 @@ def parse_conda_lock_file(path: pathlib.Path) -> Lockfile:
     else:
         raise UnknownLockfileVersion(f"{path} has unknown version {version}")
     lockfile.toposort_inplace()
+    for p in lockfile.package:
+        assert len(p.categories) > 0, f"Package {p.name} has no categories"
     return lockfile
 
 
