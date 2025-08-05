@@ -259,6 +259,10 @@ def _reconstruct_fetch_actions(
         else:
             raise ValueError(f"Unable to extract the dist_name from {link_action}.")
         repodata = _get_repodata_record(pkgs_dirs, dist_name)
+        if link_pkg_name == "pyzmq":
+            print(
+                f"In _reconstruct_fetch_actions for {link_pkg_name}, repodata: {repodata}"
+            )
         if repodata is None:
             raise FileNotFoundError(
                 f"Distribution '{dist_name}' not found in pkgs_dirs {pkgs_dirs}"
