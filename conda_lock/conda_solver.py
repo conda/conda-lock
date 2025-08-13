@@ -129,6 +129,8 @@ def solve_conda(
     planned = {}
     for action in dry_run_install["actions"]["FETCH"]:
         dependencies = {}
+        if action.get("depends") is None:
+            raise ValueError(f"No depends found for FETCH action {action}")
         for dep in action.get("depends") or []:
             matchspec = MatchSpec(dep)  # pyright: ignore[reportArgumentType]
             name = matchspec.name
