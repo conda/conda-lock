@@ -5,7 +5,7 @@ do with the logic for exporting a lock specification, and the logic is a bit inv
 """
 
 from collections import defaultdict
-from typing import Dict, List, NamedTuple, Optional, Union
+from typing import NamedTuple, Optional, Union
 
 from conda_lock.models.lock_spec import Dependency
 
@@ -40,10 +40,10 @@ class DepKey(NamedTuple):
 
 
 def unify_platform_independent_deps(
-    dependencies: Dict[str, List[Dependency]],
+    dependencies: dict[str, list[Dependency]],
     *,
-    editables: Optional[List[EditableDependency]] = None,
-) -> Dict[DepKey, Union[Dependency, EditableDependency]]:
+    editables: Optional[list[EditableDependency]] = None,
+) -> dict[DepKey, Union[Dependency, EditableDependency]]:
     """Combine identical dependencies for all platforms into a single dependency.
 
     Returns a tuple of two dictionaries:
@@ -94,7 +94,7 @@ def unify_platform_independent_deps(
       VersionedDependency(name='pandas', manager='conda', category='main', extras=[],
         markers=None, version='7.8.9', build=None, conda_channel=None, hash=None)}
     """
-    indexed_deps: Dict[DepKey, Dependency] = {}
+    indexed_deps: dict[DepKey, Dependency] = {}
     for platform, deps in dependencies.items():
         for dep in deps:
             key = DepKey(
@@ -112,11 +112,11 @@ def unify_platform_independent_deps(
             indexed_deps[key] = dep
 
     # Collect deps which differ only by platform
-    collected_deps: Dict[DepKey, List[Dependency]] = defaultdict(list)
+    collected_deps: dict[DepKey, list[Dependency]] = defaultdict(list)
     for key, dep in indexed_deps.items():
         collected_deps[key.drop_platform()].append(dep)
 
-    editable_deps: Dict[DepKey, EditableDependency] = {}
+    editable_deps: dict[DepKey, EditableDependency] = {}
     for editable in editables or []:
         key = DepKey(name=editable.name, category="main", platform=None, manager="pip")
         if key in collected_deps:
@@ -128,7 +128,7 @@ def unify_platform_independent_deps(
 
     # Check for platform-independent dependencies
     num_platforms = len(dependencies.keys())
-    platform_independent_deps: Dict[DepKey, Dependency] = {
+    platform_independent_deps: dict[DepKey, Dependency] = {
         np_key: deps[0]
         for np_key, deps in collected_deps.items()
         # It's independent if there's a dep for each platform and they're all the same.
@@ -138,7 +138,7 @@ def unify_platform_independent_deps(
     assert all(key.platform is None for key in platform_independent_deps)
 
     # The platform-specific dependencies are now those not in platform_independent_deps.
-    platform_specific_deps: Dict[DepKey, Dependency] = {
+    platform_specific_deps: dict[DepKey, Dependency] = {
         key: dep
         for key, dep in indexed_deps.items()
         if key.drop_platform() not in platform_independent_deps

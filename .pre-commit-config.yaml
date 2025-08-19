@@ -16,14 +16,14 @@ repos:
     exclude: ^conda_lock/_vendor/conda/_vendor/appdirs\.py$
 
 - repo: https://github.com/astral-sh/ruff-pre-commit
-  rev: v0.11.2
+  rev: v0.12.0
   hooks:
   - id: ruff
     args: [--fix, --exit-non-zero-on-fix]
   - id: ruff-format
 
 - repo: https://github.com/pre-commit/mirrors-mypy
-  rev: v1.15.0
+  rev: v1.16.1
   hooks:
   - id: mypy
     additional_dependencies:
@@ -47,7 +47,7 @@ repos:
       (?x)^(
         ^conda_lock/_vendor/.*\.pyi$
         | ^tests/test-local-pip/setup\.py$
-        | ^tests/test-pip-repositories/fake-private-package-1\.0\.0/setup\.py$
+        | ^tests/test-pip-repositories/fake-private-package.*-1\.0\.0/setup\.py$
       )
     # First exclude is due to:
     #   conda_lock/_vendor/conda/__init__.py: error: Duplicate module named "conda_lock._vendor.conda" (also at "conda_lock/_vendor/conda.pyi")

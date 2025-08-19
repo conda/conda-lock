@@ -3,6 +3,7 @@ on:
   push:
     branches:
       - main
+  workflow_dispatch:
 
 # Default to bash in login mode; key to activating conda environment
 # https://github.com/mamba-org/provision-with-micromamba#IMPORTANT
@@ -10,9 +11,8 @@ defaults:
   run:
     shell: "bash -l {0}"
 
-permissions:
-  contents: write
-  pages: write
+# Deny all permissions by default
+permissions: {}
 
 env:
   MICROMAMBA_VERSION: 'latest'
@@ -22,14 +22,22 @@ jobs:
     name: Deploy docs
     runs-on: ubuntu-latest
     concurrency: ci-${{ github.ref }}
+    permissions:
+      contents: write  # for mkdocs gh-deploy to push to gh-pages branch
     steps:
-      - uses: actions/checkout@eef61447b9ff4aafe5dcd4e0bbf5d482be7e7871 # v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
         with:
           submodules: "recursive"
           fetch-depth: 0       # Fetch all history for .GitInfo and .Lastmod
+          persist-credentials: true
+
+      - name: Configure Git Credentials
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
 
       - name: Install dependencies
-        uses: "mamba-org/setup-micromamba@v2"
+        uses: "mamba-org/setup-micromamba@b09ef9b599704322748535812ca03efb2625677b" # v2
         with:
           micromamba-version: "${{ env.MICROMAMBA_VERSION }}"
           environment-file: "environments/dev-environment.yaml"
@@ -38,13 +46,14 @@ jobs:
       - name: Install conda-lock
         run: "pip install ."
 
-      - name: Build site
-        run: mkdocs build
+      - run: echo "cache_id=$(date --utc '+%V')" >> $GITHUB_ENV
 
-      - name: Deploy
-        uses: peaceiris/actions-gh-pages@v4
+      - uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684 # v4
         with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./site
-          user_name: 'github-actions[bot]'
-          user_email: 'github-actions[bot]@users.noreply.github.com'
+          key: mkdocs-material-${{ env.cache_id }}
+          path: .cache
+          restore-keys: |
+            mkdocs-material-
+
+      - name: Deploy with mkdocs
+        run: mkdocs gh-deploy --force

@@ -1,7 +1,7 @@
 import logging
 
 from itertools import chain
-from typing import Dict, List, Tuple, TypeVar
+from typing import TypeVar
 
 from conda_lock.common import ordered_union
 from conda_lock.errors import ChannelAggregationError
@@ -14,8 +14,8 @@ logger = logging.getLogger(__name__)
 
 
 def aggregate_lock_specs(
-    lock_specs: List[LockSpecification],
-    platforms: List[str],
+    lock_specs: list[LockSpecification],
+    platforms: list[str],
 ) -> LockSpecification:
     for lock_spec in lock_specs:
         if set(lock_spec.platforms) != set(platforms):
@@ -26,10 +26,10 @@ def aggregate_lock_specs(
                 f"platforms {set(lock_spec.platforms)}."
             )
 
-    dependencies: Dict[str, List[Dependency]] = {}
+    dependencies: dict[str, list[Dependency]] = {}
     for platform in platforms:
         # unique dependencies
-        unique_deps: Dict[Tuple[str, str], Dependency] = {}
+        unique_deps: dict[tuple[str, str], Dependency] = {}
         for dep in chain.from_iterable(
             lock_spec.dependencies.get(platform, []) for lock_spec in lock_specs
         ):
@@ -71,8 +71,8 @@ PackageSource = TypeVar("PackageSource", Channel, PipRepository)
 
 
 def unify_package_sources(
-    collections: List[List[PackageSource]],
-) -> List[PackageSource]:
+    collections: list[list[PackageSource]],
+) -> list[PackageSource]:
     """Unify the package sources from multiple lock specs.
 
     To be able to merge the lock specs, the package sources must be compatible between

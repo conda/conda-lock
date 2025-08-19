@@ -36,7 +36,7 @@ import os
 import re
 
 from posixpath import expandvars
-from typing import Any, List, Optional, Tuple
+from typing import Any, Optional
 from urllib.parse import unquote, urlparse, urlunparse
 
 from pydantic import BaseModel, ConfigDict
@@ -71,7 +71,7 @@ class _CondaUrl(BaseModel):
 class Channel(BaseModel):
     model_config = ConfigDict(frozen=True)
     url: str
-    used_env_vars: Tuple[str, ...]
+    used_env_vars: tuple[str, ...]
 
     @classmethod
     def from_string(cls, value: str) -> "Channel":
@@ -174,7 +174,7 @@ class Channel(BaseModel):
         _, token = split_anaconda_token(expanded_url)
         return expanded_url.replace(token, "**********", 1) if token else expanded_url
 
-    def __repr_args__(self) -> List[Tuple[str, Any]]:
+    def __repr_args__(self) -> list[tuple[str, Any]]:
         """Hide falsy values from repr.
 
         # Note how used_env_vars is not shown:
@@ -192,7 +192,7 @@ class Channel(BaseModel):
 
 
 def _detect_used_env_var(
-    value: str, preferred_env_var_suffix: List[str]
+    value: str, preferred_env_var_suffix: list[str]
 ) -> Optional[str]:
     """Detect if the string exactly matches any current environment variable.
 
@@ -304,7 +304,7 @@ def _channel_from_conda_url(conda_url: _CondaUrl) -> Channel:
     )
 
 
-def normalize_url_with_placeholders(url: str, channels: List[Channel]) -> str:
+def normalize_url_with_placeholders(url: str, channels: list[Channel]) -> str:
     """Normalize URLs from lockfiles to have env var placeholders.
 
     The env vars are associated with channel objects, so we do the replacement for

@@ -1,18 +1,9 @@
 import pathlib
 
 from collections import defaultdict
+from collections.abc import Collection, Mapping, Sequence
 from textwrap import dedent
-from typing import (
-    Collection,
-    DefaultDict,
-    Dict,
-    List,
-    Mapping,
-    Optional,
-    Sequence,
-    Set,
-    Union,
-)
+from typing import Optional, Union
 
 import yaml
 
@@ -36,8 +27,8 @@ class UnknownLockfileVersion(ValueError):
 
 
 def _seperator_munge_get(
-    d: Mapping[str, Union[List[LockedDependency], LockedDependency]], key: str
-) -> Union[List[LockedDependency], LockedDependency]:
+    d: Mapping[str, Union[list[LockedDependency], LockedDependency]], key: str
+) -> Union[list[LockedDependency], LockedDependency]:
     # since separators are not consistent across managers (or even within) we need to do some double attempts here
     try:
         return d[key]
@@ -49,7 +40,7 @@ def _seperator_munge_get(
 
 
 def _truncate_main_category(
-    planned: Mapping[str, Union[List[LockedDependency], LockedDependency]],
+    planned: Mapping[str, Union[list[LockedDependency], LockedDependency]],
 ) -> None:
     """
     Given the package dependencies with their respective categories
@@ -67,8 +58,8 @@ def _truncate_main_category(
 
 def apply_categories(
     *,
-    requested: Dict[str, Dependency],
-    planned: Mapping[str, Union[List[LockedDependency], LockedDependency]],
+    requested: dict[str, Dependency],
+    planned: Mapping[str, Union[list[LockedDependency], LockedDependency]],
     categories: Sequence[str] = ("main", "dev"),
     convert_to_pip_names: bool = False,
     mapping_url: str,
@@ -88,12 +79,12 @@ def apply_categories(
     # a pip name
 
     # walk dependency tree to assemble all transitive dependencies by request
-    dependents: Dict[str, Set[str]] = {}
+    dependents: dict[str, set[str]] = {}
     by_category = defaultdict(list)
 
     def extract_planned_items(
-        planned_items: Union[List[LockedDependency], LockedDependency],
-    ) -> List[LockedDependency]:
+        planned_items: Union[list[LockedDependency], LockedDependency],
+    ) -> list[LockedDependency]:
         if not isinstance(planned_items, list):
             return [planned_items]
 
@@ -112,8 +103,8 @@ def apply_categories(
         return dep
 
     for name, request in requested.items():
-        todo: List[str] = list()
-        deps: Set[str] = set()
+        todo: list[str] = list()
+        deps: set[str] = set()
         item = name
 
         # Loop around all the transitive dependencies of name
@@ -150,7 +141,7 @@ def apply_categories(
 
     # now, map each package to every root request that requires it
     categories = [*categories, *(k for k in by_category if k not in categories)]
-    root_requests: DefaultDict[str, List[str]] = defaultdict(list)
+    root_requests: defaultdict[str, list[str]] = defaultdict(list)
     for category in categories:
         for root in by_category.get(category, []):
             for transitive_dep in dependents[root]:
@@ -204,7 +195,7 @@ def write_conda_lock_file(
     content.filter_virtual_packages_inplace()
     with path.open("w") as f:
         if include_help_text:
-            categories: Set[str] = {
+            categories: set[str] = {
                 category for p in content.package for category in p.categories
             }
 

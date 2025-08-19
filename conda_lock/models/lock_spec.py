@@ -1,9 +1,7 @@
-import hashlib
-import json
 import pathlib
 import typing
 
-from typing import Dict, List, Optional, Union
+from typing import Optional, Union
 
 from pydantic import BaseModel, Field, field_validator
 from typing_extensions import Literal
@@ -11,19 +9,18 @@ from typing_extensions import Literal
 from conda_lock.models import StrictModel
 from conda_lock.models.channel import Channel
 from conda_lock.models.pip_repository import PipRepository
-from conda_lock.virtual_package import FakeRepoData
 
 
 class _BaseDependency(StrictModel):
     name: str
     manager: Literal["conda", "pip"] = "conda"
     category: str = "main"
-    extras: List[str] = []
+    extras: list[str] = []
     markers: Optional[str] = None
 
     @field_validator("extras")
     @classmethod
-    def sorted_extras(cls, v: List[str]) -> List[str]:
+    def sorted_extras(cls, v: list[str]) -> list[str]:
         return sorted(v)
 
 
@@ -36,7 +33,7 @@ class VersionedDependency(_BaseDependency):
 
 class URLDependency(_BaseDependency):
     url: str
-    hashes: List[str]
+    hashes: list[str]
 
 
 class VCSDependency(_BaseDependency):
@@ -63,74 +60,40 @@ class Package(StrictModel):
 class PoetryMappedDependencySpec(StrictModel):
     url: Optional[str] = None
     manager: Literal["conda", "pip"]
-    extras: List
+    extras: list
     markers: Optional[str] = None
     poetry_version_spec: Optional[str] = None
 
 
 class LockSpecification(BaseModel):
-    dependencies: Dict[str, List[Dependency]]
+    dependencies: dict[str, list[Dependency]]
     # TODO: Should we store the auth info in here?
-    channels: List[Channel]
-    sources: List[pathlib.Path]
-    pip_repositories: List[PipRepository] = Field(default_factory=list)
+    channels: list[Channel]
+    sources: list[pathlib.Path]
+    pip_repositories: list[PipRepository] = Field(default_factory=list)
     allow_pypi_requests: bool = True
 
     @property
-    def platforms(self) -> List[str]:
+    def platforms(self) -> list[str]:
         return list(self.dependencies.keys())
-
-    def content_hash(
-        self, virtual_package_repo: Optional[FakeRepoData]
-    ) -> Dict[str, str]:
-        return {
-            platform: self.content_hash_for_platform(platform, virtual_package_repo)
-            for platform in self.platforms
-        }
-
-    def content_hash_for_platform(
-        self, platform: str, virtual_package_repo: Optional[FakeRepoData]
-    ) -> str:
-        data = {
-            "channels": [c.model_dump_json() for c in self.channels],
-            "specs": [
-                p.model_dump()
-                for p in sorted(
-                    self.dependencies[platform], key=lambda p: (p.manager, p.name)
-                )
-            ],
-        }
-        if self.pip_repositories:
-            data["pip_repositories"] = [
-                repo.model_dump_json() for repo in self.pip_repositories
-            ]
-        if virtual_package_repo is not None:
-            vpr_data = virtual_package_repo.all_repodata
-            data["virtual_package_hash"] = {
-                "noarch": vpr_data.get("noarch", {}),
-                **{platform: vpr_data.get(platform, {})},
-            }
-
-        env_spec = json.dumps(data, sort_keys=True)
-        return hashlib.sha256(env_spec.encode("utf-8")).hexdigest()
 
     @field_validator("channels", mode="before")
     @classmethod
-    def validate_channels(cls, v: List[Union[Channel, str]]) -> List[Channel]:
+    def validate_channels(cls, v: list[Union[Channel, str]]) -> list[Channel]:
         for i, e in enumerate(v):
             if isinstance(e, str):
                 e = Channel.from_string(e)
                 v[i] = e
             if e.url == "nodefaults":
                 raise ValueError("nodefaults channel is not allowed, ref #418")
-        return typing.cast(List[Channel], v)
+        return typing.cast(list[Channel], v)
 
     @field_validator("pip_repositories", mode="before")
     @classmethod
     def validate_pip_repositories(
-        cls, value: List[Union[PipRepository, str]]
-    ) -> List[PipRepository]:
+        cls, value: list[Union[PipRepository, str]]
+    ) -> list[PipRepository]:
         for index, repository in enumerate(value):
             if isinstance(repository, str):
                 value[index] = PipRepository.from_string(repository)
-        return typing.cast(List[PipRepository], value)
+        return typing.cast(list[PipRepository], value)

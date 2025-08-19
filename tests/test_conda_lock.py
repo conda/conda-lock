@@ -4,7 +4,7 @@ import json
 import logging
 import os
 import pathlib
-import platform
+import platform as builtin_module_platform
 import re
 import shutil
 import subprocess
@@ -15,7 +15,13 @@ import uuid
 
 from glob import glob
 from pathlib import Path
-from typing import Any, ContextManager, Dict, List, Literal, Optional, Set, Tuple, Union
+from typing import (
+    Any,
+    Literal,
+    Optional,
+    Union,
+    cast,
+)
 from unittest import mock
 from unittest.mock import MagicMock
 from urllib.parse import urldefrag, urlsplit
@@ -45,6 +51,7 @@ from conda_lock.conda_lock import (
     extract_input_hash,
     install,
     main,
+    make_lock_files,
     make_lock_spec,
     render_lockfile_for_platform,
     run_lock,
@@ -54,6 +61,15 @@ from conda_lock.conda_solver import (
     _get_pkgs_dirs,
     extract_json_object,
     fake_conda_environment,
+)
+from conda_lock.content_hash import (
+    backwards_compatible_content_hashes,
+    compute_content_hashes,
+)
+from conda_lock.content_hash_types import (
+    HashableVirtualPackage,
+    PackageNameStr,
+    SubdirMetadata,
 )
 from conda_lock.errors import (
     ChannelAggregationError,
@@ -122,7 +138,7 @@ def reset_global_conda_pkgs_dir():
     reset_conda_pkgs_dir()
 
 
-def clone_test_dir(name: Union[str, List[str]], tmp_path: Path) -> Path:
+def clone_test_dir(name: Union[str, list[str]], tmp_path: Path) -> Path:
     if isinstance(name, str):
         name = [name]
     test_dir = TESTS_DIR.joinpath(*name)
@@ -364,11 +380,11 @@ def include_dev_dependencies(request: Any) -> bool:
     return request.param
 
 
-JSON_FIELDS: Dict[str, str] = {"json_unique_field": "test1", "common_field": "test2"}
+JSON_FIELDS: dict[str, str] = {"json_unique_field": "test1", "common_field": "test2"}
 
-YAML_FIELDS: Dict[str, str] = {"yaml_unique_field": "test3", "common_field": "test4"}
+YAML_FIELDS: dict[str, str] = {"yaml_unique_field": "test3", "common_field": "test4"}
 
-EXPECTED_CUSTOM_FIELDS: Dict[str, str] = {
+EXPECTED_CUSTOM_FIELDS: dict[str, str] = {
     "json_unique_field": "test1",
     "yaml_unique_field": "test3",
     "common_field": "test4",
@@ -416,7 +432,7 @@ def test_lock_poetry_ibis(
     )
     lockfile = parse_conda_lock_file(pyproject.parent / DEFAULT_LOCKFILE_NAME)
 
-    all_categories: Set[str] = set()
+    all_categories: set[str] = set()
 
     for pkg in lockfile.package:
         all_categories.update(pkg.categories)
@@ -631,14 +647,14 @@ def test_choose_wheel() -> None:
         use_latest=[],
         pip_locked={},
         conda_locked={
-            "python": LockedDependency.parse_obj(
+            "python": LockedDependency.model_validate(
                 {
                     "name": "python",
                     "version": "3.9.7",
                     "manager": "conda",
                     "platform": "linux-64",
                     "dependencies": {},
-                    "url": "",
+                    "url": "https://conda.anaconda.org/conda-forge/linux-64/python-3.9.7-hf930737_3_cpython.tar.bz2",
                     "hash": {
                         "md5": "deadbeef",
                     },
@@ -725,7 +741,7 @@ def test_choose_wheel() -> None:
     ],
 )
 def test_parse_pip_requirement(
-    requirement: str, parsed: "Dict[str, str | None]"
+    requirement: str, parsed: "dict[str, str | None]"
 ) -> None:
     assert parse_pip_requirement(requirement) == parsed
 
@@ -867,7 +883,7 @@ def test_parse_poetry_no_pypi(poetry_pyproject_toml_no_pypi: Path):
 
 def test_poetry_no_pypi_multiple_pyprojects(
     poetry_pyproject_toml_no_pypi: Path,
-    poetry_pyproject_toml_no_pypi_other_projects: List[Path],
+    poetry_pyproject_toml_no_pypi_other_projects: list[Path],
 ):
     spec = make_lock_spec(
         src_files=poetry_pyproject_toml_no_pypi_other_projects,
@@ -912,7 +928,7 @@ def test_spec_poetry(poetry_pyproject_toml: Path):
 
     spec = make_lock_spec(
         src_files=[poetry_pyproject_toml],
-        required_categories={"main", "dev"},
+        filtered_categories={"main", "dev"},
         mapping_url=DEFAULT_MAPPING_URL,
     )
     for plat in spec.platforms:
@@ -923,7 +939,7 @@ def test_spec_poetry(poetry_pyproject_toml: Path):
 
     spec = make_lock_spec(
         src_files=[poetry_pyproject_toml],
-        required_categories={"main"},
+        filtered_categories={"main"},
         mapping_url=DEFAULT_MAPPING_URL,
     )
     for plat in spec.platforms:
@@ -1151,7 +1167,7 @@ def test_explicit_toposorted() -> None:
 
     # We do a simulated installation run, and keep track of the packages
     # that have been installed so far in installed_names
-    installed_names: Set[str] = set()
+    installed_names: set[str] = set()
 
     # Simulate installing each package in the order it appears in the lockfile.
     # Verify that each package is installed after all of its dependencies.
@@ -1408,7 +1424,7 @@ def update_environment(tmp_path: Path) -> Path:
 
 
 @pytest.fixture
-def update_environment_filter_platform(tmp_path: Path) -> Tuple[Path, Path, Path]:
+def update_environment_filter_platform(tmp_path: Path) -> tuple[Path, Path, Path]:
     test_dir = clone_test_dir("test-update-filter-platform", tmp_path)
     files = (
         test_dir / "conda-lock.yml",
@@ -1421,7 +1437,7 @@ def update_environment_filter_platform(tmp_path: Path) -> Tuple[Path, Path, Path
 
 
 @pytest.fixture
-def update_environment_dependency_removal(tmp_path: Path) -> Tuple[Path, Path]:
+def update_environment_dependency_removal(tmp_path: Path) -> tuple[Path, Path]:
     test_dir = clone_test_dir("test-dependency-removal", tmp_path)
 
     return (
@@ -1431,7 +1447,7 @@ def update_environment_dependency_removal(tmp_path: Path) -> Tuple[Path, Path]:
 
 
 @pytest.fixture
-def update_environment_move_pip_dependency(tmp_path: Path) -> Tuple[Path, Path]:
+def update_environment_move_pip_dependency(tmp_path: Path) -> tuple[Path, Path]:
     test_dir = clone_test_dir("test-move-pip-dependency", tmp_path)
 
     return (
@@ -1448,7 +1464,7 @@ def test_run_lock_with_update(
     conda_exe: str,
     _conda_exe_type: str,
 ):
-    if platform.system().lower() == "windows":
+    if builtin_module_platform.system().lower() == "windows":
         if _conda_exe_type in ("conda", "mamba"):
             pytest.skip(
                 reason="this test just takes too long on windows, due to the slow conda solver"
@@ -1498,7 +1514,7 @@ def test_run_lock_with_update(
 @pytest.mark.timeout(120)
 def test_run_lock_with_update_filter_platform(
     monkeypatch: "pytest.MonkeyPatch",
-    update_environment_filter_platform: Tuple[Path, Path, Path],
+    update_environment_filter_platform: tuple[Path, Path, Path],
     conda_exe: str,
 ):
     """Test that when updating for one platform, other platforms are not updated."""
@@ -1537,7 +1553,7 @@ def test_run_lock_with_update_filter_platform(
 @pytest.mark.timeout(120)
 def test_remove_dependency(
     monkeypatch: "pytest.MonkeyPatch",
-    update_environment_dependency_removal: Tuple[Path, Path],
+    update_environment_dependency_removal: tuple[Path, Path],
     conda_exe: str,
 ):
     pre_env = update_environment_dependency_removal[0]
@@ -1559,7 +1575,7 @@ def test_remove_dependency(
 @pytest.mark.timeout(120)
 def test_move_dependency_from_pip_section(
     monkeypatch: "pytest.MonkeyPatch",
-    update_environment_move_pip_dependency: Tuple[Path, Path],
+    update_environment_move_pip_dependency: tuple[Path, Path],
     conda_exe: str,
 ):
     pre_env = update_environment_move_pip_dependency[0]
@@ -1909,7 +1925,11 @@ def test_aggregate_lock_specs():
     assert actual.model_dump(exclude={"sources"}) == expected.model_dump(
         exclude={"sources"}
     )
-    assert actual.content_hash(None) == expected.content_hash(None)
+    actual_content_hashes = compute_content_hashes(actual, virtual_package_repo=None)
+    expected_content_hashes = compute_content_hashes(
+        expected, virtual_package_repo=None
+    )
+    assert actual_content_hashes == expected_content_hashes
 
 
 def test_aggregate_lock_specs_override_version():
@@ -2348,7 +2368,7 @@ def test_install(
 
     prefix = root_prefix / "test_env"
 
-    context: ContextManager
+    context: contextlib.AbstractContextManager
     if sys.platform.lower().startswith("linux"):
         context = contextlib.nullcontext()
     else:
@@ -2405,7 +2425,7 @@ def test_install_with_pip_deps(
     package = "requests"
     prefix = root_prefix / "test_env"
 
-    context: ContextManager
+    context: contextlib.AbstractContextManager
     if sys.platform.lower().startswith("linux"):
         context = contextlib.nullcontext()
     else:
@@ -2440,14 +2460,14 @@ def test_install_multiple_subcategories(
     tmp_path: Path,
     conda_exe: str,
     install_multiple_categories_lockfile: Path,
-    categories: List[str],
+    categories: list[str],
     install_lock,
 ):
     root_prefix = tmp_path / "root_prefix"
     root_prefix.mkdir(exist_ok=True)
     prefix = root_prefix / "test_env"
 
-    context: ContextManager
+    context: contextlib.AbstractContextManager
     if sys.platform.lower().startswith("linux"):
         context = contextlib.nullcontext()
     else:
@@ -2644,7 +2664,7 @@ def test__strip_auth_from_lockfile(lockfile: str, stripped_lockfile: str):
         ),
     ),
 )
-def test__add_auth_to_line(line: str, auth: Dict[str, str], line_with_auth: str):
+def test__add_auth_to_line(line: str, auth: dict[str, str], line_with_auth: str):
     assert _add_auth_to_line(line, auth) == line_with_auth
 
 
@@ -2668,7 +2688,7 @@ def auth_():
     ),
 )
 def test__add_auth_to_lockfile(
-    stripped_lockfile: str, lockfile_with_auth: str, auth: Dict[str, str]
+    stripped_lockfile: str, lockfile_with_auth: str, auth: dict[str, str]
 ):
     assert _add_auth_to_lockfile(stripped_lockfile, auth) == lockfile_with_auth
 
@@ -2755,12 +2775,30 @@ def test_virtual_package_input_hash_stability():
     vpr = virtual_package_repo_from_specification(vspec)
 
     expected = "8ee5fc79fca4cb7732d2e88443209e0a3a354da9899cb8899d94f9b1dcccf975"
-    assert spec.content_hash(vpr) == {"linux-64": expected}
+    assert compute_content_hashes(spec, vpr) == {"linux-64": expected}
 
 
 def test_default_virtual_package_input_hash_stability():
     from conda_lock.virtual_package import default_virtual_package_repodata
 
+    # This is the hash that conda-lock v2 would produce.
+    expected = {
+        "linux-64": "a949aac83da089258ce729fcd54dc0a3a1724ea325d67680d7a6d7cc9c0f1d1b",
+        "linux-aarch64": "f68603a3a28dbb03d20a25e1dacda3c42b6acc8a93bd31e13c4956115820cfa6",
+        "linux-ppc64le": "ababb6bc556ac8c9e27a499bf9b83b5757f6ded385caa0c3d7bf3f360dfe358d",
+        "osx-64": "b7eebe4be0654740f67e3023f2ede298f390119ef225f50ad7e7288ea22d5c93",
+        "osx-arm64": "cc82018d1b1809b9aebacacc5ed05ee6a4318b3eba039607d2a6957571f8bf2b",
+        "win-64": "44239e9f0175404e62e4a80bb8f4be72e38c536280d6d5e484e52fa04b45c9f6",
+    }
+    spec = LockSpecification(
+        dependencies={platform: [] for platform in expected.keys()},
+        channels=[],
+        sources=[],
+    )
+    vpr = default_virtual_package_repodata()
+    assert compute_content_hashes(spec, vpr) == expected
+
+    # This is the hash that conda-lock v3.0.0, v3.0.1, and v3.0.2 would produce.
     expected = {
         "linux-64": "ebfbb8130f916103373e6521bfb129825cded8b0c3e93f430cc834d8c3664244",
         "linux-aarch64": "5418156c9b6c5ae92b8558087b5d39ee06c66b5ec405a91b4c7ee23d6cec41e2",
@@ -2769,14 +2807,43 @@ def test_default_virtual_package_input_hash_stability():
         "osx-arm64": "bb227bce8532d0eee9396306045e270525b110103f4c54be9ac35621baab3dcd",
         "win-64": "1d34ea90abc99d31721cae03335543cbe16ad4e1eaa988e7a7f8563bda2f951d",
     }
+    for platform, hash in expected.items():
+        assert hash in backwards_compatible_content_hashes(spec, vpr, platform)
 
+
+def test_default_virtual_package_input_hash_stability_cuda_version():
+    from conda_lock.virtual_package import default_virtual_package_repodata
+
+    CUDA_VERSION = "9.0"
+
+    # This is the hash that conda-lock v2 would produce.
+    expected = {
+        "linux-64": "0257887bdd38bfe371e508a3d00710f82bcc0ffa06ae87a088aa2854fb6f5525",
+        "linux-aarch64": "4c3242ac2adfe9f8d3e34b377db8da48a834c7a3a126cfa84e385cf1bd6bc55f",
+        "linux-ppc64le": "f551f44ac5ea6e3155a05ad2b024049f93857043c44df5a067cc0207d99b397d",
+        "osx-64": "b7eebe4be0654740f67e3023f2ede298f390119ef225f50ad7e7288ea22d5c93",
+        "osx-arm64": "cc82018d1b1809b9aebacacc5ed05ee6a4318b3eba039607d2a6957571f8bf2b",
+        "win-64": "cf8f3a86e85e953c5a760709b9485c2035de349350924d9f38dfd3161b41842b",
+    }
     spec = LockSpecification(
         dependencies={platform: [] for platform in expected.keys()},
         channels=[],
         sources=[],
     )
-    vpr = default_virtual_package_repodata()
-    assert spec.content_hash(vpr) == expected
+    vpr = default_virtual_package_repodata(cuda_version=CUDA_VERSION)
+    assert compute_content_hashes(spec, vpr) == expected
+
+    # This is the hash that conda-lock v3.0.0, v3.0.1, and v3.0.2 would produce.
+    expected = {
+        "linux-64": "3e46169a88764ee0b4c1a906bb8bb4e47ee346f2d3fcca166d144615f76c7b4f",
+        "linux-aarch64": "9548afc17f91da634ae3b841313f1a7bd5596fbfea35e5597d2eb599c4317d2f",
+        "linux-ppc64le": "2a9e00acf651dc0bbb19a12b076388616c90257b37a76ef5c5fb9ed669986157",
+        "osx-64": "e2236a55963b8a15f6702e885eb44c7ce3f294c638cc91aa770e23435f77d18e",
+        "osx-arm64": "bb227bce8532d0eee9396306045e270525b110103f4c54be9ac35621baab3dcd",
+        "win-64": "c1effdfa1f4ce1f8c63c64c02d2b395801f792a45dff966c72fa7e36126a7bd7",
+    }
+    for platform, hash in expected.items():
+        assert hash in backwards_compatible_content_hashes(spec, vpr, platform)
 
 
 @pytest.fixture
@@ -3071,7 +3138,7 @@ def test_get_pkgs_dirs(conda_exe):
         ),
     ],
 )
-def test_get_pkgs_dirs_mocked_output(info_file: str, expected: Optional[List[Path]]):
+def test_get_pkgs_dirs_mocked_output(info_file: str, expected: Optional[list[Path]]):
     """Test _get_pkgs_dirs with mocked subprocess.check_output."""
     info_path = TESTS_DIR / "test-get-pkgs-dirs" / info_file
     command_output = info_path.read_bytes()
@@ -3165,7 +3232,7 @@ def test_manylinux_tags():
 
     # Verify that the default repodata uses the highest glibc version
     default_repodata = default_virtual_package_repodata()
-    glibc_versions_in_default_repodata: Set[Version] = {
+    glibc_versions_in_default_repodata: set[Version] = {
         Version(package.version)
         for package in default_repodata.packages_by_subdir
         if package.name == "__glibc"
@@ -3229,7 +3296,20 @@ def test_platformenv_linux_platforms():
 
     # Check that we get the default platforms when the virtual packages are nonempty
     # but don't include __glibc
-    platform_virtual_packages = {"x.bz2": {"name": "not_glibc"}}
+    platform_virtual_packages: dict[PackageNameStr, HashableVirtualPackage] = {
+        "x.bz2": {
+            "name": "__not_glibc",
+            "version": "1",
+            "subdir": "linux-64",
+            "build": "x86_64",
+            "build_number": 0,
+            "build_string": "x86_64",
+            "noarch": "",
+            "depends": [],
+            "timestamp": 1714857600,
+            "package_type": "virtual_system",
+        }
+    }
     e = PlatformEnv(
         python_version="3.12",
         platform="linux-64",
@@ -3240,7 +3320,10 @@ def test_platformenv_linux_platforms():
     # Check that we get the expected platforms when using the default repodata.
     # (This should include the glibc corresponding to the latest manylinux tag.)
     default_repodata = default_virtual_package_repodata()
-    platform_virtual_packages = default_repodata.all_repodata["linux-64"]["packages"]
+    platform_repodata = default_repodata.all_repodata["linux-64"]
+    assert "packages" in platform_repodata
+    platform_repodata = cast(SubdirMetadata, platform_repodata)
+    platform_virtual_packages = platform_repodata["packages"]
     e = PlatformEnv(
         python_version="3.12",
         platform="linux-64",
@@ -3271,9 +3354,18 @@ def test_platformenv_linux_platforms():
         "manylinux1_x86_64",
         "linux_x86_64",
     ]
-    platform_virtual_packages["__glibc-2.17-0.tar.bz2"] = dict(
-        name="__glibc", version="2.17"
-    )
+    platform_virtual_packages["__glibc-2.17-0.tar.bz2"] = {
+        "name": "__glibc",
+        "version": "2.17",
+        "build_string": "",
+        "build_number": 0,
+        "build": "0",
+        "noarch": "",
+        "depends": [],
+        "timestamp": 1577854800000,
+        "package_type": "virtual_system",
+        "subdir": "linux-64",
+    }
     e = PlatformEnv(
         python_version="3.12",
         platform="linux-64",
@@ -3282,9 +3374,18 @@ def test_platformenv_linux_platforms():
     assert e._platforms == restricted_platforms
 
     # Check that a warning is raised when there are multiple glibc versions
-    platform_virtual_packages["__glibc-2.28-0.tar.bz2"] = dict(
-        name="__glibc", version="2.28"
-    )
+    platform_virtual_packages["__glibc-2.28-0.tar.bz2"] = {
+        "name": "__glibc",
+        "version": "2.28",
+        "build_string": "",
+        "build_number": 0,
+        "build": "0",
+        "noarch": "",
+        "depends": [],
+        "timestamp": 1577854800000,
+        "package_type": "virtual_system",
+        "subdir": "linux-64",
+    }
     with pytest.warns(UserWarning):
         e = PlatformEnv(
             python_version="3.12",
@@ -3365,7 +3466,7 @@ def test_when_merging_lockfiles_content_hashes_are_updated(
         mapping_url=DEFAULT_MAPPING_URL,
     )
 
-    def get_content_hashes_for_lock_file(lock_file: Path) -> typing.Dict[str, str]:
+    def get_content_hashes_for_lock_file(lock_file: Path) -> dict[str, str]:
         lock_file_dict = yaml.safe_load(lock_file.read_text())
         return lock_file_dict["metadata"]["content_hash"]
 
@@ -3378,3 +3479,71 @@ def test_when_merging_lockfiles_content_hashes_are_updated(
     )
     postupdate_hashes = get_content_hashes_for_lock_file(work_path / "conda-lock.yml")
     assert preupdate_hashes != postupdate_hashes
+
+
+def test_update_with_changed_channels_raises_error(
+    tmp_path: Path, conda_exe: str
+) -> None:
+    """Test that updating with changed channels raises an error."""
+
+    # Create a simple environment file
+    environment_yml = tmp_path / "environment.yml"
+    environment_yml.write_text("""
+channels:
+  - conda-forge
+dependencies:
+  - python=3.9
+""")
+    from conda_lock.lockfile.v1.models import (
+        HashModel,
+        LockedDependency,
+        Lockfile,
+        LockMeta,
+    )
+
+    # Create an existing lockfile with different channels
+    lockfile_path = tmp_path / "conda-lock.yml"
+    existing_lockfile = Lockfile(
+        package=[
+            LockedDependency(
+                name="python",
+                version="3.9.18",
+                manager="conda",
+                platform="linux-64",
+                url="https://conda.anaconda.org/defaults/linux-64/python-3.9.18-h955ad1f_0.conda",
+                hash=HashModel(md5="abc123", sha256="def456"),
+                category="main",
+                optional=False,
+            )
+        ],
+        metadata=LockMeta(
+            content_hash={"linux-64": "test_hash"},
+            channels=[
+                Channel.from_string("defaults")
+            ],  # Different from environment.yml
+            platforms=["linux-64"],
+            sources=["environment.yml"],
+        ),
+    )
+
+    # Write the existing lockfile
+    with open(lockfile_path, "w") as f:
+        yaml.dump(existing_lockfile.dict_for_output(), f)
+
+    # Try to update - this should raise an error
+    with pytest.raises(RuntimeError) as exc_info:
+        make_lock_files(
+            conda=conda_exe,
+            src_files=[environment_yml],
+            kinds=["lock"],
+            lockfile_path=lockfile_path,
+            update=["python"],  # Try to update python
+            mapping_url=DEFAULT_MAPPING_URL,
+        )
+
+    # Verify the error message contains the expected information
+    error_msg = str(exc_info.value)
+    assert "channel configuration has changed" in error_msg
+    assert "defaults" in error_msg
+    assert "conda-forge" in error_msg
+    assert "without the --update flag" in error_msg

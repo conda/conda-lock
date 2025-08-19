@@ -1,5 +1,8 @@
 name: Run conda-lock to update dependencies
 
+# Disable default permissions and grant minimal required permissions
+permissions: {}
+
 on:
   workflow_dispatch:
   schedule:
@@ -21,10 +24,15 @@ jobs:
         # <https://github.com/mamba-org/provision-with-micromamba#important>
         shell: bash -l {0}
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: write  # for uploading artifacts
     steps:
-    - uses: actions/checkout@eef61447b9ff4aafe5dcd4e0bbf5d482be7e7871 # v4
+    - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
+      with:
+        persist-credentials: false
     - name: Install Micromamba
-      uses: mamba-org/setup-micromamba@v2
+      uses: mamba-org/setup-micromamba@b09ef9b599704322748535812ca03efb2625677b # v2
       with:
         environment-file: environments/conda-lock.yml
         environment-name: conda-lock-dev
@@ -51,8 +59,14 @@ jobs:
   create-pr:
     needs: create-lockfiles
     runs-on: ubuntu-latest
+    permissions:
+      contents: write     # for creating pull requests
+      pull-requests: write # for creating pull requests
+      actions: read       # for downloading artifacts
     steps:
-    - uses: actions/checkout@eef61447b9ff4aafe5dcd4e0bbf5d482be7e7871 # v4
+    - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
+      with:
+        persist-credentials: false
 
     - name: Download all lockfiles
       uses: actions/download-artifact@v4
@@ -60,7 +74,7 @@ jobs:
         path: environments/
 
     - name: Open a pull request
-      uses: peter-evans/create-pull-request@v7
+      uses: peter-evans/create-pull-request@271a8d0340265f705b14b6d32b9829c1cb33d45e # v7
       with:
         # # The default GITHUB_TOKEN doesn't allow other workflows to trigger.
         # # Thus if there are tests to be run, they won't be run. For more info,

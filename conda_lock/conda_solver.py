@@ -9,22 +9,15 @@ import sys
 import tempfile
 import time
 
+from collections.abc import Iterable, Iterator, MutableSequence, Sequence
 from contextlib import contextmanager
 from textwrap import dedent
 from typing import (
     Any,
-    Dict,
-    Iterable,
-    Iterator,
-    List,
     Literal,
-    MutableSequence,
     Optional,
-    Sequence,
 )
 from urllib.parse import urlsplit, urlunsplit
-
-from typing_extensions import TypedDict
 
 from conda_lock.interfaces.vendored_conda import MatchSpec
 from conda_lock.invoke_conda import (
@@ -37,52 +30,11 @@ from conda_lock.invoke_conda import (
 from conda_lock.lockfile import apply_categories
 from conda_lock.lockfile.v2prelim.models import HashModel, LockedDependency
 from conda_lock.models.channel import Channel, normalize_url_with_placeholders
+from conda_lock.models.dry_run_install import DryRunInstall, FetchAction, LinkAction
 from conda_lock.models.lock_spec import Dependency, VersionedDependency
 
 
 logger = logging.getLogger(__name__)
-
-
-class FetchAction(TypedDict):
-    """
-    FETCH actions include all the entries from the corresponding package's
-    repodata.json
-    """
-
-    channel: str
-    constrains: Optional[List[str]]
-    depends: Optional[List[str]]
-    fn: str
-    md5: str
-    sha256: Optional[str]
-    name: str
-    subdir: str
-    timestamp: int
-    url: str
-    version: str
-
-
-class LinkAction(TypedDict):
-    """
-    LINK actions include only entries from conda-meta, notably missing
-    dependency and constraint information
-    """
-
-    base_url: str
-    channel: str
-    dist_name: str
-    name: str
-    platform: str
-    version: str
-
-
-class InstallActions(TypedDict):
-    LINK: List[LinkAction]
-    FETCH: List[FetchAction]
-
-
-class DryRunInstall(TypedDict):
-    actions: InstallActions
 
 
 def _to_match_spec(
@@ -101,7 +53,7 @@ def _to_match_spec(
     if conda_channel:
         kwargs["channel"] = conda_channel
 
-    ms = MatchSpec(**kwargs)
+    ms = MatchSpec(**kwargs)  # pyright: ignore[reportArgumentType]
     # Since MatchSpec doesn't round trip to the cli well
     if conda_channel:
         # this will return "channel_name::package_name"
@@ -120,13 +72,13 @@ def extract_json_object(proc_stdout: str) -> str:
 
 def solve_conda(
     conda: PathLike,
-    specs: Dict[str, Dependency],
-    locked: Dict[str, LockedDependency],
-    update: List[str],
+    specs: dict[str, Dependency],
+    locked: dict[str, LockedDependency],
+    update: list[str],
     platform: str,
-    channels: List[Channel],
+    channels: list[Channel],
     mapping_url: str,
-) -> Dict[str, LockedDependency]:
+) -> dict[str, LockedDependency]:
     """
     Solve (or update a previous solution of) conda specs for the given platform
 
@@ -178,7 +130,7 @@ def solve_conda(
     for action in dry_run_install["actions"]["FETCH"]:
         dependencies = {}
         for dep in action.get("depends") or []:
-            matchspec = MatchSpec(dep)
+            matchspec = MatchSpec(dep)  # pyright: ignore[reportArgumentType]
             name = matchspec.name
             version = (
                 matchspec.version.spec_str if matchspec.version is not None else ""
@@ -212,7 +164,7 @@ def solve_conda(
 
 
 def _get_repodata_record(
-    pkgs_dirs: List[pathlib.Path], dist_name: str
+    pkgs_dirs: list[pathlib.Path], dist_name: str
 ) -> Optional[FetchAction]:
     """Get the repodata_record.json of a given distribution from the package cache.
 
@@ -243,7 +195,7 @@ def _get_pkgs_dirs(
     conda: PathLike,
     platform: str,
     method: Optional[Literal["config", "info"]] = None,
-) -> List[pathlib.Path]:
+) -> list[pathlib.Path]:
     """Extract the package cache directories from the conda configuration."""
     if method is None:
         method = "config" if is_micromamba(conda) else "info"
@@ -255,8 +207,8 @@ def _get_pkgs_dirs(
     env = conda_env_override(platform)
     output = subprocess.check_output(args, env=env).decode()
     json_object_str = extract_json_object(output)
-    json_object: Dict[str, Any] = json.loads(json_object_str)
-    pkgs_dirs_list: List[str]
+    json_object: dict[str, Any] = json.loads(json_object_str)
+    pkgs_dirs_list: list[str]
     if "pkgs_dirs" in json_object:
         pkgs_dirs_list = json_object["pkgs_dirs"]
     elif "package cache" in json_object:
@@ -318,7 +270,7 @@ def _reconstruct_fetch_actions(
 def solve_specs_for_arch(
     conda: PathLike,
     channels: Sequence[Channel],
-    specs: List[str],
+    specs: list[str],
     platform: str,
 ) -> DryRunInstall:
     """
@@ -397,7 +349,7 @@ def _get_installed_conda_packages(
     conda: PathLike,
     platform: str,
     prefix: str,
-) -> Dict[str, LinkAction]:
+) -> dict[str, LinkAction]:
     """
     Get the installed conda packages for the given prefix.
 
@@ -429,7 +381,7 @@ def _get_installed_conda_packages(
             # Re-raise if it's a different error.
             raise
     decoded_output = output.decode("utf-8")
-    installed: Dict[str, LinkAction] = {
+    installed: dict[str, LinkAction] = {
         entry["name"]: entry for entry in json.loads(decoded_output)
     }
     return installed
@@ -437,9 +389,9 @@ def _get_installed_conda_packages(
 
 def update_specs_for_arch(
     conda: PathLike,
-    specs: List[str],
-    locked: Dict[str, LockedDependency],
-    update: List[str],
+    specs: list[str],
+    locked: dict[str, LockedDependency],
+    update: list[str],
     platform: str,
     channels: Sequence[Channel],
 ) -> DryRunInstall:
@@ -535,34 +487,18 @@ def update_specs_for_arch(
 
         updated = {entry["name"]: entry for entry in dryrun_install["actions"]["LINK"]}
         for package in set(installed).difference(updated):
-            entry = installed[package]
-            fn = f"{entry['dist_name']}.tar.bz2"
-            channel = f"{entry['base_url']}/{entry['platform']}"
-            url = f"{channel}/{fn}"
-            md5 = locked[package].hash.md5
-            if md5 is None:
-                raise RuntimeError("Conda packages require non-null md5 hashes")
-            sha256 = locked[package].hash.sha256
-            dryrun_install["actions"]["FETCH"].append(
-                {
-                    "name": entry["name"],
-                    "channel": channel,
-                    "url": url,
-                    "fn": fn,
-                    "md5": md5,
-                    "sha256": sha256,
-                    "version": entry["version"],
-                    "depends": [
-                        f"{k} {v}".strip()
-                        for k, v in locked[entry["name"]].dependencies.items()
-                    ],
-                    "constrains": [],
-                    "subdir": entry["platform"],
-                    "timestamp": 0,
-                }
-            )
-            dryrun_install["actions"]["LINK"].append(entry)
-        return _reconstruct_fetch_actions(conda, platform, dryrun_install)
+            # This is the case where the package is unchanged.
+            # First create a FETCH action based on the original lockfile entry.
+            original_lockfile_entry = locked[package]
+            original_fetch_action = original_lockfile_entry.to_fetch_action()
+            dryrun_install["actions"]["FETCH"].append(original_fetch_action)
+
+            # Then create a LINK action to indicate that the package is installed.
+            installed_link_action = installed[package]
+            dryrun_install["actions"]["LINK"].append(installed_link_action)
+
+        reconstructed = _reconstruct_fetch_actions(conda, platform, dryrun_install)
+        return reconstructed
 
 
 @contextmanager

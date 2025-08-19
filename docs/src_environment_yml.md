@@ -56,7 +56,7 @@ category: dev
 
 The default category is `main`.
 
-These can be used in a [compound specification](/compound_specification) as follows.
+These can be used in a **compound specification** as follows.
 
 ```sh
 conda-lock --file environment.yml --file dev-environment.yml

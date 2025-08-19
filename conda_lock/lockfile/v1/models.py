@@ -6,13 +6,11 @@ import logging
 import pathlib
 
 from collections import namedtuple
+from collections.abc import Set
 from typing import (
     TYPE_CHECKING,
-    AbstractSet,
     Any,
     ClassVar,
-    Dict,
-    List,
     Optional,
     Union,
 )
@@ -21,12 +19,16 @@ from typing import (
 if TYPE_CHECKING:
     from hashlib import _Hash
 
+from pathlib import PurePosixPath
+from urllib.parse import SplitResult, urlsplit, urlunsplit
+
 from pydantic import Field, ValidationInfo, field_validator
 from typing_extensions import Literal
 
 from conda_lock.common import ordered_union, relative_path
 from conda_lock.models import StrictModel
 from conda_lock.models.channel import Channel
+from conda_lock.models.dry_run_install import FetchAction
 
 
 logger = logging.getLogger(__name__)
@@ -50,7 +52,7 @@ class BaseLockedDependency(StrictModel):
     version: str
     manager: Literal["conda", "pip"]
     platform: str
-    dependencies: Dict[str, str] = {}
+    dependencies: dict[str, str] = {}
     url: str
     hash: HashModel
     source: Optional[DependencySource] = None
@@ -65,6 +67,83 @@ class BaseLockedDependency(StrictModel):
         if (info.data["manager"] == "conda") and (v.md5 is None):
             raise ValueError("conda package hashes must use MD5")
         return v
+
+    @field_validator("url")
+    @classmethod
+    def validate_url(cls, v: str) -> str:
+        if not v:
+            raise ValueError("URL cannot be empty")
+        return v
+
+    def to_fetch_action(self) -> FetchAction:
+        """
+        Build a FETCH action from this LockedDependency.
+
+        This method is used to create a representation of a conda package
+        that can be used by the installer.
+
+        This is particularly useful during a lockfile update (`--update`).
+        For packages that are not being updated, conda-lock determines their
+        details by inspecting the state of the solver's fake environment
+        (e.g., via `conda list --json`). However, this inspection does not
+        reveal the original package's file extension (`.conda` vs. `.tar.bz2`),
+        as that information is not stored in the installed package metadata.
+
+        By using this method on an existing `LockedDependency` from the old
+        lockfile, we can use the stored `url` to accurately preserve the
+        original filename and extension.
+        """
+        if self.manager != "conda":
+            raise ValueError("Only conda packages can be converted to FETCH actions")
+        if self.hash.md5 is None:
+            raise RuntimeError(
+                "Conda packages are already validated to have an MD5 hash"
+            )
+        # Parse the stored URL
+        parts = urlsplit(self.url)
+        path = PurePosixPath(parts.path)
+
+        # platform directory is the parent of the filename
+        parsed_platform = path.parent.name  # e.g. "linux-64"
+        # Note that self.platform is the concrete target platform.
+        # Noarch packages can be installed on any platform, so such
+        # a mismatch is no contradiction.
+        if self.platform != parsed_platform and parsed_platform != "noarch":
+            raise ValueError(
+                f"Platform mismatch for package {self.name} {self.version}. "
+                f"Expected '{self.platform}' but URL '{self.url}' contains '{parsed_platform}'."
+            )
+        filename_with_extension = path.name  # e.g. "tzdata-2022g-h191b570_0.conda"
+
+        # base_url is everything up to the platform directory
+        base_url_path = str(path.parent.parent)  # e.g. "/conda-forge"
+        base_url_parts = SplitResult(
+            scheme=parts.scheme,  # e.g. "https"
+            netloc=parts.netloc,  # e.g. "user:pass@conda.anaconda.org"
+            path=base_url_path,  # e.g. "/conda-forge"
+            query="",
+            fragment="",
+        )
+        base_url = urlunsplit(
+            base_url_parts
+        )  # e.g. "https://user:pass@conda.anaconda.org/conda-forge"
+
+        channel_url = f"{base_url}/{self.platform}"  # e.g. "https://user:pass@conda.anaconda.org/conda-forge/linux-64"
+
+        fetch_action = FetchAction(
+            name=self.name,
+            version=self.version,
+            channel=channel_url,
+            url=self.url,
+            fn=filename_with_extension,
+            md5=self.hash.md5,
+            sha256=self.hash.sha256,
+            depends=[f"{k} {v}".strip() for k, v in self.dependencies.items()],
+            constrains=[],
+            subdir=self.platform,
+            timestamp=0,
+        )
+        return fetch_action
 
 
 class LockedDependency(BaseLockedDependency):
@@ -118,8 +197,8 @@ class GitMeta(StrictModel):
     @classmethod
     def create(
         cls,
-        metadata_choices: AbstractSet[MetadataOption],
-        src_files: List[pathlib.Path],
+        metadata_choices: Set[MetadataOption],
+        src_files: list[pathlib.Path],
     ) -> "GitMeta | None":
         try:
             import git
@@ -182,7 +261,7 @@ class InputMeta(StrictModel):
 
     @classmethod
     def create(
-        cls, metadata_choices: AbstractSet[MetadataOption], src_file: pathlib.Path
+        cls, metadata_choices: Set[MetadataOption], src_file: pathlib.Path
     ) -> "InputMeta":
         if MetadataOption.InputSha in metadata_choices:
             sha256 = cls.get_input_sha256(src_file=src_file)
@@ -215,14 +294,14 @@ class InputMeta(StrictModel):
 
 
 class LockMeta(StrictModel):
-    content_hash: Dict[str, str] = Field(
+    content_hash: dict[str, str] = Field(
         ..., description="Hash of dependencies for each target platform"
     )
-    channels: List[Channel] = Field(
+    channels: list[Channel] = Field(
         ..., description="Channels used to resolve dependencies", validate_default=True
     )
-    platforms: List[str] = Field(..., description="Target platforms")
-    sources: List[str] = Field(
+    platforms: list[str] = Field(..., description="Target platforms")
+    sources: list[str] = Field(
         ...,
         description="paths to source files, relative to the parent directory of the lockfile",
     )
@@ -235,11 +314,11 @@ class LockMeta(StrictModel):
             "Metadata dealing with the git repo the lockfile was created in and the user that created it"
         ),
     )
-    inputs_metadata: Optional[Dict[str, InputMeta]] = Field(
+    inputs_metadata: Optional[dict[str, InputMeta]] = Field(
         default=None,
         description="Metadata dealing with the input files used to create the lockfile",
     )
-    custom_metadata: Optional[Dict[str, str]] = Field(
+    custom_metadata: Optional[dict[str, str]] = Field(
         default=None,
         description="Custom metadata provided by the user to be added to the lockfile",
     )
@@ -286,8 +365,8 @@ class LockMeta(StrictModel):
 
     @field_validator("channels", mode="before")
     @classmethod
-    def ensure_channels(cls, v: List[Union[str, Channel]]) -> List[Channel]:
-        res: List[Channel] = []
+    def ensure_channels(cls, v: list[Union[str, Channel]]) -> list[Channel]:
+        res: list[Channel] = []
         for e in v:
             if isinstance(e, str):
                 res.append(Channel.from_string(e))
@@ -299,10 +378,10 @@ class LockMeta(StrictModel):
 class Lockfile(StrictModel):
     version: ClassVar[int] = 1
 
-    package: List[LockedDependency]
+    package: list[LockedDependency]
     metadata: LockMeta
 
-    def dict_for_output(self) -> Dict[str, Any]:
+    def dict_for_output(self) -> dict[str, Any]:
         """Convert the lockfile to a dictionary that can be written to a file."""
         return {
             "version": Lockfile.version,

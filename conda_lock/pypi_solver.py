@@ -9,11 +9,8 @@ from pathlib import Path
 from posixpath import expandvars
 from typing import (
     TYPE_CHECKING,
-    Dict,
-    List,
     Literal,
     Optional,
-    Tuple,
     cast,
 )
 from urllib.parse import urldefrag, urlsplit, urlunsplit
@@ -28,6 +25,7 @@ from conda_lock._vendor.cleo.io.null_io import NullIO
 from conda_lock._vendor.cleo.io.outputs.output import Verbosity
 from conda_lock._vendor.cleo.io.outputs.stream_output import StreamOutput
 from conda_lock._vendor.poetry.repositories.http_repository import HTTPRepository
+from conda_lock.content_hash_types import HashableVirtualPackage
 from conda_lock.interfaces.vendored_poetry import (
     Chooser,
     Config,
@@ -64,7 +62,8 @@ if TYPE_CHECKING:
 # NB: in principle these depend on the glibc on the machine creating the conda env.
 # We use tags supported by manylinux Docker images, which are likely the most common
 # in practice, see https://github.com/pypa/manylinux/blob/main/README.rst#docker-images.
-# NOTE: Keep the max in sync with the default value used in virtual_packages.py
+# NOTE:
+#   Keep the max in sync with the default value used in default-virtual-packages.yaml.
 MANYLINUX_TAGS = ["1", "2010", "2014", "_2_17", "_2_24", "_2_28"]
 
 # This needs to be updated periodically as new macOS versions are released.
@@ -83,14 +82,14 @@ class PlatformEnv(VirtualEnv):
     _sys_platform: Literal["darwin", "linux", "win32"]
     _platform_system: Literal["Darwin", "Linux", "Windows"]
     _os_name: Literal["posix", "nt"]
-    _platforms: List[str]
-    _python_version: Optional[Tuple[int, ...]]
+    _platforms: list[str]
+    _python_version: Optional[tuple[int, ...]]
 
     def __init__(
         self,
         *,
         platform: str,
-        platform_virtual_packages: Optional[Dict[str, dict]] = None,
+        platform_virtual_packages: Optional[dict[str, HashableVirtualPackage]] = None,
         python_version: Optional[str] = None,
     ):
         super().__init__(path=Path(sys.prefix))
@@ -133,7 +132,7 @@ class PlatformEnv(VirtualEnv):
         else:
             raise ValueError(f"Unsupported platform '{platform}'")
 
-    def get_supported_tags(self) -> List["Tag"]:
+    def get_supported_tags(self) -> list["Tag"]:
         """
         Mimic the output of packaging.tags.sys_tags() on the given platform
         """
@@ -145,9 +144,9 @@ class PlatformEnv(VirtualEnv):
             )
         )
 
-    def get_marker_env(self) -> Dict[str, str]:
+    def get_marker_env(self) -> dict[str, str]:
         """Return the subset of info needed to match common markers"""
-        result: Dict[str, str] = {
+        result: dict[str, str] = {
             "sys_platform": self._sys_platform,
             "platform_system": self._platform_system,
             "os_name": self._os_name,
@@ -163,7 +162,7 @@ class PlatformEnv(VirtualEnv):
 
 
 def _extract_glibc_version_from_virtual_packages(
-    platform_virtual_packages: Dict[str, dict],
+    platform_virtual_packages: dict[str, HashableVirtualPackage],
 ) -> Optional[Version]:
     """Get the glibc version from the "package" repodata of a chosen platform.
 
@@ -183,7 +182,7 @@ def _extract_glibc_version_from_virtual_packages(
     >>> _extract_glibc_version_from_virtual_packages({}) is None
     True
     """
-    matches: List[Version] = []
+    matches: list[Version] = []
     for p in platform_virtual_packages.values():
         if p["name"] == "__glibc":
             matches.append(Version(p["version"]))
@@ -223,8 +222,8 @@ def _glibc_version_from_manylinux_tag(tag: str) -> Version:
 
 
 def _compute_compatible_manylinux_tags(
-    platform_virtual_packages: Optional[Dict[str, dict]],
-) -> List[str]:
+    platform_virtual_packages: Optional[dict[str, HashableVirtualPackage]],
+) -> list[str]:
     """Determine the manylinux tags that are compatible with the given platform.
 
     If there is no glibc virtual package, then assume that all manylinux tags are
@@ -305,7 +304,7 @@ REQUIREMENT_PATTERN = re.compile(
 )
 
 
-def parse_pip_requirement(requirement: str) -> Optional[Dict[str, str]]:
+def parse_pip_requirement(requirement: str) -> Optional[dict[str, str]]:
     match = REQUIREMENT_PATTERN.match(requirement)
     if not match:
         return None
@@ -314,7 +313,7 @@ def parse_pip_requirement(requirement: str) -> Optional[Dict[str, str]]:
 
 def get_dependency(dep: lock_spec.Dependency) -> PoetryDependency:
     # FIXME: how do deal with extras?
-    extras: List[str] = []
+    extras: list[str] = []
     if isinstance(dep, lock_spec.VersionedDependency):
         return PoetryDependency(
             name=dep.name, constraint=dep.version or "*", extras=dep.extras
@@ -360,20 +359,20 @@ def get_package(locked: LockedDependency) -> PoetryPackage:
 
 
 def get_requirements(
-    result: List[Operation],
+    result: list[Operation],
     platform: str,
     pool: Pool,
     env: Env,
-    pip_repositories: Optional[List[PipRepository]] = None,
+    pip_repositories: Optional[list[PipRepository]] = None,
     strip_auth: bool = False,
-    lock_spec_hashes: Optional[Dict[str, str]] = None,
-) -> List[LockedDependency]:
+    lock_spec_hashes: Optional[dict[str, str]] = None,
+) -> list[LockedDependency]:
     """Extract distributions from Poetry package plan, ignoring uninstalls
     (usually: conda package with no pypi equivalent) and skipped ops
     (already installed)
     """
     chooser = Chooser(pool, env=env)
-    requirements: List[LockedDependency] = []
+    requirements: list[LockedDependency] = []
     if lock_spec_hashes is None:
         lock_spec_hashes = {}
 
@@ -417,7 +416,7 @@ def get_requirements(
             # https://github.com/conda/conda-lock/blob/ac31f5ddf2951ed4819295238ccf062fb2beb33c/conda_lock/_vendor/poetry/installation/executor.py#L557
             else:
                 link = chooser.choose_for(op.package)
-                url = _get_url(link)
+                url = _get_stripped_url(link)
                 hash = _compute_hash(link, lock_spec_hashes.get(op.package.name))
             if source_repository:
                 url = source_repository.normalize_solver_url(url)
@@ -439,15 +438,48 @@ def get_requirements(
     return requirements
 
 
-def _get_url(link: Link) -> str:
+def _get_stripped_url(link: Link) -> str:
+    """Get the URL for a package link, stripping credentials.
+
+    Basic case, do nothing:
+    >>> _get_stripped_url(Link(url="http://example.com/path/to/file"))
+    'http://example.com/path/to/file'
+
+    Strip credentials:
+    >>> _get_stripped_url(Link(url="http://user:pass@example.com/path/to/file"))
+    'http://example.com/path/to/file'
+
+    Handle a port:
+    >>> _get_stripped_url(Link(url="http://example.com:8080/path/to/file"))
+    'http://example.com:8080/path/to/file'
+
+    Strip credentials while handling a port:
+    >>> _get_stripped_url(Link(url="http://user:pass@example.com:8080/path/to/file"))
+    'http://example.com:8080/path/to/file'
+
+    General case:
+    >>> _get_stripped_url(Link(url="https://user:pass@example.com:8080/path/to/file?query#fragment"))
+    'https://example.com:8080/path/to/file?query'
+    """
     parsed_url = urlsplit(link.url)
-    link.url = link.url.replace(parsed_url.netloc, str(parsed_url.hostname))
-    return link.url_without_fragment
+    # Reconstruct the URL with just hostname:port, no credentials
+    clean_netloc = f"{parsed_url.hostname}"
+    if parsed_url.port is not None:
+        clean_netloc = f"{clean_netloc}:{parsed_url.port}"
+    return urlunsplit(
+        (
+            parsed_url.scheme,
+            clean_netloc,
+            parsed_url.path,
+            parsed_url.query,
+            "",  # Remove fragment
+        )
+    )
 
 
 def _compute_hash(link: Link, lock_spec_hash: Optional[str]) -> HashModel:
     if lock_spec_hash is None:
-        hashes: Dict[str, str] = dict(link.hashes)
+        hashes: dict[str, str] = dict(link.hashes)
         return HashModel.model_validate(hashes)
     else:
         # A hash was provided in the lock spec, so that takes precedence
@@ -469,19 +501,19 @@ def use_vcs_checkout_root(vcs_checkout_root: Path) -> Iterator[Path]:
 
 def solve_pypi(
     *,
-    pip_specs: Dict[str, lock_spec.Dependency],
-    use_latest: List[str],
-    pip_locked: Dict[str, LockedDependency],
-    conda_locked: Dict[str, LockedDependency],
+    pip_specs: dict[str, lock_spec.Dependency],
+    use_latest: list[str],
+    pip_locked: dict[str, LockedDependency],
+    conda_locked: dict[str, LockedDependency],
     python_version: str,
     platform: str,
-    platform_virtual_packages: Optional[Dict[str, dict]] = None,
-    pip_repositories: Optional[List[PipRepository]] = None,
+    platform_virtual_packages: Optional[dict[str, HashableVirtualPackage]] = None,
+    pip_repositories: Optional[list[PipRepository]] = None,
     allow_pypi_requests: bool = True,
     verbose: bool = False,
     strip_auth: bool = False,
     mapping_url: str,
-) -> Dict[str, LockedDependency]:
+) -> dict[str, LockedDependency]:
     """
     Solve pip dependencies for the given platform
 
@@ -512,7 +544,7 @@ def solve_pypi(
 
     """
     dummy_package = PoetryProjectPackage("_dummy_package_", "0.0.0")
-    dependencies: List[PoetryDependency] = [
+    dependencies: list[PoetryDependency] = [
         get_dependency(spec) for spec in pip_specs.values()
     ]
     for dep in dependencies:
@@ -528,8 +560,8 @@ def solve_pypi(
         allow_pypi_requests, pip_repositories=pip_repositories
     )
 
-    installed = []  # type: List[PoetryPackage]
-    locked = []  # type: List[PoetryPackage]
+    installed: list[PoetryPackage] = []
+    locked: list[PoetryPackage] = []
 
     python_packages = dict()
     locked_dep: LockedDependency
@@ -629,7 +661,7 @@ def solve_pypi(
 
 
 def _prepare_repositories_pool(
-    allow_pypi_requests: bool, pip_repositories: Optional[List[PipRepository]] = None
+    allow_pypi_requests: bool, pip_repositories: Optional[list[PipRepository]] = None
 ) -> Pool:
     """
     Prepare the pool of repositories to solve pip dependencies
@@ -641,7 +673,7 @@ def _prepare_repositories_pool(
     """
     factory = Factory()
     config = Config.create()
-    repos: List[HTTPRepository] = []
+    repos: list[HTTPRepository] = []
     pip_repositories = pip_repositories or []
     for pip_repository in pip_repositories:
         creds = pip_repository.expanded_basic_auth

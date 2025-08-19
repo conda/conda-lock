@@ -5,12 +5,25 @@ import os
 import pathlib
 
 from collections import defaultdict
+from collections.abc import Iterable
+from importlib.resources import path
 from types import TracebackType
-from typing import Any, DefaultDict, Dict, Iterable, List, Optional, Set, Tuple, Type
+from typing import (
+    Literal,
+    Optional,
+    Union,
+)
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
+from typing_extensions import TypeAlias
 
-from conda_lock.interfaces.vendored_conda import MatchSpec
+from conda_lock.content_hash_types import (
+    HashableVirtualPackage,
+    HashableVirtualPackageRepresentation,
+    PackageNameStr,
+    PlatformSubdirStr,
+    SubdirMetadata,
+)
 from conda_lock.models.channel import Channel
 
 
@@ -19,39 +32,77 @@ logger = logging.getLogger(__name__)
 # datetime.datetime(2020, 1, 1).timestamp()
 DEFAULT_TIME = 1577854800000
 
+VirtualPackageVersion: TypeAlias = str
 
-class FakePackage(BaseModel):
-    """A minimal representation of the required metadata for a conda package"""
+
+with path("conda_lock", "default-virtual-packages.yaml") as p:
+    DEFAULT_VIRTUAL_PACKAGES_YAML_PATH = p
+
+
+class VirtualPackage(BaseModel):
+    """A minimal representation of the required metadata for a virtual package.
+
+    This is used by our specification. It's then converted to a FullVirtualPackage
+    for computing the content hash. Then it's converted to a dict to be used in
+    repodata.json.
+    """
 
     model_config = ConfigDict(frozen=True)
 
-    name: str
-    version: str = "1.0"
+    name: PackageNameStr
+    version: VirtualPackageVersion
     build_string: str = ""
+
+    def to_full_virtual_package(self) -> "FullVirtualPackage":
+        return FullVirtualPackage(
+            name=self.name,
+            version=self.version,
+            build_string=self.build_string,
+        )
+
+    def to_repodata_entry(
+        self, *, subdir: PlatformSubdirStr
+    ) -> tuple[str, HashableVirtualPackage]:
+        p = self.to_full_virtual_package()
+        out: HashableVirtualPackage = {
+            "name": p.name,
+            "version": p.version,
+            "build_string": p.build_string,
+            "build_number": p.build_number,
+            "noarch": p.noarch,
+            "depends": list(p.depends),
+            "timestamp": p.timestamp,
+            "package_type": p.package_type,
+            "build": p.build,
+            "subdir": subdir,
+        }
+        fname = f"{self.name}-{self.version}-{p.build}.tar.bz2"
+        return fname, out
+
+
+class FullVirtualPackage(VirtualPackage):
+    """Everything necessary for repodata.json except subdir"""
+
     build_number: int = 0
     noarch: str = ""
-    depends: Tuple[str, ...] = Field(default_factory=tuple)
+    depends: tuple[str, ...] = Field(default_factory=tuple)
     timestamp: int = DEFAULT_TIME
     package_type: Optional[str] = "virtual_system"
 
-    def to_repodata_entry(self) -> Tuple[str, Dict[str, Any]]:
-        out = self.model_dump()
+    @property
+    def build(self) -> str:
         if self.build_string:
-            build = self.build_string
+            return self.build_string
         else:
-            build = str(self.build_number)
-        out["depends"] = list(out["depends"])
-        out["build"] = build
-        fname = f"{self.name}-{self.version}-{build}.tar.bz2"
-        return fname, out
+            return str(self.build_number)
 
 
 class FakeRepoData(BaseModel):
     base_path: pathlib.Path
-    packages_by_subdir: DefaultDict[FakePackage, Set[str]] = Field(
+    packages_by_subdir: defaultdict[FullVirtualPackage, set[PackageNameStr]] = Field(
         default_factory=lambda: defaultdict(set)  # type: ignore[arg-type,unused-ignore]
     )
-    all_subdirs: Set[str] = {
+    all_subdirs: set[PlatformSubdirStr] = {
         "noarch",
         "linux-aarch64",
         "linux-ppc64le",
@@ -60,9 +111,9 @@ class FakeRepoData(BaseModel):
         "osx-arm64",
         "win-64",
     }
-    all_repodata: Dict[str, Dict[str, Any]] = {}
+    all_repodata: HashableVirtualPackageRepresentation = {}
     hash: Optional[str] = None
-    old_env_vars: Dict[str, Optional[str]] = {}
+    old_env_vars: dict[str, Optional[str]] = {}
 
     @property
     def channel_url(self) -> str:
@@ -86,20 +137,21 @@ class FakeRepoData(BaseModel):
         else:
             return f"file://{self.base_path.absolute().as_posix()}"
 
-    def add_package(self, package: FakePackage, subdirs: Iterable[str] = ()) -> None:
+    def add_package(
+        self, package: VirtualPackage, subdirs: Iterable[PlatformSubdirStr] = ()
+    ) -> None:
         subdirs = frozenset(subdirs)
         if not subdirs:
             subdirs = frozenset(["noarch"])
-        self.packages_by_subdir[package].update(subdirs)
+        self.packages_by_subdir[package.to_full_virtual_package()].update(subdirs)
 
-    def _write_subdir(self, subdir: str) -> dict:
-        packages: dict = {}
-        out = {"info": {"subdir": subdir}, "packages": packages}
+    def _write_subdir(self, subdir: PlatformSubdirStr) -> SubdirMetadata:
+        packages: dict[PackageNameStr, HashableVirtualPackage] = {}
+        out: SubdirMetadata = {"info": {"subdir": subdir}, "packages": packages}
         for pkg, subdirs in self.packages_by_subdir.items():
             if subdir not in subdirs:
                 continue
-            fname, info_dict = pkg.to_repodata_entry()
-            info_dict["subdir"] = subdir
+            fname, info_dict = pkg.to_repodata_entry(subdir=subdir)
             packages[fname] = info_dict
 
         (self.base_path / subdir).mkdir(exist_ok=True)
@@ -136,7 +188,7 @@ class FakeRepoData(BaseModel):
 
     def __exit__(
         self,
-        exc_type: Optional[Type[BaseException]],
+        exc_type: Optional[type[BaseException]],
         exc: Optional[BaseException],
         traceback: Optional[TracebackType],
     ) -> None:
@@ -168,78 +220,29 @@ def _init_fake_repodata() -> FakeRepoData:
     return repodata
 
 
-OSX_VERSIONS_X86 = ["10.15"]
-OSX_VERSIONS_X68_ARM64 = ["11.0"]
-OSX_VERSIONS_ARM64: List[str] = []
-
-
-def default_virtual_package_repodata(cuda_version: str = "11.4") -> FakeRepoData:
+def default_virtual_package_repodata(
+    cuda_version: Union[Literal["default", ""], VirtualPackageVersion] = "default",
+) -> FakeRepoData:
     """An empty cuda_version indicates that CUDA is unavailable."""
     """Define a reasonable modern set of virtual packages that should be safe enough to assume"""
-    repodata = _init_fake_repodata()
-
-    unix_virtual = FakePackage(name="__unix", version="0")
-    repodata.add_package(
-        unix_virtual,
-        subdirs=["linux-aarch64", "linux-ppc64le", "linux-64", "osx-64", "osx-arm64"],
+    repodata = virtual_package_repo_from_specification(
+        DEFAULT_VIRTUAL_PACKAGES_YAML_PATH,
+        override_cuda_version=cuda_version,
+        add_duplicate_osx_package=True,
     )
-
-    linux_virtual = FakePackage(name="__linux", version="5.10")
-    repodata.add_package(
-        linux_virtual, subdirs=["linux-aarch64", "linux-ppc64le", "linux-64"]
-    )
-
-    win_virtual = FakePackage(name="__win", version="0")
-    repodata.add_package(win_virtual, subdirs=["win-64"])
-
-    archspec_x86 = FakePackage(name="__archspec", version="1", build_string="x86_64")
-    repodata.add_package(archspec_x86, subdirs=["win-64", "linux-64", "osx-64"])
-
-    archspec_arm64 = FakePackage(name="__archspec", version="1", build_string="arm64")
-    repodata.add_package(archspec_arm64, subdirs=["osx-arm64"])
-
-    archspec_aarch64 = FakePackage(
-        name="__archspec", version="1", build_string="aarch64"
-    )
-    repodata.add_package(archspec_aarch64, subdirs=["linux-aarch64"])
-
-    archspec_ppc64le = FakePackage(
-        name="__archspec", version="1", build_string="ppc64le"
-    )
-    repodata.add_package(archspec_ppc64le, subdirs=["linux-ppc64le"])
-
-    # NOTE: Keep this in sync with the MANYLINUX_TAGS maximum in pypi_solver.py
-    glibc_virtual = FakePackage(name="__glibc", version="2.28")
-    repodata.add_package(
-        glibc_virtual, subdirs=["linux-aarch64", "linux-ppc64le", "linux-64"]
-    )
-
-    if cuda_version != "":
-        cuda_virtual = FakePackage(name="__cuda", version=cuda_version)
-        repodata.add_package(
-            cuda_virtual,
-            subdirs=["linux-aarch64", "linux-ppc64le", "linux-64", "win-64"],
-        )
-
-    for osx_ver in OSX_VERSIONS_X86:
-        package = FakePackage(name="__osx", version=osx_ver)
-        repodata.add_package(package, subdirs=["osx-64"])
-    for osx_ver in OSX_VERSIONS_X68_ARM64:
-        package = FakePackage(name="__osx", version=osx_ver)
-        repodata.add_package(package, subdirs=["osx-64", "osx-arm64"])
-    for osx_ver in OSX_VERSIONS_ARM64:
-        package = FakePackage(name="__osx", version=osx_ver)
-        repodata.add_package(package, subdirs=["osx-arm64"])
-    repodata.write()
     return repodata
 
 
 class VirtualPackageSpecSubdir(BaseModel):
-    packages: Dict[str, str]
+    """Virtual packages for a specific subdir in a virtual-packages.yaml file"""
+
+    packages: dict[PackageNameStr, VirtualPackageVersion]
 
     @field_validator("packages")
     @classmethod
-    def validate_packages(cls, v: Dict[str, str]) -> Dict[str, str]:
+    def validate_packages(
+        cls, v: dict[PackageNameStr, VirtualPackageVersion]
+    ) -> dict[PackageNameStr, VirtualPackageVersion]:
         for package_name in v:
             if not package_name.startswith("__"):
                 raise ValueError(f"{package_name} is not a virtual package!")
@@ -247,11 +250,49 @@ class VirtualPackageSpecSubdir(BaseModel):
 
 
 class VirtualPackageSpec(BaseModel):
-    subdirs: Dict[str, VirtualPackageSpecSubdir]
+    """Virtual packages specified in a virtual-packages.yaml file"""
+
+    subdirs: dict[PlatformSubdirStr, VirtualPackageSpecSubdir]
+
+
+def _parse_virtual_package_spec(
+    virtual_package_name: PackageNameStr, version_spec: str
+) -> VirtualPackage:
+    """Parse a virtual package specification into a VirtualPackage object.
+
+    Args:
+        virtual_package_name: The name of the virtual package (should start with '__')
+        version_spec: The version specification string, optionally including a build string
+            separated by a space
+
+    Returns:
+        A VirtualPackage object with the parsed name, version, and build string
+
+    Examples:
+        >>> _parse_virtual_package_spec("__unix", "0")
+        VirtualPackage(name='__unix', version='0', build_string='')
+        >>> _parse_virtual_package_spec("__archspec", "1 x86_64")
+        VirtualPackage(name='__archspec', version='1', build_string='x86_64')
+    """
+    version_parts = version_spec.split(" ", 1)
+    assert len(version_parts) in (1, 2)
+    if len(version_parts) == 1:
+        parsed_version, build_string = version_spec, ""
+    else:
+        parsed_version, build_string = version_parts
+    return VirtualPackage(
+        name=virtual_package_name,
+        version=parsed_version,
+        build_string=build_string,
+    )
 
 
 def virtual_package_repo_from_specification(
     virtual_package_spec_file: pathlib.Path,
+    add_duplicate_osx_package: bool = False,
+    override_cuda_version: Union[
+        Literal["default", ""], VirtualPackageVersion
+    ] = "default",
 ) -> FakeRepoData:
     import yaml
 
@@ -259,20 +300,32 @@ def virtual_package_repo_from_specification(
         data = yaml.safe_load(fp)
     logging.debug("Virtual package spec: %s", data)
 
-    spec = VirtualPackageSpec.model_validate(data)
+    virtual_package_spec = VirtualPackageSpec.model_validate(data)
 
     repodata = _init_fake_repodata()
-    for subdir, subdir_spec in spec.subdirs.items():
-        for virtual_package, version in subdir_spec.packages.items():
-            ms = MatchSpec(f"{virtual_package} {version}")
-            repodata.add_package(
-                FakePackage(
-                    name=virtual_package,
-                    version=str(ms.version),
-                    build_string=ms.get("build", ""),
-                ),
-                subdirs=[subdir],
+    for subdir, subdir_spec in virtual_package_spec.subdirs.items():
+        for virtual_package_name, version_spec in subdir_spec.packages.items():
+            # Override the CUDA version if specified.
+            if virtual_package_name == "__cuda" and override_cuda_version != "default":
+                if override_cuda_version == "":
+                    continue
+                version_spec = override_cuda_version
+
+            virtual_package = _parse_virtual_package_spec(
+                virtual_package_name, version_spec
             )
+            repodata.add_package(virtual_package, subdirs=[subdir])
+
+    if add_duplicate_osx_package:
+        # This is to preserve exact consistency with previous versions of conda-lock.
+        # Previous versions of conda-lock would add the __osx package twice, once with
+        # version "10.15" and once with version "11.0". The package with version "10.15"
+        # is ignored by conda and mamba, but is still present in the virtual repodata,
+        # and contributes to the content hash.
+        # <https://github.com/conda/conda-lock/blob/f5323e7a71259ed17173401ec4cd728c6d161fe1/conda_lock/virtual_package.py#L191-L252>
+        package = VirtualPackage(name="__osx", version="10.15")
+        repodata.add_package(package, subdirs=["osx-64"])
+
     repodata.write()
     return repodata
 

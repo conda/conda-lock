@@ -2,19 +2,13 @@ import json
 import os
 import pathlib
 import tempfile
-import typing
 import warnings
 
+from collections.abc import Iterable, Iterator, Mapping, Sequence
 from contextlib import contextmanager
 from itertools import chain
 from typing import (
     Any,
-    Dict,
-    Iterable,
-    Iterator,
-    List,
-    Mapping,
-    Sequence,
     TypeVar,
     Union,
 )
@@ -67,12 +61,12 @@ def temporary_file_with_contents(content: str) -> Iterator[pathlib.Path]:
         os.unlink(tf.name)
 
 
-def read_json(filepath: Union[str, pathlib.Path]) -> Dict:
+def read_json(filepath: Union[str, pathlib.Path]) -> dict:
     with open(filepath) as fp:
         return json.load(fp)
 
 
-def ordered_union(collections: Iterable[Iterable[T]]) -> List[T]:
+def ordered_union(collections: Iterable[Iterable[T]]) -> list[T]:
     return list({k: k for k in chain.from_iterable(collections)}.values())
 
 

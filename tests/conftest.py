@@ -6,8 +6,9 @@ import shutil
 import sys
 import typing
 
+from collections.abc import Iterable
 from pathlib import Path
-from typing import Any, Iterable, NamedTuple, NoReturn
+from typing import Any, NamedTuple
 
 import docker
 import filelock

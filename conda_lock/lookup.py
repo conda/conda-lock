@@ -2,9 +2,9 @@ import json
 import logging
 import time
 
-from functools import lru_cache
+from functools import cache
 from pathlib import Path
-from typing import Dict, TypedDict
+from typing import TypedDict
 
 from packaging.utils import NormalizedName
 from packaging.utils import canonicalize_name as canonicalize_pypi_name
@@ -24,8 +24,8 @@ class MappingEntry(TypedDict):
     pypi_name: NormalizedName
 
 
-@lru_cache(maxsize=None)
-def _get_pypi_lookup(mapping_url: str) -> Dict[NormalizedName, MappingEntry]:
+@cache
+def _get_pypi_lookup(mapping_url: str) -> dict[NormalizedName, MappingEntry]:
     url = mapping_url
     if url.startswith("http://") or url.startswith("https://"):
         content = cached_download_file(url, cache_subdir_name="pypi-mapping")
@@ -72,12 +72,12 @@ def pypi_name_to_conda_name(name: str, mapping_url: str) -> str:
         if res is not None:
             return res
 
-    logger.warning(f"Could not find conda name for {cname}. Assuming identity.")
+    logger.debug(f"Could not find conda name for {cname}. Assuming identity.")
     return cname
 
 
-@lru_cache(maxsize=None)
-def _get_conda_lookup(mapping_url: str) -> Dict[str, MappingEntry]:
+@cache
+def _get_conda_lookup(mapping_url: str) -> dict[str, MappingEntry]:
     """
     Reverse grayskull name mapping to map conda names onto PyPI
     """

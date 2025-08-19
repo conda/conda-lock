@@ -136,7 +136,7 @@ These can be referenced as follows
 conda-lock --extra mysql --extra pgsql -f pyproject.toml
 ```
 
-When generating lockfiles that make use of extras it is recommended to make use of `--filename-template` covered [here](#file-naming).
+When generating lockfiles that make use of extras it is recommended to make use of `--filename-template` covered [here](flags.md#-filename-template).
 
 !!! note ""
 
@@ -187,7 +187,7 @@ channels = [
 
 ### Platforms
 
-Like in [environment.yml](/src_environment_yml#platform-specification), you can specify default platforms to target:
+Like in [environment.yml](src_environment_yml.md#platform-specification), you can specify default platforms to target:
 
 ```{.toml title="pyproject.toml"}
 [tool.conda-lock]

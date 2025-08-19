@@ -7,6 +7,9 @@ on:
     branches:
       - main
 
+# Disable default permissions and grant minimal required permissions
+permissions: {}
+
 concurrency:
   # Concurrency group that uses the workflow name and PR number if available
   # or commit SHA as a fallback. If a new build is triggered under that
@@ -27,6 +30,9 @@ defaults:
 jobs:
   lock-gdal:
     runs-on: ${{ matrix.os }}
+    permissions:
+      contents: read
+      actions: write  # for uploading artifacts
     strategy:
       fail-fast: false
       matrix:
@@ -45,7 +51,9 @@ jobs:
       - name: Verify Conda platform
         run: echo "Conda platform is $CONDA_PLATFORM"
 
-      - uses: actions/checkout@eef61447b9ff4aafe5dcd4e0bbf5d482be7e7871 # v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
+        with:
+          persist-credentials: false
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
@@ -72,6 +80,9 @@ jobs:
   install-gdal-with-micromamba:
     runs-on: ${{ matrix.os }}
     needs: lock-gdal
+    permissions:
+      contents: read
+      actions: read  # for downloading artifacts
     strategy:
       fail-fast: false
       matrix:
@@ -90,7 +101,7 @@ jobs:
       - name: Verify Conda platform
         run: echo "Conda platform is $CONDA_PLATFORM"
       - name: Install Conda environment with Micromamba
-        uses: mamba-org/setup-micromamba@v2
+        uses: mamba-org/setup-micromamba@b09ef9b599704322748535812ca03efb2625677b # v2
         with:
           micromamba-version: ${{ env.MICROMAMBA_VERSION }}
           # # Use micromamba-url instead of micromamba-version to test prereleases
@@ -117,14 +128,19 @@ jobs:
   install-gdal-with-conda-lock:
     runs-on: ${{ matrix.os }}
     needs: lock-gdal
+    permissions:
+      contents: read
+      actions: read  # for downloading artifacts
     strategy:
       fail-fast: false
       matrix:
         os: [ ubuntu-latest, macos-latest, windows-latest ]
         python-version: [ "3.9", "3.13" ]
     steps:
-      - uses: actions/checkout@eef61447b9ff4aafe5dcd4e0bbf5d482be7e7871 # v4
-      - uses: conda-incubator/setup-miniconda@v3
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
+        with:
+          persist-credentials: false
+      - uses: conda-incubator/setup-miniconda@505e6394dae86d6a5c7fbb6e3fb8938e3e863830 # v3
         with:
           auto-activate-base: true
           python-version: ${{ matrix.python-version }}
@@ -159,13 +175,16 @@ jobs:
   install-gdal-with-conda:
     runs-on: ${{ matrix.os }}
     needs: lock-gdal
+    permissions:
+      contents: read
+      actions: read  # for downloading artifacts
     strategy:
       fail-fast: false
       matrix:
         os: [ ubuntu-latest, macos-latest, windows-latest ]
         python-version: [ "3.9" ]
     steps:
-      - uses: conda-incubator/setup-miniconda@v3
+      - uses: conda-incubator/setup-miniconda@505e6394dae86d6a5c7fbb6e3fb8938e3e863830 # v3
         with:
           auto-activate-base: true
           python-version: ${{ matrix.python-version }}

@@ -1,7 +1,8 @@
 import logging
 import re
 
-from typing import Iterator, Optional
+from collections.abc import Iterator
+from typing import Optional
 
 
 logger = logging.getLogger(__name__)
