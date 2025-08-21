@@ -223,6 +223,11 @@ def blas_mkl_environment(tmp_path: Path):
 
 
 @pytest.fixture
+def env_yaml_allow_pypi_requests(tmp_path: Path):
+    return clone_test_dir("test-env-yaml-allow-pypi-requests", tmp_path)
+
+
+@pytest.fixture
 def meta_yaml_environment(tmp_path: Path):
     return clone_test_dir("test-recipe", tmp_path).joinpath("meta.yaml")
 
@@ -491,6 +496,31 @@ def test_parse_environment_file_with_pip(pip_environment: Path):
                 version="==0.9.1",
             )
         ]
+
+
+def test_parse_environment_file_allow_pypi_requests(env_yaml_allow_pypi_requests: Path):
+    implicit = env_yaml_allow_pypi_requests / "env.implicit.yml"
+    implicit_spec = parse_environment_file(
+        implicit, platforms=DEFAULT_PLATFORMS, mapping_url=DEFAULT_MAPPING_URL
+    )
+    assert implicit_spec.allow_pypi_requests
+
+    explicit = env_yaml_allow_pypi_requests / "env.explicit.yml"
+    explicit_spec = parse_environment_file(
+        explicit, platforms=DEFAULT_PLATFORMS, mapping_url=DEFAULT_MAPPING_URL
+    )
+    assert explicit_spec.allow_pypi_requests
+
+    no_pypi = env_yaml_allow_pypi_requests / "env.no-pypi-requests.yml"
+    no_pypi_spec = parse_environment_file(
+        no_pypi, platforms=DEFAULT_PLATFORMS, mapping_url=DEFAULT_MAPPING_URL
+    )
+    assert not no_pypi_spec.allow_pypi_requests
+
+    agg = aggregate_lock_specs(
+        lock_specs=[implicit_spec, no_pypi_spec], platforms=DEFAULT_PLATFORMS
+    )
+    assert not agg.allow_pypi_requests
 
 
 def test_parse_environment_file_with_git(git_environment: Path):

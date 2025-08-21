@@ -191,6 +191,24 @@ The location of this file can be determined with `python -c 'from conda_lock._ve
 
 Private repositories will be used in addition to `pypi.org`. For projects using `pyproject.toml`, it is possible to [disable `pypi.org` entirely](#disabling-pypiorg).
 
+#### Disabling pypi.org
+
+When using private pip repos, it is possible to disable `pypi.org` entirely in your `environment.yml` file.
+This can be useful when using `conda-lock` behind a network proxy that does not allow access to `pypi.org`.
+
+```yaml
+channels:
+  - conda-forge
+allow-pypi-requests: false
+pip-repositories:
+  - http://$PIP_USER:$PIP_PASSWORD@private-pypi.org/api/pypi/simple
+dependencies:
+  - python=3.11
+  - requests=2.26
+  - pip:
+    - fake-private-package==1.0.0
+```
+
 ### --dev-dependencies/--no-dev-dependencies
 
 By default conda-lock will include dev dependencies in the specification of the lock (if the files that the lock
