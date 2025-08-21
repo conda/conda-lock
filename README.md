@@ -189,8 +189,7 @@ url = "https://username:password@example.repo/simple"
 
 The location of this file can be determined with `python -c 'from conda_lock._vendor.poetry.locations import CONFIG_DIR; print(CONFIG_DIR)'`
 
-Private repositories will be used in addition to `pypi.org`. It is possible to [disable `pypi.org` entirely](#disabling-pypiorg) in the `environment.yml` by setting `allow-pypi-requests: false`.
-
+By default, private repositories will be used in addition to `pypi.org`, but it is also possible to [disable `pypi.org` entirely](#disabling-pypiorg).
 
 ### --dev-dependencies/--no-dev-dependencies
 
