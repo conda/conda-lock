@@ -131,6 +131,7 @@ def parse_environment_file(
         pass
 
     pip_repositories: list[str] = env_yaml_data.get("pip-repositories", [])
+    allow_pypi_requests: bool = env_yaml_data.get("allow-pypi-requests", True)
 
     # These extension fields are nonstandard
     category: str = env_yaml_data.get("category") or "main"
@@ -148,4 +149,5 @@ def parse_environment_file(
         channels=channels,  # type: ignore
         pip_repositories=pip_repositories,  # type: ignore
         sources=[environment_file],
+        allow_pypi_requests=allow_pypi_requests,
     )

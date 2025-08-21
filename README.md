@@ -189,7 +189,7 @@ url = "https://username:password@example.repo/simple"
 
 The location of this file can be determined with `python -c 'from conda_lock._vendor.poetry.locations import CONFIG_DIR; print(CONFIG_DIR)'`
 
-Private repositories will be used in addition to `pypi.org`. For projects using `pyproject.toml`, it is possible to [disable `pypi.org` entirely](#disabling-pypiorg).
+By default, private repositories will be used in addition to `pypi.org`, but it is also possible to [disable `pypi.org` entirely](#disabling-pypiorg).
 
 ### --dev-dependencies/--no-dev-dependencies
 
@@ -451,9 +451,17 @@ skip-non-conda-lock = true
 
 When using private pip repos, it is possible to disable `pypi.org` entirely. This can be useful when using `conda-lock` behind a network proxy that does not allow access to `pypi.org`.
 
+You can do this in `pyproject.toml`:
+
 ```toml
 [tool.conda-lock]
 allow-pypi-requests = false
+```
+
+Or in `environment.yml`:
+
+```yaml
+allow-pypi-requests: false
 ```
 
 ## Dockerfile example
