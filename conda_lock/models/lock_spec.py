@@ -23,7 +23,6 @@ class _BaseDependency(StrictModel):
     def sorted_extras(cls, v: list[str]) -> list[str]:
         return sorted(v)
 
-
 class VersionedDependency(_BaseDependency):
     version: str
     build: Optional[str] = None
