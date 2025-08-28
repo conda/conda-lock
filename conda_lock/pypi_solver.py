@@ -109,9 +109,11 @@ class PlatformEnv(VirtualEnv):
             self._python_version = None
         else:
             # Handle non released Python versions e.g. release candidates
-            version_match = re.match(r"(\d+)\.(\d+)\.(\d+)", python_version)
+            version_match = re.match(r"(\d+)\.(\d+)\.?(\d+)?", python_version)
             if version_match:
-                self._python_version = tuple(map(int, version_match.groups()))
+                self._python_version = tuple(
+                    int(each) for each in version_match.groups() if each is not None
+                )
             else:
                 raise ValueError(
                     f"{python_version=} does not look like a valid Python version"

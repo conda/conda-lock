@@ -243,20 +243,3 @@ def test_stderr_to_log_gh770(
         assert record.message == expected_message, (
             f"Expected message '{expected_message}' but got '{record.message}'"
         )
-
-
-@pytest.fixture
-def pip_environment_regression_ghXXX(tmp_path: Path):
-    return clone_test_dir("test-pypi-resolve-ghXXX", tmp_path).joinpath(
-        "environment.yml"
-    )
-
-
-def test_pip_environment_regression_XXX(
-    pip_environment_regression_ghXXX: Path, conda_exe: str
-):
-    run_lock(
-        [pip_environment_regression_ghXXX],
-        conda_exe=conda_exe,
-        mapping_url=DEFAULT_MAPPING_URL,
-    )
