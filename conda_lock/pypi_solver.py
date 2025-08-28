@@ -108,7 +108,14 @@ class PlatformEnv(VirtualEnv):
         if python_version is None:
             self._python_version = None
         else:
-            self._python_version = tuple(map(int, python_version.split(".")))
+            # Handle non released Python versions e.g. release candidates
+            version_match = re.match(r"(\d+)\.(\d+)\.(\d+)", python_version)
+            if version_match:
+                self._python_version = tuple(map(int, version_match.groups()))
+            else:
+                raise ValueError(
+                    f"{python_version=} does not look like a valid Python version"
+                )
 
         if system == "osx":
             self._sys_platform = "darwin"

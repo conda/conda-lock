@@ -1,0 +1,9 @@
+dependencies:
+  - python=3.14.0rc2
+  - pip
+  - pip:
+    - simplejson
+channels:
+  - conda-forge
+  - conda-forge/label/python_rc
+
