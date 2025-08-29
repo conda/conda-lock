@@ -3577,3 +3577,25 @@ dependencies:
     assert "defaults" in error_msg
     assert "conda-forge" in error_msg
     assert "without the --update flag" in error_msg
+
+
+def test_conda_lock_python_release_candidate_with_pip_section(
+    tmp_path: Path, conda_exe: str
+) -> None:
+    # Create a simple environment file
+    environment_yml = tmp_path / "environment.yml"
+    environment_yml.write_text("""
+channels:
+  - conda-forge
+  - conda-forge/label/python_rc
+dependencies:
+  - python=3.14.0rc2
+  - pip
+  - pip:
+    - simplejson
+""")
+    run_lock(
+        [environment_yml],
+        conda_exe=conda_exe,
+        mapping_url=DEFAULT_MAPPING_URL,
+    )
