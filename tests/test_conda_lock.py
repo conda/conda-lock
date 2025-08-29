@@ -3587,7 +3587,6 @@ def test_conda_lock_python_release_candidate_with_pip_section(
     environment_yml.write_text("""
 channels:
   - conda-forge
-  - conda-forge/label/python_rc
 dependencies:
   - python=3.14.0rc2
   - pip
