@@ -101,7 +101,7 @@ jobs:
       - name: Verify Conda platform
         run: echo "Conda platform is $CONDA_PLATFORM"
       - name: Install Conda environment with Micromamba
-        uses: mamba-org/setup-micromamba@b09ef9b599704322748535812ca03efb2625677b # v2
+        uses: mamba-org/setup-micromamba@7f29b8b80078b1b601dfa018b0f7425c587c63bb # v2
         with:
           micromamba-version: ${{ env.MICROMAMBA_VERSION }}
           # # Use micromamba-url instead of micromamba-version to test prereleases
