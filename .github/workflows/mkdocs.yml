@@ -37,7 +37,7 @@ jobs:
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
 
       - name: Install dependencies
-        uses: "mamba-org/setup-micromamba@b09ef9b599704322748535812ca03efb2625677b" # v2
+        uses: "mamba-org/setup-micromamba@add3a49764cedee8ee24e82dfde87f5bc2914462" # v2
         with:
           micromamba-version: "${{ env.MICROMAMBA_VERSION }}"
           environment-file: "environments/dev-environment.yaml"
