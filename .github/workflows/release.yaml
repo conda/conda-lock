@@ -59,7 +59,7 @@ jobs:
       id-token: write  # for trusted publishing to PyPI
       actions: read    # for downloading artifacts
     steps:
-    - uses: actions/download-artifact@v4
+    - uses: actions/download-artifact@v5
       with:
         name: dist-files
         path: dist
