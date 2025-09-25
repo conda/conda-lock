@@ -32,7 +32,7 @@ jobs:
       with:
         persist-credentials: false
     - name: Install Micromamba
-      uses: mamba-org/setup-micromamba@b09ef9b599704322748535812ca03efb2625677b # v2
+      uses: mamba-org/setup-micromamba@add3a49764cedee8ee24e82dfde87f5bc2914462 # v2
       with:
         environment-file: environments/conda-lock.yml
         environment-name: conda-lock-dev
