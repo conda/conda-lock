@@ -1,0 +1,11 @@
+# From @jamesmyatt:
+# <https://github.com/conda/conda-lock/issues/540#issuecomment-1843018053>
+channels:
+  - conda-forge
+platforms:
+  - linux-64
+dependencies:
+  - python =3.12
+  - click
+  - pip:
+      - click <8
