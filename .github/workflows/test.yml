@@ -177,7 +177,7 @@ jobs:
       actions: write  # for downloading and uploading artifacts
     steps:
       - name: Download test durations
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v5
       # All the artifacts are downloaded into various subdirectories.
       # For each filename that occurs, we need to find all the files in the
       # subdirectories with the same name, group those, and merge them.
