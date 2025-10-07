@@ -11,8 +11,6 @@ from typing import (
     TYPE_CHECKING,
     Any,
     ClassVar,
-    Optional,
-    Union,
 )
 
 
@@ -20,10 +18,10 @@ if TYPE_CHECKING:
     from hashlib import _Hash
 
 from pathlib import PurePosixPath
+from typing import Literal
 from urllib.parse import SplitResult, urlsplit, urlunsplit
 
 from pydantic import Field, ValidationInfo, field_validator
-from typing_extensions import Literal
 
 from conda_lock.common import ordered_union, relative_path
 from conda_lock.models import StrictModel
@@ -43,8 +41,8 @@ LockKey = namedtuple("LockKey", ["manager", "name", "platform"])
 
 
 class HashModel(StrictModel):
-    md5: Optional[str] = None
-    sha256: Optional[str] = None
+    md5: str | None = None
+    sha256: str | None = None
 
 
 class BaseLockedDependency(StrictModel):
@@ -55,8 +53,8 @@ class BaseLockedDependency(StrictModel):
     dependencies: dict[str, str] = {}
     url: str
     hash: HashModel
-    source: Optional[DependencySource] = None
-    build: Optional[str] = None
+    source: DependencySource | None = None
+    build: str | None = None
 
     def key(self) -> LockKey:
         return LockKey(self.manager, self.name, self.platform)
@@ -180,13 +178,13 @@ class GitMeta(StrictModel):
     the git user generating the file.
     """
 
-    git_user_name: Optional[str] = Field(
+    git_user_name: str | None = Field(
         default=None, description="Git user.name field of global config"
     )
-    git_user_email: Optional[str] = Field(
+    git_user_email: str | None = Field(
         default=None, description="Git user.email field of global config"
     )
-    git_sha: Optional[str] = Field(
+    git_sha: str | None = Field(
         default=None,
         description=(
             "sha256 hash of the most recent git commit that modified one of the input files for "
@@ -206,14 +204,14 @@ class GitMeta(StrictModel):
         except ImportError:
             return None
 
-        git_sha: Optional[str] = None
-        git_user_name: Optional[str] = None
-        git_user_email: Optional[str] = None
+        git_sha: str | None = None
+        git_user_name: str | None = None
+        git_user_email: str | None = None
 
         try:
             repo = git.Repo(search_parent_directories=True)
             if MetadataOption.GitSha in metadata_choices:
-                most_recent_datetime: Optional[datetime.datetime] = None
+                most_recent_datetime: datetime.datetime | None = None
                 for src_file in src_files:
                     relative_src_file_path = relative_path(
                         pathlib.Path(repo.working_tree_dir),  # type: ignore
@@ -256,8 +254,8 @@ class GitMeta(StrictModel):
 class InputMeta(StrictModel):
     """Stores information about an input provided to generate the lockfile."""
 
-    md5: Optional[str] = Field(..., description="md5 checksum for an input file")
-    sha256: Optional[str] = Field(..., description="md5 checksum for an input file")
+    md5: str | None = Field(..., description="md5 checksum for an input file")
+    sha256: str | None = Field(..., description="md5 checksum for an input file")
 
     @classmethod
     def create(
@@ -305,20 +303,20 @@ class LockMeta(StrictModel):
         ...,
         description="paths to source files, relative to the parent directory of the lockfile",
     )
-    time_metadata: Optional[TimeMeta] = Field(
+    time_metadata: TimeMeta | None = Field(
         default=None, description="Metadata dealing with the time lockfile was created"
     )
-    git_metadata: Optional[GitMeta] = Field(
+    git_metadata: GitMeta | None = Field(
         default=None,
         description=(
             "Metadata dealing with the git repo the lockfile was created in and the user that created it"
         ),
     )
-    inputs_metadata: Optional[dict[str, InputMeta]] = Field(
+    inputs_metadata: dict[str, InputMeta] | None = Field(
         default=None,
         description="Metadata dealing with the input files used to create the lockfile",
     )
-    custom_metadata: Optional[dict[str, str]] = Field(
+    custom_metadata: dict[str, str] | None = Field(
         default=None,
         description="Custom metadata provided by the user to be added to the lockfile",
     )
@@ -365,7 +363,7 @@ class LockMeta(StrictModel):
 
     @field_validator("channels", mode="before")
     @classmethod
-    def ensure_channels(cls, v: list[Union[str, Channel]]) -> list[Channel]:
+    def ensure_channels(cls, v: list[str | Channel]) -> list[Channel]:
         res: list[Channel] = []
         for e in v:
             if isinstance(e, str):

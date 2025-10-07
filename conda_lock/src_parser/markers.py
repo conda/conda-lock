@@ -6,8 +6,6 @@ be attached to dependency specifications.
 <https://www.python.org/dev/peps/pep-0508/#environment-markers>
 """
 
-from typing import Union
-
 from conda_lock.common import warn
 from conda_lock.interfaces.vendored_poetry_markers import (
     AnyMarker,
@@ -21,7 +19,7 @@ from conda_lock.interfaces.vendored_poetry_markers import (
 from conda_lock.pypi_solver import PlatformEnv
 
 
-def get_names(marker: Union[BaseMarker, str]) -> set[str]:
+def get_names(marker: BaseMarker | str) -> set[str]:
     """Extract all environment marker names from a marker expression.
 
     >>> names = get_names(
@@ -34,14 +32,14 @@ def get_names(marker: Union[BaseMarker, str]) -> set[str]:
         marker = parse_marker(marker)
     if isinstance(marker, SingleMarker):
         return {marker.name}
-    if isinstance(marker, (MarkerUnion, MultiMarker)):
+    if isinstance(marker, MarkerUnion | MultiMarker):
         return set.union(*[get_names(m) for m in marker.markers])
-    if isinstance(marker, (AnyMarker, EmptyMarker)):
+    if isinstance(marker, AnyMarker | EmptyMarker):
         return set()
     raise NotImplementedError(f"Unknown marker type: {marker!r}")
 
 
-def evaluate_marker(marker: Union[BaseMarker, str, None], platform: str) -> bool:
+def evaluate_marker(marker: BaseMarker | str | None, platform: str) -> bool:
     """Evaluate a marker expression for a given platform.
 
     This is intended to be used for parsing lock specifications, before the Python

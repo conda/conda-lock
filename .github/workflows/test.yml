@@ -33,7 +33,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ ubuntu-latest, macos-latest, windows-latest ]
-        python-version: [ "3.9", "3.13" ]
+        python-version: [ "3.10", "3.13" ]
 
         # pytest-split handles dividing the tests into n groups indexed 1...n.
         # The tests are automatically split so that the expected duration of each

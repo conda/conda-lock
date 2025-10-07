@@ -25,7 +25,7 @@ import json
 
 from collections.abc import Sequence
 from copy import deepcopy
-from typing import Optional, Union, cast
+from typing import cast
 
 from conda_lock.content_hash_types import (
     EmptyDict,
@@ -41,7 +41,7 @@ from conda_lock.virtual_package import FakeRepoData
 
 def compute_content_hashes(
     lock_spec: LockSpecification,
-    virtual_package_repo: Optional[FakeRepoData],
+    virtual_package_repo: FakeRepoData | None,
     reinsert_spurious_build_number: bool = True,
     remove_new_nulls: bool = True,
 ) -> dict[PlatformSubdirStr, str]:
@@ -80,7 +80,7 @@ def compute_content_hashes(
 
 
 def _dict_to_json(
-    d: Union[SerializedLockspec, HashableVirtualPackageRepresentation],
+    d: SerializedLockspec | HashableVirtualPackageRepresentation,
 ) -> str:
     """Produce a canonical JSON representation of the given dict."""
     return json.dumps(d, sort_keys=True)
@@ -92,7 +92,7 @@ def _json_to_hash(s: str) -> str:
 
 
 def _dict_to_hash(
-    d: Union[SerializedLockspec, HashableVirtualPackageRepresentation],
+    d: SerializedLockspec | HashableVirtualPackageRepresentation,
 ) -> str:
     """Hash the given dict."""
     return _json_to_hash(_dict_to_json(d))
@@ -101,7 +101,7 @@ def _dict_to_hash(
 def _content_for_platform(
     lock_spec: LockSpecification,
     platform: PlatformSubdirStr,
-    virtual_package_repo: Optional[FakeRepoData],
+    virtual_package_repo: FakeRepoData | None,
 ) -> SerializedLockspec:
     serialized_lockspec: SerializedLockspec = {
         "channels": [c.model_dump_json() for c in lock_spec.channels],
@@ -137,11 +137,11 @@ def _virtual_package_content_for_platform(
     # We don't actually use these values! I'm including them to indicate
     # what I would have expected from the schema. See the code block
     # immediately below for the actual values.
-    fallback_noarch: Union[SubdirMetadata, EmptyDict] = {
+    fallback_noarch: SubdirMetadata | EmptyDict = {
         "info": {"subdir": "noarch"},
         "packages": {},
     }
-    fallback_platform: Union[SubdirMetadata, EmptyDict] = {
+    fallback_platform: SubdirMetadata | EmptyDict = {
         "info": {"subdir": platform},
         "packages": {},
     }
@@ -161,7 +161,7 @@ def _virtual_package_content_for_platform(
 
 def backwards_compatible_content_hashes(
     lock_spec: LockSpecification,
-    virtual_package_repo: Optional[FakeRepoData],
+    virtual_package_repo: FakeRepoData | None,
     platform: PlatformSubdirStr,
 ) -> set[str]:
     """Compute a set of content hashes for equivalent lock specifications.
@@ -196,7 +196,7 @@ def backwards_compatible_content_hashes(
         virtual_package_repo_variants.append(_reinsert_spurious_build_number(vpr))
 
     # Compute virtual_package_repo parameter values to iterate over.
-    vprs: Sequence[Optional[FakeRepoData]]
+    vprs: Sequence[FakeRepoData | None]
     if virtual_package_repo is None:
         assert len(virtual_package_repo_variants) == 0
         vprs = [None]

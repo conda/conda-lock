@@ -108,7 +108,7 @@ def test_url_auth_info(monkeypatch: "MonkeyPatch") -> None:
 )
 def test_unify_package_sources(
     collections: list[str],
-    expected: typing.Union[list[str], type[Exception]],
+    expected: list[str] | type[Exception],
 ):
     channel_collections = [
         [Channel.from_string(name) for name in collection] for collection in collections

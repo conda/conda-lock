@@ -7,7 +7,7 @@ import warnings
 
 from collections.abc import Mapping, Sequence, Set
 from functools import partial
-from typing import Any, Optional
+from typing import Any
 from urllib.parse import urldefrag
 
 
@@ -16,9 +16,10 @@ if sys.version_info >= (3, 11):
 else:
     from tomli import load as toml_load
 
+from typing import Literal
+
 from packaging.requirements import Requirement
 from packaging.utils import canonicalize_name as canonicalize_pypi_name
-from typing_extensions import Literal
 
 from conda_lock.common import get_in
 from conda_lock.interfaces.vendored_grayskull import encode_poetry_version
@@ -63,7 +64,7 @@ POETRY_OPTIONAL_NOT_MAIN = (
 )
 
 
-def poetry_version_to_conda_version(version_string: Optional[str]) -> Optional[str]:
+def poetry_version_to_conda_version(version_string: str | None) -> str | None:
     """Convert a Poetry-style version string to a Conda-compatible version string.
 
     >>> poetry_version_to_conda_version("1.2.3.4")
@@ -115,11 +116,11 @@ def handle_mapping(
     in_extra: bool,
     default_category: str,
     manager: Literal["conda", "pip"],
-    poetry_version_spec: Optional[str],
+    poetry_version_spec: str | None,
 ) -> PoetryMappedDependencySpec:
     """Handle a dependency in mapping form from a pyproject.toml file"""
     if "git" in depattrs:
-        url: Optional[str] = depattrs.get("git", None)
+        url: str | None = depattrs.get("git", None)
         manager = "pip"
         # Order is the same as the one used by poetry
         branch_ident = depattrs.get(
@@ -136,7 +137,7 @@ def handle_mapping(
         poetry_version_spec = depattrs.get("version", None)
         url = depattrs.get("url", None)
     extras = depattrs.get("extras", [])
-    optional_flag: Optional[bool] = depattrs.get("optional")
+    optional_flag: bool | None = depattrs.get("optional")
 
     # `optional = true` must be set if dependency is
     # inside main and part of an extra
@@ -230,7 +231,7 @@ def parse_poetry_pyproject_toml(
             url = None
             extras: list[Any] = []
             in_extra: bool = False
-            markers: Optional[str] = None
+            markers: str | None = None
 
             # Poetry spec includes Python version in "tool.poetry.dependencies"
             # Cannot be managed by pip
@@ -246,7 +247,7 @@ def parse_poetry_pyproject_toml(
                         depname=depname, filename=path.name, category=category
                     )
                 )
-            poetry_version_spec: Optional[str] = None
+            poetry_version_spec: str | None = None
             if isinstance(depattrs, collections.abc.Mapping):
                 pvs = handle_mapping(
                     depattrs,
@@ -397,7 +398,7 @@ def specification_with_dependencies(
     )
 
 
-def to_match_spec(conda_dep_name: str, conda_version: Optional[str]) -> str:
+def to_match_spec(conda_dep_name: str, conda_version: str | None) -> str:
     if conda_version:
         spec = f"{conda_dep_name} {conda_version}"
     else:
@@ -417,7 +418,7 @@ class RequirementWithHash(Requirement):
             requirement_string, hash = requirement_string.split(" --hash=")
         except ValueError:
             hash = None
-        self.hash: Optional[str] = hash
+        self.hash: str | None = hash
         super().__init__(requirement_string)
 
 
@@ -441,7 +442,7 @@ def parse_requirement_specifier(
         return RequirementWithHash(requirement)
 
 
-def unpack_git_url(url: str) -> tuple[str, Optional[str], Optional[str]]:
+def unpack_git_url(url: str) -> tuple[str, str | None, str | None]:
     if url.endswith(".git"):
         url = url[:-4]
     if url.startswith("git+"):

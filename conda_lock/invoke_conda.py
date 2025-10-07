@@ -10,7 +10,7 @@ import threading
 
 from collections.abc import Iterator, Sequence
 from logging import getLogger
-from typing import IO, Optional, Union
+from typing import IO, TypeAlias
 
 from ensureconda.api import determine_micromamba_version, ensureconda
 from packaging.version import Version
@@ -20,10 +20,10 @@ from conda_lock.models.channel import Channel
 
 logger = getLogger(__name__)
 
-PathLike = Union[str, pathlib.Path]
+PathLike: TypeAlias = str | pathlib.Path
 
-CONDA_PKGS_DIRS: Optional[str] = None
-MAMBA_ROOT_PREFIX: Optional[str] = None
+CONDA_PKGS_DIRS: str | None = None
+MAMBA_ROOT_PREFIX: str | None = None
 
 
 def _ensureconda(
@@ -31,7 +31,7 @@ def _ensureconda(
     micromamba: bool = False,
     conda: bool = False,
     conda_exe: bool = False,
-) -> Optional[pathlib.Path]:
+) -> pathlib.Path | None:
     _conda_exe = ensureconda(
         mamba=mamba,
         micromamba=micromamba,
@@ -45,8 +45,8 @@ def _ensureconda(
 
 
 def _determine_conda_executable(
-    conda_executable: Optional[PathLike], mamba: bool, micromamba: bool
-) -> Iterator[Optional[PathLike]]:
+    conda_executable: PathLike | None, mamba: bool, micromamba: bool
+) -> Iterator[PathLike | None]:
     if conda_executable:
         if pathlib.Path(conda_executable).exists():
             yield conda_executable
@@ -56,7 +56,7 @@ def _determine_conda_executable(
 
 
 def determine_conda_executable(
-    conda_executable: Optional[PathLike], mamba: bool, micromamba: bool
+    conda_executable: PathLike | None, mamba: bool, micromamba: bool
 ) -> PathLike:
     for candidate in _determine_conda_executable(conda_executable, mamba, micromamba):
         if candidate is not None:

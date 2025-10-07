@@ -1,6 +1,6 @@
 from hashlib import sha256
 from posixpath import expandvars
-from typing import Optional, TypedDict
+from typing import TypedDict
 from urllib.parse import urlparse, urlunparse
 
 from pydantic import BaseModel, ConfigDict
@@ -33,7 +33,7 @@ class PipRepository(BaseModel):
         return full_url.scheme + "://" + full_url.netloc
 
     @property
-    def expanded_basic_auth(self) -> Optional[UsernamePasswordDict]:
+    def expanded_basic_auth(self) -> UsernamePasswordDict | None:
         parsed_url = urlparse(self.url)
         if parsed_url.username is None:
             return None

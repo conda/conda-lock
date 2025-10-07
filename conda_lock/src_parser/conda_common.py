@@ -1,5 +1,3 @@
-from typing import Optional
-
 from conda_lock._vendor.conda.models.channel import Channel
 from conda_lock._vendor.conda.models.match_spec import MatchSpec
 from conda_lock.models.lock_spec import VersionedDependency
@@ -16,7 +14,7 @@ def conda_spec_to_versioned_dep(spec: str, category: str) -> VersionedDependency
     except Exception as e:
         raise RuntimeError(f"Failed to turn `{spec}` into a MatchSpec") from e
 
-    package_channel: Optional[Channel] = ms.get("channel")
+    package_channel: Channel | None = ms.get("channel")
     if package_channel:
         channel_str = package_channel.canonical_name
     else:

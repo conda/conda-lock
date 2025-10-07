@@ -1,5 +1,5 @@
 from collections import OrderedDict
-from typing import Any, Optional
+from typing import Any
 
 import click
 
@@ -9,8 +9,8 @@ from click_default_group import DefaultGroup
 class OrderedGroup(DefaultGroup):
     def __init__(
         self,
-        name: Optional[str] = None,
-        commands: Optional[dict[str, click.Command]] = None,
+        name: str | None = None,
+        commands: dict[str, click.Command] | None = None,
         **kwargs: Any,
     ):
         super().__init__(name, commands, **kwargs)

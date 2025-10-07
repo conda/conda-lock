@@ -1,4 +1,4 @@
-from typing import Optional, TypedDict
+from typing import TypedDict
 
 
 class FetchAction(TypedDict):
@@ -8,11 +8,11 @@ class FetchAction(TypedDict):
     """
 
     channel: str
-    constrains: Optional[list[str]]
-    depends: Optional[list[str]]
+    constrains: list[str] | None
+    depends: list[str] | None
     fn: str
     md5: str
-    sha256: Optional[str]
+    sha256: str | None
     name: str
     subdir: str
     timestamp: int

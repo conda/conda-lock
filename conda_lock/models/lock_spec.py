@@ -1,10 +1,9 @@
 import pathlib
 import typing
 
-from typing import Optional, Union
+from typing import Literal, TypeAlias
 
 from pydantic import BaseModel, Field, field_validator
-from typing_extensions import Literal
 
 from conda_lock.models import StrictModel
 from conda_lock.models.channel import Channel
@@ -16,7 +15,7 @@ class _BaseDependency(StrictModel):
     manager: Literal["conda", "pip"] = "conda"
     category: str = "main"
     extras: list[str] = []
-    markers: Optional[str] = None
+    markers: str | None = None
 
     @field_validator("extras")
     @classmethod
@@ -26,9 +25,9 @@ class _BaseDependency(StrictModel):
 
 class VersionedDependency(_BaseDependency):
     version: str
-    build: Optional[str] = None
-    conda_channel: Optional[str] = None
-    hash: Optional[str] = None
+    build: str | None = None
+    conda_channel: str | None = None
+    hash: str | None = None
 
 
 class URLDependency(_BaseDependency):
@@ -39,17 +38,19 @@ class URLDependency(_BaseDependency):
 class VCSDependency(_BaseDependency):
     source: str
     vcs: str
-    rev: Optional[str] = None
-    subdirectory: Optional[str] = None
+    rev: str | None = None
+    subdirectory: str | None = None
 
 
 class PathDependency(_BaseDependency):
     path: str
     is_directory: bool
-    subdirectory: Optional[str] = None
+    subdirectory: str | None = None
 
 
-Dependency = Union[VersionedDependency, URLDependency, VCSDependency, PathDependency]
+Dependency: TypeAlias = (
+    VersionedDependency | URLDependency | VCSDependency | PathDependency
+)
 
 
 class Package(StrictModel):
@@ -58,11 +59,11 @@ class Package(StrictModel):
 
 
 class PoetryMappedDependencySpec(StrictModel):
-    url: Optional[str] = None
+    url: str | None = None
     manager: Literal["conda", "pip"]
     extras: list
-    markers: Optional[str] = None
-    poetry_version_spec: Optional[str] = None
+    markers: str | None = None
+    poetry_version_spec: str | None = None
 
 
 class LockSpecification(BaseModel):
@@ -79,7 +80,7 @@ class LockSpecification(BaseModel):
 
     @field_validator("channels", mode="before")
     @classmethod
-    def validate_channels(cls, v: list[Union[Channel, str]]) -> list[Channel]:
+    def validate_channels(cls, v: list[Channel | str]) -> list[Channel]:
         for i, e in enumerate(v):
             if isinstance(e, str):
                 e = Channel.from_string(e)
@@ -91,7 +92,7 @@ class LockSpecification(BaseModel):
     @field_validator("pip_repositories", mode="before")
     @classmethod
     def validate_pip_repositories(
-        cls, value: list[Union[PipRepository, str]]
+        cls, value: list[PipRepository | str]
     ) -> list[PipRepository]:
         for index, repository in enumerate(value):
             if isinstance(repository, str):

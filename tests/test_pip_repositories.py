@@ -5,7 +5,6 @@ import tarfile
 
 from io import BytesIO
 from pathlib import Path
-from typing import Optional
 from urllib.parse import urlparse
 
 import pytest
@@ -80,10 +79,10 @@ def mock_private_pypi(  # noqa: C901
         def _make_response(
             request: requests.Request,
             status: int,
-            headers: Optional[dict] = None,
+            headers: dict | None = None,
             text: str = "",
             reason: str = "",
-            file: Optional[str] = None,
+            file: str | None = None,
         ) -> requests.Response:
             headers = headers or {}
             response = requests.Response()
@@ -127,7 +126,7 @@ def mock_private_pypi(  # noqa: C901
             return username, password
 
         @mocker._adapter.add_matcher
-        def handle_request(request: requests.Request) -> Optional[requests.Response]:
+        def handle_request(request: requests.Request) -> requests.Response | None:
             """Intercept requests to private-pypi.org and private-pypi-custom-port.org.
 
             Requests to other hosts are passed through to the real internet.

@@ -2,14 +2,13 @@ import logging
 import re
 
 from collections.abc import Iterator
-from typing import Optional
 
 
 logger = logging.getLogger(__name__)
 
 
 def filter_platform_selectors(
-    content: str, platform: Optional[str] = None
+    content: str, platform: str | None = None
 ) -> Iterator[str]:
     """ """
     # we support a very limited set of selectors that adhere to platform only

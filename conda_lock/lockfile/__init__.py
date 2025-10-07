@@ -3,7 +3,6 @@ import pathlib
 from collections import defaultdict
 from collections.abc import Collection, Mapping, Sequence
 from textwrap import dedent
-from typing import Optional, Union
 
 import yaml
 
@@ -27,8 +26,8 @@ class UnknownLockfileVersion(ValueError):
 
 
 def _seperator_munge_get(
-    d: Mapping[str, Union[list[LockedDependency], LockedDependency]], key: str
-) -> Union[list[LockedDependency], LockedDependency]:
+    d: Mapping[str, list[LockedDependency] | LockedDependency], key: str
+) -> list[LockedDependency] | LockedDependency:
     # since separators are not consistent across managers (or even within) we need to do some double attempts here
     try:
         return d[key]
@@ -40,7 +39,7 @@ def _seperator_munge_get(
 
 
 def _truncate_main_category(
-    planned: Mapping[str, Union[list[LockedDependency], LockedDependency]],
+    planned: Mapping[str, list[LockedDependency] | LockedDependency],
 ) -> None:
     """
     Given the package dependencies with their respective categories
@@ -59,7 +58,7 @@ def _truncate_main_category(
 def apply_categories(
     *,
     requested: dict[str, Dependency],
-    planned: Mapping[str, Union[list[LockedDependency], LockedDependency]],
+    planned: Mapping[str, list[LockedDependency] | LockedDependency],
     categories: Sequence[str] = ("main", "dev"),
     convert_to_pip_names: bool = False,
     mapping_url: str,
@@ -83,7 +82,7 @@ def apply_categories(
     by_category = defaultdict(list)
 
     def extract_planned_items(
-        planned_items: Union[list[LockedDependency], LockedDependency],
+        planned_items: list[LockedDependency] | LockedDependency,
     ) -> list[LockedDependency]:
         if not isinstance(planned_items, list):
             return [planned_items]
@@ -188,7 +187,7 @@ def parse_conda_lock_file(path: pathlib.Path) -> Lockfile:
 def write_conda_lock_file(
     content: Lockfile,
     path: pathlib.Path,
-    metadata_choices: Optional[Collection[MetadataOption]],
+    metadata_choices: Collection[MetadataOption] | None,
     include_help_text: bool = True,
 ) -> None:
     content.alphasort_inplace()

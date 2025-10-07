@@ -4,8 +4,10 @@ This is deliberately placed in a separate module since it doesn't directly have 
 do with the logic for exporting a lock specification, and the logic is a bit involved.
 """
 
+import itertools
+
 from collections import defaultdict
-from typing import NamedTuple, Optional, Union
+from typing import NamedTuple
 
 from conda_lock.models.lock_spec import Dependency
 
@@ -32,7 +34,7 @@ class DepKey(NamedTuple):
 
     name: str
     category: str
-    platform: Optional[str]
+    platform: str | None
     manager: str
 
     def drop_platform(self) -> "DepKey":
@@ -42,8 +44,8 @@ class DepKey(NamedTuple):
 def unify_platform_independent_deps(
     dependencies: dict[str, list[Dependency]],
     *,
-    editables: Optional[list[EditableDependency]] = None,
-) -> dict[DepKey, Union[Dependency, EditableDependency]]:
+    editables: list[EditableDependency] | None = None,
+) -> dict[DepKey, Dependency | EditableDependency]:
     """Combine identical dependencies for all platforms into a single dependency.
 
     Returns a tuple of two dictionaries:
@@ -133,7 +135,7 @@ def unify_platform_independent_deps(
         for np_key, deps in collected_deps.items()
         # It's independent if there's a dep for each platform and they're all the same.
         if len(deps) == num_platforms
-        and all(curr == next for curr, next in zip(deps, deps[1:]))
+        and all(curr == next for curr, next in itertools.pairwise(deps))
     }
     assert all(key.platform is None for key in platform_independent_deps)
 

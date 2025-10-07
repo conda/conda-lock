@@ -2,7 +2,6 @@ import logging
 import pathlib
 
 from collections.abc import Sequence, Set
-from typing import Optional
 
 from conda_lock.common import ordered_union
 from conda_lock.models.channel import Channel
@@ -82,10 +81,10 @@ def _parse_source_files(
 def make_lock_spec(
     *,
     src_files: list[pathlib.Path],
-    channel_overrides: Optional[Sequence[str]] = None,
-    pip_repository_overrides: Optional[Sequence[str]] = None,
-    platform_overrides: Optional[Sequence[str]] = None,
-    filtered_categories: Optional[Set[str]] = None,
+    channel_overrides: Sequence[str] | None = None,
+    pip_repository_overrides: Sequence[str] | None = None,
+    platform_overrides: Sequence[str] | None = None,
+    filtered_categories: Set[str] | None = None,
     mapping_url: str,
 ) -> LockSpecification:
     """Generate the lockfile specs from a set of input src_files.  If filtered_categories is set filter out specs that do not match those"""
