@@ -149,6 +149,7 @@ jobs:
             --store-durations \
             --clean-durations \
             --durations-path "tests/durations/${{ matrix.os }}-py${{ matrix.python-version }}.json" \
+            --splitting-algorithm=least_duration \
             --splits="${{ matrix.pytest-split-group-size }}" \
             --group="${{ matrix.pytest-split-group-index }}"
 
