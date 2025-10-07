@@ -28,7 +28,7 @@ def test_generate_pixi_toml() -> None:
     project_dir = tests_dir.parent
     expected = (project_dir / "pixi.toml").read_text()
 
-    runner = CliRunner(mix_stderr=False)
+    runner = CliRunner()
     args = shlex.split(GENERATE_PIXI_TOML_COMMAND)[1:]
     with pytest.warns(UserWarning) as record:
         result = runner.invoke(main, args)

@@ -2377,7 +2377,7 @@ def test_install(
     ]
 
     with capsys.disabled():
-        runner = CliRunner(mix_stderr=False)
+        runner = CliRunner()
         result = runner.invoke(main, lock_args, catch_exceptions=False)
     print(result.stdout, file=sys.stdout)
     print(result.stderr, file=sys.stderr)
@@ -2744,7 +2744,7 @@ def test_virtual_packages(
         os.unlink(lockfile)
 
     with capsys.disabled():
-        runner = CliRunner(mix_stderr=False)
+        runner = CliRunner()
         result = runner.invoke(
             main,
             [
@@ -2767,7 +2767,7 @@ def test_virtual_packages(
     for lockfile in glob(f"conda-{platform}.*"):
         os.unlink(lockfile)
 
-    runner = CliRunner(mix_stderr=False)
+    runner = CliRunner()
     result = runner.invoke(
         main,
         [
@@ -2966,7 +2966,7 @@ def test_forced_platform(
         str(conda_lock_yaml),
     ]
     with capsys.disabled():
-        runner = CliRunner(mix_stderr=False)
+        runner = CliRunner()
         result = runner.invoke(main, install_args, catch_exceptions=False)
 
     print(result.stdout, file=sys.stdout)
@@ -3012,7 +3012,7 @@ def test_private_lock(
     (tmp_path / "environment.yml").write_text(content)
 
     with capsys.disabled():
-        runner = CliRunner(mix_stderr=False)
+        runner = CliRunner()
         result: CliResult = runner.invoke(
             main,
             [
@@ -3027,7 +3027,7 @@ def test_private_lock(
 
     def run_install(with_env: bool) -> CliResult:
         with capsys.disabled():
-            runner = CliRunner(mix_stderr=False)
+            runner = CliRunner()
             env_name = uuid.uuid4().hex
             env_prefix = tmp_path / env_name
 
@@ -3112,7 +3112,7 @@ def test_lookup(
     monkeypatch.chdir(cwd)
     lookup_filename = str((cwd / lookup_source).absolute())
     with capsys.disabled():
-        runner = CliRunner(mix_stderr=False)
+        runner = CliRunner()
         result: CliResult = runner.invoke(
             main,
             ["lock", "--pypi_to_conda_lookup_file", lookup_filename],
@@ -3192,7 +3192,7 @@ def test_cli_version(capsys: "pytest.CaptureFixture[str]"):
     """It should correctly report its version."""
 
     with capsys.disabled():
-        runner = CliRunner(mix_stderr=False)
+        runner = CliRunner()
         result = runner.invoke(
             main,
             [
