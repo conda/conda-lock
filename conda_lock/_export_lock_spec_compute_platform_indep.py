@@ -5,7 +5,7 @@ do with the logic for exporting a lock specification, and the logic is a bit inv
 """
 
 from collections import defaultdict
-from typing import NamedTuple, Optional, Union
+from typing import NamedTuple
 
 from conda_lock.models.lock_spec import Dependency
 
@@ -32,7 +32,7 @@ class DepKey(NamedTuple):
 
     name: str
     category: str
-    platform: Optional[str]
+    platform: str | None
     manager: str
 
     def drop_platform(self) -> "DepKey":
@@ -42,8 +42,8 @@ class DepKey(NamedTuple):
 def unify_platform_independent_deps(
     dependencies: dict[str, list[Dependency]],
     *,
-    editables: Optional[list[EditableDependency]] = None,
-) -> dict[DepKey, Union[Dependency, EditableDependency]]:
+    editables: list[EditableDependency] | None = None,
+) -> dict[DepKey, Dependency | EditableDependency]:
     """Combine identical dependencies for all platforms into a single dependency.
 
     Returns a tuple of two dictionaries:

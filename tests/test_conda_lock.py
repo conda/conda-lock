@@ -18,8 +18,6 @@ from pathlib import Path
 from typing import (
     Any,
     Literal,
-    Optional,
-    Union,
     cast,
 )
 from unittest import mock
@@ -138,7 +136,7 @@ def reset_global_conda_pkgs_dir():
     reset_conda_pkgs_dir()
 
 
-def clone_test_dir(name: Union[str, list[str]], tmp_path: Path) -> Path:
+def clone_test_dir(name: str | list[str], tmp_path: Path) -> Path:
     if isinstance(name, str):
         name = [name]
     test_dir = TESTS_DIR.joinpath(*name)
@@ -2299,7 +2297,7 @@ def test_solve_x86_64_microarch_level_2_with_input_spec():
         assert microarch_level_deps[0].version == "2"
 
 
-def _check_package_installed(package: str, prefix: str, subdir: Optional[str] = None):
+def _check_package_installed(package: str, prefix: str, subdir: str | None = None):
     files = list(glob(f"{prefix}/conda-meta/{package}-*.json"))
     assert len(files) >= 1
     # TODO: validate that all the files are in there
@@ -3168,7 +3166,7 @@ def test_get_pkgs_dirs(conda_exe):
         ),
     ],
 )
-def test_get_pkgs_dirs_mocked_output(info_file: str, expected: Optional[list[Path]]):
+def test_get_pkgs_dirs_mocked_output(info_file: str, expected: list[Path] | None):
     """Test _get_pkgs_dirs with mocked subprocess.check_output."""
     info_path = TESTS_DIR / "test-get-pkgs-dirs" / info_file
     command_output = info_path.read_bytes()

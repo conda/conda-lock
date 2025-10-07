@@ -5,11 +5,10 @@ There is incidentally also a lot of virtual package stuff here.
 
 from typing import (
     Literal,
-    Optional,
-    Union,
+    TypeAlias,
 )
 
-from typing_extensions import NotRequired, TypeAlias, TypedDict
+from typing_extensions import NotRequired, TypedDict
 
 
 # Use TypeAlias to be descriptive about what kinds of strings are expected.
@@ -29,7 +28,7 @@ class HashableVirtualPackage(TypedDict):
     noarch: str
     depends: list[str]
     timestamp: int
-    package_type: Optional[str]
+    package_type: str | None
     subdir: PlatformSubdirStr
 
 
@@ -39,14 +38,14 @@ class SerializedDependency(TypedDict):
     manager: Literal["conda", "pip"]
     category: str
     extras: list[str]
-    markers: NotRequired[Optional[str]]
+    markers: NotRequired[str | None]
     # Note, markers was added in conda-lock v3
 
     # VersionedDependency fields:
     version: NotRequired[str]
-    build: NotRequired[Optional[str]]
-    conda_channel: NotRequired[Optional[str]]
-    hash: NotRequired[Optional[str]]
+    build: NotRequired[str | None]
+    conda_channel: NotRequired[str | None]
+    hash: NotRequired[str | None]
 
     # URLDependency fields:
     url: NotRequired[str]
@@ -55,8 +54,8 @@ class SerializedDependency(TypedDict):
     # VCSDependency fields:
     source: NotRequired[str]
     vcs: NotRequired[str]
-    rev: NotRequired[Optional[str]]
-    subdirectory: NotRequired[Optional[str]]
+    rev: NotRequired[str | None]
+    subdirectory: NotRequired[str | None]
 
     # PathDependency fields:
     path: NotRequired[str]
@@ -79,7 +78,7 @@ class EmptyDict(TypedDict):
 
 
 HashableVirtualPackageRepresentation: "TypeAlias" = dict[
-    PlatformSubdirStr, Union[SubdirMetadata, EmptyDict]
+    PlatformSubdirStr, SubdirMetadata | EmptyDict
 ]
 
 

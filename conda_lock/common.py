@@ -10,7 +10,6 @@ from itertools import chain
 from typing import (
     Any,
     TypeVar,
-    Union,
 )
 
 
@@ -36,12 +35,12 @@ def get_in(
         return default
 
 
-def read_file(filepath: Union[str, pathlib.Path]) -> str:
+def read_file(filepath: str | pathlib.Path) -> str:
     with open(filepath) as fp:
         return fp.read()
 
 
-def write_file(obj: str, filepath: Union[str, pathlib.Path]) -> None:
+def write_file(obj: str, filepath: str | pathlib.Path) -> None:
     with open(filepath, mode="w") as fp:
         fp.write(obj)
 
@@ -61,7 +60,7 @@ def temporary_file_with_contents(content: str) -> Iterator[pathlib.Path]:
         os.unlink(tf.name)
 
 
-def read_json(filepath: Union[str, pathlib.Path]) -> dict:
+def read_json(filepath: str | pathlib.Path) -> dict:
     with open(filepath) as fp:
         return json.load(fp)
 

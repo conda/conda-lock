@@ -10,12 +10,10 @@ from importlib.resources import path
 from types import TracebackType
 from typing import (
     Literal,
-    Optional,
-    Union,
+    TypeAlias,
 )
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
-from typing_extensions import TypeAlias
 
 from conda_lock.content_hash_types import (
     HashableVirtualPackage,
@@ -87,7 +85,7 @@ class FullVirtualPackage(VirtualPackage):
     noarch: str = ""
     depends: tuple[str, ...] = Field(default_factory=tuple)
     timestamp: int = DEFAULT_TIME
-    package_type: Optional[str] = "virtual_system"
+    package_type: str | None = "virtual_system"
 
     @property
     def build(self) -> str:
@@ -112,8 +110,8 @@ class FakeRepoData(BaseModel):
         "win-64",
     }
     all_repodata: HashableVirtualPackageRepresentation = {}
-    hash: Optional[str] = None
-    old_env_vars: dict[str, Optional[str]] = {}
+    hash: str | None = None
+    old_env_vars: dict[str, str | None] = {}
 
     @property
     def channel_url(self) -> str:
@@ -188,9 +186,9 @@ class FakeRepoData(BaseModel):
 
     def __exit__(
         self,
-        exc_type: Optional[type[BaseException]],
-        exc: Optional[BaseException],
-        traceback: Optional[TracebackType],
+        exc_type: type[BaseException] | None,
+        exc: BaseException | None,
+        traceback: TracebackType | None,
     ) -> None:
         """Clear out old vars"""
         for k, v in self.old_env_vars.items():
@@ -221,7 +219,7 @@ def _init_fake_repodata() -> FakeRepoData:
 
 
 def default_virtual_package_repodata(
-    cuda_version: Union[Literal["default", ""], VirtualPackageVersion] = "default",
+    cuda_version: Literal["default", ""] | VirtualPackageVersion = "default",
 ) -> FakeRepoData:
     """An empty cuda_version indicates that CUDA is unavailable."""
     """Define a reasonable modern set of virtual packages that should be safe enough to assume"""
@@ -290,9 +288,7 @@ def _parse_virtual_package_spec(
 def virtual_package_repo_from_specification(
     virtual_package_spec_file: pathlib.Path,
     add_duplicate_osx_package: bool = False,
-    override_cuda_version: Union[
-        Literal["default", ""], VirtualPackageVersion
-    ] = "default",
+    override_cuda_version: Literal["default", ""] | VirtualPackageVersion = "default",
 ) -> FakeRepoData:
     import yaml
 

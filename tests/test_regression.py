@@ -8,7 +8,6 @@ import textwrap
 
 from pathlib import Path
 from textwrap import dedent
-from typing import Union
 
 import pytest
 
@@ -23,7 +22,7 @@ from conda_lock.src_parser.environment_yaml import parse_environment_file
 TEST_DIR = Path(__file__).parent
 
 
-def clone_test_dir(name: Union[str, list[str]], tmp_path: Path) -> Path:
+def clone_test_dir(name: str | list[str], tmp_path: Path) -> Path:
     if isinstance(name, str):
         name = [name]
     test_dir = TEST_DIR.joinpath(*name)

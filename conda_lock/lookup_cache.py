@@ -4,7 +4,6 @@ import re
 
 from datetime import datetime
 from pathlib import Path
-from typing import Optional
 
 import requests
 
@@ -39,7 +38,7 @@ def cached_download_file(
     url: str,
     *,
     cache_subdir_name: str,
-    cache_root: Optional[Path] = None,
+    cache_root: Path | None = None,
     max_age_seconds: float = CLEAR_CACHE_AFTER_SECONDS,
     dont_check_if_newer_than_seconds: float = DONT_CHECK_IF_NEWER_THAN_SECONDS,
 ) -> bytes:
@@ -196,7 +195,7 @@ def clear_old_files_from_cache(cache: Path, *, max_age_seconds: float) -> None:
                 pass
 
 
-def get_age_seconds(path: Path) -> Optional[float]:
+def get_age_seconds(path: Path) -> float | None:
     """Return the age of a file in seconds.
 
     On some filesystems, the age of a new file is sometimes slightly negative due to

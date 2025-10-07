@@ -7,7 +7,6 @@ from posixpath import expandvars
 from typing import (
     TYPE_CHECKING,
     Literal,
-    Optional,
     cast,
 )
 from urllib.parse import urldefrag, urlsplit, urlunsplit
@@ -76,14 +75,14 @@ class PlatformEnv(VirtualEnv):
     _platform_system: Literal["Darwin", "Linux", "Windows"]
     _os_name: Literal["posix", "nt"]
     _platforms: list[str]
-    _python_version: Optional[tuple[int, ...]]
+    _python_version: tuple[int, ...] | None
 
     def __init__(
         self,
         *,
         platform: str,
-        platform_virtual_packages: Optional[dict[str, HashableVirtualPackage]] = None,
-        python_version: Optional[str] = None,
+        platform_virtual_packages: dict[str, HashableVirtualPackage] | None = None,
+        python_version: str | None = None,
     ):
         super().__init__(path=Path(sys.prefix))
         system, arch = platform.split("-")
@@ -165,7 +164,7 @@ class PlatformEnv(VirtualEnv):
 
 def _extract_glibc_version_from_virtual_packages(
     platform_virtual_packages: dict[str, HashableVirtualPackage],
-) -> Optional[Version]:
+) -> Version | None:
     """Get the glibc version from the "package" repodata of a chosen platform.
 
     Note that the glibc version coming from a virtual package is never a legacy
@@ -224,7 +223,7 @@ def _glibc_version_from_manylinux_tag(tag: str) -> Version:
 
 
 def _compute_compatible_manylinux_tags(
-    platform_virtual_packages: Optional[dict[str, HashableVirtualPackage]],
+    platform_virtual_packages: dict[str, HashableVirtualPackage] | None,
 ) -> list[str]:
     """Determine the manylinux tags that are compatible with the given platform.
 
@@ -247,7 +246,7 @@ def _compute_compatible_manylinux_tags(
     # We use MANYLINUX_TAGS but only go up to the latest supported version
     # as provided by __glibc if present
 
-    latest_supported_glibc_version: Optional[Version] = None
+    latest_supported_glibc_version: Version | None = None
     # Try to get the glibc version from the virtual packages if it exists
     if platform_virtual_packages:
         latest_supported_glibc_version = _extract_glibc_version_from_virtual_packages(
@@ -306,7 +305,7 @@ REQUIREMENT_PATTERN = re.compile(
 )
 
 
-def parse_pip_requirement(requirement: str) -> Optional[dict[str, str]]:
+def parse_pip_requirement(requirement: str) -> dict[str, str] | None:
     match = REQUIREMENT_PATTERN.match(requirement)
     if not match:
         return None
@@ -363,9 +362,9 @@ def get_requirements(
     platform: str,
     pool: Pool,
     env: Env,
-    pip_repositories: Optional[list[PipRepository]] = None,
+    pip_repositories: list[PipRepository] | None = None,
     strip_auth: bool = False,
-    lock_spec_hashes: Optional[dict[str, str]] = None,
+    lock_spec_hashes: dict[str, str] | None = None,
 ) -> list[LockedDependency]:
     """Extract distributions from Poetry package plan, ignoring uninstalls
     (usually: conda package with no pypi equivalent) and skipped ops
@@ -383,7 +382,7 @@ def get_requirements(
     for op in result:
         if not op.skipped:
             # Take direct references verbatim
-            source: Optional[DependencySource] = None
+            source: DependencySource | None = None
             source_repository = None
             if op.package.source_reference:
                 source_repository = repositories_by_name.get(
@@ -477,7 +476,7 @@ def _get_stripped_url(link: Link) -> str:
     )
 
 
-def _compute_hash(link: Link, lock_spec_hash: Optional[str]) -> HashModel:
+def _compute_hash(link: Link, lock_spec_hash: str | None) -> HashModel:
     if lock_spec_hash is None:
         hashes: dict[str, str] = dict(link.hashes)
         return HashModel.model_validate(hashes)
@@ -495,8 +494,8 @@ def solve_pypi(
     conda_locked: dict[str, LockedDependency],
     python_version: str,
     platform: str,
-    platform_virtual_packages: Optional[dict[str, HashableVirtualPackage]] = None,
-    pip_repositories: Optional[list[PipRepository]] = None,
+    platform_virtual_packages: dict[str, HashableVirtualPackage] | None = None,
+    pip_repositories: list[PipRepository] | None = None,
     allow_pypi_requests: bool = True,
     verbose: bool = False,
     strip_auth: bool = False,
@@ -648,7 +647,7 @@ def solve_pypi(
 
 
 def _prepare_repositories_pool(
-    allow_pypi_requests: bool, pip_repositories: Optional[list[PipRepository]] = None
+    allow_pypi_requests: bool, pip_repositories: list[PipRepository] | None = None
 ) -> Pool:
     """
     Prepare the pool of repositories to solve pip dependencies

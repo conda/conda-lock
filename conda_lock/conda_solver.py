@@ -15,7 +15,6 @@ from textwrap import dedent
 from typing import (
     Any,
     Literal,
-    Optional,
 )
 from urllib.parse import urlsplit, urlunsplit
 
@@ -39,9 +38,9 @@ logger = logging.getLogger(__name__)
 
 def _to_match_spec(
     conda_dep_name: str,
-    conda_version: Optional[str],
-    build: Optional[str],
-    conda_channel: Optional[str],
+    conda_version: str | None,
+    build: str | None,
+    conda_channel: str | None,
 ) -> str:
     kwargs = dict(name=conda_dep_name)
     if conda_version:
@@ -165,7 +164,7 @@ def solve_conda(
 
 def _get_repodata_record(
     pkgs_dirs: list[pathlib.Path], dist_name: str
-) -> Optional[FetchAction]:
+) -> FetchAction | None:
     """Get the repodata_record.json of a given distribution from the package cache.
 
     On rare occasion during the CI tests, conda fails to find a package in the
@@ -194,7 +193,7 @@ def _get_pkgs_dirs(
     *,
     conda: PathLike,
     platform: str,
-    method: Optional[Literal["config", "info"]] = None,
+    method: Literal["config", "info"] | None = None,
 ) -> list[pathlib.Path]:
     """Extract the package cache directories from the conda configuration."""
     if method is None:

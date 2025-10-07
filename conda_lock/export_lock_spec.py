@@ -1,5 +1,5 @@
 from collections import defaultdict
-from typing import Any, NamedTuple, Optional, Union
+from typing import Any, NamedTuple
 
 from tomlkit import TOMLDocument, comment, document, inline_table, item, table
 from tomlkit.items import InlineTable, Table
@@ -30,16 +30,16 @@ class TomlTableKey(NamedTuple):
     """
 
     category: str
-    platform: Optional[str]
+    platform: str | None
     manager: str
 
 
 def render_pixi_toml(
     *,
     lock_spec: LockSpecification,
-    project_name: Optional[str] = None,
-    with_cuda: Optional[str] = None,
-    editables: Optional[list[EditableDependency]] = None,
+    project_name: str | None = None,
+    with_cuda: str | None = None,
+    editables: list[EditableDependency] | None = None,
 ) -> TOMLDocument:
     """Render a pixi.toml from a LockSpecification as a tomlkit TOMLDocument."""
     pixi_toml = document()
@@ -99,7 +99,7 @@ def render_pixi_toml(
 
         # Using the nested sequence of headers, walk down the tree of tomlkit tables
         # towards the leaf where the inner_dict should be inserted.
-        node: Union[TOMLDocument, Table] = pixi_toml
+        node: TOMLDocument | Table = pixi_toml
         for header in header_sequence:
             if header not in node:
                 node.add(header, table())
@@ -121,8 +121,8 @@ def render_pixi_toml(
 
 
 def toml_dependency_value(
-    dep: Union[Dependency, EditableDependency],
-) -> Union[str, InlineTable]:
+    dep: Dependency | EditableDependency,
+) -> str | InlineTable:
     """Render a conda-lock Dependency as a pixi.toml line as VersionSpec or matchspec.
 
     The result is suitable for the values used in the `dependencies` or
@@ -195,17 +195,17 @@ def _dict_to_inline_table(d: dict[str, Any]) -> InlineTable:
 def arrange_for_toml(
     lock_spec: LockSpecification,
     *,
-    editables: Optional[list[EditableDependency]] = None,
-) -> dict[TomlTableKey, dict[str, Union[Dependency, EditableDependency]]]:
+    editables: list[EditableDependency] | None = None,
+) -> dict[TomlTableKey, dict[str, Dependency | EditableDependency]]:
     """Arrange dependencies into a structured dictionary for TOML generation."""
     unified_deps = unify_platform_independent_deps(
         lock_spec.dependencies, editables=editables
     )
 
     # Stick all the dependencies into the correct TOML table
-    unsorted_result: dict[
-        TomlTableKey, dict[str, Union[Dependency, EditableDependency]]
-    ] = defaultdict(dict)
+    unsorted_result: dict[TomlTableKey, dict[str, Dependency | EditableDependency]] = (
+        defaultdict(dict)
+    )
     for dep_key, dep in unified_deps.items():
         toml_key = TomlTableKey(
             category=dep_key.category,

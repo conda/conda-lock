@@ -1,5 +1,5 @@
 from collections import defaultdict
-from typing import ClassVar, Optional
+from typing import ClassVar
 
 from conda_lock.lockfile.v1.models import (
     BaseLockedDependency,
@@ -52,7 +52,7 @@ class Lockfile(StrictModel):
     package: list[LockedDependency]
     metadata: LockMeta
 
-    def merge(self, other: "Optional[Lockfile]") -> "Lockfile":
+    def merge(self, other: "Lockfile | None") -> "Lockfile":
         """
         merge self into other
         """
@@ -216,8 +216,8 @@ def lockfile_v1_to_v2(lockfile_v1: LockfileV1) -> Lockfile:
 class UpdateSpecification:
     def __init__(
         self,
-        locked: Optional[list[LockedDependency]] = None,
-        update: Optional[list[str]] = None,
+        locked: list[LockedDependency] | None = None,
+        update: list[str] | None = None,
     ):
         self.locked = locked or []
         self.update = update or []

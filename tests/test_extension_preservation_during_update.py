@@ -12,7 +12,7 @@ import zipfile
 
 from collections.abc import Generator
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 from urllib.parse import urlparse
 
 import pytest
@@ -174,7 +174,7 @@ def test_lockfile_entry_key_generation():
     """
 
     def make_package_key(
-        name: str, version: str, build: Optional[str], platform: str
+        name: str, version: str, build: str | None, platform: str
     ) -> tuple[str, str, str, str]:
         """Generate a unique key for a package entry."""
         return (name, version, build or "", platform)

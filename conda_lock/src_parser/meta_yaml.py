@@ -1,6 +1,6 @@
 import pathlib
 
-from typing import Any, Optional
+from typing import Any
 
 import jinja2
 import yaml
@@ -28,7 +28,7 @@ class UndefinedNeverFail(jinja2.Undefined):
         Be sure to clear the all_undefined_names list before calling template.render().
     """
 
-    all_undefined_names: list[Optional[str]] = []
+    all_undefined_names: list[str | None] = []
 
     def __init__(  # type: ignore
         self,

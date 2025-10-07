@@ -36,7 +36,7 @@ import os
 import re
 
 from posixpath import expandvars
-from typing import Any, Optional
+from typing import Any
 from urllib.parse import unquote, urlparse, urlunparse
 
 from pydantic import BaseModel, ConfigDict
@@ -60,12 +60,12 @@ class _CondaUrl(BaseModel):
 
     raw_url: str
     env_var_url: str
-    token: Optional[str] = None
-    token_env_var: Optional[str] = None
-    user: Optional[str] = None
-    user_env_var: Optional[str] = None
-    password: Optional[str] = None
-    password_env_var: Optional[str] = None
+    token: str | None = None
+    token_env_var: str | None = None
+    user: str | None = None
+    user_env_var: str | None = None
+    password: str | None = None
+    password_env_var: str | None = None
 
 
 class Channel(BaseModel):
@@ -191,9 +191,7 @@ class Channel(BaseModel):
         return [(key, value) for key, value in self.__dict__.items() if value]
 
 
-def _detect_used_env_var(
-    value: str, preferred_env_var_suffix: list[str]
-) -> Optional[str]:
+def _detect_used_env_var(value: str, preferred_env_var_suffix: list[str]) -> str | None:
     """Detect if the string exactly matches any current environment variable.
 
     Preference is given to variables that end in the provided suffixes.
@@ -217,7 +215,7 @@ def _conda_url_from_string(url: str) -> _CondaUrl:
     res = urlparse(url)
 
     def make_netloc(
-        username: Optional[str], password: Optional[str], host: str, port: Optional[int]
+        username: str | None, password: str | None, host: str, port: int | None
     ) -> str:
         host_info = f"{host}:{port}" if port else host
         if not username:
@@ -226,11 +224,11 @@ def _conda_url_from_string(url: str) -> _CondaUrl:
         user_info = f"{username}:{password}" if password else username
         return f"{user_info}@{host_info}"
 
-    user_env_var: Optional[str] = None
-    password_env_var: Optional[str] = None
-    token_env_var: Optional[str] = None
+    user_env_var: str | None = None
+    password_env_var: str | None = None
+    token_env_var: str | None = None
 
-    def get_or_raise(val: Optional[str]) -> str:
+    def get_or_raise(val: str | None) -> str:
         if val is None:
             raise ValueError("Expected to be non-null")
         return val
