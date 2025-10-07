@@ -3,7 +3,6 @@ import pathlib
 from collections import defaultdict
 from collections.abc import Collection, Mapping, Sequence
 from textwrap import dedent
-from typing import Optional, Union
 
 import yaml
 

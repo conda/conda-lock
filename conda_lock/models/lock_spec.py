@@ -1,7 +1,7 @@
 import pathlib
 import typing
 
-from typing import Literal, Union
+from typing import Literal, TypeAlias
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -48,7 +48,9 @@ class PathDependency(_BaseDependency):
     subdirectory: str | None = None
 
 
-Dependency = Union[VersionedDependency, URLDependency, VCSDependency, PathDependency]
+Dependency: TypeAlias = (
+    VersionedDependency | URLDependency | VCSDependency | PathDependency
+)
 
 
 class Package(StrictModel):

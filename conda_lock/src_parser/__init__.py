@@ -2,7 +2,6 @@ import logging
 import pathlib
 
 from collections.abc import Sequence, Set
-from typing import Optional
 
 from conda_lock.common import ordered_union
 from conda_lock.models.channel import Channel

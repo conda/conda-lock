@@ -19,7 +19,7 @@ from contextlib import contextmanager
 from functools import partial
 from importlib.metadata import distribution
 from types import TracebackType
-from typing import Any, Literal, Union
+from typing import Any, Literal, TypeAlias
 from urllib.parse import urlsplit
 
 import click
@@ -116,11 +116,10 @@ if not (sys.version_info.major >= 3 and sys.version_info.minor >= 6):
 KIND_EXPLICIT: Literal["explicit"] = "explicit"
 KIND_LOCK: Literal["lock"] = "lock"
 KIND_ENV: Literal["env"] = "env"
-TKindAll = Union[Literal["explicit"], Literal["lock"], Literal["env"]]
-TKindRendarable = Union[Literal["explicit"], Literal["lock"], Literal["env"]]
+TKindAll: TypeAlias = Literal["explicit", "lock", "env"]
 
 
-DEFAULT_KINDS: list[Literal["explicit"] | Literal["lock"]] = [
+DEFAULT_KINDS: list[TKindAll] = [
     KIND_EXPLICIT,
     KIND_LOCK,
 ]
@@ -1227,13 +1226,7 @@ def main() -> None:
     pass
 
 
-TLogLevel = Union[
-    Literal["DEBUG"],
-    Literal["INFO"],
-    Literal["WARNING"],
-    Literal["ERROR"],
-    Literal["CRITICAL"],
-]
+TLogLevel: TypeAlias = Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
 
 CONTEXT_SETTINGS = {"show_default": True, "help_option_names": ["--help", "-h"]}
 

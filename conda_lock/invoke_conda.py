@@ -10,7 +10,7 @@ import threading
 
 from collections.abc import Iterator, Sequence
 from logging import getLogger
-from typing import IO, Union
+from typing import IO, TypeAlias
 
 from ensureconda.api import determine_micromamba_version, ensureconda
 from packaging.version import Version
@@ -20,7 +20,7 @@ from conda_lock.models.channel import Channel
 
 logger = getLogger(__name__)
 
-PathLike = Union[str, pathlib.Path]
+PathLike: TypeAlias = str | pathlib.Path
 
 CONDA_PKGS_DIRS: str | None = None
 MAMBA_ROOT_PREFIX: str | None = None
