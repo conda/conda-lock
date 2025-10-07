@@ -3459,8 +3459,8 @@ packages:
   timestamp: 1727359934505
 - pypi: ./
   name: conda-lock
-  version: 3.0.4.dev19+gdce1ff6f.d20250624
-  sha256: 4b48c7b488e9109957ed871bfa59bf672bd801632c3c5f1eabd36f55e1bfb23c
+  version: 3.0.5.dev18+gb0547bc19.d20251007
+  sha256: 3b2ed8b522667e05504216a49ecf675eb2a202832781bb3be61b72819e785e6d
   requires_dist:
   - boltons>=23.0.0
   - build>=1.2.1,<2.0.0
@@ -3497,7 +3497,7 @@ packages:
   - virtualenv>=20.26.6,<21.0.0
   - xattr>=1.0.0,<2.0.0 ; sys_platform == 'darwin'
   - zstandard>=0.15
-  requires_python: '>=3.9'
+  requires_python: '>=3.10'
   editable: true
 - conda: https://conda.anaconda.org/conda-forge/noarch/conda-package-handling-2.4.0-pyh7900ff3_2.conda
   sha256: 8b2b1c235b7cbfa8488ad88ff934bdad25bac6a4c035714681fbff85b602f3f0
