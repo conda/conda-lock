@@ -241,7 +241,7 @@ def _compute_compatible_manylinux_tags(
     >>> _compute_compatible_manylinux_tags({}) == list(reversed(MANYLINUX_TAGS))
     True
     >>> _compute_compatible_manylinux_tags(platform_virtual_packages)
-    ['_2_24', '_2_17', '2014', '2010', '1']
+    ['_2_24', '_2_18', '_2_17', '2014', '2010', '1']
     """
     # We use MANYLINUX_TAGS but only go up to the latest supported version
     # as provided by __glibc if present
