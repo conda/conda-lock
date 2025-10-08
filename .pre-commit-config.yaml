@@ -1,6 +1,7 @@
 # disable autofixing PRs, commenting "pre-commit.ci autofix" on a pull request triggers a autofix
 ci:
     autofix_prs: false
+    skip: [ty]
 
 repos:
 - repo: https://github.com/pre-commit/pre-commit-hooks
@@ -22,10 +23,21 @@ repos:
     args: [--fix, --unsafe-fixes, --exit-non-zero-on-fix]
   - id: ruff-format
 
+- repo: local
+  hooks:
+  - id: ty
+    name: ty (type checker by Astral)
+    entry: python scripts/run_ty_via_micromamba.py
+    language: python
+    pass_filenames: false
+    additional_dependencies:
+      - ensureconda
+
 - repo: https://github.com/pre-commit/mirrors-mypy
   rev: v1.18.2
   hooks:
   - id: mypy
+    stages: [manual]
     additional_dependencies:
       - gitpython
       - jinja2

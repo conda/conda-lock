@@ -1,0 +1,15 @@
+# ty configuration file
+# https://docs.astral.sh/ty/configuration/
+# Note: ty is pre-release software. Keep mypy in CI as the authoritative check.
+
+[src]
+# Exclude vendored code and test fixtures that cause issues
+# Patterns are anchored relative to project root (per docs)
+# Use directory/ syntax to match directories
+exclude = [
+    "conda_lock/_vendor/",
+    "conda_lock/scripts/vendor_poetry/",
+    "tests/test-local-pip/setup.py",
+    "tests/test-pip-repositories/fake-private-package-*/setup.py",
+]
+
