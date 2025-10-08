@@ -55,7 +55,7 @@ jobs:
         with:
           persist-credentials: false
       - name: Set up Python
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@e797f83bcb11b83ae66e0230d6156d7c80228e7c # v6
         with:
           python-version: ${{ matrix.python-version }}
       - name: install conda-lock
@@ -73,7 +73,7 @@ jobs:
           mkdir lockfiles
           mv conda-$CONDA_PLATFORM.lock conda-$CONDA_PLATFORM.lock.yml conda-lock.yml lockfiles
       - name: Upload lockfiles
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: conda-lock-${{ matrix.os }}-${{ matrix.python-version }}
           path: lockfiles
@@ -108,7 +108,7 @@ jobs:
           # micromamba-url: https://github.com/mamba-org/micromamba-releases/releases/download/${{ env.MICROMAMBA_VERSION }}/micromamba-${{ env.CONDA_PLATFORM }}
           init-shell: bash
       - name: Download lockfiles
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 # v5
         with:
           name: conda-lock-${{ matrix.os }}-${{ matrix.python-version }}
           path: lockfiles
@@ -149,7 +149,7 @@ jobs:
           pip install pipx
           pipx install -e .
       - name: Download lockfiles
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 # v5
         with:
           name: conda-lock-${{ matrix.os }}-${{ matrix.python-version }}
           path: lockfiles
@@ -189,7 +189,7 @@ jobs:
           auto-activate-base: true
           python-version: ${{ matrix.python-version }}
       - name: Download lockfiles
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 # v5
         with:
           name: conda-lock-${{ matrix.os }}-${{ matrix.python-version }}
           path: lockfiles

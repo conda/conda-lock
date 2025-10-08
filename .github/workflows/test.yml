@@ -163,7 +163,7 @@ jobs:
           cat tests/durations/${{ matrix.os }}-py${{ matrix.python-version }}.json
 
       - name: Store test durations
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: test-durations-${{ matrix.os }}-py${{ matrix.python-version }}-${{ matrix.pytest-split-group-index }}
           path: tests/durations/${{ matrix.os }}-py${{ matrix.python-version }}.json
@@ -177,7 +177,7 @@ jobs:
       actions: write  # for downloading and uploading artifacts
     steps:
       - name: Download test durations
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 # v5
       # All the artifacts are downloaded into various subdirectories.
       # For each filename that occurs, we need to find all the files in the
       # subdirectories with the same name, group those, and merge them.
@@ -194,7 +194,7 @@ jobs:
             jq -s 'add | to_entries | sort_by(.key) | from_entries' $(find . -type f -name "$filename") > "aggregated/$filename"
           done < temp/filenames.txt
       - name: Upload aggregated test durations
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: aggregated-test-durations
           path: aggregated
