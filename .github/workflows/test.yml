@@ -88,7 +88,7 @@ jobs:
       PYTHONUNBUFFERED: "1"
       FORCE_COLOR: "1"
     steps:
-      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
         with:
           fetch-depth: 0
           persist-credentials: false
@@ -116,7 +116,7 @@ jobs:
           ls -al "${LOCKFILE_DIR}"
           echo "LOCKFILE_DIR=${LOCKFILE_DIR}" >> $GITHUB_ENV
 
-      - uses: mamba-org/setup-micromamba@b09ef9b599704322748535812ca03efb2625677b # v2
+      - uses: mamba-org/setup-micromamba@add3a49764cedee8ee24e82dfde87f5bc2914462 # v2.0.7
         with:
           micromamba-version: ${{ env.MICROMAMBA_VERSION }}
           # # Use micromamba-url instead of micromamba-version to test prereleases
@@ -153,7 +153,7 @@ jobs:
             --splits="${{ matrix.pytest-split-group-size }}" \
             --group="${{ matrix.pytest-split-group-index }}"
 
-      - uses: codecov/codecov-action@18283e04ce6e62d37312384ff67231eb8fd56d24 # v5
+      - uses: codecov/codecov-action@5a1091511ad55cbe89839c7260b706298ca349f7 # v5.5.1
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
 
@@ -163,7 +163,7 @@ jobs:
           cat tests/durations/${{ matrix.os }}-py${{ matrix.python-version }}.json
 
       - name: Store test durations
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: test-durations-${{ matrix.os }}-py${{ matrix.python-version }}-${{ matrix.pytest-split-group-index }}
           path: tests/durations/${{ matrix.os }}-py${{ matrix.python-version }}.json
@@ -177,7 +177,7 @@ jobs:
       actions: write  # for downloading and uploading artifacts
     steps:
       - name: Download test durations
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 # v5.0.0
       # All the artifacts are downloaded into various subdirectories.
       # For each filename that occurs, we need to find all the files in the
       # subdirectories with the same name, group those, and merge them.
@@ -194,7 +194,7 @@ jobs:
             jq -s 'add | to_entries | sort_by(.key) | from_entries' $(find . -type f -name "$filename") > "aggregated/$filename"
           done < temp/filenames.txt
       - name: Upload aggregated test durations
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: aggregated-test-durations
           path: aggregated
