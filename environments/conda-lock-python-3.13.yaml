@@ -15,11 +15,11 @@
 version: 1
 metadata:
   content_hash:
-    linux-64: 0760bd7be4cca8a02295d0faf18468a8e548490682114115642c1dd9adf01ece
-    osx-64: c09458241d398eab20ed153ffd9f9737446bf8d0a68c31b767935077d91d7aa3
-    osx-arm64: 0f2620ac39027da293462fb2691eac7a8764fa8cb3bc4dce1962764fdf6de640
-    win-64: 61aef036c27bfb97bfcca1f10db9f27efa2076ad11c9a14771e723a2a0654ed7
-    linux-aarch64: e73a0d2f9092585cd5ed8783dd215d1fdde0cd837835fb0f5b906e1f814c07e8
+    linux-64: 41e134a1590016f7752a38fbd47ed9d29ae4c6f9f56ffd1870a6b057bbcaa509
+    osx-64: 95f728ed6fe9b6ff9feca940fcb0e6e7480b8a65de429103125bab421d0354be
+    osx-arm64: 5fa84f72e45ada2cc5c0102e5ce490d3b0c1167ebf78136df8089f609692b482
+    win-64: 7334f74e60214c454d05536d203d8aab79e6eff735f4f3f1254cd8b7114feb4d
+    linux-aarch64: f5ceca928a226dea78e533631730b8e20e92efef14a900fedd57aef7992bce8a
   channels:
   - url: conda-forge
     used_env_vars: []
@@ -12600,83 +12600,83 @@ package:
   category: main
   optional: false
 - name: virtualenv
-  version: 20.34.0
+  version: 20.35.1
   manager: conda
   platform: linux-64
   dependencies:
     distlib: '>=0.3.7,<1'
     filelock: '>=3.12.2,<4'
     platformdirs: '>=3.9.1,<5'
-    python: '>=3.9'
+    python: '>=3.10'
     typing_extensions: '>=4.13.2'
-  url: https://conda.anaconda.org/conda-forge/noarch/virtualenv-20.34.0-pyhd8ed1ab_0.conda
+  url: https://conda.anaconda.org/conda-forge/noarch/virtualenv-20.35.1-pyhd8ed1ab_0.conda
   hash:
-    md5: 2bd6c0c96cfc4dbe9bde604a122e3e55
-    sha256: 398f40090e80ec5084483bb798555d0c5be3d1bb30f8bb5e4702cd67cdb595ee
+    md5: dfeecd5370dddddf22b5c9b70582f998
+    sha256: 08ea4fe8fd5232a811777aa9b921bc305aaeaf0c11aa54154ef5d61e29c2f918
   category: main
   optional: false
 - name: virtualenv
-  version: 20.34.0
+  version: 20.35.1
   manager: conda
   platform: linux-aarch64
   dependencies:
     distlib: '>=0.3.7,<1'
     filelock: '>=3.12.2,<4'
     platformdirs: '>=3.9.1,<5'
-    python: '>=3.9'
+    python: '>=3.10'
     typing_extensions: '>=4.13.2'
-  url: https://conda.anaconda.org/conda-forge/noarch/virtualenv-20.34.0-pyhd8ed1ab_0.conda
+  url: https://conda.anaconda.org/conda-forge/noarch/virtualenv-20.35.1-pyhd8ed1ab_0.conda
   hash:
-    md5: 2bd6c0c96cfc4dbe9bde604a122e3e55
-    sha256: 398f40090e80ec5084483bb798555d0c5be3d1bb30f8bb5e4702cd67cdb595ee
+    md5: dfeecd5370dddddf22b5c9b70582f998
+    sha256: 08ea4fe8fd5232a811777aa9b921bc305aaeaf0c11aa54154ef5d61e29c2f918
   category: main
   optional: false
 - name: virtualenv
-  version: 20.34.0
+  version: 20.35.1
   manager: conda
   platform: osx-64
   dependencies:
     distlib: '>=0.3.7,<1'
     filelock: '>=3.12.2,<4'
     platformdirs: '>=3.9.1,<5'
-    python: '>=3.9'
+    python: '>=3.10'
     typing_extensions: '>=4.13.2'
-  url: https://conda.anaconda.org/conda-forge/noarch/virtualenv-20.34.0-pyhd8ed1ab_0.conda
+  url: https://conda.anaconda.org/conda-forge/noarch/virtualenv-20.35.1-pyhd8ed1ab_0.conda
   hash:
-    md5: 2bd6c0c96cfc4dbe9bde604a122e3e55
-    sha256: 398f40090e80ec5084483bb798555d0c5be3d1bb30f8bb5e4702cd67cdb595ee
+    md5: dfeecd5370dddddf22b5c9b70582f998
+    sha256: 08ea4fe8fd5232a811777aa9b921bc305aaeaf0c11aa54154ef5d61e29c2f918
   category: main
   optional: false
 - name: virtualenv
-  version: 20.34.0
+  version: 20.35.1
   manager: conda
   platform: osx-arm64
   dependencies:
     distlib: '>=0.3.7,<1'
     filelock: '>=3.12.2,<4'
     platformdirs: '>=3.9.1,<5'
-    python: '>=3.9'
+    python: '>=3.10'
     typing_extensions: '>=4.13.2'
-  url: https://conda.anaconda.org/conda-forge/noarch/virtualenv-20.34.0-pyhd8ed1ab_0.conda
+  url: https://conda.anaconda.org/conda-forge/noarch/virtualenv-20.35.1-pyhd8ed1ab_0.conda
   hash:
-    md5: 2bd6c0c96cfc4dbe9bde604a122e3e55
-    sha256: 398f40090e80ec5084483bb798555d0c5be3d1bb30f8bb5e4702cd67cdb595ee
+    md5: dfeecd5370dddddf22b5c9b70582f998
+    sha256: 08ea4fe8fd5232a811777aa9b921bc305aaeaf0c11aa54154ef5d61e29c2f918
   category: main
   optional: false
 - name: virtualenv
-  version: 20.34.0
+  version: 20.35.1
   manager: conda
   platform: win-64
   dependencies:
     distlib: '>=0.3.7,<1'
     filelock: '>=3.12.2,<4'
     platformdirs: '>=3.9.1,<5'
-    python: '>=3.9'
+    python: '>=3.10'
     typing_extensions: '>=4.13.2'
-  url: https://conda.anaconda.org/conda-forge/noarch/virtualenv-20.34.0-pyhd8ed1ab_0.conda
+  url: https://conda.anaconda.org/conda-forge/noarch/virtualenv-20.35.1-pyhd8ed1ab_0.conda
   hash:
-    md5: 2bd6c0c96cfc4dbe9bde604a122e3e55
-    sha256: 398f40090e80ec5084483bb798555d0c5be3d1bb30f8bb5e4702cd67cdb595ee
+    md5: dfeecd5370dddddf22b5c9b70582f998
+    sha256: 08ea4fe8fd5232a811777aa9b921bc305aaeaf0c11aa54154ef5d61e29c2f918
   category: main
   optional: false
 - name: watchdog
@@ -13395,3 +13395,53 @@ package:
     sha256: bc64864377d809b904e877a98d0584f43836c9f2ef27d3d2a1421fa6eae7ca04
   category: main
   optional: false
+- name: ty
+  version: 0.0.1a21
+  manager: pip
+  platform: linux-64
+  dependencies: {}
+  url: https://files.pythonhosted.org/packages/af/fc/5aa122536b1acb57389f404f6328c20342242b78513a60459fee9b7d6f27/ty-0.0.1a21-py3-none-manylinux_2_17_x86_64.manylinux2014_x86_64.whl
+  hash:
+    sha256: 1474d883129bb63da3b2380fc7ead824cd3baf6a9551e6aa476ffefc58057af3
+  category: dev
+  optional: true
+- name: ty
+  version: 0.0.1a21
+  manager: pip
+  platform: linux-aarch64
+  dependencies: {}
+  url: https://files.pythonhosted.org/packages/ea/08/edf7b59ba24bb1a1af341207fc5a0106eb1fe4264c1d7fb672c171dd2daf/ty-0.0.1a21-py3-none-manylinux_2_17_aarch64.manylinux2014_aarch64.whl
+  hash:
+    sha256: 334d2a212ebf42a0e55d57561926af7679fe1e878175e11dcb81ad8df892844e
+  category: dev
+  optional: true
+- name: ty
+  version: 0.0.1a21
+  manager: pip
+  platform: osx-64
+  dependencies: {}
+  url: https://files.pythonhosted.org/packages/99/c2/721bf4fa21c84d4cdae0e57a06a88e7e64fc2dca38820232bd6cbeef644f/ty-0.0.1a21-py3-none-macosx_10_12_x86_64.whl
+  hash:
+    sha256: 3c3bc66fcae41eff133cfe326dd65d82567a2fb5d4efe2128773b10ec2766819
+  category: dev
+  optional: true
+- name: ty
+  version: 0.0.1a21
+  manager: pip
+  platform: osx-arm64
+  dependencies: {}
+  url: https://files.pythonhosted.org/packages/6c/58/b0585d9d61673e864a87e95760dfa2a90ac15702e7612ab064d354f6752a/ty-0.0.1a21-py3-none-macosx_11_0_arm64.whl
+  hash:
+    sha256: cc0880ec344fbdf736b05d8d0da01f0caaaa02409bd9a24b68d18d0127a79b0e
+  category: dev
+  optional: true
+- name: ty
+  version: 0.0.1a21
+  manager: pip
+  platform: win-64
+  dependencies: {}
+  url: https://files.pythonhosted.org/packages/50/16/b3e914cec2a6344d2c30d3780ca6ecd39667173611f8776cecfd1294eab9/ty-0.0.1a21-py3-none-win_amd64.whl
+  hash:
+    sha256: 7505aeb8bf2a62f00f12cfa496f6c965074d75c8126268776565284c8a12d5dd
+  category: dev
+  optional: true
