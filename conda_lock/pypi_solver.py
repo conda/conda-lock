@@ -60,7 +60,7 @@ if TYPE_CHECKING:
 # in practice, see https://github.com/pypa/manylinux/blob/main/README.rst#docker-images.
 # NOTE:
 #   Keep the max in sync with the default value used in default-virtual-packages.yaml.
-MANYLINUX_TAGS = ["1", "2010", "2014", "_2_17", "_2_24", "_2_28"]
+MANYLINUX_TAGS = ["1", "2010", "2014", "_2_17", "_2_18", "_2_24", "_2_28"]
 
 # This needs to be updated periodically as new macOS versions are released.
 MACOS_VERSION = (13, 4)
