@@ -60,7 +60,7 @@ if TYPE_CHECKING:
 # in practice, see https://github.com/pypa/manylinux/blob/main/README.rst#docker-images.
 # NOTE:
 #   Keep the max in sync with the default value used in default-virtual-packages.yaml.
-MANYLINUX_TAGS = ["1", "2010", "2014", "_2_17", "_2_24", "_2_28"]
+MANYLINUX_TAGS = ["1", "2010", "2014", "_2_17", "_2_18", "_2_24", "_2_28"]
 
 # This needs to be updated periodically as new macOS versions are released.
 MACOS_VERSION = (13, 4)
@@ -241,7 +241,7 @@ def _compute_compatible_manylinux_tags(
     >>> _compute_compatible_manylinux_tags({}) == list(reversed(MANYLINUX_TAGS))
     True
     >>> _compute_compatible_manylinux_tags(platform_virtual_packages)
-    ['_2_24', '_2_17', '2014', '2010', '1']
+    ['_2_24', '_2_18', '_2_17', '2014', '2010', '1']
     """
     # We use MANYLINUX_TAGS but only go up to the latest supported version
     # as provided by __glibc if present
