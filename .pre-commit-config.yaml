@@ -4,7 +4,7 @@ ci:
 
 repos:
 - repo: https://github.com/pre-commit/pre-commit-hooks
-  rev: v5.0.0
+  rev: v6.0.0
   hooks:
   - id: trailing-whitespace
     exclude: |
@@ -16,14 +16,14 @@ repos:
     exclude: ^conda_lock/_vendor/conda/_vendor/appdirs\.py$
 
 - repo: https://github.com/astral-sh/ruff-pre-commit
-  rev: v0.12.0
+  rev: v0.13.3
   hooks:
   - id: ruff
-    args: [--fix, --exit-non-zero-on-fix]
+    args: [--fix, --unsafe-fixes, --exit-non-zero-on-fix]
   - id: ruff-format
 
 - repo: https://github.com/pre-commit/mirrors-mypy
-  rev: v1.16.1
+  rev: v1.18.2
   hooks:
   - id: mypy
     additional_dependencies:
