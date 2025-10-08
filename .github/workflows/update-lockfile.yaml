@@ -28,11 +28,11 @@ jobs:
       contents: read
       actions: write  # for uploading artifacts
     steps:
-    - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5
+    - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
       with:
         persist-credentials: false
     - name: Install Micromamba
-      uses: mamba-org/setup-micromamba@add3a49764cedee8ee24e82dfde87f5bc2914462 # v2
+      uses: mamba-org/setup-micromamba@add3a49764cedee8ee24e82dfde87f5bc2914462 # v2.0.7
       with:
         environment-file: environments/conda-lock.yml
         environment-name: conda-lock-dev
@@ -51,7 +51,7 @@ jobs:
             --lockfile=environments/conda-lock-python-${PYTHON_VERSION}.yaml
 
     - name: Upload lockfile
-      uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+      uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
       with:
         name: conda-lock-python-${{ matrix.python-version }}
         path: environments/conda-lock-python-${{ matrix.python-version }}.yaml
@@ -64,17 +64,17 @@ jobs:
       pull-requests: write # for creating pull requests
       actions: read       # for downloading artifacts
     steps:
-    - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5
+    - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
       with:
         persist-credentials: false
 
     - name: Download all lockfiles
-      uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 # v5
+      uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 # v5.0.0
       with:
         path: environments/
 
     - name: Open a pull request
-      uses: peter-evans/create-pull-request@271a8d0340265f705b14b6d32b9829c1cb33d45e # v7
+      uses: peter-evans/create-pull-request@271a8d0340265f705b14b6d32b9829c1cb33d45e # v7.0.8
       with:
         # # The default GITHUB_TOKEN doesn't allow other workflows to trigger.
         # # Thus if there are tests to be run, they won't be run. For more info,
