@@ -1,4 +1,3 @@
-import atexit
 import json
 import logging
 import os
@@ -23,6 +22,7 @@ from conda_lock.content_hash_types import (
     SubdirMetadata,
 )
 from conda_lock.models.channel import Channel
+from conda_lock.tempdir_manager import mkdtemp_with_cleanup
 
 
 logger = logging.getLogger(__name__)
@@ -199,19 +199,9 @@ class FakeRepoData(BaseModel):
 
 
 def _init_fake_repodata() -> FakeRepoData:
-    import shutil
-    import tempfile
-
     # tmp directory in github actions
     runner_tmp = os.environ.get("RUNNER_TEMP")
-    tmp_dir = tempfile.mkdtemp(dir=runner_tmp)
-
-    if not runner_tmp:
-        # no need to bother cleaning up on CI
-        def clean() -> None:
-            shutil.rmtree(tmp_dir, ignore_errors=True)
-
-        atexit.register(clean)
+    tmp_dir = mkdtemp_with_cleanup(prefix="conda-lock-fake-repodata-", dir=runner_tmp)
 
     tmp_path = pathlib.Path(tmp_dir)
     repodata = FakeRepoData(base_path=tmp_path)

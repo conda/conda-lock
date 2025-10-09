@@ -1,11 +1,9 @@
 import json
 import os
 import pathlib
-import tempfile
 import warnings
 
-from collections.abc import Iterable, Iterator, Mapping, Sequence
-from contextlib import contextmanager
+from collections.abc import Iterable, Mapping, Sequence
 from itertools import chain
 from typing import (
     Any,
@@ -42,21 +40,6 @@ def read_file(filepath: str | pathlib.Path) -> str:
 def write_file(obj: str, filepath: str | pathlib.Path) -> None:
     with open(filepath, mode="w") as fp:
         fp.write(obj)
-
-
-@contextmanager
-def temporary_file_with_contents(content: str) -> Iterator[pathlib.Path]:
-    """Generate a temporary file with the given content.  This file can be used by subprocesses
-
-    On Windows, NamedTemporaryFiles can't be opened a second time, so we have to close it first (and delete it manually later)
-    """
-    tf = tempfile.NamedTemporaryFile(delete=False)
-    try:
-        tf.close()
-        write_file(content, tf.name)
-        yield pathlib.Path(tf.name)
-    finally:
-        os.unlink(tf.name)
 
 
 def read_json(filepath: str | pathlib.Path) -> dict:

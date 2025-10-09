@@ -1,11 +1,9 @@
-import atexit
 import logging
 import os
 import pathlib
 import shlex
 import shutil
 import subprocess
-import tempfile
 import threading
 
 from collections.abc import Iterator, Sequence
@@ -16,6 +14,7 @@ from ensureconda.api import determine_micromamba_version, ensureconda
 from packaging.version import Version
 
 from conda_lock.models.channel import Channel
+from conda_lock.tempdir_manager import mkdtemp_with_cleanup
 
 
 logger = getLogger(__name__)
@@ -302,25 +301,17 @@ def _get_conda_flags(channels: Sequence[Channel], platform: str) -> list[str]:
 def conda_pkgs_dir() -> str:
     global CONDA_PKGS_DIRS
     if CONDA_PKGS_DIRS is None:
-        temp_dir = tempfile.TemporaryDirectory()
-        CONDA_PKGS_DIRS = temp_dir.name
-        atexit.register(temp_dir.cleanup)
-        return CONDA_PKGS_DIRS
-    else:
-        return CONDA_PKGS_DIRS
+        CONDA_PKGS_DIRS = mkdtemp_with_cleanup(prefix="conda-lock-pkgs-")
+    return CONDA_PKGS_DIRS
 
 
 def mamba_root_prefix() -> str:
     """Legacy root prefix used by micromamba"""
     global MAMBA_ROOT_PREFIX
     if MAMBA_ROOT_PREFIX is None:
-        temp_dir = tempfile.TemporaryDirectory()
-        MAMBA_ROOT_PREFIX = temp_dir.name
-        atexit.register(temp_dir.cleanup)
+        MAMBA_ROOT_PREFIX = mkdtemp_with_cleanup(prefix="conda-lock-mamba-root-")
         os.environ["MAMBA_ROOT_PREFIX"] = MAMBA_ROOT_PREFIX
-        return MAMBA_ROOT_PREFIX
-    else:
-        return MAMBA_ROOT_PREFIX
+    return MAMBA_ROOT_PREFIX
 
 
 def reset_conda_pkgs_dir() -> None:
