@@ -501,7 +501,7 @@ def make_lock_files(  # noqa: C901
 
 def do_render(
     lockfile: Lockfile,
-    kinds: Sequence[Literal["env"] | Literal["explicit"]],
+    kinds: Sequence[Literal["env", "explicit"]],
     include_dev_dependencies: bool = True,
     filename_template: str | None = None,
     extras: Set[str] | None = None,
