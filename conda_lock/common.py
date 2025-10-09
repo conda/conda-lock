@@ -25,14 +25,13 @@ def get_in(
     {'c': 1}
 
     """
-    import operator
-
-    from functools import reduce
-
-    try:
-        return reduce(operator.getitem, keys, nested_dict)
-    except (KeyError, IndexError, TypeError):
-        return default
+    result: Any = nested_dict
+    for key in keys:
+        try:
+            result = result[key]
+        except (KeyError, IndexError, TypeError):
+            return default
+    return result
 
 
 def read_file(filepath: str | pathlib.Path) -> str:
