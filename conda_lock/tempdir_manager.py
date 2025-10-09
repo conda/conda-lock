@@ -22,8 +22,9 @@ Design Rationale:
 - The `mkdtemp_with_cleanup` function provides process-lifetime directories by using
   `tempfile.mkdtemp()` (which never auto-cleans) and registering cleanup via `atexit`.
 
-- The `state.delete_temp_paths` flag controls cleanup; set to False to preserve for debugging.
-  inspecting intermediate files and directories created during the locking process.
+- The `state.delete_temp_paths` flag controls cleanup. Set it to False to preserve
+  temporary paths for debugging and for inspecting intermediate files and directories
+  created during the locking process.
 
 Thread Safety:
 - This module uses thread-local storage to manage state (`delete_temp_paths` and
@@ -236,6 +237,8 @@ def temporary_file_with_contents(
 ) -> Iterator[pathlib.Path]:
     """Generate a temporary file with the given content.
 
+    Use as a context manager; it yields a `pathlib.Path` to the created file.
+
     The file is created in a way that allows it to be re-opened by subprocesses
     on all platforms (including Windows). Deletion behavior follows the module's
     deletion policy:
@@ -256,6 +259,11 @@ def temporary_file_with_contents(
     delete : bool | None
         If True, ensure the file is deleted. If False, ensure it is not.
         If None, defer to the thread-local `state.delete_temp_paths` setting.
+
+    Yields
+    ------
+    pathlib.Path
+        Path to the created temporary file.
     """
     from conda_lock.common import write_file
 
