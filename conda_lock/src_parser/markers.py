@@ -32,7 +32,9 @@ def get_names(marker: BaseMarker | str) -> set[str]:
         marker = parse_marker(marker)
     if isinstance(marker, SingleMarker):
         return {marker.name}
-    if isinstance(marker, MarkerUnion | MultiMarker):
+    if isinstance(marker, MarkerUnion):
+        return set.union(*[get_names(m) for m in marker.markers])
+    if isinstance(marker, MultiMarker):
         return set.union(*[get_names(m) for m in marker.markers])
     if isinstance(marker, AnyMarker | EmptyMarker):
         return set()
