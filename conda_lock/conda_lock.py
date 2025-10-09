@@ -1781,7 +1781,7 @@ def render(
     "--kind",
     type=click.Choice(["pixi.toml", "raw"]),
     multiple=True,
-    help="Kind of lock specification to generate. Must be 'pixi.toml'.",
+    help="Kind of lock specification to generate. Must be 'pixi.toml' or 'raw'.",
 )
 @click.option(
     "--filename-template",
