@@ -581,7 +581,8 @@ def solve_pypi(
         input = ArgvInput()
         input.set_stream(sys.stdin)
         io = IO(input, StreamOutput(sys.stdout), StreamOutput(sys.stderr))
-        io.set_verbosity(Verbosity.VERY_VERBOSE)
+        VERY_VERBOSE: Verbosity = Verbosity.VERY_VERBOSE  # ty: ignore[invalid-assignment]  # pyright: ignore[reportAssignmentType]
+        io.set_verbosity(VERY_VERBOSE)
     else:
         io = NullIO()
     s = PoetrySolver(
