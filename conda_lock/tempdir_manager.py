@@ -32,6 +32,8 @@ Python Version Notes:
 """
 
 import atexit
+import os
+import pathlib
 import shutil
 import sys
 import tempfile
@@ -136,3 +138,20 @@ def _log_preserved_paths() -> None:
             else:
                 print(f"  - WARNING: missing path: {p}", file=sys.stderr)
         print("=" * 60, file=sys.stderr)
+
+
+@contextmanager
+def temporary_file_with_contents(content: str) -> Iterator[pathlib.Path]:
+    """Generate a temporary file with the given content.  This file can be used by subprocesses
+
+    On Windows, NamedTemporaryFiles can't be opened a second time, so we have to close it first (and delete it manually later)
+    """
+    from conda_lock.common import write_file
+
+    tf = tempfile.NamedTemporaryFile(delete=False)
+    try:
+        tf.close()
+        write_file(content, tf.name)
+        yield pathlib.Path(tf.name)
+    finally:
+        os.unlink(tf.name)
