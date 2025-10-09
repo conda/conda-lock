@@ -1930,7 +1930,7 @@ def render_lock_spec(  # noqa: C901
     editable: Sequence[str],
 ) -> None:
     """Combine source files into a single lock specification"""
-    kinds = set(kind)
+    kinds: Set[Literal["pixi.toml", "raw"]] = set(kind)  # ty: ignore[invalid-assignment]
     if len(kinds) == 0:
         raise ValueError("No kind specified. Add `--kind=pixi.toml` or `--kind=raw`.")
     if not kinds <= {"pixi.toml", "raw"}:
