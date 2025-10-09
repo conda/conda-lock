@@ -72,6 +72,7 @@ def mamba_exe() -> pathlib.Path:
     if _conda_exe is not None:
         return _conda_exe
     pytest.skip("mamba is not installed")
+    assert False, "Unreachable (for ty type checking)"
 
 
 class QuetzServerInfo(NamedTuple):

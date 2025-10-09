@@ -3,6 +3,8 @@ import pathlib
 from typing import Any
 
 import jinja2
+import jinja2.exceptions
+import jinja2.utils
 import yaml
 
 from conda_lock.common import get_in

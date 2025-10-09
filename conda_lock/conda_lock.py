@@ -24,6 +24,7 @@ from urllib.parse import urlsplit
 
 import click
 import yaml
+import yaml.error
 
 from ensureconda.api import ensureconda
 from ensureconda.resolve import platform_subdir
@@ -500,7 +501,7 @@ def make_lock_files(  # noqa: C901
 
 def do_render(
     lockfile: Lockfile,
-    kinds: Sequence[Literal["env"] | Literal["explicit"]],
+    kinds: Sequence[Literal["env", "explicit"]],
     include_dev_dependencies: bool = True,
     filename_template: str | None = None,
     extras: Set[str] | None = None,
@@ -1781,7 +1782,7 @@ def render(
     "--kind",
     type=click.Choice(["pixi.toml", "raw"]),
     multiple=True,
-    help="Kind of lock specification to generate. Must be 'pixi.toml'.",
+    help="Kind of lock specification to generate. Must be 'pixi.toml' or 'raw'.",
 )
 @click.option(
     "--filename-template",
@@ -1930,7 +1931,7 @@ def render_lock_spec(  # noqa: C901
     editable: Sequence[str],
 ) -> None:
     """Combine source files into a single lock specification"""
-    kinds = set(kind)
+    kinds: Set[Literal["pixi.toml", "raw"]] = set(kind)  # ty: ignore[invalid-assignment]
     if len(kinds) == 0:
         raise ValueError("No kind specified. Add `--kind=pixi.toml` or `--kind=raw`.")
     if not kinds <= {"pixi.toml", "raw"}:
