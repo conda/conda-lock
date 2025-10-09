@@ -2533,7 +2533,7 @@ def test_warn_on_explicit_lock_with_pip_deps(
     caplog,
 ):
     lock_content = parse_conda_lock_file(install_with_pip_deps_lockfile)
-    do_render(lock_content, kinds=[kind])
+    do_render(lock_content, kinds=(kind,))
     if kind == "explicit":
         assert PIP_WITH_EXPLICIT_LOCKFILE_WARNING in caplog.text
     else:
