@@ -979,7 +979,13 @@ and its various subcommands.</p>
 <td><code>--force-platform</code></td>
 <td>text</td>
 <td>Force using the given platform when installing from the lockfile, instead of the native platform.</td>
-<td><code>&lt;function platform_subdir at 0x7f561bb69010&gt;</code></td>
+<td><code>&lt;function platform_subdir at 0x7f57537290c0&gt;</code></td>
+</tr>
+<tr>
+<td><code>--preserve-temp-dirs</code></td>
+<td>boolean</td>
+<td>Preserve temporary directories and files created during the installation process for debugging purposes.</td>
+<td><code>False</code></td>
 </tr>
 <tr>
 <td><code>-h</code>, <code>--help</code></td>
@@ -1152,6 +1158,12 @@ timestamp: The approximate timestamp of the output file in ISO8601 basic format.
 <td>path</td>
 <td>YAML or JSON file(s) containing structured metadata to add to metadata section of the lockfile.</td>
 <td><code>[]</code></td>
+</tr>
+<tr>
+<td><code>--preserve-temp-dirs</code></td>
+<td>boolean</td>
+<td>Preserve temporary directories and files created during the locking process for debugging purposes.</td>
+<td><code>False</code></td>
 </tr>
 <tr>
 <td><code>-h</code>, <code>--help</code></td>
