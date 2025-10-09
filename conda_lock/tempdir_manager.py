@@ -61,7 +61,9 @@ def _track(path: str) -> None:
 
 @contextmanager
 def temporary_directory(
-    prefix: str = "conda-lock-", dir: str | None = None
+    prefix: str = "conda-lock-",
+    dir: str | None = None,
+    delete: bool | None = None,
 ) -> Iterator[str]:
     """
     Create a temporary directory honoring deletion behavior.
@@ -75,13 +77,18 @@ def temporary_directory(
         Prefix for the temporary directory name.
     dir : str | None
         Parent directory for the temporary directory.
+    delete : bool | None
+        If True, ensure the directory is deleted. If False, ensure it is not.
+        If None, defer to the global `delete_temp_paths` setting.
 
     Yields
     ------
     str
         Path to the temporary directory.
     """
-    if delete_temp_paths:
+    if delete is None:
+        delete = delete_temp_paths
+    if delete:
         # Use standard temporary directory with cleanup
         with tempfile.TemporaryDirectory(prefix=prefix, dir=dir) as tmp_dir:
             yield tmp_dir
@@ -92,7 +99,11 @@ def temporary_directory(
         yield tmp_dir
 
 
-def mkdtemp_with_cleanup(prefix: str = "conda-lock-", dir: str | None = None) -> str:
+def mkdtemp_with_cleanup(
+    prefix: str = "conda-lock-",
+    dir: str | None = None,
+    delete: bool | None = None,
+) -> str:
     """
     Create a temporary directory with optional cleanup at process exit.
 
@@ -105,6 +116,9 @@ def mkdtemp_with_cleanup(prefix: str = "conda-lock-", dir: str | None = None) ->
         Prefix for the temporary directory name.
     dir : str | None
         Parent directory for the temporary directory.
+    delete : bool | None
+        If True, ensure cleanup is registered. If False, ensure it is not.
+        If None, defer to the global `delete_temp_paths` setting.
 
     Returns
     -------
@@ -113,7 +127,9 @@ def mkdtemp_with_cleanup(prefix: str = "conda-lock-", dir: str | None = None) ->
     """
     path = tempfile.mkdtemp(prefix=prefix, dir=dir)
 
-    if delete_temp_paths:
+    if delete is None:
+        delete = delete_temp_paths
+    if delete:
         # Register cleanup at exit
         atexit.register(lambda: shutil.rmtree(path, ignore_errors=True))
     else:
@@ -142,7 +158,11 @@ def _log_preserved_paths() -> None:
 
 @contextmanager
 def temporary_file_with_contents(
-    content: str, *, prefix: str = "conda-lock-", dir: str | None = None
+    content: str,
+    *,
+    prefix: str = "conda-lock-",
+    dir: str | None = None,
+    delete: bool | None = None,
 ) -> Iterator[pathlib.Path]:
     """Generate a temporary file with the given content.
 
@@ -163,6 +183,9 @@ def temporary_file_with_contents(
         Prefix for the temporary filename.
     dir : str | None
         Directory in which to create the temporary file.
+    delete : bool | None
+        If True, ensure the file is deleted. If False, ensure it is not.
+        If None, defer to the global `delete_temp_paths` setting.
     """
     from conda_lock.common import write_file
 
@@ -172,12 +195,16 @@ def temporary_file_with_contents(
         write_file(content, tf.name)
         path_obj = pathlib.Path(tf.name)
 
-        if not delete_temp_paths:
+        if delete is None:
+            delete = delete_temp_paths
+        if not delete:
             _track(tf.name)
 
         yield path_obj
     finally:
-        if delete_temp_paths:
+        if delete is None:
+            delete = delete_temp_paths
+        if delete:
             try:
                 os.unlink(tf.name)
             except FileNotFoundError:
