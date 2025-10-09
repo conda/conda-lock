@@ -1432,8 +1432,8 @@ def lock(
     """
     logging.basicConfig(level=log_level)
 
-    # Set the module-level flag for deleting temporary paths (files/dirs)
-    tempdir_manager.delete_temp_paths = not preserve_temp_dirs
+    # Set the flag for deleting temporary paths (files/dirs)
+    tempdir_manager.state.delete_temp_paths = not preserve_temp_dirs
 
     # Set Pypi <--> Conda lookup file location
     mapping_url = (
@@ -1607,8 +1607,8 @@ def click_install(
     """Perform a conda install"""
     logging.basicConfig(level=log_level)
 
-    # Set the module-level flag for deleting temporary paths
-    tempdir_manager.delete_temp_paths = not preserve_temp_dirs
+    # Set the flag for deleting temporary paths
+    tempdir_manager.state.delete_temp_paths = not preserve_temp_dirs
 
     install(
         conda=conda,

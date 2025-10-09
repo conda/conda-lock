@@ -22,8 +22,16 @@ Design Rationale:
 - The `mkdtemp_with_cleanup` function provides process-lifetime directories by using
   `tempfile.mkdtemp()` (which never auto-cleans) and registering cleanup via `atexit`.
 
-- The `delete_temp_paths` flag controls cleanup; set to False to preserve for debugging.
+- The `state.delete_temp_paths` flag controls cleanup; set to False to preserve for debugging.
   inspecting intermediate files and directories created during the locking process.
+
+Thread Safety:
+- This module uses thread-local storage to manage state (`delete_temp_paths` and
+  `_preserved_paths`), making it safe for concurrent use in multi-threaded applications
+  and parallel test execution (e.g., pytest-xdist).
+
+- Each thread maintains its own independent copy of the state, preventing interference
+  between threads.
 
 Python Version Notes:
 - `tempfile.TemporaryDirectory` supports a `delete=False` parameter in Python 3.12+,
@@ -37,26 +45,88 @@ import pathlib
 import shutil
 import sys
 import tempfile
+import threading
 
 from collections.abc import Iterator
 from contextlib import contextmanager
 
 
-# Module-level flag controlling deletion of temporary directories
-# True => delete on context exit or process exit; False => preserve
-delete_temp_paths: bool = True
+class _TempdirState:
+    """
+    State manager for temporary directory behavior.
 
-# List tracking created temp directories when preserved
-_preserved_paths: list[str] = []
+    This class manages the configuration and tracking of temporary paths:
+
+    - delete_temp_paths: A boolean attribute that controls whether temporary
+      paths are deleted (True) or preserved (False). Can be toggled on or off
+      as needed. Defaults to True.
+
+    - _preserved_paths: A list for tracking temporary file and directory paths
+      that are preserved for debugging (when delete_temp_paths is False). These
+      paths are logged at program exit via _log_preserved_paths().
+
+    Usage
+    -----
+    Access the global state instance via the module-level `state` object:
+
+        from conda_lock import tempdir_manager as tm
+
+        # Toggle deletion behavior
+        tm.state.delete_temp_paths = False  # Preserve temp paths
+
+        # Access preserved paths (for debugging/inspection)
+        print(tm.state._preserved_paths)
+
+    Implementation Notes
+    --------------------
+    State is stored using thread-local storage, ensuring that concurrent
+    operations (different threads or pytest-xdist workers) don't interfere
+    with each other.
+    """
+
+    def __init__(self) -> None:
+        self._local = threading.local()
+
+    @property
+    def delete_temp_paths(self) -> bool:
+        """
+        Controls whether temporary paths are deleted (True) or preserved (False).
+
+        This property is thread-local, meaning each thread has its own independent
+        value. Defaults to True (delete paths).
+        """
+        if not hasattr(self._local, "delete_temp_paths"):
+            self._local.delete_temp_paths = True
+        return self._local.delete_temp_paths
+
+    @delete_temp_paths.setter
+    def delete_temp_paths(self, value: bool) -> None:
+        self._local.delete_temp_paths = value
+
+    @property
+    def _preserved_paths(self) -> list[str]:
+        """
+        Thread-local list of paths that are being preserved for debugging.
+
+        Each thread maintains its own list of preserved paths.
+        """
+        if not hasattr(self._local, "_preserved_paths"):
+            self._local._preserved_paths = []
+        return self._local._preserved_paths
+
+
+# Global instance of the state manager.
+# Access state via: state.delete_temp_paths, state._preserved_paths
+state = _TempdirState()
 
 
 def _track(path: str) -> None:
     """Track a preserved temporary directory for logging."""
-    if len(_preserved_paths) == 0:
+    if len(state._preserved_paths) == 0:
         # Register exit handler on first preserved directory
         atexit.register(_log_preserved_paths)
 
-    _preserved_paths.append(path)
+    state._preserved_paths.append(path)
 
 
 @contextmanager
@@ -68,8 +138,8 @@ def temporary_directory(
     """
     Create a temporary directory honoring deletion behavior.
 
-    If delete_temp_paths is True (default), the directory is cleaned up on context exit.
-    If delete_temp_paths is False, the directory is preserved (and tracked).
+    If state.delete_temp_paths is True (default), the directory is cleaned up on context exit.
+    If state.delete_temp_paths is False, the directory is preserved (and tracked).
 
     Parameters
     ----------
@@ -79,7 +149,7 @@ def temporary_directory(
         Parent directory for the temporary directory.
     delete : bool | None
         If True, ensure the directory is deleted. If False, ensure it is not.
-        If None, defer to the global `delete_temp_paths` setting.
+        If None, defer to the thread-local `state.delete_temp_paths` setting.
 
     Yields
     ------
@@ -87,7 +157,7 @@ def temporary_directory(
         Path to the temporary directory.
     """
     if delete is None:
-        delete = delete_temp_paths
+        delete = state.delete_temp_paths
     if delete:
         # Use standard temporary directory with cleanup
         with tempfile.TemporaryDirectory(prefix=prefix, dir=dir) as tmp_dir:
@@ -107,7 +177,7 @@ def mkdtemp_with_cleanup(
     """
     Create a temporary directory with optional cleanup at process exit.
 
-    If delete_temp_paths is True, cleanup is registered via atexit.
+    If state.delete_temp_paths is True, cleanup is registered via atexit.
     Otherwise, the directory is preserved and tracked for logging.
 
     Parameters
@@ -118,7 +188,7 @@ def mkdtemp_with_cleanup(
         Parent directory for the temporary directory.
     delete : bool | None
         If True, ensure cleanup is registered. If False, ensure it is not.
-        If None, defer to the global `delete_temp_paths` setting.
+        If None, defer to the thread-local `state.delete_temp_paths` setting.
 
     Returns
     -------
@@ -128,7 +198,7 @@ def mkdtemp_with_cleanup(
     path = tempfile.mkdtemp(prefix=prefix, dir=dir)
 
     if delete is None:
-        delete = delete_temp_paths
+        delete = state.delete_temp_paths
     if delete:
         # Register cleanup at exit
         atexit.register(lambda: shutil.rmtree(path, ignore_errors=True))
@@ -141,10 +211,10 @@ def mkdtemp_with_cleanup(
 
 def _log_preserved_paths() -> None:
     """Log all preserved temporary files and directories."""
-    if _preserved_paths:
+    if state._preserved_paths:
         print("=" * 60, file=sys.stderr)
         print("Preserved temporary paths:", file=sys.stderr)
-        for path in _preserved_paths:
+        for path in state._preserved_paths:
             p = pathlib.Path(path)
             if p.exists():
                 if p.is_dir():
@@ -170,9 +240,9 @@ def temporary_file_with_contents(
     on all platforms (including Windows). Deletion behavior follows the module's
     deletion policy:
 
-    - If `delete_temp_paths` is True (default), the file is deleted when leaving
+    - If `state.delete_temp_paths` is True (default), the file is deleted when leaving
       this context.
-    - If `delete_temp_paths` is False, the file is preserved and its path is
+    - If `state.delete_temp_paths` is False, the file is preserved and its path is
       tracked for visibility via `_track`.
 
     Parameters
@@ -185,7 +255,7 @@ def temporary_file_with_contents(
         Directory in which to create the temporary file.
     delete : bool | None
         If True, ensure the file is deleted. If False, ensure it is not.
-        If None, defer to the global `delete_temp_paths` setting.
+        If None, defer to the thread-local `state.delete_temp_paths` setting.
     """
     from conda_lock.common import write_file
 
@@ -196,14 +266,14 @@ def temporary_file_with_contents(
         path_obj = pathlib.Path(tf.name)
 
         if delete is None:
-            delete = delete_temp_paths
+            delete = state.delete_temp_paths
         if not delete:
             _track(tf.name)
 
         yield path_obj
     finally:
         if delete is None:
-            delete = delete_temp_paths
+            delete = state.delete_temp_paths
         if delete:
             try:
                 os.unlink(tf.name)
