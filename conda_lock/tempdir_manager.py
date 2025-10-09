@@ -141,17 +141,44 @@ def _log_preserved_paths() -> None:
 
 
 @contextmanager
-def temporary_file_with_contents(content: str) -> Iterator[pathlib.Path]:
-    """Generate a temporary file with the given content.  This file can be used by subprocesses
+def temporary_file_with_contents(
+    content: str, *, prefix: str = "conda-lock-", dir: str | None = None
+) -> Iterator[pathlib.Path]:
+    """Generate a temporary file with the given content.
 
-    On Windows, NamedTemporaryFiles can't be opened a second time, so we have to close it first (and delete it manually later)
+    The file is created in a way that allows it to be re-opened by subprocesses
+    on all platforms (including Windows). Deletion behavior follows the module's
+    deletion policy:
+
+    - If `delete_temp_paths` is True (default), the file is deleted when leaving
+      this context.
+    - If `delete_temp_paths` is False, the file is preserved and its path is
+      tracked for visibility via `_track`.
+
+    Parameters
+    ----------
+    content : str
+        File content to write.
+    prefix : str
+        Prefix for the temporary filename.
+    dir : str | None
+        Directory in which to create the temporary file.
     """
     from conda_lock.common import write_file
 
-    tf = tempfile.NamedTemporaryFile(delete=False)
+    tf = tempfile.NamedTemporaryFile(prefix=prefix, dir=dir, delete=False)
     try:
         tf.close()
         write_file(content, tf.name)
-        yield pathlib.Path(tf.name)
+        path_obj = pathlib.Path(tf.name)
+
+        if not delete_temp_paths:
+            _track(tf.name)
+
+        yield path_obj
     finally:
-        os.unlink(tf.name)
+        if delete_temp_paths:
+            try:
+                os.unlink(tf.name)
+            except FileNotFoundError:
+                pass
