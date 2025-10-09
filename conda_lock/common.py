@@ -10,9 +10,6 @@ from typing import (
     TypeVar,
 )
 
-# Re-export from tempdir_manager for compatibility
-from conda_lock.tempdir_manager import temporary_file_with_contents  # noqa: F401
-
 
 T = TypeVar("T")
 

@@ -34,7 +34,6 @@ from conda_lock.common import (
     read_file,
     read_json,
     relative_path,
-    temporary_file_with_contents,
     warn,
     write_file,
 )
@@ -76,6 +75,7 @@ from conda_lock.models.lock_spec import LockSpecification
 from conda_lock.models.pip_repository import PipRepository
 from conda_lock.pypi_solver import solve_pypi
 from conda_lock.src_parser import make_lock_spec
+from conda_lock.tempdir_manager import temporary_file_with_contents
 from conda_lock.virtual_package import (
     FakeRepoData,
     default_virtual_package_repodata,
