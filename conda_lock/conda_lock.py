@@ -29,6 +29,7 @@ import yaml.error
 from ensureconda.api import ensureconda
 from ensureconda.resolve import platform_subdir
 
+from conda_lock import tempdir_manager
 from conda_lock.click_helpers import OrderedGroup
 from conda_lock.common import (
     read_file,
@@ -1381,6 +1382,12 @@ CONTEXT_SETTINGS = {"show_default": True, "help_option_names": ["--help", "-h"]}
     type=click.Path(),
     help="YAML or JSON file(s) containing structured metadata to add to metadata section of the lockfile.",
 )
+@click.option(
+    "--preserve-temp-dirs",
+    is_flag=True,
+    default=False,
+    help="Preserve temporary directories and files created during the locking process for debugging purposes.",
+)
 @click.pass_context
 def lock(
     ctx: click.Context,
@@ -1406,6 +1413,7 @@ def lock(
     update: Sequence[str] | None = None,
     metadata_choices: Sequence[str] = (),
     metadata_yamls: Sequence[PathLike] = (),
+    preserve_temp_dirs: bool = False,
 ) -> None:
     """Generate fully reproducible lock files for conda environments.
 
@@ -1423,6 +1431,9 @@ def lock(
         timestamp: The approximate timestamp of the output file in ISO8601 basic format.
     """
     logging.basicConfig(level=log_level)
+
+    # Set the module-level flag for deleting temporary paths (files/dirs)
+    tempdir_manager.delete_temp_paths = not preserve_temp_dirs
 
     # Set Pypi <--> Conda lookup file location
     mapping_url = (
@@ -1561,6 +1572,12 @@ DEFAULT_INSTALL_OPT_LOCK_FILE = pathlib.Path(DEFAULT_LOCKFILE_NAME)
     help="Force using the given platform when installing from the lockfile, instead of the native platform.",
     default=platform_subdir,
 )
+@click.option(
+    "--preserve-temp-dirs",
+    is_flag=True,
+    default=False,
+    help="Preserve temporary directories and files created during the installation process for debugging purposes.",
+)
 @click.argument("lock-file", default=DEFAULT_INSTALL_OPT_LOCK_FILE, type=click.Path())
 @click.pass_context
 def click_install(
@@ -1579,6 +1596,7 @@ def click_install(
     dev: bool,
     extras: list[str],
     force_platform: str,
+    preserve_temp_dirs: bool,
 ) -> None:
     # bail out if we do not encounter the lockfile
     lock_file = pathlib.Path(lock_file)
@@ -1588,6 +1606,10 @@ def click_install(
 
     """Perform a conda install"""
     logging.basicConfig(level=log_level)
+
+    # Set the module-level flag for deleting temporary paths
+    tempdir_manager.delete_temp_paths = not preserve_temp_dirs
+
     install(
         conda=conda,
         mamba=mamba,
