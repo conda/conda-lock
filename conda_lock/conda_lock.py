@@ -24,6 +24,7 @@ from urllib.parse import urlsplit
 
 import click
 import yaml
+import yaml.error
 
 from ensureconda.api import ensureconda
 from ensureconda.resolve import platform_subdir
