@@ -6,7 +6,6 @@ import shlex
 import shutil
 import subprocess
 import sys
-import tempfile
 import time
 
 from collections.abc import Iterable, Iterator, MutableSequence, Sequence
@@ -31,6 +30,7 @@ from conda_lock.lockfile.v2prelim.models import HashModel, LockedDependency
 from conda_lock.models.channel import Channel, normalize_url_with_placeholders
 from conda_lock.models.dry_run_install import DryRunInstall, FetchAction, LinkAction
 from conda_lock.models.lock_spec import Dependency, VersionedDependency
+from conda_lock.tempdir_manager import temporary_directory
 
 
 logger = logging.getLogger(__name__)
@@ -515,7 +515,7 @@ def fake_conda_environment(
         Target platform
 
     """
-    with tempfile.TemporaryDirectory() as prefix:
+    with temporary_directory(prefix="conda-lock-fake-env-") as prefix:
         conda_meta = pathlib.Path(prefix) / "conda-meta"
         conda_meta.mkdir()
         (conda_meta / "history").touch()
