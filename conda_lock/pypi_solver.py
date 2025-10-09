@@ -465,7 +465,7 @@ def _get_stripped_url(link: Link) -> str:
     clean_netloc = f"{parsed_url.hostname}"
     if parsed_url.port is not None:
         clean_netloc = f"{clean_netloc}:{parsed_url.port}"
-    return urlunsplit(
+    return urlunsplit(  # ty: ignore[invalid-return-type]
         (
             parsed_url.scheme,
             clean_netloc,
@@ -689,4 +689,6 @@ def _strip_auth(url: str) -> str:
     # Remove everything before and including the last '@' character in the part
     # between 'scheme://' and the subsequent '/'.
     netloc = parts.netloc.split("@")[-1]
-    return urlunsplit((parts.scheme, netloc, parts.path, parts.query, parts.fragment))
+    return urlunsplit(  # ty: ignore[invalid-return-type]
+        (parts.scheme, netloc, parts.path, parts.query, parts.fragment)
+    )
