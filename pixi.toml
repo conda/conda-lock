@@ -7,7 +7,7 @@
 [project]
 name = "conda-lock"
 platforms = ["linux-64", "linux-aarch64", "osx-64", "osx-arm64", "win-64"]
-channels = ["maresb", "conda-forge"]
+channels = ["conda-forge"]
 
 [dependencies]
 boltons = ">=23.0.0"
