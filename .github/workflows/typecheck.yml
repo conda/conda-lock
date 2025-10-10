@@ -1,0 +1,88 @@
+name: typechecks
+
+# Disable default permissions and grant minimal required permissions
+permissions: {}
+
+on:
+  push:
+    branches:
+    - main
+  pull_request:
+    branches:
+    - main
+
+defaults:
+  run:
+    # Ensure activation for micromamba
+    shell: bash -leo pipefail {0}
+
+concurrency:
+  # Concurrency group that uses the workflow name and PR number if available
+  # or commit SHA as a fallback. If a new build is triggered under that
+  # concurrency group while a previous build is running it will be canceled.
+  # Repeated pushes to a PR will cancel all previous builds, while multiple
+  # merges to main will not cancel.
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}
+  cancel-in-progress: true
+
+jobs:
+  typechecks:
+    name: ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+        - name: mypy
+          hook: mypy
+          setup-micromamba: false
+          os: ubuntu-latest
+        - name: ty
+          hook: ty
+          setup-micromamba: true
+          os: ubuntu-latest
+    steps:
+    # Initialization
+    - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+      with:
+        fetch-depth: 0
+        persist-credentials: false
+    - uses: actions/setup-python@e797f83bcb11b83ae66e0230d6156d7c80228e7c # v6.0.0
+      if: matrix.setup-micromamba == false
+      with:
+        python-version: 3.14
+
+    - name: Install pre-commit (for mypy)
+      if: matrix.setup-micromamba == false
+      run: python -m pip install pre-commit
+    - name: List pip package versions
+      if: matrix.setup-micromamba == false
+      run: python -m pip freeze --local
+
+    - uses: mamba-org/setup-micromamba@add3a49764cedee8ee24e82dfde87f5bc2914462 # v2.0.7
+      if: matrix.setup-micromamba == true
+      with:
+        environment-file: environments/conda-lock.yml
+        environment-name: conda-lock-dev
+        init-shell: bash
+        cache-environment: true
+        create-args: >-
+          --category=main --category=dev
+
+    - name: RUN MYPY
+      if: matrix.hook == 'mypy'
+      run: |
+        pre-commit run --verbose --show-diff-on-failure --color=always --all-files --hook-stage=manual mypy
+
+    - name: RUN TY
+      if: matrix.hook == 'ty'
+      run: |
+        pre-commit run --verbose --show-diff-on-failure --color=always --all-files ty
+
+    # Upload logs
+    - name: Upload pre-commit log
+      if: always()
+      uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+      with:
+        name: pre-commit-${{ matrix.name }}.log
+        path: /home/runner/.cache/pre-commit/pre-commit.log
