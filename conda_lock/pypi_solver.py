@@ -395,7 +395,7 @@ def get_requirements(
                 if fragment == "":
                     hash = HashModel()
                 elif len(hash_splits) == 2:
-                    hash = HashModel(**{hash_splits[0]: hash_splits[1]})
+                    hash = HashModel.model_validate({hash_splits[0]: hash_splits[1]})
                 else:
                     raise ValueError(f"Don't know what to do with {fragment}")
                 source = DependencySource(
@@ -404,7 +404,9 @@ def get_requirements(
             elif op.package.source_type == "git":
                 url = f"{op.package.source_type}+{op.package.source_url}@{op.package.source_resolved_reference}"
                 # TODO: FIXME git ls-remote
-                hash = HashModel(**{"sha256": op.package.source_resolved_reference})
+                hash = HashModel.model_validate(
+                    {"sha256": op.package.source_resolved_reference}
+                )
                 source = DependencySource(type="url", url=url)
             elif op.package.source_type in ("directory", "file"):
                 url = f"file://{op.package.source_url}"
@@ -483,7 +485,7 @@ def _compute_hash(link: Link, lock_spec_hash: str | None) -> HashModel:
     else:
         # A hash was provided in the lock spec, so that takes precedence
         algo, value = lock_spec_hash.split(":")
-        return HashModel(**{algo: value})
+        return HashModel.model_validate({algo: value})
 
 
 def solve_pypi(
