@@ -238,10 +238,15 @@ def _reconstruct_fetch_actions(
     link_actions = {p["name"]: p for p in dry_run_install["actions"]["LINK"]}
     fetch_actions = {p["name"]: p for p in dry_run_install["actions"]["FETCH"]}
     link_only_names = set(link_actions.keys()).difference(fetch_actions.keys())
-    if link_only_names:
-        pkgs_dirs = _get_pkgs_dirs(conda=conda, platform=platform)
-    else:
-        pkgs_dirs = []
+    pkgs_dirs = _get_pkgs_dirs(conda=conda, platform=platform)
+
+    logger.debug(f"Invoked {conda}")
+    logger.debug(f"{pkgs_dirs=}")
+    logger.debug(
+        f"{len(link_actions)} LINK actions, of which {len(link_only_names)} are LINK-only"
+    )
+    if len(link_only_names) > 0:
+        logger.debug(f"Names of LINK-only actions: {sorted(link_only_names)}")
 
     for link_pkg_name in link_only_names:
         link_action = link_actions[link_pkg_name]
@@ -264,6 +269,22 @@ def _reconstruct_fetch_actions(
             )
         dry_run_install["actions"]["FETCH"].append(repodata)
     return dry_run_install
+
+
+def recognize_corrupt_repodata_record(
+    repodata: FetchAction,
+) -> bool:
+    """
+    Recognize a corrupt repodata_record.json.
+    """
+    return (
+        repodata.get("depends", []) == []
+        and repodata.get("constrains", []) == []
+        and repodata.get("license", "") == ""
+        and repodata.get("timestamp", 0) == 0
+        and repodata.get("build_number", 0) == 0
+        and repodata.get("track_features", "") == ""
+    )
 
 
 def solve_specs_for_arch(
