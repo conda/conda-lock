@@ -10,7 +10,6 @@ from collections.abc import Set
 from typing import (
     TYPE_CHECKING,
     Any,
-    ClassVar,
 )
 
 
@@ -30,6 +29,12 @@ from conda_lock.models.dry_run_install import FetchAction
 
 
 logger = logging.getLogger(__name__)
+
+SCHEMA_DIALECT = "http://json-schema.org/draft-07/schema#"
+SCHEMA_VERSION_TYPE = Literal[1]  # match value below
+SCHEMA_VERSION: SCHEMA_VERSION_TYPE = 1
+SCHEMA_FILENAME = f"conda-lock-v{SCHEMA_VERSION}.schema.json"
+SCHEMA_URL = f"https://schemas.conda.org/{SCHEMA_FILENAME}"
 
 
 class DependencySource(StrictModel):
@@ -374,7 +379,7 @@ class LockMeta(StrictModel):
 
 
 class Lockfile(StrictModel):
-    version: ClassVar[int] = 1
+    version: SCHEMA_VERSION_TYPE = SCHEMA_VERSION  # modify in top-level only
 
     package: list[LockedDependency]
     metadata: LockMeta
@@ -382,7 +387,7 @@ class Lockfile(StrictModel):
     def dict_for_output(self) -> dict[str, Any]:
         """Convert the lockfile to a dictionary that can be written to a file."""
         return {
-            "version": Lockfile.version,
+            "version": self.version,
             "metadata": json.loads(
                 self.metadata.model_dump_json(
                     by_alias=True, exclude_unset=True, exclude_none=True
@@ -393,3 +398,17 @@ class Lockfile(StrictModel):
                 for package in self.package
             ],
         }
+
+
+def generate_json_schema(output_dir: str | pathlib.Path | None = None) -> str:
+    output_dir = pathlib.Path(output_dir or pathlib.Path(__file__).parent)
+    schema = Lockfile.model_json_schema()
+    schema["$schema"] = SCHEMA_DIALECT
+    schema["$id"] = SCHEMA_URL
+    schema_str = json.dumps(schema, indent=2)
+    (output_dir / SCHEMA_FILENAME).write_text(schema_str + "\n")
+    return schema_str
+
+
+if __name__ == "__main__":
+    print(generate_json_schema())
