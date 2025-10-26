@@ -32,8 +32,9 @@ logger = logging.getLogger(__name__)
 
 SCHEMA_DIALECT = "http://json-schema.org/draft-07/schema#"
 # We follow schemaver
-SCHEMA_VERSION = "1-0-0"
-SCHEMA_FILENAME = f"conda-lock-{SCHEMA_VERSION}.schema.json"
+SCHEMA_VERSION_TYPE = Literal[1]  # match value below
+SCHEMA_VERSION = 1
+SCHEMA_FILENAME = f"conda-lock-v{SCHEMA_VERSION}.schema.json"
 SCHEMA_URL = f"https://schemas.conda.org/{SCHEMA_FILENAME}"
 
 
@@ -379,7 +380,7 @@ class LockMeta(StrictModel):
 
 
 class Lockfile(StrictModel):
-    version: Literal[1] = 1
+    version: SCHEMA_VERSION_TYPE = SCHEMA_VERSION  # modify in top-level only
 
     package: list[LockedDependency]
     metadata: LockMeta
