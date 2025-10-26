@@ -25,6 +25,64 @@ class UnknownLockfileVersion(ValueError):
     pass
 
 
+class InconsistentCondaDependencies(ValueError):
+    """Raised when conda dependencies in the lockfile are inconsistent."""
+
+    pass
+
+
+def _verify_no_missing_conda_packages(content: Lockfile) -> None:
+    """
+    Ensure all subdependencies of conda packages are also present as conda packages.
+
+    This does not check version constraints.
+
+    Raises:
+        InconsistentCondaDependencies: If any conda dependency is missing
+    """
+    print("------------------VERIFYING CONDA DEPENDENCY CONSISTENCY------------------")
+    # Build a mapping of (name, platform) -> LockedDependency for conda packages
+    conda_packages: dict[tuple[str, str], LockedDependency] = {}
+    for package in content.package:
+        if package.manager == "conda":
+            conda_packages[(package.name, package.platform)] = package
+
+    # Iterate through the mapping while checking for missing dependencies
+    missing_dependencies: set[tuple[str, str]] = set()
+    for (_primary_dep_name, platform), dependency in conda_packages.items():
+        subdependencies = dependency.dependencies
+        satisfied_deps = []
+        for subdep_name in subdependencies:
+            if subdep_name.startswith("__"):
+                # Virtual packages like __linux are not real packages so not present
+                continue
+            if (subdep_name, platform) not in conda_packages:
+                missing_dependencies.add((subdep_name, platform))
+            else:
+                satisfied_deps.append(subdep_name)
+        if len(satisfied_deps) > 0:
+            print(f"Satisfied dependencies for {_primary_dep_name}: {satisfied_deps}")
+
+    if missing_dependencies:
+        error_msg = (
+            "Conda dependency consistency check failed. The following conda "
+            "subdependencies are missing from the lockfile:\n\n"
+        )
+        for current_platform in content.metadata.platforms:
+            missing_on_platform = [
+                (name, dep_platform)
+                for name, dep_platform in missing_dependencies
+                if dep_platform == current_platform
+            ]
+            if missing_on_platform:
+                error_msg += f"  {current_platform}:\n"
+                for subdep_name, _subdep_platform in sorted(missing_on_platform):
+                    error_msg += f"    - {subdep_name}\n"
+        error_msg += "\n\nThis indicates that the conda dependency graph is incomplete."
+        raise InconsistentCondaDependencies(error_msg)
+    print("------------------CONDA DEPENDENCY CONSISTENCY VERIFIED-------------------")
+
+
 def _seperator_munge_get(
     d: Mapping[str, list[LockedDependency] | LockedDependency], key: str
 ) -> list[LockedDependency] | LockedDependency:
@@ -181,6 +239,8 @@ def parse_conda_lock_file(path: pathlib.Path) -> Lockfile:
     else:
         raise UnknownLockfileVersion(f"{path} has unknown version {version}")
     lockfile.toposort_inplace()
+    for p in lockfile.package:
+        assert len(p.categories) > 0, f"Package {p.name} has no categories"
     return lockfile
 
 
@@ -192,6 +252,10 @@ def write_conda_lock_file(
 ) -> None:
     content.alphasort_inplace()
     content.filter_virtual_packages_inplace()
+
+    # Validate conda dependency consistency before writing
+    _verify_no_missing_conda_packages(content)
+
     with path.open("w") as f:
         if include_help_text:
             categories: set[str] = {
@@ -246,5 +310,12 @@ def write_conda_lock_file(
                     conda-lock {metadata_flags}{" ".join("-f " + path for path in content.metadata.sources)} --lockfile {path.name}
                 """
             )
-        output = content.to_v1().dict_for_output()
+        pathlib.Path("outputv2.json").write_text(content.model_dump_json(indent=2))
+        content_v1 = content.to_v1()
+        pathlib.Path("outputv1.json").write_text(content_v1.model_dump_json(indent=2))
+        output = content_v1.dict_for_output()
         yaml.dump(output, stream=f, sort_keys=False)
+
+    # Verify round-trip consistency by reading back the lockfile and checking again
+    parsed_lockfile = parse_conda_lock_file(path)
+    _verify_no_missing_conda_packages(parsed_lockfile)
