@@ -31,6 +31,12 @@ from conda_lock.models.dry_run_install import FetchAction
 
 logger = logging.getLogger(__name__)
 
+SCHEMA_DIALECT = "http://json-schema.org/draft-07/schema#"
+# We follow schemaver
+SCHEMA_VERSION = "1-0-0"
+SCHEMA_FILENAME = f"conda-lock-{SCHEMA_VERSION}.schema.json"
+SCHEMA_URL = f"https://schemas.conda.org/{SCHEMA_FILENAME}"
+
 
 class DependencySource(StrictModel):
     type: Literal["url"]
@@ -393,3 +399,17 @@ class Lockfile(StrictModel):
                 for package in self.package
             ],
         }
+
+
+def generate_json_schema() -> str:
+    here = pathlib.Path(__file__).parent
+    schema = Lockfile.model_json_schema()
+    schema["$schema"] = SCHEMA_DIALECT
+    schema["$id"] = SCHEMA_URL
+    schema_str = json.dumps(schema, indent=2)
+    (here / SCHEMA_FILENAME).write_text(schema_str)
+    return schema_str
+
+
+if __name__ == "__main__":
+    print(generate_json_schema())

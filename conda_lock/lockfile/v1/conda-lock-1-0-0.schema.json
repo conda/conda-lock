@@ -1,0 +1,380 @@
+{
+  "$defs": {
+    "Channel": {
+      "properties": {
+        "url": {
+          "title": "Url",
+          "type": "string"
+        },
+        "used_env_vars": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Used Env Vars",
+          "type": "array"
+        }
+      },
+      "required": [
+        "url",
+        "used_env_vars"
+      ],
+      "title": "Channel",
+      "type": "object"
+    },
+    "DependencySource": {
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "const": "url",
+          "title": "Type",
+          "type": "string"
+        },
+        "url": {
+          "title": "Url",
+          "type": "string"
+        }
+      },
+      "required": [
+        "type",
+        "url"
+      ],
+      "title": "DependencySource",
+      "type": "object"
+    },
+    "GitMeta": {
+      "additionalProperties": false,
+      "description": "Stores information about the git repo the lockfile is being generated in (if applicable) and\nthe git user generating the file.",
+      "properties": {
+        "git_user_name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Git user.name field of global config",
+          "title": "Git User Name"
+        },
+        "git_user_email": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Git user.email field of global config",
+          "title": "Git User Email"
+        },
+        "git_sha": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "sha256 hash of the most recent git commit that modified one of the input files for this lockfile",
+          "title": "Git Sha"
+        }
+      },
+      "title": "GitMeta",
+      "type": "object"
+    },
+    "HashModel": {
+      "additionalProperties": false,
+      "properties": {
+        "md5": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Md5"
+        },
+        "sha256": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Sha256"
+        }
+      },
+      "title": "HashModel",
+      "type": "object"
+    },
+    "InputMeta": {
+      "additionalProperties": false,
+      "description": "Stores information about an input provided to generate the lockfile.",
+      "properties": {
+        "md5": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "md5 checksum for an input file",
+          "title": "Md5"
+        },
+        "sha256": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "md5 checksum for an input file",
+          "title": "Sha256"
+        }
+      },
+      "required": [
+        "md5",
+        "sha256"
+      ],
+      "title": "InputMeta",
+      "type": "object"
+    },
+    "LockMeta": {
+      "additionalProperties": false,
+      "properties": {
+        "content_hash": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "Hash of dependencies for each target platform",
+          "title": "Content Hash",
+          "type": "object"
+        },
+        "channels": {
+          "description": "Channels used to resolve dependencies",
+          "items": {
+            "$ref": "#/$defs/Channel"
+          },
+          "title": "Channels",
+          "type": "array"
+        },
+        "platforms": {
+          "description": "Target platforms",
+          "items": {
+            "type": "string"
+          },
+          "title": "Platforms",
+          "type": "array"
+        },
+        "sources": {
+          "description": "paths to source files, relative to the parent directory of the lockfile",
+          "items": {
+            "type": "string"
+          },
+          "title": "Sources",
+          "type": "array"
+        },
+        "time_metadata": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/TimeMeta"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Metadata dealing with the time lockfile was created"
+        },
+        "git_metadata": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/GitMeta"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Metadata dealing with the git repo the lockfile was created in and the user that created it"
+        },
+        "inputs_metadata": {
+          "anyOf": [
+            {
+              "additionalProperties": {
+                "$ref": "#/$defs/InputMeta"
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Metadata dealing with the input files used to create the lockfile",
+          "title": "Inputs Metadata"
+        },
+        "custom_metadata": {
+          "anyOf": [
+            {
+              "additionalProperties": {
+                "type": "string"
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Custom metadata provided by the user to be added to the lockfile",
+          "title": "Custom Metadata"
+        }
+      },
+      "required": [
+        "content_hash",
+        "channels",
+        "platforms",
+        "sources"
+      ],
+      "title": "LockMeta",
+      "type": "object"
+    },
+    "LockedDependency": {
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "version": {
+          "title": "Version",
+          "type": "string"
+        },
+        "manager": {
+          "enum": [
+            "conda",
+            "pip"
+          ],
+          "title": "Manager",
+          "type": "string"
+        },
+        "platform": {
+          "title": "Platform",
+          "type": "string"
+        },
+        "dependencies": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "default": {},
+          "title": "Dependencies",
+          "type": "object"
+        },
+        "url": {
+          "title": "Url",
+          "type": "string"
+        },
+        "hash": {
+          "$ref": "#/$defs/HashModel"
+        },
+        "source": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/DependencySource"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "build": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Build"
+        },
+        "category": {
+          "default": "main",
+          "title": "Category",
+          "type": "string"
+        },
+        "optional": {
+          "title": "Optional",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "name",
+        "version",
+        "manager",
+        "platform",
+        "url",
+        "hash",
+        "optional"
+      ],
+      "title": "LockedDependency",
+      "type": "object"
+    },
+    "TimeMeta": {
+      "additionalProperties": false,
+      "description": "Stores information about when the lockfile was generated.",
+      "properties": {
+        "created_at": {
+          "description": "Time stamp of lock-file creation time",
+          "title": "Created At",
+          "type": "string"
+        }
+      },
+      "required": [
+        "created_at"
+      ],
+      "title": "TimeMeta",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "package": {
+      "items": {
+        "$ref": "#/$defs/LockedDependency"
+      },
+      "title": "Package",
+      "type": "array"
+    },
+    "metadata": {
+      "$ref": "#/$defs/LockMeta"
+    }
+  },
+  "required": [
+    "package",
+    "metadata"
+  ],
+  "title": "Lockfile",
+  "type": "object",
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://schemas.conda.org/conda-lock-1-0-0.schema.json"
+}

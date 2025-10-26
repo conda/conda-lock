@@ -1,0 +1,51 @@
+name: schema
+
+# Disable default permissions and grant minimal required permissions
+permissions: {}
+
+on:
+  push:
+    branches:
+    - main
+  pull_request:
+    branches:
+    - main
+
+defaults:
+  run:
+    # Ensure activation for micromamba
+    shell: bash -leo pipefail {0}
+
+concurrency:
+  # Concurrency group that uses the workflow name and PR number if available
+  # or commit SHA as a fallback. If a new build is triggered under that
+  # concurrency group while a previous build is running it will be canceled.
+  # Repeated pushes to a PR will cancel all previous builds, while multiple
+  # merges to main will not cancel.
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}
+  cancel-in-progress: true
+
+jobs:
+  schema:
+    name: Check JSON Schema is up-to-date
+    runs-on: ubuntu-latest
+    steps:
+    # Initialization
+    - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+      with:
+        fetch-depth: 0
+        persist-credentials: false
+
+    - uses: mamba-org/setup-micromamba@add3a49764cedee8ee24e82dfde87f5bc2914462 # v2.0.7
+      with:
+        environment-file: environments/conda-lock.yml
+        environment-name: conda-lock-dev
+        init-shell: bash
+        cache-environment: true
+        create-args: >-
+          --category=main --category=dev
+
+    - name: Check JSON Schema
+      run: |
+        python conda_lock/lockfile/v1/models.py
+        git diff --exit-code
