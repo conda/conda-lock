@@ -358,6 +358,11 @@
   },
   "additionalProperties": false,
   "properties": {
+    "version": {
+      "default": 1,
+      "title": "Version",
+      "type": "integer"
+    },
     "package": {
       "items": {
         "$ref": "#/$defs/LockedDependency"
