@@ -407,7 +407,7 @@ def generate_json_schema() -> str:
     schema["$schema"] = SCHEMA_DIALECT
     schema["$id"] = SCHEMA_URL
     schema_str = json.dumps(schema, indent=2)
-    (here / SCHEMA_FILENAME).write_text(schema_str)
+    (here / SCHEMA_FILENAME).write_text(schema_str + "\n")
     return schema_str
 
 
