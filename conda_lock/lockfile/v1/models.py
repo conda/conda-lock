@@ -31,7 +31,6 @@ from conda_lock.models.dry_run_install import FetchAction
 logger = logging.getLogger(__name__)
 
 SCHEMA_DIALECT = "http://json-schema.org/draft-07/schema#"
-# We follow schemaver
 SCHEMA_VERSION_TYPE = Literal[1]  # match value below
 SCHEMA_VERSION: SCHEMA_VERSION_TYPE = 1
 SCHEMA_FILENAME = f"conda-lock-v{SCHEMA_VERSION}.schema.json"
