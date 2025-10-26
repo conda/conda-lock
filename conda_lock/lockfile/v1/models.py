@@ -380,7 +380,7 @@ class LockMeta(StrictModel):
 
 
 class Lockfile(StrictModel):
-    version: int = 1
+    version: Literal[1] = 1
 
     package: list[LockedDependency]
     metadata: LockMeta
@@ -388,7 +388,7 @@ class Lockfile(StrictModel):
     def dict_for_output(self) -> dict[str, Any]:
         """Convert the lockfile to a dictionary that can be written to a file."""
         return {
-            "version": Lockfile.version,
+            "version": self.version,
             "metadata": json.loads(
                 self.metadata.model_dump_json(
                     by_alias=True, exclude_unset=True, exclude_none=True

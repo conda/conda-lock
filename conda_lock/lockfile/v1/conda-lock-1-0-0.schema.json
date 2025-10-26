@@ -359,6 +359,7 @@
   "additionalProperties": false,
   "properties": {
     "version": {
+      "const": 1,
       "default": 1,
       "title": "Version",
       "type": "integer"
