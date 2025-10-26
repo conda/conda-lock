@@ -2129,5 +2129,113 @@ def _handle_exception_post_mortem(
     pdb.post_mortem(exc_traceback)
 
 
+@main.command("check", context_settings=CONTEXT_SETTINGS)
+@click.option(
+    "-f",
+    "--file",
+    "files",
+    type=click.Path(),
+    multiple=True,
+    help="path to a conda environment specification(s)",
+)
+@click.option(
+    "--lockfile",
+    default=DEFAULT_LOCKFILE_NAME,
+    help="Path to the conda-lock.yml to check",
+)
+@click.option(
+    "--pypi_to_conda_lookup_file",
+    type=str,
+    help="Location of the lookup file containing Pypi package names to conda names.",
+)
+@click.option(
+    "--log-level",
+    help="Log level.",
+    default="INFO",
+    type=click.Choice(["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]),
+)
+@click.option(
+    "-p",
+    "--platform",
+    multiple=True,
+    help="check lock files for the following platforms",
+)
+@click.option(
+    "-c",
+    "--channel",
+    "channel_overrides",
+    multiple=True,
+    help="""Override the channels to use when solving the environment. These will replace the channels as listed in the various source files.""",
+)
+@click.option(
+    "--dev-dependencies/--no-dev-dependencies",
+    is_flag=True,
+    default=True,
+    help="include dev dependencies in the check (where applicable)",
+)
+@click.option(
+    "-e",
+    "--extras",
+    "--category",
+    default=[],
+    type=str,
+    multiple=True,
+    help="When used in conjunction with input sources that support extras/categories (pyproject.toml) will add the deps from those extras to the check",
+)
+@click.option(
+    "--filter-categories",
+    "--filter-extras",
+    is_flag=True,
+    default=False,
+    help="In conjunction with extras this will prune out dependencies that do not have the extras specified when loading files.",
+)
+@click.option(
+    "--with-cuda",
+    "with_cuda",
+    type=str,
+    default=None,
+    help="Specify cuda version to use in virtual packages. Avoids warning about implicit acceptance of cuda dependencies. Ignored if virtual packages are specified.",
+)
+def click_check(
+    files: Sequence[PathLike],
+    lockfile: PathLike,
+    pypi_to_conda_lookup_file: Optional[str],
+    log_level: TLogLevel,
+    platform: Sequence[str],
+    channel_overrides: Sequence[str],
+    dev_dependencies: bool,
+    extras: Sequence[str],
+    filter_categories: bool,
+    with_cuda: Optional[str] = None,
+) -> None:
+    """Check if the lockfile is consistent with the environment specification."""
+    from conda_lock.check_lockfile import check_lockfile
+
+    logging.basicConfig(level=log_level)
+    lockfile_path = pathlib.Path(lockfile)
+    environment_files = [pathlib.Path(file) for file in files]
+    if len(environment_files) == 0:
+        environment_files = handle_no_specified_source_files(lockfile_path)
+
+    mapping_url = (
+        DEFAULT_MAPPING_URL
+        if pypi_to_conda_lookup_file is None
+        else pypi_to_conda_lookup_file
+    )
+
+    if not check_lockfile(
+        lockfile_path,
+        environment_files,
+        mapping_url,
+        channel_overrides=channel_overrides,
+        platform_overrides=platform,
+        include_dev_dependencies=dev_dependencies,
+        extras=set(extras),
+        filter_categories=filter_categories,
+        with_cuda=with_cuda,
+    ):
+        sys.exit(1)
+
+
 if __name__ == "__main__":
     main()
