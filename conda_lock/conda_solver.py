@@ -30,7 +30,7 @@ from conda_lock.lockfile.v2prelim.models import HashModel, LockedDependency
 from conda_lock.models.channel import Channel, normalize_url_with_placeholders
 from conda_lock.models.dry_run_install import DryRunInstall, FetchAction, LinkAction
 from conda_lock.models.lock_spec import Dependency, VersionedDependency
-from conda_lock.tempdir_manager import temporary_directory
+from conda_lock.tempdir_manager import temporary_directory, temporary_file_with_contents
 
 
 logger = logging.getLogger(__name__)
@@ -122,7 +122,12 @@ def solve_conda(
             channels=channels,
             specs=conda_specs,
         )
-    logging.debug("dry_run_install:\n%s", dry_run_install)
+    if os.environ.get("CONDA_LOCK_DRY_RUN_INSTALL_OUTPUT"):
+        logging.debug("dry_run_install:\n%s", dry_run_install)
+    temporary_file_with_contents(
+        content=json.dumps(dry_run_install, indent=2),
+        prefix="conda-lock-dry-run-install-",
+    )
 
     # extract dependencies from package plan
     planned = {}
@@ -238,10 +243,25 @@ def _reconstruct_fetch_actions(
     link_actions = {p["name"]: p for p in dry_run_install["actions"]["LINK"]}
     fetch_actions = {p["name"]: p for p in dry_run_install["actions"]["FETCH"]}
     link_only_names = set(link_actions.keys()).difference(fetch_actions.keys())
-    if link_only_names:
-        pkgs_dirs = _get_pkgs_dirs(conda=conda, platform=platform)
-    else:
-        pkgs_dirs = []
+    pkgs_dirs = _get_pkgs_dirs(conda=conda, platform=platform)
+
+    logger.debug(f"Invoked {conda}")
+    logger.debug(f"{pkgs_dirs=}")
+    logger.debug(
+        f"{len(link_actions)} LINK actions, of which {len(link_only_names)} are LINK-only"
+    )
+    if len(link_only_names) > 0:
+        logger.debug(f"Names of LINK-only actions: {sorted(link_only_names)}")
+
+    potentially_corrupt_repodata_records = [
+        name
+        for name, action in fetch_actions.items()
+        if is_potentially_corrupt_repodata_record(action)
+    ]
+    if len(potentially_corrupt_repodata_records) > 0:
+        logger.debug(
+            f"Names of potentially corrupt repodata records: {sorted(potentially_corrupt_repodata_records)}"
+        )
 
     for link_pkg_name in link_only_names:
         link_action = link_actions[link_pkg_name]
@@ -262,8 +282,28 @@ def _reconstruct_fetch_actions(
             raise FileNotFoundError(
                 f"Distribution '{dist_name}' not found in pkgs_dirs {pkgs_dirs}"
             )
+        if is_potentially_corrupt_repodata_record(repodata):
+            logger.warning(
+                f"Potentially corrupt repodata record for {link_pkg_name}: {repodata}"
+            )
         dry_run_install["actions"]["FETCH"].append(repodata)
     return dry_run_install
+
+
+def is_potentially_corrupt_repodata_record(
+    repodata: FetchAction,
+) -> bool:
+    """
+    Recognize a corrupt repodata_record.json.
+    """
+    return (
+        repodata.get("depends", []) == []
+        and repodata.get("constrains", []) == []
+        and repodata.get("license", "") == ""
+        and repodata.get("timestamp", 0) == 0
+        and repodata.get("build_number", 0) == 0
+        and repodata.get("track_features", "") == ""
+    )
 
 
 def solve_specs_for_arch(
