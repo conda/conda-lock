@@ -400,13 +400,13 @@ class Lockfile(StrictModel):
         }
 
 
-def generate_json_schema() -> str:
-    here = pathlib.Path(__file__).parent
+def generate_json_schema(output_dir: str | pathlib.Path | None = None) -> str:
+    output_dir = pathlib.Path(output_dir or pathlib.Path(__file__).parent)
     schema = Lockfile.model_json_schema()
     schema["$schema"] = SCHEMA_DIALECT
     schema["$id"] = SCHEMA_URL
     schema_str = json.dumps(schema, indent=2)
-    (here / SCHEMA_FILENAME).write_text(schema_str + "\n")
+    (output_dir / SCHEMA_FILENAME).write_text(schema_str + "\n")
     return schema_str
 
 
