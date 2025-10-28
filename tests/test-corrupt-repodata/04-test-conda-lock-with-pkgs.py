@@ -4,11 +4,11 @@ This script builds a Docker image with conda-lock installed, extracts the
 specified pkgs archive, and generates lockfiles to compare the results.
 
 The pkgs archives contain only metadata files (index.json and repodata_record.json)
-from package cache directories. To reproduce the corruption issue, the script:
-1. Mounts the incomplete pkgs directory as read-only
-2. Copies it to a writable location inside the container
-3. Runs an explicit install to populate missing package files
-4. Runs conda-lock which reads from the populated but corrupt cache
+from package cache directories. To reproduce the corruption issue, the container will:
+1. Warm the default package cache via an explicit install from /explicit.lock
+2. Copy the incomplete pkgs directory (metadata only) to a writable location
+3. Configure micromamba to use the custom pkgs directory first
+4. Run conda-lock, which reads corrupt metadata from the custom pkgs and uses warmed files
 
 For more context, see:
 <https://github.com/mamba-org/mamba/issues/4052>
@@ -31,7 +31,7 @@ DOCKERFILE_PATH: Final[Path] = SCRIPT_DIR / "04.Dockerfile"
 SOURCE_FILE: Final[Path] = SCRIPT_DIR / "../../environments/dev-environment.yaml"
 EXPLICIT_LOCK: Final[Path] = SCRIPT_DIR / "01-explicit.lock"
 DEFAULT_MICROMAMBA_VERSION: Final[str] = "2.1.0"
-DEFAULT_PKGS_DIR: Final[str] = "2.1.0-pkgs"
+DEFAULT_PKGS_ARCHIVE: Final[str] = "2.1.0-pkgs.tar.gz"
 
 
 def build_conda_lock_image(micromamba_version: str = DEFAULT_MICROMAMBA_VERSION) -> str:
@@ -62,6 +62,20 @@ def build_conda_lock_image(micromamba_version: str = DEFAULT_MICROMAMBA_VERSION)
     subprocess.run(cmd, check=True)
 
     return image_tag
+
+
+def remove_container_if_exists(container_name: str) -> None:
+    """Remove an existing container with the given name, if present.
+
+    This avoids errors from docker run when a prior container with the same
+    name was left behind (e.g., from an interrupted run).
+    """
+    subprocess.run(
+        ["docker", "rm", "--force", container_name],
+        check=False,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+    )
 
 
 def generate_lockfile_with_pkgs(
@@ -99,6 +113,9 @@ def generate_lockfile_with_pkgs(
     # We can't use --rm because we need to copy the file out after the container exits.
     container_name = f"conda-lock-temp-{output_file.stem}"
 
+    # Ensure any prior container is removed to avoid name conflicts
+    remove_container_if_exists(container_name)
+
     cmd = [
         "docker",
         "run",
@@ -130,11 +147,7 @@ def generate_lockfile_with_pkgs(
         )
     finally:
         # Clean up the container
-        subprocess.run(
-            ["docker", "rm", "--force", container_name],
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-        )
+        remove_container_if_exists(container_name)
 
     print(f"Generated: {output_file}")
     print()
@@ -154,12 +167,12 @@ def main() -> None:
     parser.add_argument(
         "--pkgs-archive",
         dest="pkgs_archive_name",
-        default=f"{DEFAULT_PKGS_DIR}.tar.gz",
-        help=f"Name of pkgs archive to use (default: {DEFAULT_PKGS_DIR}.tar.gz)",
+        default=DEFAULT_PKGS_ARCHIVE,
+        help=f"Name of pkgs archive to use (default: {DEFAULT_PKGS_ARCHIVE})",
     )
     parser.add_argument(
         "--output-name",
-        help="Name for output lockfile (default: lockfile-{pkgs-dir})",
+        help="Name for output lockfile (default: lockfile-{pkgs_name})",
     )
     args = parser.parse_args()
 
@@ -211,6 +224,7 @@ def main() -> None:
     print()
     print("To compare lockfiles, run:")
     print("  diff lockfile-2.1.0-pkgs.yml lockfile-2.1.1-pkgs.yml")
+    print("  diff lockfile-2.1.0-pkgs.yml lockfile-2.3.3-pkgs.yml")
 
 
 if __name__ == "__main__":

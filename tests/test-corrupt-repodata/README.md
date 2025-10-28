@@ -137,18 +137,16 @@ This will:
 3. Mount the extracted pkgs directory as `/custom-pkgs-ro` (read-only)
 4. Mount the explicit lockfile (`01-explicit.lock`) for populating the cache
 5. Inside the container:
+   - Warm the default package cache with `micromamba create -n temp-populate -y -f /explicit.lock`
    - Copy the pkgs directory to a writable location (`~/custom-pkgs-writeable`)
-   - Configure micromamba to use the writable pkgs directory
-   - Run `micromamba create` with the explicit lockfile to populate missing package files
-     - This generates warnings about "Invalid package cache" (expected, as the cache only has metadata)
-   - Run conda-lock which reads from the now-populated but corrupt cache
+   - Configure micromamba to use the writable pkgs directory first
+   - Run conda-lock which reads corrupt metadata from the custom pkgs and uses warmed files
 6. Save the lockfile as `lockfile-{pkgs-dir}.yml`
 
 **Why these steps are necessary:**
-- The pkgs directory must be **writable** for micromamba to use it
-- The extracted archives only contain `index.json` and `repodata_record.json` files (metadata)
-- An explicit install populates the actual package files while preserving the corrupt metadata
-- conda-lock then reads from this populated cache with corrupt `repodata_record.json` files
+- The extracted archives only contain `index.json`/`repodata_record.json` (metadata)
+- Warming the default cache ensures package files are available without touching the custom metadata
+- Using the custom pkgs directory first makes micromamba/conda-lock read the corrupt metadata while finding files via the warmed cache
 
 Compare the generated lockfiles to see how corrupt metadata affects the output:
 

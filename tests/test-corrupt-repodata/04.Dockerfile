@@ -10,4 +10,3 @@ RUN micromamba install -y -n base -c conda-forge python pip git mamba less nano
 RUN micromamba run -n base pip install conda-lock
 
 WORKDIR /workspace
-
