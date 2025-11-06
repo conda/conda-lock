@@ -47,6 +47,70 @@ This means 2.3.3 still differs from a good cache, but only in the four metadata 
 
 See upstream fix PR `mamba-org/mamba#4071` for details.
 
+## Manifest
+
+This suite is organized into five stages. Each stage lists the scripts, prerequisite files, and the output artifacts it produces. The focus is on what files are used and generated, and what they are for.
+
+### Stage 01 — Generate a sample explicit lockfile
+
+- Scripts
+  - `01-generate-sample-explicit-lockfile.py`: Generates a baseline explicit lockfile used by later stages.
+- Prerequisites
+  - `environments/conda-lock.yml` (repository root): Source environment specification from which the explicit lockfile is produced.
+  - `conda-lock` available on PATH.
+- Outputs
+  - `01-explicit.lock`: Explicit lockfile for `linux-64`. Used to populate caches in Stage 02/04 and as a baseline for reproducibility.
+
+### Stage 02 — Reproduce corrupt repodata via upstream (per micromamba version)
+
+- Scripts
+  - `02-reproduce-corrupt-repodata-via-upstream.py`: Builds and runs a Docker container to install from `01-explicit.lock` using a specific micromamba version, then extracts only package metadata.
+- Supporting files
+  - `02.Dockerfile`: Minimal image definition used by Stage 02 to perform an explicit install and extract metadata.
+- Prerequisites
+  - `01-explicit.lock` (from Stage 01).
+  - Docker installed and running.
+- Outputs
+  - `{version}-pkgs.tar.gz`: Compressed archive containing only `info/index.json` and `info/repodata_record.json` for each package installed by that micromamba version. This file is committed and serves as the source of truth for comparisons.
+  - `{version}-pkgs/`: Extracted directory for inspection when running scripts. This directory is ignored by git and can be regenerated from the `.tar.gz`.
+
+### Stage 03 — Simulate corruption by clobbering (optional verification)
+
+- Scripts
+  - `03-clobber-pkgs.py`: Applies the known corruption patterns to a copy of a good cache and verifies the result matches a target corrupt version exactly.
+- Prerequisites
+  - `{input-version}-pkgs.tar.gz`: The baseline metadata archive to corrupt (e.g., `2.1.0-pkgs.tar.gz`).
+  - `{corrupt-version}-pkgs.tar.gz`: The target corrupt reference archive (e.g., `2.1.1-pkgs.tar.gz` or `2.3.3-pkgs.tar.gz`) used for verification.
+- Outputs
+  - `clobbered-{input-version}-pkgs/`: Directory containing simulated corruption. Used for verification and inspection; ignored by git.
+
+### Stage 04 — Generate unified lockfiles with different caches and solvers
+
+- Scripts
+  - `04-test-conda-lock-with-pkgs.py`: Orchestrates Docker build and execution to generate unified lockfiles using different package caches (good vs. corrupt).
+  - `04-run-conda-lock.sh`: Runs inside the container. Warms caches, copies corrupt metadata into place, runs `conda-lock` twice (once with `conda.exe`, once with `mamba`), and recopies the corrupt metadata between runs to keep it intact.
+- Supporting files
+  - `04.Dockerfile`: Image providing micromamba, mamba, conda-standalone, Python, git, and `conda-lock`.
+  - `04-setup-editable.sh`: Sets up an editable install of `conda-lock` from the mounted repository inside the container.
+- Prerequisites
+  - `{version}-pkgs.tar.gz` (from Stage 02): Metadata archive for the selected micromamba version.
+  - `01-explicit.lock` (from Stage 01): Used to populate and warm the default package cache in the container.
+  - `environments/dev-environment.yaml` (repository root): Source file used by `conda-lock` to produce unified lockfiles.
+- Outputs
+  - `lockfile-{pkgs-name}-lock-with-conda.yml`: Unified lockfile produced using `--conda=/opt/conda/standalone_conda/conda.exe`.
+  - `lockfile-{pkgs-name}-lock-with-mamba.yml`: Unified lockfile produced using `--conda=/opt/conda/bin/mamba`.
+  - `{pkgs-name}/`: Extracted metadata directory mounted into the container (regenerated as needed); ignored by git.
+
+### Stage 05 — Render explicit lockfiles from unified lockfiles
+
+- Scripts
+  - `05-render-explicit-lockfiles.py`: Renders all unified lockfiles to explicit format using `conda-lock render --kind=explicit`.
+- Prerequisites
+  - Unified lockfiles matching `lockfile-*-lock-with-*.yml` (from Stage 04).
+  - `conda-lock` available on PATH.
+- Outputs
+  - `lockfile-{pkgs-name}-lock-with-{solver}-explicit.lock`: Explicit lockfiles (one per unified lockfile) used for direct comparison. These are the exact artifacts `conda-lock install` consumes prior to installation.
+
 ## Reproducing the issue
 
 This directory contains scripts to reproduce the corrupt repodata issue by running different micromamba versions in Docker.
