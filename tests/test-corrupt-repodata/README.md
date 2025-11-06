@@ -9,6 +9,7 @@ The regression was partially fixed in [mamba-org/mamba#4071](https://github.com/
 When installing packages from an explicit lockfile (e.g., `micromamba install -f 01-explicit.lock`), affected versions write incorrect metadata to `repodata_record.json` files in the package cache.
 
 ### 2.1.1–2.3.2 (full corruption)
+
 The following fields are corrupted in `repodata_record.json`:
 
 - `depends` → `[]` (emptied)
@@ -21,6 +22,7 @@ The following fields are corrupted in `repodata_record.json`:
 The corresponding `info/index.json` files remain correct; only `repodata_record.json` is corrupted.
 
 ### 2.3.3 (partial fix)
+
 Upstream fixed how `depends` and `constrains` are populated: they are now copied from `info/index.json`. Other fields remain zeroed/emptied.
 
 - `depends` → copied exactly from `index.json` (key omitted if absent)
@@ -86,6 +88,7 @@ diff -r 2.1.0-pkgs/ 2.3.3-pkgs/
 ```
 
 The corrupt versions will have different corruption patterns:
+
 - **2.1.1–2.3.2**: Full corruption — `depends`/`constrains` emptied; `license`/`timestamp`/`build_number`/`track_features` zeroed/empty
 - **2.3.3**: Partial fix — `depends`/`constrains` copied from `index.json` (empty constrains omitted); other fields still zeroed/empty
 
@@ -104,6 +107,7 @@ python 03-clobber-pkgs.py --corrupt-version=2.3.3 --pattern=2.3.3
 ```
 
 This script:
+
 1. Extracts the input and corrupt pkgs archives (always fresh)
 2. Copies the good pkgs to `clobbered-{version}-pkgs/`
 3. Applies the specified corruption pattern to all `repodata_record.json` files:
@@ -121,38 +125,60 @@ The extracted directories are kept for inspection after the script completes.
 To test how conda-lock behaves when reading from different package caches, use the fourth script:
 
 ```bash
-# Generate lockfile using the good 2.1.0 cache
+# Generate lockfiles using the good 2.1.0 cache (tests both conda and mamba)
 python 04-test-conda-lock-with-pkgs.py --pkgs-archive 2.1.0-pkgs.tar.gz
 
-# Generate lockfile using the corrupt 2.1.1 cache
+# Generate lockfiles using the corrupt 2.1.1 cache
 python 04-test-conda-lock-with-pkgs.py --pkgs-archive 2.1.1-pkgs.tar.gz
 
-# Generate lockfile using the corrupt 2.3.3 cache
+# Generate lockfiles using the corrupt 2.3.3 cache
 python 04-test-conda-lock-with-pkgs.py --pkgs-archive 2.3.3-pkgs.tar.gz
 ```
 
 This will:
+
 1. Build a Docker image with conda-lock installed from PyPI
 2. Extract the specified `.tar.gz` archive (always fresh)
 3. Mount the extracted pkgs directory as `/custom-pkgs-ro` (read-only)
 4. Mount the explicit lockfile (`01-explicit.lock`) for populating the cache
 5. Inside the container:
+   - Setup conda-lock in editable mode from the mounted source
+   - Configure micromamba to use `~/custom-pkgs-writeable/` as the first pkgs directory
    - Warm the default package cache with `micromamba create -n temp-populate -y -f /explicit.lock`
-   - Copy the pkgs directory to a writable location (`~/custom-pkgs-writeable`)
-   - Configure micromamba to use the writable pkgs directory first
-   - Run conda-lock which reads corrupt metadata from the custom pkgs and uses warmed files
-6. Save the lockfile as `lockfile-{pkgs-dir}.yml`
+   - Copy the custom pkgs directory to `~/custom-pkgs-writeable/` (overwrites the warmed cache metadata)
+   - Run conda-lock with `--conda=/opt/conda/standalone_conda/conda.exe` → `lockfile-{pkgs-dir}-lock-with-conda.yml`
+   - Recopy the custom pkgs directory to ensure corrupt metadata for the second run
+   - Run conda-lock with `--conda=/opt/conda/bin/mamba` → `lockfile-{pkgs-dir}-lock-with-mamba.yml`
+6. Copy both lockfiles out of the container
 
 **Why these steps are necessary:**
-- The extracted archives only contain `index.json`/`repodata_record.json` (metadata)
-- Warming the default cache ensures package files are available without touching the custom metadata
-- Using the custom pkgs directory first makes micromamba/conda-lock read the corrupt metadata while finding files via the warmed cache
+
+- The extracted archives only contain `index.json`/`repodata_record.json` (metadata), not the actual package files
+- Configuring the custom pkgs directory first ensures micromamba will check there before the default cache
+- Warming the default cache populates it with all package files (including metadata)
+- Copying the custom pkgs directory **after** warming overwrites the good metadata with corrupt metadata
+- This creates a hybrid cache: corrupt metadata from custom pkgs, but complete package files from the warmed default cache
+- conda-lock reads the corrupt metadata but can still access the package files it needs
+- Recopying before the second run ensures any metadata repairs from the first run don't affect the second
+
+**Why test both conda and mamba:**
+
+- Different conda executables may handle corrupt metadata differently
+- This helps identify whether the corruption affects all solvers or just specific ones
 
 Compare the generated lockfiles to see how corrupt metadata affects the output:
 
 ```bash
-diff lockfile-2.1.0-pkgs.yml lockfile-2.1.1-pkgs.yml
-diff lockfile-2.1.0-pkgs.yml lockfile-2.3.3-pkgs.yml
+# Compare good vs corrupt cache (conda)
+diff lockfile-2.1.0-pkgs-lock-with-conda.yml lockfile-2.1.1-pkgs-lock-with-conda.yml
+diff lockfile-2.1.0-pkgs-lock-with-conda.yml lockfile-2.3.3-pkgs-lock-with-conda.yml
+
+# Compare good vs corrupt cache (mamba)
+diff lockfile-2.1.0-pkgs-lock-with-mamba.yml lockfile-2.1.1-pkgs-lock-with-mamba.yml
+diff lockfile-2.1.0-pkgs-lock-with-mamba.yml lockfile-2.3.3-pkgs-lock-with-mamba.yml
+
+# Compare conda vs mamba (same cache)
+diff lockfile-2.1.0-pkgs-lock-with-conda.yml lockfile-2.1.0-pkgs-lock-with-mamba.yml
 ```
 
 This allows us to verify whether corrupt `repodata_record.json` files lead to corrupt lockfile entries (missing dependencies, missing sha256, etc.).
@@ -162,7 +188,7 @@ This allows us to verify whether corrupt `repodata_record.json` files lead to co
 The most reliable way to trigger corruption is through the `--update` code path, which reads from the cache when reconstructing unchanged packages:
 
 ```bash
-# First, generate a base lockfile with good cache
+# First, generate base lockfiles with good cache (if not already generated)
 python 04-test-conda-lock-with-pkgs.py --pkgs-archive 2.1.0-pkgs.tar.gz
 
 # Then test --update with both good and corrupt caches
@@ -170,13 +196,15 @@ python 05-test-update-with-corrupt-cache.py --update-package pytest
 ```
 
 This will:
-1. Use `lockfile-2.1.0-pkgs.yml` as the base lockfile
+
+1. Use `lockfile-2.1.0-pkgs-lock-with-conda.yml` as the base lockfile
 2. Run `conda-lock lock --update pytest` twice:
    - Once with `2.1.0-pkgs` (good cache)
    - Once with `2.1.1-pkgs` (corrupt cache)
 3. Compare the results to detect corruption
 
 The `--update` path triggers corruption because:
+
 - It creates a fake environment from the existing lockfile
 - Runs an update dry-run which may use cached packages
 - Calls `_reconstruct_fetch_actions()` to read from cache

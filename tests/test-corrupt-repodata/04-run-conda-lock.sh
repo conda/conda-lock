@@ -31,15 +31,30 @@ echo ""
 echo "Copying pkgs directory to writable location..."
 cp -r /custom-pkgs-ro/. ~/custom-pkgs-writeable/
 
-# Run conda-lock to generate the lockfile
-# It will now read from the populated cache which has corrupt repodata_record.json files
-echo "Running conda-lock..."
+# Run conda-lock to generate lockfiles with both conda and mamba
+echo "Running conda-lock with conda executable..."
 micromamba run -n base conda-lock lock \
     --micromamba \
-    -f /workspace/dev-environment.yaml \
-    -p linux-64 \
-    --lockfile /tmp/lockfile.yml
+    --file=/workspace/dev-environment.yaml \
+    --platform=linux-64 \
+    --conda=/opt/conda/standalone_conda/conda.exe \
+    --lockfile=/tmp/lockfile-conda.yml
 
 echo ""
-echo "Lockfile generated at /tmp/lockfile.yml"
+echo "Recopying pkgs directory to ensure corrupt metadata for second run..."
+cp -r /custom-pkgs-ro/. ~/custom-pkgs-writeable/
+
+echo ""
+echo "Running conda-lock with mamba executable..."
+micromamba run -n base conda-lock lock \
+    --micromamba \
+    --file=/workspace/dev-environment.yaml \
+    --platform=linux-64 \
+    --conda=/opt/conda/bin/mamba \
+    --lockfile=/tmp/lockfile-mamba.yml
+
+echo ""
+echo "Lockfiles generated:"
+echo "  /tmp/lockfile-conda.yml"
+echo "  /tmp/lockfile-mamba.yml"
 

@@ -78,27 +78,32 @@ def remove_container_if_exists(container_name: str) -> None:
     )
 
 
-def generate_lockfile_with_pkgs(
+def generate_lockfiles_with_pkgs(
     image_tag: str,
     pkgs_dir: Path,
-    output_name: str,
-) -> Path:
-    """Generate a conda-lock lockfile using a specific pkgs directory.
+    pkgs_name: str,
+) -> tuple[Path, Path]:
+    """Generate conda-lock lockfiles using a specific pkgs directory.
 
     The conda-lock source from the repo is mounted and installed in editable mode
     at runtime, so changes to the source code are immediately reflected.
 
+    This function generates two lockfiles: one using conda and one using mamba.
+
     Args:
         image_tag: Docker image tag to use
         pkgs_dir: Path to the pkgs directory to mount as cache
-        output_name: Name for the output lockfile (without extension)
+        pkgs_name: Name of the pkgs directory (e.g., "2.1.0-pkgs")
 
     Returns:
-        Path to the generated lockfile
+        Tuple of (conda_lockfile_path, mamba_lockfile_path)
     """
-    output_file = SCRIPT_DIR / f"{output_name}.yml"
+    output_conda = SCRIPT_DIR / f"lockfile-{pkgs_name}-lock-with-conda.yml"
+    output_mamba = SCRIPT_DIR / f"lockfile-{pkgs_name}-lock-with-mamba.yml"
 
-    print(f"Generating lockfile: {output_file}")
+    print("Generating lockfiles:")
+    print(f"  {output_conda}")
+    print(f"  {output_mamba}")
     print(f"Using pkgs directory: {pkgs_dir}")
     print("Using editable install from local source")
     print()
@@ -109,9 +114,9 @@ def generate_lockfile_with_pkgs(
     # 1. Copy /custom-pkgs-ro to ~/custom-pkgs-writeable
     # 2. Configure micromamba to use ~/custom-pkgs-writeable
     # 3. Run explicit install to populate missing package files
-    # 4. Run conda-lock which reads from the now-populated corrupt cache
-    # We can't use --rm because we need to copy the file out after the container exits.
-    container_name = f"conda-lock-temp-{output_file.stem}"
+    # 4. Run conda-lock twice (once with conda, once with mamba)
+    # We can't use --rm because we need to copy the files out after the container exits.
+    container_name = f"conda-lock-temp-{pkgs_name}"
 
     # Ensure any prior container is removed to avoid name conflicts
     remove_container_if_exists(container_name)
@@ -139,19 +144,35 @@ def generate_lockfile_with_pkgs(
     try:
         subprocess.run(cmd, check=True)
 
-        # Copy the lockfile out of the container
-        print("Copying lockfile from container...")
+        # Copy both lockfiles out of the container
+        print("Copying lockfiles from container...")
         subprocess.run(
-            ["docker", "cp", f"{container_name}:/tmp/lockfile.yml", str(output_file)],
+            [
+                "docker",
+                "cp",
+                f"{container_name}:/tmp/lockfile-conda.yml",
+                str(output_conda),
+            ],
+            check=True,
+        )
+        subprocess.run(
+            [
+                "docker",
+                "cp",
+                f"{container_name}:/tmp/lockfile-mamba.yml",
+                str(output_mamba),
+            ],
             check=True,
         )
     finally:
         # Clean up the container
         remove_container_if_exists(container_name)
 
-    print(f"Generated: {output_file}")
+    print("Generated:")
+    print(f"  {output_conda}")
+    print(f"  {output_mamba}")
     print()
-    return output_file
+    return output_conda, output_mamba
 
 
 def main() -> None:
@@ -169,10 +190,6 @@ def main() -> None:
         dest="pkgs_archive_name",
         default=DEFAULT_PKGS_ARCHIVE,
         help=f"Name of pkgs archive to use (default: {DEFAULT_PKGS_ARCHIVE})",
-    )
-    parser.add_argument(
-        "--output-name",
-        help="Name for output lockfile (default: lockfile-{pkgs_name})",
     )
     args = parser.parse_args()
 
@@ -215,16 +232,30 @@ def main() -> None:
         tf.extractall(path=SCRIPT_DIR)
     print()
 
-    output_name = args.output_name or f"lockfile-{pkgs_name}"
-    lockfile = generate_lockfile_with_pkgs(image_tag, pkgs_dir, output_name)
+    # Generate lockfiles with both conda and mamba
+    lockfile_conda, lockfile_mamba = generate_lockfiles_with_pkgs(
+        image_tag, pkgs_dir, pkgs_name
+    )
 
     print("=" * 60)
     print("Success!")
-    print(f"Generated lockfile: {lockfile}")
+    print("Generated lockfiles:")
+    print(f"  {lockfile_conda} (using conda)")
+    print(f"  {lockfile_mamba} (using mamba)")
     print()
     print("To compare lockfiles, run:")
-    print("  diff lockfile-2.1.0-pkgs.yml lockfile-2.1.1-pkgs.yml")
-    print("  diff lockfile-2.1.0-pkgs.yml lockfile-2.3.3-pkgs.yml")
+    print(
+        "  diff lockfile-2.1.0-pkgs-lock-with-conda.yml lockfile-2.1.1-pkgs-lock-with-conda.yml"
+    )
+    print(
+        "  diff lockfile-2.1.0-pkgs-lock-with-mamba.yml lockfile-2.1.1-pkgs-lock-with-mamba.yml"
+    )
+    print(
+        "  diff lockfile-2.1.0-pkgs-lock-with-conda.yml lockfile-2.3.3-pkgs-lock-with-conda.yml"
+    )
+    print(
+        "  diff lockfile-2.1.0-pkgs-lock-with-mamba.yml lockfile-2.3.3-pkgs-lock-with-mamba.yml"
+    )
 
 
 if __name__ == "__main__":
