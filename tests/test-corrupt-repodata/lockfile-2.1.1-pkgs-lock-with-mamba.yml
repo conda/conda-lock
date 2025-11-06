@@ -5,13 +5,13 @@
 # available, unless you explicitly update the lock file.
 #
 # Install this environment as "YOURENV" with:
-#     conda-lock install -n YOURENV lockfile.yml
+#     conda-lock install -n YOURENV lockfile-mamba.yml
 # This lock contains optional development dependencies. Include them in the installed environment with:
-#     conda-lock install --dev-dependencies -n YOURENV lockfile.yml
+#     conda-lock install --dev-dependencies -n YOURENV lockfile-mamba.yml
 # To update a single package to the latest version compatible with the version constraints in the source:
-#     conda-lock lock  --lockfile lockfile.yml --update PACKAGE
+#     conda-lock lock  --lockfile lockfile-mamba.yml --update PACKAGE
 # To re-solve the entire environment, e.g. after changing a version constraint in the source file:
-#     conda-lock -f ../workspace/dev-environment.yaml --lockfile lockfile.yml
+#     conda-lock -f ../workspace/dev-environment.yaml --lockfile lockfile-mamba.yml
 version: 1
 metadata:
   content_hash:
