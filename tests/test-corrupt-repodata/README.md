@@ -183,31 +183,35 @@ diff lockfile-2.1.0-pkgs-lock-with-conda.yml lockfile-2.1.0-pkgs-lock-with-mamba
 
 This allows us to verify whether corrupt `repodata_record.json` files lead to corrupt lockfile entries (missing dependencies, missing sha256, etc.).
 
-## Testing the `--update` corruption path
+## Rendering explicit lockfiles
 
-The most reliable way to trigger corruption is through the `--update` code path, which reads from the cache when reconstructing unchanged packages:
+The `conda-lock install` command internally renders the unified lockfile to an explicit lockfile before installing. Packages are missing from the resulting environment if and only if they are missing from the explicit lockfile. Therefore, comparing explicit lockfiles directly demonstrates the symptom of missing packages without needing to actually install environments.
+
+To render all unified lockfiles to explicit format for comparison:
 
 ```bash
-# First, generate base lockfiles with good cache (if not already generated)
-python 04-test-conda-lock-with-pkgs.py --pkgs-archive 2.1.0-pkgs.tar.gz
-
-# Then test --update with both good and corrupt caches
-python 05-test-update-with-corrupt-cache.py --update-package pytest
+python 05-render-explicit-lockfiles.py
 ```
 
-This will:
+This will render all unified lockfiles to explicit format using `conda-lock render --kind=explicit`.
 
-1. Use `lockfile-2.1.0-pkgs-lock-with-conda.yml` as the base lockfile
-2. Run `conda-lock lock --update pytest` twice:
-   - Once with `2.1.0-pkgs` (good cache)
-   - Once with `2.1.1-pkgs` (corrupt cache)
-3. Compare the results to detect corruption
+Compare the explicit lockfiles to see which packages are missing due to corrupt metadata:
 
-The `--update` path triggers corruption because:
+```bash
+# Compare good vs corrupt cache (conda)
+diff lockfile-2.1.0-pkgs-lock-with-conda-explicit.lock lockfile-2.1.1-pkgs-lock-with-conda-explicit.lock
+diff lockfile-2.1.0-pkgs-lock-with-conda-explicit.lock lockfile-2.3.3-pkgs-lock-with-conda-explicit.lock
 
-- It creates a fake environment from the existing lockfile
-- Runs an update dry-run which may use cached packages
-- Calls `_reconstruct_fetch_actions()` to read from cache
-- Corrupt cache → corrupt lockfile entries
+# Compare good vs corrupt cache (mamba)
+diff lockfile-2.1.0-pkgs-lock-with-mamba-explicit.lock lockfile-2.1.1-pkgs-lock-with-mamba-explicit.lock
+diff lockfile-2.1.0-pkgs-lock-with-mamba-explicit.lock lockfile-2.3.3-pkgs-lock-with-mamba-explicit.lock
+```
 
-This is the primary way the bug manifests in the wild!
+**Expected behavior:**
+
+- Lockfiles generated from good cache (2.1.0) should have complete package sets
+- Lockfiles generated from corrupt cache (2.1.1) will have missing packages due to incomplete dependency information (empty `depends`/`constrains`)
+- Lockfiles generated from partially fixed cache (2.3.3) should be complete, as the `depends`/`constrains` fields were restored from `index.json`
+- The diff will show which package URLs are missing in the corrupt versions
+
+This demonstrates the real-world symptom where lockfiles generated with corrupt metadata (2.1.1) are incomplete, leading to missing packages when users install from these explicit lockfiles. The 2.3.3 partial fix restored dependency information, so those lockfiles should match the baseline.

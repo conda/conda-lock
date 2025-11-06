@@ -1,4 +1,5 @@
 *-pkgs/
 lockfile-*.yml
+lockfile-*-explicit.lock
 updated-*.yml
 outputs/
