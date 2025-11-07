@@ -4,6 +4,15 @@ An upstream [regression in libmamba](https://github.com/mamba-org/mamba/issues/4
 The affected mamba/micromamba versions are 2.1.1 through 2.3.2.
 The regression was partially fixed in [mamba-org/mamba#4071](https://github.com/mamba-org/mamba/pull/4071) and released as version 2.3.3.
 
+## Metadata overview
+
+Conda packages cached under the package cache contain metadata under `info/`:
+
+- **`info/index.json`** is written at build time by `conda-build`. It describes the package as shipped in the artifact (name, version, build, depends, constrains, ...). This is the "as-built" view. Since the SHA256 and MD5 checksums of the build archive can only be computed once the build is complete, it is impossible to include them within `index.json`.
+
+- **`info/repodata_record.json`** is written (or backfilled) at install/extract time by conda/mamba. Its purpose is to store the channel-style record that the solver actually used — i.e. the entry from the channel’s `repodata.json`, which may include later fixes (repodata patches, e.g. [from conda-forge](https://github.com/conda-forge/conda-forge-repodata-patches)) and therefore can differ from index.json.
+If the package didn’t already have such a file, conda will synthesize one from index.json to make the cache uniform. That means the file usually represents “the channel’s view at install time,” but on older/broken installs it can be only “the best local reconstruction” — or, in the presence of bugs, even a degraded record.
+
 ## The corruption pattern
 
 When installing packages from an explicit lockfile (e.g., `micromamba install -f 01-explicit.lock`), affected versions write incorrect metadata to `repodata_record.json` files in the package cache.
