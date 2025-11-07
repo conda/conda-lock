@@ -279,3 +279,57 @@ diff lockfile-2.1.0-pkgs-lock-with-mamba-explicit.lock lockfile-2.3.3-pkgs-lock-
 - The diff will show which package URLs are missing in the corrupt versions
 
 This demonstrates the real-world symptom where lockfiles generated with corrupt metadata (2.1.1) are incomplete, leading to missing packages when users install from these explicit lockfiles. The 2.3.3 partial fix restored dependency information, so those lockfiles should match the baseline.
+
+## Command summary
+
+### Remove all artifacts
+
+Delete artifacts in chronological creation order (Stages 01 → 05). This removes everything, including previously committed reference archives.
+
+```bash
+cd tests/test-corrupt-repodata
+
+# Stage 01: baseline explicit lockfile
+rm -f 01-explicit.lock
+
+# Stage 02: extracted directories and reference archives
+rm -rf -- *-pkgs/
+rm -f *-pkgs.tar.gz
+
+# Stage 03: simulated corrupt directories
+rm -rf -- clobbered-*-pkgs/
+
+# Stage 04: unified lockfiles
+rm -f lockfile-*-lock-with-*.yml
+
+# Stage 05: explicit lockfiles
+rm -f lockfile-*-lock-with-*-explicit.lock
+```
+
+### Generate all artifacts
+
+This reproduces the entire flow across all stages and versions.
+
+```bash
+cd tests/test-corrupt-repodata
+
+# Stage 01: generate baseline explicit lockfile
+python 01-generate-sample-explicit-lockfile.py
+
+# Stage 02: extract metadata from upstream micromamba versions
+python 02-reproduce-corrupt-repodata-via-upstream.py --version 2.1.0
+python 02-reproduce-corrupt-repodata-via-upstream.py --version 2.1.1
+python 02-reproduce-corrupt-repodata-via-upstream.py --version 2.3.3
+
+# Stage 03: simulate corruption to verify patterns match corrupt baselines
+python 03-clobber-pkgs.py --input-version 2.1.0 --corrupt-version 2.1.1 --pattern 2.1.1
+python 03-clobber-pkgs.py --input-version 2.1.0 --corrupt-version 2.3.3 --pattern 2.3.3
+
+# Stage 04: generate unified lockfiles (conda and mamba) for each cache
+python 04-test-conda-lock-with-pkgs.py --pkgs-archive 2.1.0-pkgs.tar.gz
+python 04-test-conda-lock-with-pkgs.py --pkgs-archive 2.1.1-pkgs.tar.gz
+python 04-test-conda-lock-with-pkgs.py --pkgs-archive 2.3.3-pkgs.tar.gz
+
+# Stage 05: render explicit lockfiles from unified lockfiles
+python 05-render-explicit-lockfiles.py
+```
