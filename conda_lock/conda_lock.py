@@ -555,7 +555,7 @@ def do_render(
                 context = {
                     "platform": plat,
                     "dev-dependencies": str(include_dev_dependencies).lower(),
-                    "input-hash": lockfile.metadata.content_hash,
+                    "input-hash": lockfile.metadata.content_hash[plat],
                     "version": distribution("conda_lock").version,
                     "timestamp": datetime.datetime.now(datetime.timezone.utc).strftime(
                         "%Y%m%dT%H%M%SZ"
