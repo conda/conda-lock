@@ -51,7 +51,7 @@ jobs:
       - name: Verify Conda platform
         run: echo "Conda platform is $CONDA_PLATFORM"
 
-      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           persist-credentials: false
       - name: Set up Python
@@ -137,7 +137,7 @@ jobs:
         os: [ ubuntu-latest, macos-latest, windows-latest ]
         python-version: [ "3.10", "3.14" ]
     steps:
-      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           persist-credentials: false
       - uses: conda-incubator/setup-miniconda@835234971496cad1653abb28a638a281cf32541f # v3.2.0
