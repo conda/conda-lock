@@ -25,7 +25,7 @@ jobs:
     permissions:
       contents: write  # for mkdocs gh-deploy to push to gh-pages branch
     steps:
-      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           submodules: "recursive"
           fetch-depth: 0       # Fetch all history for .GitInfo and .Lastmod
@@ -37,7 +37,7 @@ jobs:
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
 
       - name: Install dependencies
-        uses: "mamba-org/setup-micromamba@add3a49764cedee8ee24e82dfde87f5bc2914462" # v2.0.7
+        uses: mamba-org/setup-micromamba@add3a49764cedee8ee24e82dfde87f5bc2914462 # v2.0.7
         with:
           micromamba-version: "${{ env.MICROMAMBA_VERSION }}"
           environment-file: "environments/dev-environment.yaml"
@@ -48,7 +48,7 @@ jobs:
 
       - run: echo "cache_id=$(date --utc '+%V')" >> $GITHUB_ENV
 
-      - uses: actions/cache@9255dc7a253b0ccc959486e2bca901246202afeb # v5.0.1
+      - uses: actions/cache@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 # v5.0.3
         with:
           key: mkdocs-material-${{ env.cache_id }}
           path: .cache
