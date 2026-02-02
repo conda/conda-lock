@@ -8,6 +8,10 @@
       "matchManagers": ["setup-cfg", "pip_requirements"],
       "enabled": true,
       "rangeStrategy": "replace"
+    },
+    {
+      "matchManagers": ["github-actions"],
+      "groupName": "GitHub Actions"
     }
   ]
 }
