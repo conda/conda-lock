@@ -133,6 +133,10 @@ class BaseLockedDependency(StrictModel):
 
         channel_url = f"{base_url}/{self.platform}"  # e.g. "https://user:pass@conda.anaconda.org/conda-forge/linux-64"
 
+        depends = [f"{k} {v}".strip() for k, v in self.dependencies.items()]
+        if self.name == "pyzmq":
+            print(f"In to_fetch_action for {self.name}, depends: {depends}")
+
         fetch_action = FetchAction(
             name=self.name,
             version=self.version,
@@ -141,7 +145,7 @@ class BaseLockedDependency(StrictModel):
             fn=filename_with_extension,
             md5=self.hash.md5,
             sha256=self.hash.sha256,
-            depends=[f"{k} {v}".strip() for k, v in self.dependencies.items()],
+            depends=depends,
             constrains=[],
             subdir=self.platform,
             timestamp=0,

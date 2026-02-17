@@ -128,6 +128,8 @@ def solve_conda(
     planned = {}
     for action in dry_run_install["actions"]["FETCH"]:
         dependencies = {}
+        if action.get("depends") is None:
+            raise ValueError(f"No depends found for FETCH action {action}")
         for dep in action.get("depends") or []:
             matchspec = MatchSpec(dep)  # pyright: ignore[reportArgumentType]
             name = matchspec.name
@@ -258,6 +260,10 @@ def _reconstruct_fetch_actions(
         else:
             raise ValueError(f"Unable to extract the dist_name from {link_action}.")
         repodata = _get_repodata_record(pkgs_dirs, dist_name)
+        if link_pkg_name == "pyzmq":
+            print(
+                f"In _reconstruct_fetch_actions for {link_pkg_name}, repodata: {repodata}"
+            )
         if repodata is None:
             raise FileNotFoundError(
                 f"Distribution '{dist_name}' not found in pkgs_dirs {pkgs_dirs}"
