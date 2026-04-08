@@ -69,7 +69,7 @@ def warn(msg: str) -> None:
     warnings.warn(msg, stacklevel=2)
 
 
-def configure_logger_basic(logger: logging.Logger, level: int = logging.INFO): -> None:
+def configure_logger_basic(logger: logging.Logger, level: int = logging.INFO) -> None:
     if len(logger.handlers) > 0:
         return
 
