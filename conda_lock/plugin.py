@@ -27,7 +27,7 @@ if HAVE_CONDA:
 
 
     @hookimpl
-    def conda_subcommands():
+    def conda_subcommands() -> CondaSubcommand:
         yield CondaSubcommand(
             name="lock",
             summary=("enerate fully reproducible lock files for conda environments."),
