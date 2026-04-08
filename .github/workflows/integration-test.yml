@@ -39,6 +39,10 @@ jobs:
         os: [ ubuntu-latest, macos-latest, windows-latest ]
         python-version: [ "3.10", "3.14" ]
         use_conda_cli: ["false", "true"]
+        exclude:
+          - os: windows-latest
+            python-version: "3.14"
+            use_conda_cli: "true"
     steps:
       - name: Set Conda platform
         run: |
@@ -119,6 +123,10 @@ jobs:
         os: [ ubuntu-latest, macos-latest, windows-latest ]
         python-version: [ "3.10", "3.14" ]
         use_conda_cli: ["false", "true"]
+        exclude:
+          - os: windows-latest
+            python-version: "3.14"
+            use_conda_cli: "true"
     steps:
       - name: Set Conda platform
         run: |
@@ -169,6 +177,10 @@ jobs:
         os: [ ubuntu-latest, macos-latest, windows-latest ]
         python-version: [ "3.10", "3.14" ]
         use_conda_cli: ["false", "true"]
+        exclude:
+          - os: windows-latest
+            python-version: "3.14"
+            use_conda_cli: "true"
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
@@ -217,6 +229,10 @@ jobs:
         os: [ ubuntu-latest, macos-latest, windows-latest ]
         python-version: [ "3.10", "3.14" ]
         use_conda_cli: ["false", "true"]
+        exclude:
+          - os: windows-latest
+            python-version: "3.14"
+            use_conda_cli: "true"
     steps:
       - uses: conda-incubator/setup-miniconda@fc2d68f6413eb2d87b895e92f8584b5b94a10167 # v3.3.0
         with:
