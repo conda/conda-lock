@@ -23,6 +23,7 @@ if HAVE_CONDA:
 
         Lazy import to avoid import-time side effects when not using conda-lock.
         """
+        # code below suggested by AI and appears to work
         from conda_lock.conda_lock import main
 
         return main(args, standalone_mode=False)
