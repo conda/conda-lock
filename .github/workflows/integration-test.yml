@@ -38,6 +38,7 @@ jobs:
       matrix:
         os: [ ubuntu-latest, macos-latest, windows-latest ]
         python-version: [ "3.10", "3.14" ]
+        use_conda_cli: ["false", "true"]
     steps:
       - name: Set Conda platform
         run: |
@@ -55,14 +56,17 @@ jobs:
         with:
           persist-credentials: false
       - name: Set up Python
+        if: matrix.use_conda_cli == 'false'
         uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
         with:
           python-version: ${{ matrix.python-version }}
       - name: install conda-lock
+        if: matrix.use_conda_cli == 'false'
         run: |
           pip install pipx
           pipx install -e .
       - name: run-test
+        if: matrix.use_conda_cli == 'false'
         run: |
           conda-lock --log-level=DEBUG --micromamba -f tests/gdal/environment.yml -p $CONDA_PLATFORM
           conda-lock render -p $CONDA_PLATFORM
@@ -72,11 +76,35 @@ jobs:
           cat conda-lock.yml
           mkdir lockfiles
           mv conda-$CONDA_PLATFORM.lock conda-$CONDA_PLATFORM.lock.yml conda-lock.yml lockfiles
+      - name: Set up Python
+        if: matrix.use_conda_cli == 'true'
+        uses: conda-incubator/setup-miniconda@fc2d68f6413eb2d87b895e92f8584b5b94a10167 # v3.3.0
+        with:
+          auto-activate-base: true
+          python-version: ${{ matrix.python-version }}
+      - name: install conda-lock
+        if: matrix.use_conda_cli == 'true'
+        run: |
+          conda install pip setuptools conda-lock --yes
+          conda uninstall conda-lock --force --yes
+          pip install --no-deps --no-build-isolation -e .
+      - name: run-test
+        if: matrix.use_conda_cli == 'true'
+        run: |
+          python -m conda lock --log-level=DEBUG --micromamba -f tests/gdal/environment.yml -p $CONDA_PLATFORM
+          python -m conda lock render -p $CONDA_PLATFORM
+          python -m conda lock render -p $CONDA_PLATFORM --kind=env
+          cat conda-$CONDA_PLATFORM.lock
+          cat conda-$CONDA_PLATFORM.lock.yml
+          cat conda-lock.yml
+          mkdir lockfiles
+          mv conda-$CONDA_PLATFORM.lock conda-$CONDA_PLATFORM.lock.yml conda-lock.yml lockfiles
       - name: Upload lockfiles
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
-          name: conda-lock-${{ matrix.os }}-${{ matrix.python-version }}
+          name: conda-lock-${{ matrix.os }}-${{ matrix.python-version }}-${{ matrix.use_conda_cli }}
           path: lockfiles
+
   install-gdal-with-micromamba:
     runs-on: ${{ matrix.os }}
     needs: lock-gdal
@@ -87,7 +115,8 @@ jobs:
       fail-fast: false
       matrix:
         os: [ ubuntu-latest, macos-latest, windows-latest ]
-        python-version: [ "3.10" ]
+        python-version: [ "3.10", "3.14" ]
+        use_conda_cli: ["false", "true"]
     steps:
       - name: Set Conda platform
         run: |
@@ -110,7 +139,7 @@ jobs:
       - name: Download lockfiles
         uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
         with:
-          name: conda-lock-${{ matrix.os }}-${{ matrix.python-version }}
+          name: conda-lock-${{ matrix.os }}-${{ matrix.python-version }}-${{ matrix.use_conda_cli }}
           path: lockfiles
       - name: Install GDAL with Micromamba
         run: |
@@ -125,6 +154,7 @@ jobs:
           micromamba run -n gdal-test-mm-lock python -c 'import toolz; print(toolz.__version__)'
           # Micromamba won't install pip dependencies from explicit lockfiles, so skip this test
           micromamba run -n gdal-test-mm-env python -c 'import toolz; print(toolz.__version__)'
+
   install-gdal-with-conda-lock:
     runs-on: ${{ matrix.os }}
     needs: lock-gdal
@@ -136,6 +166,7 @@ jobs:
       matrix:
         os: [ ubuntu-latest, macos-latest, windows-latest ]
         python-version: [ "3.10", "3.14" ]
+        use_conda_cli: ["false", "true"]
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
@@ -151,7 +182,7 @@ jobs:
       - name: Download lockfiles
         uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
         with:
-          name: conda-lock-${{ matrix.os }}-${{ matrix.python-version }}
+          name: conda-lock-${{ matrix.os }}-${{ matrix.python-version }}-${{ matrix.use_conda_cli }}
           path: lockfiles
       - name: Install GDAL with conda-lock
         run: |
@@ -182,7 +213,8 @@ jobs:
       fail-fast: false
       matrix:
         os: [ ubuntu-latest, macos-latest, windows-latest ]
-        python-version: [ "3.10" ]
+        python-version: [ "3.10", "3.14" ]
+        use_conda_cli: ["false", "true"]
     steps:
       - uses: conda-incubator/setup-miniconda@fc2d68f6413eb2d87b895e92f8584b5b94a10167 # v3.3.0
         with:
@@ -191,7 +223,7 @@ jobs:
       - name: Download lockfiles
         uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
         with:
-          name: conda-lock-${{ matrix.os }}-${{ matrix.python-version }}
+          name: conda-lock-${{ matrix.os }}-${{ matrix.python-version }}-${{ matrix.use_conda_cli }}
           path: lockfiles
       - name: Install GDAL with conda
         run: |
