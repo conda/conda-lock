@@ -24,8 +24,6 @@ def _execute(args: tuple[str, ...]) -> int | None:
 def conda_subcommands():
     yield CondaSubcommand(
         name="lock",
-        summary=(
-            "enerate fully reproducible lock files for conda environments."
-        ),
+        summary=("enerate fully reproducible lock files for conda environments."),
         action=_execute,
     )
