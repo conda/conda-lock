@@ -84,12 +84,14 @@ jobs:
           python-version: ${{ matrix.python-version }}
       - name: install conda-lock
         if: matrix.use_conda_cli == 'true'
+        shell: bash -leo pipefail {0}
         run: |
           conda install pip setuptools conda-lock --yes
           conda uninstall conda-lock --force --yes
           pip install --no-deps --no-build-isolation -e .
       - name: run-test
         if: matrix.use_conda_cli == 'true'
+        shell: bash -leo pipefail {0}
         run: |
           python -m conda lock --log-level=DEBUG --micromamba -f tests/gdal/environment.yml -p $CONDA_PLATFORM
           python -m conda lock render -p $CONDA_PLATFORM
