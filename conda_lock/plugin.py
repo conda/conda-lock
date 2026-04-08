@@ -23,9 +23,9 @@ if HAVE_CONDA:
 
         Lazy import to avoid import-time side effects when not using conda-lock.
         """
-        from conda_lock.__main__ import main
+        from conda_lock.conda_lock import main
 
-        return main()  # TODO: does not accept args for parsing since using click
+        return main(args, standalone_mode=False)
 
     @hookimpl
     def conda_subcommands() -> CondaSubcommand:
