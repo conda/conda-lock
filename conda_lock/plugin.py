@@ -8,8 +8,8 @@ from __future__ import annotations
 
 
 try:
-    from conda.plugins import hookimpl
-    from conda.plugins.types import CondaSubcommand
+    from conda.plugins import hookimpl  # type: ignore
+    from conda.plugins.types import CondaSubcommand  # type: ignore
 
     HAVE_CONDA = True
 except ImportError:
