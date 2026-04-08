@@ -86,7 +86,7 @@ jobs:
         if: matrix.use_conda_cli == 'true'
         shell: bash -leo pipefail {0}
         run: |
-          conda install pip setuptools hatchling hatch-vcs conda-lock --yes
+          conda install pip setuptools editables hatchling hatch-vcs conda-lock --yes
           conda uninstall conda-lock --force --yes
           pip install --no-deps --no-build-isolation -e .
       - name: run-test
