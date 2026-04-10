@@ -1,5 +1,4 @@
 import json
-import logging
 import os
 import pathlib
 import warnings
@@ -8,7 +7,6 @@ from collections.abc import Iterable, Mapping, Sequence
 from itertools import chain
 from typing import (
     Any,
-    Literal,
     TypeVar,
 )
 
@@ -68,17 +66,3 @@ def relative_path(source: pathlib.Path, target: pathlib.Path) -> str:
 
 def warn(msg: str) -> None:
     warnings.warn(msg, stacklevel=2)
-
-
-def configure_logger_basic(
-    logger: logging.Logger,
-    level: int
-    | Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"] = logging.INFO,
-) -> None:
-    if len(logger.handlers) > 0:
-        return
-
-    handler = logging.StreamHandler()
-    handler.setFormatter(logging.Formatter(logging.BASIC_FORMAT, None, "%"))
-    logger.addHandler(handler)
-    logger.setLevel(level)

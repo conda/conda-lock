@@ -14,7 +14,6 @@ from typing import (
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
-from conda_lock.common import configure_logger_basic
 from conda_lock.content_hash_types import (
     HashableVirtualPackage,
     HashableVirtualPackageRepresentation,
@@ -318,7 +317,7 @@ def virtual_package_repo_from_specification(
 
 
 if __name__ == "__main__":
-    configure_logger_basic(logging.getLogger("conda_lock"), level=logging.DEBUG)
+    logging.basicConfig(level=logging.DEBUG, force=True)
     fil = (
         pathlib.Path(__file__).parent.parent
         / "tests"
