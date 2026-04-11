@@ -17,7 +17,7 @@
       
       
       <link rel="icon" href="../../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.1">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
     
     
       
@@ -1051,13 +1051,13 @@ and its various subcommands.</p>
 <td><code>-p</code>, <code>--prefix</code></td>
 <td>text</td>
 <td>Full path to environment location (i.e. prefix).</td>
-<td><code>Sentinel.UNSET</code></td>
+<td>None</td>
 </tr>
 <tr>
 <td><code>-n</code>, <code>--name</code></td>
 <td>text</td>
 <td>Name of environment.</td>
-<td><code>Sentinel.UNSET</code></td>
+<td>None</td>
 </tr>
 <tr>
 <td><code>--auth</code></td>
@@ -1099,7 +1099,7 @@ and its various subcommands.</p>
 <td><code>--force-platform</code></td>
 <td>text</td>
 <td>Force using the given platform when installing from the lockfile, instead of the native platform.</td>
-<td><code>&lt;function platform_subdir at 0x58fc7ce6180&gt;</code></td>
+<td><code>&lt;function platform_subdir at 0x35a018184c0&gt;</code></td>
 </tr>
 <tr>
 <td><code>--preserve-temp-dirs</code></td>
@@ -1163,13 +1163,13 @@ timestamp: The approximate timestamp of the output file in ISO8601 basic format.
 <td><code>-p</code>, <code>--platform</code></td>
 <td>text</td>
 <td>generate lock files for the following platforms</td>
-<td><code>Sentinel.UNSET</code></td>
+<td>None</td>
 </tr>
 <tr>
 <td><code>-c</code>, <code>--channel</code></td>
 <td>text</td>
 <td>Override the channels to use when solving the environment. These will replace the channels as listed in the various source files.</td>
-<td><code>Sentinel.UNSET</code></td>
+<td>None</td>
 </tr>
 <tr>
 <td><code>--dev-dependencies</code> / <code>--no-dev-dependencies</code></td>
@@ -1181,7 +1181,7 @@ timestamp: The approximate timestamp of the output file in ISO8601 basic format.
 <td><code>-f</code>, <code>--file</code></td>
 <td>path</td>
 <td>path to a conda environment specification(s)</td>
-<td><code>Sentinel.UNSET</code></td>
+<td>None</td>
 </tr>
 <tr>
 <td><code>-k</code>, <code>--kind</code></td>
@@ -1241,19 +1241,19 @@ timestamp: The approximate timestamp of the output file in ISO8601 basic format.
 <td><code>--virtual-package-spec</code></td>
 <td>path</td>
 <td>Specify a set of virtual packages to use.</td>
-<td><code>Sentinel.UNSET</code></td>
+<td>None</td>
 </tr>
 <tr>
 <td><code>--update</code></td>
 <td>text</td>
 <td>Packages to update to their latest versions. If empty, update all.</td>
-<td><code>Sentinel.UNSET</code></td>
+<td>None</td>
 </tr>
 <tr>
 <td><code>--pypi_to_conda_lookup_file</code></td>
 <td>text</td>
 <td>Location of the lookup file containing Pypi package names to conda names.</td>
-<td><code>Sentinel.UNSET</code></td>
+<td>None</td>
 </tr>
 <tr>
 <td><code>--md</code>, <code>--metadata</code></td>
@@ -1349,7 +1349,7 @@ timestamp: The approximate timestamp of the output file in ISO8601 basic format.
 <td><code>-p</code>, <code>--platform</code></td>
 <td>text</td>
 <td>render lock files for the following platforms</td>
-<td><code>Sentinel.UNSET</code></td>
+<td>None</td>
 </tr>
 <tr>
 <td><code>-h</code>, <code>--help</code></td>
@@ -1379,13 +1379,13 @@ timestamp: The approximate timestamp of the output file in ISO8601 basic format.
 <td><code>-p</code>, <code>--platform</code></td>
 <td>text</td>
 <td>render lock files for the following platforms</td>
-<td><code>Sentinel.UNSET</code></td>
+<td>None</td>
 </tr>
 <tr>
 <td><code>-c</code>, <code>--channel</code></td>
 <td>text</td>
 <td>Override the channels to use when solving the environment. These will replace the channels as listed in the various source files.</td>
-<td><code>Sentinel.UNSET</code></td>
+<td>None</td>
 </tr>
 <tr>
 <td><code>--dev-dependencies</code> / <code>--no-dev-dependencies</code></td>
@@ -1397,13 +1397,13 @@ timestamp: The approximate timestamp of the output file in ISO8601 basic format.
 <td><code>-f</code>, <code>--file</code></td>
 <td>path</td>
 <td>path to a dependency specification, can be repeated</td>
-<td><code>Sentinel.UNSET</code></td>
+<td>None</td>
 </tr>
 <tr>
 <td><code>-k</code>, <code>--kind</code></td>
 <td>choice (<code>pixi.toml</code> &#x7C; <code>raw</code>)</td>
 <td>Kind of lock specification to generate. Must be 'pixi.toml' or 'raw'.</td>
-<td><code>Sentinel.UNSET</code></td>
+<td>None</td>
 </tr>
 <tr>
 <td><code>--lockfile</code></td>
@@ -1445,7 +1445,7 @@ timestamp: The approximate timestamp of the output file in ISO8601 basic format.
 <td><code>--pypi_to_conda_lookup_file</code></td>
 <td>text</td>
 <td>Location of the lookup file containing Pypi package names to conda names.</td>
-<td><code>Sentinel.UNSET</code></td>
+<td>None</td>
 </tr>
 <tr>
 <td><code>--with-cuda</code></td>
@@ -1463,7 +1463,7 @@ timestamp: The approximate timestamp of the output file in ISO8601 basic format.
 <td><code>--editable</code></td>
 <td>text</td>
 <td>Add an editable pip dependency as name=path, e.g. --editable mypkg=./src/mypkg</td>
-<td><code>Sentinel.UNSET</code></td>
+<td>None</td>
 </tr>
 <tr>
 <td><code>-h</code>, <code>--help</code></td>
