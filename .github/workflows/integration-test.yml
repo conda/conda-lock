@@ -77,7 +77,6 @@ jobs:
         with:
           name: conda-lock-${{ matrix.os }}-${{ matrix.python-version }}
           path: lockfiles
-
   install-gdal-with-micromamba:
     runs-on: ${{ matrix.os }}
     needs: lock-gdal
@@ -126,7 +125,6 @@ jobs:
           micromamba run -n gdal-test-mm-lock python -c 'import toolz; print(toolz.__version__)'
           # Micromamba won't install pip dependencies from explicit lockfiles, so skip this test
           micromamba run -n gdal-test-mm-env python -c 'import toolz; print(toolz.__version__)'
-
   install-gdal-with-conda-lock:
     runs-on: ${{ matrix.os }}
     needs: lock-gdal
