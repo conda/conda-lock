@@ -208,3 +208,39 @@ jobs:
 
           # conda doesn't install pip dependencies from explicit lockfiles, so skip this test
           conda run -n gdal-test-c-env python -c 'import toolz; print(toolz.__version__)'
+
+  lock-gdal-via-conda:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Set Conda platform
+        run: |
+          echo "CONDA_PLATFORM=linux-64" >> $GITHUB_ENV
+      - name: Verify Conda platform
+        run: echo "Conda platform is $CONDA_PLATFORM"
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+      - name: Set up Conda
+        uses: conda-incubator/setup-miniconda@fc2d68f6413eb2d87b895e92f8584b5b94a10167 # v3.3.0
+        with:
+          auto-activate-base: true
+          python-version: 3.14
+      - name: install conda-lock
+        shell: bash -leo pipefail {0}
+        run: |
+          conda install conda pip setuptools editables hatchling hatch-vcs conda-lock --yes
+          conda uninstall conda-lock --force --yes
+          pip install --no-deps --no-build-isolation -e .
+      - name: run-test
+        shell: bash -leo pipefail {0}
+        run: |
+          python -m conda lock --help
+          python -m conda lock lock --help
+          python -m conda lock --log-level=DEBUG --micromamba -f tests/gdal/environment.yml -p $CONDA_PLATFORM
+          python -m conda lock render -p $CONDA_PLATFORM
+          python -m conda lock render -p $CONDA_PLATFORM --kind=env
+          cat conda-$CONDA_PLATFORM.lock
+          cat conda-$CONDA_PLATFORM.lock.yml
+          cat conda-lock.yml

@@ -1430,7 +1430,7 @@ def lock(
         version: The version of conda-lock used to generate this lock file.
         timestamp: The approximate timestamp of the output file in ISO8601 basic format.
     """
-    logging.basicConfig(level=log_level)
+    logging.basicConfig(level=log_level, force=True)
 
     # Set the flag for deleting temporary paths (files/dirs)
     tempdir_manager.state.delete_temp_paths = not preserve_temp_dirs
@@ -1605,7 +1605,7 @@ def click_install(
         sys.exit(1)
 
     """Perform a conda install"""
-    logging.basicConfig(level=log_level)
+    logging.basicConfig(level=log_level, force=True)
 
     # Set the flag for deleting temporary paths
     tempdir_manager.state.delete_temp_paths = not preserve_temp_dirs
@@ -1729,7 +1729,7 @@ def render(
     platform: Sequence[str],
 ) -> None:
     """Render multi-platform lockfile into single-platform env or explicit file"""
-    logging.basicConfig(level=log_level)
+    logging.basicConfig(level=log_level, force=True)
 
     if pdb:
         sys.excepthook = _handle_exception_post_mortem
@@ -2035,7 +2035,7 @@ def render_lock_spec(  # noqa: C901
             )
         editables.append(EditableDependency(name=name, path=path))
 
-    logging.basicConfig(level=log_level)
+    logging.basicConfig(level=log_level, force=True)
 
     # Set Pypi <--> Conda lookup file location
     mapping_url = (

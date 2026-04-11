@@ -94,6 +94,9 @@ dependencies = [
 [project.scripts]
 conda-lock = "conda_lock:main"
 
+[project.entry-points.conda]
+conda-lock = "conda_lock.plugin"
+
 [project.urls]
 Homepage = "https://github.com/conda/conda-lock"
 Repository = "https://github.com/conda/conda-lock"
