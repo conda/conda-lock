@@ -2,6 +2,7 @@ import json
 import logging
 import os
 import pathlib
+import re
 import shlex
 import shutil
 import subprocess
@@ -162,30 +163,317 @@ def solve_conda(
     return planned
 
 
+_FETCH_KEYS_FROM_LINK: tuple[str, ...] = (
+    "channel",
+    "depends",
+    "fn",
+    "md5",
+    "name",
+    "subdir",
+    "timestamp",
+    "url",
+    "version",
+)
+
+
+def _link_action_as_fetch(link_action: LinkAction) -> FetchAction | None:
+    """Reuse a LINK action's metadata as a FETCH action when complete.
+
+    Mamba/micromamba 2.6.0 returns LINK entries that already include every
+    repodata field we need (``url``, ``fn``, ``md5``, ``sha256``,
+    ``depends``, ``constrains``, ...). When that is the case we don't need
+    to crack open ``repodata_record.json`` on disk -- doubly useful given
+    that 2.6.0 reorganized the cache hierarchically by channel/subdir
+    (see https://github.com/mamba-org/mamba/pull/4163), invalidating the
+    flat-path lookup that ``_get_repodata_record`` used to do.
+
+    Synthesis is rejected unless the LINK has every field that the
+    downstream code (``solve_conda``) reads from a FETCH. Critically we
+    require ``depends`` to be present *and* a list, otherwise an absent
+    or null value would silently erase a package's runtime dependencies.
+    """
+    for key in _FETCH_KEYS_FROM_LINK:
+        if key not in link_action or link_action[key] is None:  # type: ignore[literal-required]
+            return None
+    if not isinstance(link_action["depends"], list):  # type: ignore[typeddict-item]
+        return None
+    fetch: FetchAction = {  # pyright: ignore[reportAssignmentType]
+        key: link_action[key]  # type: ignore[literal-required]
+        for key in _FETCH_KEYS_FROM_LINK
+    }
+    fetch["sha256"] = link_action.get("sha256")  # type: ignore[typeddict-item]
+    constrains = link_action.get("constrains")  # type: ignore[typeddict-item]
+    fetch["constrains"] = constrains if isinstance(constrains, list) else []
+    return fetch
+
+
+# libmamba's token regex (`/t/([a-zA-Z0-9-_]{0,2}[a-zA-Z0-9-]*)`) matches
+# `/t/<token>` with no requirement on a trailing path -- the URL may end
+# right after the token. We accept the same character class without
+# requiring a trailing slash.
+_TOKEN_PATH_RE = re.compile(r"/t/[a-zA-Z0-9_-]*")
+
+
+def _libmamba_strip_url_secrets(url: str) -> str:
+    """Strip credentials and conda auth tokens from a URL.
+
+    This is a *libmamba-compat helper*, not a general-purpose URL
+    sanitizer. The callers (cache path derivation and cache record
+    URL comparison) need bit-for-bit parity with how libmamba 2.6.0
+    cleans URLs, including the deliberately overbroad ``/t/<chars>``
+    handling pinned in tests. Don't reuse this for security-sensitive
+    URL scrubbing without re-reading what libmamba's
+    ``remove_secrets_and_login_credentials`` actually does.
+
+    Covers the cases that conda-lock encounters for package URLs:
+
+    - ``scheme://user:pass@host/...`` -> userinfo dropped
+    - ``host/t/<token>`` and ``host/t/<token>/path`` -> token segment removed
+    - ``user:pass@host/...`` (no scheme) -> userinfo dropped
+    """
+    if "://" in url:
+        parsed = urlsplit(url)
+        netloc = parsed.netloc
+        if "@" in netloc:
+            netloc = netloc.rsplit("@", 1)[1]
+        cleaned_path = _TOKEN_PATH_RE.sub("", parsed.path)
+        return urlunsplit(
+            (parsed.scheme, netloc, cleaned_path, parsed.query, parsed.fragment)
+        )
+    # Scheme-less URL: ``urlsplit`` parks everything in ``path``, so
+    # handle userinfo and token explicitly. This mirrors libmamba's
+    # explicit no-scheme tests in test_cpp.cpp.
+    at_pos = url.find("@")
+    slash_pos = url.find("/")
+    if at_pos != -1 and (slash_pos == -1 or at_pos < slash_pos):
+        url = url[at_pos + 1 :]
+    return _TOKEN_PATH_RE.sub("", url)
+
+
+def _normalize_url_for_cache_path(url: str) -> str:
+    """Apply mamba 2.6.0's URL normalization for package cache paths.
+
+    Strips credentials/tokens (matching libmamba's
+    ``remove_secrets_and_login_credentials``), then mirrors
+    ``package_cache_folder_relative_path``: scheme separators ``://``
+    become ``/`` and remaining ``:`` / ``\\`` are replaced with ``_``.
+    Path separators are preserved.
+    """
+    cleaned = _libmamba_strip_url_secrets(url)
+    return cleaned.replace("://", "/").replace(":", "_").replace("\\", "_")
+
+
+def _normalize_url_for_compare(url: str) -> str:
+    """Mirror libmamba's ``compare_cleaned_url`` semantics.
+
+    libmamba parses both URLs as ``CondaURL``, forces the scheme to
+    ``https``, removes credentials, and compares the strings with their
+    trailing slashes stripped. Two URLs that differ only by
+    ``http``/``https``, by trailing slash, or by carrying credentials
+    must still be treated as equal. We don't have ``CondaURL`` here, but
+    a credential-stripped + scheme-normalized + slash-trimmed compare
+    matches the cases that occur in practice for conda packages.
+    """
+    cleaned = _libmamba_strip_url_secrets(url)
+    parsed = urlsplit(cleaned)
+    if parsed.scheme:
+        cleaned = urlunsplit(parsed._replace(scheme="https"))
+    return cleaned.rstrip("/")
+
+
+def _hierarchical_cache_subpath(link_action: LinkAction) -> pathlib.Path | None:
+    """Return ``<normalized base url>/<subdir>`` for the mamba 2.6.0 layout.
+
+    Prefers the LINK action's ``url`` (stripping the filename), falling back
+    to ``base_url`` + ``platform``. Returns ``None`` when neither is usable.
+    """
+    url = link_action.get("url")
+    platform = link_action.get("platform") or link_action.get("subdir") or ""
+    directory: str | None = None
+    if url and "/" in url:
+        directory = url.rsplit("/", 1)[0]
+    elif link_action.get("base_url") and platform:
+        base = link_action["base_url"].rstrip("/")
+        suffix = f"/{platform}"
+        if base.endswith(suffix):
+            base = base[: -len(suffix)]
+        directory = f"{base}/{platform}"
+    if directory is None:
+        return None
+    return pathlib.Path(_normalize_url_for_cache_path(directory))
+
+
+def _link_action_explicit_or_derived_url(link_action: LinkAction) -> str | None:
+    """Best-effort URL for the linked package, with explicit-vs-derived
+    intent baked into the name.
+
+    Returns the LINK's explicit ``url`` (from mamba 2.6.0+ or any solver
+    that emits the full repodata in LINK) if present. Otherwise derives
+    one from ``base_url``/``platform``/``fn`` -- this is the older-conda
+    sparse-LINK case, where the URL is reconstructed from disjoint
+    fields and is therefore weaker evidence than an explicit value.
+    Both paths are still useful for ``_record_matches_link`` to validate
+    against a record on disk; future maintainers should treat a derived
+    URL as a heuristic, not gospel.
+    """
+    url = link_action.get("url")
+    if url:
+        return url
+    base_url = link_action.get("base_url")
+    fn = link_action.get("fn")
+    if not base_url or not fn:
+        return None
+    base = base_url.rstrip("/")
+    platform = link_action.get("platform") or link_action.get("subdir")
+    if platform:
+        suffix = f"/{platform}"
+        if not base.endswith(suffix):
+            base = f"{base}{suffix}"
+    return f"{base}/{fn}"
+
+
+def _record_matches_link(
+    record: FetchAction, link_action: LinkAction
+) -> tuple[bool, str | None]:
+    """Confirm a ``repodata_record.json`` corresponds to the LINK we're looking up.
+
+    Mamba 2.6.0's hierarchy exists precisely to disambiguate same-named
+    distributions across channels, so a basename match in the cache is not
+    proof of identity. We validate ``name`` and ``version`` positively, and
+    cross-check ``subdir`` / ``fn`` / ``md5`` / ``sha256`` whenever both
+    sides expose them. URL vs channel resolves like this:
+
+    - If both sides expose a URL (LINK's explicit ``url`` or one derived
+      from ``base_url``+``fn``), compare with ``compare_cleaned_url``
+      semantics. We do NOT additionally enforce channel-string equality
+      here, so mirrored channels whose channel string spelling differs
+      (``"conda-forge"`` vs the canonical URL) but whose package URLs
+      match are accepted -- matching libmamba's precedence.
+    - Otherwise fall back to a channel-string compare. A sparse LINK
+      with no URL but a record carrying a URL would previously have been
+      accepted with no validation past name/version; this branch closes
+      that blind spot when both sides carry channel.
+
+    Returns ``(matched, reason_if_rejected)``.
+    """
+    if record.get("name") != link_action.get("name"):
+        return (
+            False,
+            f"name mismatch: record={record.get('name')!r} link={link_action.get('name')!r}",
+        )
+    if record.get("version") != link_action.get("version"):
+        return (
+            False,
+            f"version mismatch: record={record.get('version')!r} link={link_action.get('version')!r}",
+        )
+    record_subdir = record.get("subdir")
+    link_subdir = link_action.get("platform") or link_action.get("subdir")
+    if record_subdir and link_subdir and record_subdir != link_subdir:
+        return False, f"subdir mismatch: record={record_subdir!r} link={link_subdir!r}"
+    for field in ("fn", "md5", "sha256"):
+        link_val = link_action.get(field)  # type: ignore[call-overload]
+        record_val = record.get(field)  # type: ignore[call-overload]
+        if link_val and record_val and link_val != record_val:
+            return False, f"{field} mismatch"
+    record_url = record.get("url")
+    link_url = _link_action_explicit_or_derived_url(link_action)
+    url_compared = False
+    if record_url and link_url:
+        if _normalize_url_for_compare(link_url) != _normalize_url_for_compare(
+            record_url
+        ):
+            return False, f"url mismatch: record={record_url!r} link={link_url!r}"
+        url_compared = True
+    if not url_compared:
+        link_channel = link_action.get("channel")
+        record_channel = record.get("channel")
+        if link_channel and record_channel and link_channel != record_channel:
+            return (
+                False,
+                f"channel mismatch: record={record_channel!r} link={link_channel!r}",
+            )
+    return True, None
+
+
+def _candidate_record_paths(
+    pkgs_dir: pathlib.Path,
+    dist_name: str,
+    link_action: LinkAction,
+) -> list[pathlib.Path]:
+    """Candidate ``repodata_record.json`` locations, in priority order.
+
+    Conda and pre-2.6 mamba use a flat layout (``<pkgs_dir>/<dist_name>/...``).
+    Mamba/micromamba 2.6.0 nests packages under the channel and subdir
+    derived from the package URL (see mamba-org/mamba#4163). We compute the
+    expected hierarchical path from the LINK metadata rather than walking the
+    cache, then fall back to the legacy flat path.
+    """
+    candidates: list[pathlib.Path] = []
+    sub = _hierarchical_cache_subpath(link_action)
+    if sub is not None:
+        candidates.append(pkgs_dir / sub / dist_name / "info" / "repodata_record.json")
+    candidates.append(pkgs_dir / dist_name / "info" / "repodata_record.json")
+    return candidates
+
+
 def _get_repodata_record(
-    pkgs_dirs: list[pathlib.Path], dist_name: str
+    pkgs_dirs: list[pathlib.Path],
+    dist_name: str,
+    link_action: LinkAction,
 ) -> FetchAction | None:
     """Get the repodata_record.json of a given distribution from the package cache.
 
     On rare occasion during the CI tests, conda fails to find a package in the
-    package cache, perhaps because the package is still being processed? Waiting for
-    0.1 seconds seems to solve the issue. Here we allow for a full second to elapse
-    before giving up.
+    package cache, perhaps because the package is still being processed? Waiting
+    for 0.1 seconds seems to solve the issue. Here we allow for a full second
+    to elapse before giving up.
+
+    Distinct failure modes (missing file, JSON corruption, identity
+    mismatch) are logged at DEBUG so that a final ``not found`` doesn't
+    bury whether we never saw the file or saw it and rejected it.
     """
     NUM_RETRIES = 10
+    # Track failure reasons in two buckets so the final warning surfaces
+    # the most actionable one. "Rejected" beats "missing": if we found a
+    # repodata_record.json and rejected it for, say, sha256 mismatch,
+    # that's the signal worth logging -- not the trivia that the flat
+    # legacy fallback path didn't exist.
+    last_rejected: str | None = None
+    last_missing: str | None = None
     for retry in range(1, NUM_RETRIES + 1):
         for pkgs_dir in pkgs_dirs:
-            record = pkgs_dir / dist_name / "info" / "repodata_record.json"
-            if record.exists():
-                with open(record) as f:
-                    repodata: FetchAction = json.load(f)
-                return repodata
-        logger.warning(
-            f"Failed to find repodata_record.json for {dist_name}. "
+            for candidate in _candidate_record_paths(pkgs_dir, dist_name, link_action):
+                if not candidate.is_file():
+                    last_missing = f"file not found: {candidate}"
+                    logger.debug(last_missing)
+                    continue
+                try:
+                    with open(candidate) as f:
+                        record: FetchAction = json.load(f)
+                except (OSError, json.JSONDecodeError) as exc:
+                    last_rejected = f"failed to read {candidate}: {exc}"
+                    logger.debug(last_rejected)
+                    continue
+                matched, reason = _record_matches_link(record, link_action)
+                if matched:
+                    return record
+                last_rejected = f"identity mismatch at {candidate}: {reason}"
+                logger.debug(last_rejected)
+        # Per-retry messages stay at DEBUG so a single missing package
+        # doesn't drown operator output in 11 nearly-identical warnings.
+        # We log a single WARNING below after the retry loop ends.
+        final_reason = last_rejected or last_missing
+        logger.debug(
+            f"Failed to find repodata_record.json for {dist_name} "
+            f"(last reason: {final_reason}). "
             f"Retrying in 0.1 seconds ({retry}/{NUM_RETRIES})"
         )
         time.sleep(0.1)
-    logger.warning(f"Failed to find repodata_record.json for {dist_name}. Giving up.")
+    final_reason = last_rejected or last_missing
+    logger.warning(
+        f"Failed to find repodata_record.json for {dist_name}. Giving up. "
+        f"Last reason: {final_reason}"
+    )
     return None
 
 
@@ -238,13 +526,25 @@ def _reconstruct_fetch_actions(
     link_actions = {p["name"]: p for p in dry_run_install["actions"]["LINK"]}
     fetch_actions = {p["name"]: p for p in dry_run_install["actions"]["FETCH"]}
     link_only_names = set(link_actions.keys()).difference(fetch_actions.keys())
-    if link_only_names:
-        pkgs_dirs = _get_pkgs_dirs(conda=conda, platform=platform)
-    else:
-        pkgs_dirs = []
 
+    # Mamba 2.6.0 puts the full repodata into LINK actions, so we can often
+    # synthesize FETCH without going to disk. Resolve those first and only
+    # query the (potentially expensive) ``pkgs_dirs`` listing if anything
+    # is left over.
+    deferred: list[tuple[str, LinkAction]] = []
     for link_pkg_name in link_only_names:
         link_action = link_actions[link_pkg_name]
+        from_link = _link_action_as_fetch(link_action)
+        if from_link is not None:
+            dry_run_install["actions"]["FETCH"].append(from_link)
+        else:
+            deferred.append((link_pkg_name, link_action))
+
+    pkgs_dirs = (
+        _get_pkgs_dirs(conda=conda, platform=platform) if deferred else []
+    )
+
+    for _link_pkg_name, link_action in deferred:
         if "dist_name" in link_action:
             dist_name = link_action["dist_name"]
         elif "fn" in link_action:
@@ -257,7 +557,7 @@ def _reconstruct_fetch_actions(
                 raise ValueError(f"Unknown filename format: {dist_name}")
         else:
             raise ValueError(f"Unable to extract the dist_name from {link_action}.")
-        repodata = _get_repodata_record(pkgs_dirs, dist_name)
+        repodata = _get_repodata_record(pkgs_dirs, dist_name, link_action)
         if repodata is None:
             raise FileNotFoundError(
                 f"Distribution '{dist_name}' not found in pkgs_dirs {pkgs_dirs}"
