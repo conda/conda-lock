@@ -6,15 +6,10 @@ import shlex
 import shutil
 import subprocess
 import sys
-import time
 
 from collections.abc import Iterable, Iterator, MutableSequence, Sequence
 from contextlib import contextmanager
 from textwrap import dedent
-from typing import (
-    Any,
-    Literal,
-)
 from urllib.parse import urlsplit, urlunsplit
 
 from conda_lock.interfaces.vendored_conda import MatchSpec
@@ -23,14 +18,15 @@ from conda_lock.invoke_conda import (
     _get_conda_flags,
     conda_env_override,
     conda_pkgs_dir,
+    extract_json_object,
     is_micromamba,
 )
 from conda_lock.lockfile import apply_categories
 from conda_lock.lockfile.v2prelim.models import HashModel, LockedDependency
 from conda_lock.models.channel import Channel, normalize_url_with_placeholders
-from conda_lock.models.dry_run_install import DryRunInstall, FetchAction, LinkAction
+from conda_lock.models.dry_run_install import DryRunInstall, LinkAction
 from conda_lock.models.lock_spec import Dependency, VersionedDependency
-from conda_lock.solver.dry_run import link_action_as_fetch
+from conda_lock.solver.dry_run import reconstruct_fetch_actions
 from conda_lock.tempdir_manager import temporary_directory
 
 
@@ -61,13 +57,6 @@ def _to_match_spec(
     else:
         # this will return only "package_name" even if there's a channel in the kwargs
         return ms.conda_build_form()
-
-
-def extract_json_object(proc_stdout: str) -> str:
-    try:
-        return proc_stdout[proc_stdout.index("{") : proc_stdout.rindex("}") + 1]
-    except ValueError:
-        return proc_stdout
 
 
 def solve_conda(
@@ -163,125 +152,6 @@ def solve_conda(
     return planned
 
 
-def _get_repodata_record(
-    pkgs_dirs: list[pathlib.Path], dist_name: str
-) -> FetchAction | None:
-    """Get the repodata_record.json of a given distribution from the package cache.
-
-    On rare occasion during the CI tests, conda fails to find a package in the
-    package cache, perhaps because the package is still being processed? Waiting for
-    0.1 seconds seems to solve the issue. Here we allow for a full second to elapse
-    before giving up.
-    """
-    NUM_RETRIES = 10
-    for retry in range(1, NUM_RETRIES + 1):
-        for pkgs_dir in pkgs_dirs:
-            record = pkgs_dir / dist_name / "info" / "repodata_record.json"
-            if record.exists():
-                with open(record) as f:
-                    repodata: FetchAction = json.load(f)
-                return repodata
-        logger.warning(
-            f"Failed to find repodata_record.json for {dist_name}. "
-            f"Retrying in 0.1 seconds ({retry}/{NUM_RETRIES})"
-        )
-        time.sleep(0.1)
-    logger.warning(f"Failed to find repodata_record.json for {dist_name}. Giving up.")
-    return None
-
-
-def _get_pkgs_dirs(
-    *,
-    conda: PathLike,
-    platform: str,
-    method: Literal["config", "info"] | None = None,
-) -> list[pathlib.Path]:
-    """Extract the package cache directories from the conda configuration."""
-    if method is None:
-        method = "config" if is_micromamba(conda) else "info"
-    if method == "config":
-        # 'package cache' was added to 'micromamba info' in v1.4.6.
-        args = [str(conda), "config", "--json", "list", "pkgs_dirs"]
-    elif method == "info":
-        args = [str(conda), "info", "--json"]
-    env = conda_env_override(platform)
-    output = subprocess.check_output(args, env=env).decode()
-    json_object_str = extract_json_object(output)
-    json_object: dict[str, Any] = json.loads(json_object_str)
-    pkgs_dirs_list: list[str]
-    if "pkgs_dirs" in json_object:
-        pkgs_dirs_list = json_object["pkgs_dirs"]
-    elif "package cache" in json_object:
-        pkgs_dirs_list = json_object["package cache"]
-    else:
-        raise ValueError(
-            f"Unable to extract pkgs_dirs from {json_object}. "
-            "Please report this issue to the conda-lock developers."
-        )
-    pkgs_dirs = [pathlib.Path(d) for d in pkgs_dirs_list]
-    return pkgs_dirs
-
-
-def _reconstruct_fetch_actions(
-    conda: PathLike, platform: str, dry_run_install: DryRunInstall
-) -> DryRunInstall:
-    """
-    Conda may choose to link a previously downloaded distribution from pkgs_dirs rather
-    than downloading a fresh one. Find the repodata record in existing distributions
-    that have only a LINK action, and use it to synthesize a corresponding FETCH action
-    with the metadata we need to extract for the package plan.
-
-    Mamba 2.6.0 puts the full repodata into LINK actions, so we can often
-    synthesize FETCH from the LINK metadata directly without going to
-    disk. Older solvers emit sparse LINKs and still need the disk lookup.
-    """
-    if "LINK" not in dry_run_install["actions"]:
-        dry_run_install["actions"]["LINK"] = []
-    if "FETCH" not in dry_run_install["actions"]:
-        dry_run_install["actions"]["FETCH"] = []
-
-    link_actions = {p["name"]: p for p in dry_run_install["actions"]["LINK"]}
-    fetch_actions = {p["name"]: p for p in dry_run_install["actions"]["FETCH"]}
-    link_only_names = set(link_actions.keys()).difference(fetch_actions.keys())
-
-    # Resolve rich LINKs (mamba 2.6.0+) without disk I/O. Defer the rest
-    # to the legacy disk lookup below.
-    deferred: list[tuple[str, LinkAction]] = []
-    for link_pkg_name in link_only_names:
-        link_action = link_actions[link_pkg_name]
-        from_link = link_action_as_fetch(link_action)
-        if from_link is not None:
-            dry_run_install["actions"]["FETCH"].append(from_link)
-        else:
-            deferred.append((link_pkg_name, link_action))
-
-    if deferred:
-        pkgs_dirs = _get_pkgs_dirs(conda=conda, platform=platform)
-    else:
-        pkgs_dirs = []
-
-    for _link_pkg_name, link_action in deferred:
-        if "dist_name" in link_action:
-            dist_name = link_action["dist_name"]
-        elif "fn" in link_action:
-            dist_name = str(link_action["fn"])
-            if dist_name.endswith(".tar.bz2"):
-                dist_name = dist_name[:-8]
-            elif dist_name.endswith(".conda"):
-                dist_name = dist_name[:-6]
-            else:
-                raise ValueError(f"Unknown filename format: {dist_name}")
-        else:
-            raise ValueError(f"Unable to extract the dist_name from {link_action}.")
-        repodata = _get_repodata_record(pkgs_dirs, dist_name)
-        if repodata is None:
-            raise FileNotFoundError(
-                f"Distribution '{dist_name}' not found in pkgs_dirs {pkgs_dirs}"
-            )
-        dry_run_install["actions"]["FETCH"].append(repodata)
-    return dry_run_install
-
-
 def solve_specs_for_arch(
     conda: PathLike,
     channels: Sequence[Channel],
@@ -355,7 +225,7 @@ def solve_specs_for_arch(
 
     try:
         dryrun_install: DryRunInstall = json.loads(extract_json_object(proc.stdout))
-        return _reconstruct_fetch_actions(conda, platform, dryrun_install)
+        return reconstruct_fetch_actions(conda, platform, dryrun_install)
     except json.JSONDecodeError as e:
         raise RuntimeError(f"Failed to parse json: '{proc.stdout}'") from e
 
@@ -512,7 +382,7 @@ def update_specs_for_arch(
             installed_link_action = installed[package]
             dryrun_install["actions"]["LINK"].append(installed_link_action)
 
-        reconstructed = _reconstruct_fetch_actions(conda, platform, dryrun_install)
+        reconstructed = reconstruct_fetch_actions(conda, platform, dryrun_install)
         return reconstructed
 
 
