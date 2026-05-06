@@ -1,3 +1,29 @@
+"""Orchestration entry points for conda-lock's solver pipeline.
+
+The narrow responsibilities split out of this module live under
+``conda_lock.solver``:
+
+- ``solver.repodata_cache``: URL normalization, cache path
+  derivation, record identity checks, mamba 2.1.1-2.3.3 stub-record
+  detection, and ``info/index.json``-based healing.
+- ``solver.dry_run``: normalize a solver's ``--dry-run --json``
+  output into a uniform shape with rich FETCH actions, falling back
+  to disk when the LINK metadata is sparse.
+- ``solver.lockfile_heal``: repair carry-forward empty
+  ``dependencies`` from the local cache before
+  ``fake_conda_environment`` propagates them.
+- ``solver.graph_integrity``: forward-reachability check on the
+  planned package set, with the
+  ``CONDA_LOCK_ALLOW_ORPHANED_LOCKFILE`` escape hatch.
+
+What's left here is glue: drive the conda/mamba subprocess for the
+fresh-solve and update paths, translate the dryrun into
+``LockedDependency`` shapes, run categorization, and assert graph
+integrity. The fake-prefix machinery used by ``--update`` also
+lives here because it is a peer of the subprocess invocation, not
+a cache or graph concern.
+"""
+
 import json
 import logging
 import os
@@ -27,6 +53,7 @@ from conda_lock.models.channel import Channel, normalize_url_with_placeholders
 from conda_lock.models.dry_run_install import DryRunInstall, LinkAction
 from conda_lock.models.lock_spec import Dependency, VersionedDependency
 from conda_lock.solver.dry_run import reconstruct_fetch_actions
+from conda_lock.solver.graph_integrity import assert_no_orphaned_conda_packages
 from conda_lock.solver.lockfile_heal import heal_locked_dependencies_from_cache
 from conda_lock.tempdir_manager import temporary_directory
 
@@ -149,6 +176,12 @@ def solve_conda(
         planned=planned,
         mapping_url=mapping_url,
     )
+
+    # Forward-reachability check on the planned package set. The
+    # policy, escape hatch, and the rationale for not
+    # reverse-propagating categories all live in
+    # ``conda_lock.solver.graph_integrity``.
+    assert_no_orphaned_conda_packages(planned, platform)
 
     return planned
 
@@ -331,14 +364,14 @@ def update_specs_for_arch(
         # elsewhere is not evidence about an ambiguous entry; partial
         # caches are normal.
         #
-        # Two failure modes follow. The orphan check downstream catches
-        # the silent-vanishing variant (corrupt entry's transitive deps
-        # become orphans). It does NOT catch the "categorized
-        # corrupt-carrier" variant where the corrupt entry is itself a
-        # requested or otherwise-reachable root and its missing
-        # transitive deps are reachable via other paths; the lockfile
-        # remains internally inconsistent and re-locks may silently
-        # drift. The WARNING below is visibility for that
+        # Two failure modes follow. ``assert_no_orphaned_conda_packages``
+        # downstream catches the silent-vanishing variant (corrupt
+        # entry's transitive deps become orphans). It does NOT catch
+        # the "categorized corrupt-carrier" variant where the corrupt
+        # entry is itself a requested or otherwise-reachable root and
+        # its missing transitive deps are reachable via other paths;
+        # the lockfile remains internally inconsistent and re-locks may
+        # silently drift. The WARNING below is visibility for that
         # harder-to-detect case so an operator can regenerate from
         # sources.
         logger.warning(
@@ -547,7 +580,6 @@ def make_fake_python_binary(prefix: str) -> None:
             This was called as:
                 {cmd}
             '''
-
             print(stderr_message, file=sys.stderr, flush=True, end='')
 
             if "-m pip" in cmd:
