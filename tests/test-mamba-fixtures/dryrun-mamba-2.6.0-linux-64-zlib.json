@@ -1,0 +1,55 @@
+{
+    "actions": {
+        "LINK": [
+            {
+                "build": "h25fd6f3_2",
+                "build_number": 2,
+                "build_string": "h25fd6f3_2",
+                "channel": "conda-forge",
+                "constrains": [
+                    "zlib 1.3.2 *_2"
+                ],
+                "depends": [
+                    "__glibc >=2.17,<3.0.a0"
+                ],
+                "fn": "libzlib-1.3.2-h25fd6f3_2.conda",
+                "license": "Zlib",
+                "md5": "d87ff7921124eccd67248aa483c23fec",
+                "name": "libzlib",
+                "sha256": "55044c403570f0dc26e6364de4dc5368e5f3fc7ff103e867c487e2b5ab2bcda9",
+                "size": 63629,
+                "subdir": "linux-64",
+                "timestamp": 1774072609,
+                "track_features": "",
+                "url": "https://conda.anaconda.org/conda-forge/linux-64/libzlib-1.3.2-h25fd6f3_2.conda",
+                "version": "1.3.2"
+            },
+            {
+                "build": "h25fd6f3_2",
+                "build_number": 2,
+                "build_string": "h25fd6f3_2",
+                "channel": "conda-forge",
+                "constrains": null,
+                "depends": [
+                    "__glibc >=2.17,<3.0.a0",
+                    "libzlib 1.3.2 h25fd6f3_2"
+                ],
+                "fn": "zlib-1.3.2-h25fd6f3_2.conda",
+                "license": "Zlib",
+                "md5": "c2a01a08fc991620a74b32420e97868a",
+                "name": "zlib",
+                "sha256": "245c9ee8d688e23661b95e3c6dd7272ca936fabc03d423cdb3cdee1bbcf9f2f2",
+                "size": 95931,
+                "subdir": "linux-64",
+                "timestamp": 1774072620,
+                "track_features": "",
+                "url": "https://conda.anaconda.org/conda-forge/linux-64/zlib-1.3.2-h25fd6f3_2.conda",
+                "version": "1.3.2"
+            }
+        ],
+        "PREFIX": "/tmp/cap_prefix3"
+    },
+    "dry_run": true,
+    "prefix": "/tmp/cap_prefix3",
+    "success": true
+}
