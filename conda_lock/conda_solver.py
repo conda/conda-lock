@@ -27,6 +27,7 @@ from conda_lock.models.channel import Channel, normalize_url_with_placeholders
 from conda_lock.models.dry_run_install import DryRunInstall, LinkAction
 from conda_lock.models.lock_spec import Dependency, VersionedDependency
 from conda_lock.solver.dry_run import reconstruct_fetch_actions
+from conda_lock.solver.lockfile_heal import heal_locked_dependencies_from_cache
 from conda_lock.tempdir_manager import temporary_directory
 
 
@@ -299,6 +300,73 @@ def update_specs_for_arch(
         Channels to query
 
     """
+
+    # Heal lockfile entries with empty ``dependencies`` from the local
+    # cache before ``fake_conda_environment`` and ``to_fetch_action()``
+    # carry the empty deps forward. Without this step, a lockfile
+    # generated against a corrupt mamba 2.1.1-2.3.3 cache stays corrupt
+    # across every subsequent ``conda-lock lock --update`` even after
+    # the user upgrades to mamba 2.6.0+. See conda/conda-lock#896.
+    #
+    # The heal layer answers narrow per-entry questions; this function
+    # owns the user-facing log policy.
+    heal_report = heal_locked_dependencies_from_cache(
+        locked, conda=conda, platform=platform
+    )
+    if heal_report.healed:
+        logger.warning(
+            "Healed %d lockfile entry/entries with empty 'dependencies' "
+            "from the local package cache on %s: %s. The previous lockfile "
+            "was likely generated against a corrupt cache from "
+            "mamba/micromamba 2.1.1-2.3.3 (see conda/conda-lock#896 / "
+            "mamba-org/mamba#4110); the new lockfile will be correct.",
+            len(heal_report.healed),
+            platform,
+            sorted(heal_report.healed),
+        )
+    if heal_report.ambiguous:
+        # Ambiguous entries have no cache evidence either way: legit-empty
+        # leaves (``tzdata``, ``_libgcc_mutex``, ``python_abi``, ...) and
+        # corrupt-empty entries are indistinguishable here. Healable-
+        # elsewhere is not evidence about an ambiguous entry; partial
+        # caches are normal.
+        #
+        # Two failure modes follow. The orphan check downstream catches
+        # the silent-vanishing variant (corrupt entry's transitive deps
+        # become orphans). It does NOT catch the "categorized
+        # corrupt-carrier" variant where the corrupt entry is itself a
+        # requested or otherwise-reachable root and its missing
+        # transitive deps are reachable via other paths; the lockfile
+        # remains internally inconsistent and re-locks may silently
+        # drift. The WARNING below is visibility for that
+        # harder-to-detect case so an operator can regenerate from
+        # sources.
+        logger.warning(
+            "On platform %s, %d lockfile entry/entries have empty "
+            "'dependencies' and the local package cache has no "
+            "info/index.json to confirm: %s. %d entry/entries on this "
+            "platform were proven corrupt and healed in place. If you "
+            "suspect a lockfile generated against a corrupt "
+            "mamba/micromamba 2.1.1-2.3.3 cache (see "
+            "conda/conda-lock#896 / mamba-org/mamba#4110) -- e.g. far "
+            "more empty-deps entries than the legitimate handful "
+            "(tzdata, python_abi, _libgcc_mutex, _openmp_mutex, "
+            "nlohmann_json-abi) -- the safe repair is to regenerate "
+            "the lockfile from sources on a known-clean cache "
+            "(`mamba clean -a` then `conda-lock lock -f <your "
+            "sources>`). Do NOT use a potentially-corrupt lockfile to "
+            "populate a real environment: packages that already "
+            "vanished during v1 serialization are unrecoverable from "
+            "it. The orphan check below will hard-fail the "
+            "silent-drop variant; this WARNING is visibility for the "
+            "harder-to-detect categorized-carrier case where the "
+            "corrupt entry is itself a requested or "
+            "transitively-reachable root.",
+            platform,
+            len(heal_report.ambiguous),
+            sorted(heal_report.ambiguous),
+            len(heal_report.healed),
+        )
 
     with fake_conda_environment(locked.values(), platform=platform) as prefix:
         installed = _get_installed_conda_packages(conda, platform, prefix)
