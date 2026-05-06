@@ -30,6 +30,7 @@ from conda_lock.lockfile.v2prelim.models import HashModel, LockedDependency
 from conda_lock.models.channel import Channel, normalize_url_with_placeholders
 from conda_lock.models.dry_run_install import DryRunInstall, FetchAction, LinkAction
 from conda_lock.models.lock_spec import Dependency, VersionedDependency
+from conda_lock.solver.dry_run import link_action_as_fetch
 from conda_lock.tempdir_manager import temporary_directory
 
 
@@ -229,6 +230,10 @@ def _reconstruct_fetch_actions(
     than downloading a fresh one. Find the repodata record in existing distributions
     that have only a LINK action, and use it to synthesize a corresponding FETCH action
     with the metadata we need to extract for the package plan.
+
+    Mamba 2.6.0 puts the full repodata into LINK actions, so we can often
+    synthesize FETCH from the LINK metadata directly without going to
+    disk. Older solvers emit sparse LINKs and still need the disk lookup.
     """
     if "LINK" not in dry_run_install["actions"]:
         dry_run_install["actions"]["LINK"] = []
@@ -238,13 +243,24 @@ def _reconstruct_fetch_actions(
     link_actions = {p["name"]: p for p in dry_run_install["actions"]["LINK"]}
     fetch_actions = {p["name"]: p for p in dry_run_install["actions"]["FETCH"]}
     link_only_names = set(link_actions.keys()).difference(fetch_actions.keys())
-    if link_only_names:
+
+    # Resolve rich LINKs (mamba 2.6.0+) without disk I/O. Defer the rest
+    # to the legacy disk lookup below.
+    deferred: list[tuple[str, LinkAction]] = []
+    for link_pkg_name in link_only_names:
+        link_action = link_actions[link_pkg_name]
+        from_link = link_action_as_fetch(link_action)
+        if from_link is not None:
+            dry_run_install["actions"]["FETCH"].append(from_link)
+        else:
+            deferred.append((link_pkg_name, link_action))
+
+    if deferred:
         pkgs_dirs = _get_pkgs_dirs(conda=conda, platform=platform)
     else:
         pkgs_dirs = []
 
-    for link_pkg_name in link_only_names:
-        link_action = link_actions[link_pkg_name]
+    for _link_pkg_name, link_action in deferred:
         if "dist_name" in link_action:
             dist_name = link_action["dist_name"]
         elif "fn" in link_action:
