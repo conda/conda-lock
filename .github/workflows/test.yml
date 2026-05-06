@@ -141,6 +141,11 @@ jobs:
           mkdir -p tests/durations
           set -x
           which pytest
+          # Default `addopts` in pyproject.toml deselects the heavy
+          # live-conda-forge corrupt-cache reproduction (see the
+          # `corrupt_cache_repro` marker). The split unit-test job
+          # honours that exclusion; the dedicated step below opts back
+          # in and runs the e2e parametrizations on shard 1 only.
           pytest \
             --cov=conda_lock --cov-branch --cov-report=xml --cov-report=term \
             --store-durations \
@@ -149,6 +154,23 @@ jobs:
             --splitting-algorithm=least_duration \
             --splits="${{ matrix.pytest-split-group-size }}" \
             --group="${{ matrix.pytest-split-group-index }}"
+
+      - name: run-corrupt-cache-repro
+        # Live conda-forge driven; ~5 min each parametrization. Run
+        # once per (os, python-version) on the first shard to keep
+        # total wall-clock down without losing coverage. Linux only --
+        # the fixture is a linux-64 cache snapshot from the PR #862
+        # harness.
+        if: matrix.pytest-split-group-index == 1 && matrix.os == 'ubuntu-latest'
+        run: |
+          set -x
+          # `-o "addopts="` clears the project-default `-m "not
+          # corrupt_cache_repro"`; then `-m corrupt_cache_repro` selects
+          # only the e2e parametrizations.
+          pytest \
+            -o "addopts=-rsx --verbose" \
+            -m corrupt_cache_repro \
+            tests/e2e/test_corrupt_repodata_repro.py
 
       - uses: codecov/codecov-action@671740ac38dd9b0130fbe1cec585b89eea48d3de # v5.5.2
         with:

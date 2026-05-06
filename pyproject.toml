@@ -142,10 +142,27 @@ addopts = [
     "--doctest-modules",
     "--numprocesses=auto",
     "--ignore-glob=**/vendor_poetry/**",
-    "--ignore-glob=**/_vendor/**"
+    "--ignore-glob=**/_vendor/**",
+    # Heavy live-conda-forge reproduction test for conda/conda-lock#896
+    # is excluded from the default unit-test collection. CI's e2e job
+    # opts back in with `-m "corrupt_cache_repro"` (overrides this `-m`).
+    # Local invocation: `pytest -m corrupt_cache_repro` to run only
+    # those tests, or `pytest -m ""` to bypass the filter entirely.
+    "-m",
+    "not corrupt_cache_repro",
 ]
 log_level = "DEBUG"
 testpaths = ["tests", "conda_lock"]
+markers = [
+    # Heavy conda-forge-driven reproduction test for conda/conda-lock#896.
+    # Each parametrization runs ~2-5 minutes (real `conda-lock lock`
+    # against a hybrid cache, then `conda-lock render --kind=explicit`)
+    # and depends on live conda-forge state in TWO independent solves
+    # (corrupt-cache vs clean-control). Excluded from default unit
+    # collection via the `-m "not corrupt_cache_repro"` in `addopts`
+    # above; CI runs this marker in a dedicated e2e step.
+    "corrupt_cache_repro: heavy conda-forge-driven reproduction test for #896",
+]
 
 [tool.vendoring]
 destination = "conda_lock/_vendor"
