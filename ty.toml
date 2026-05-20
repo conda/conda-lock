@@ -11,5 +11,9 @@ exclude = [
     "conda_lock/scripts/vendor_poetry/",
     "tests/test-local-pip/setup.py",
     "tests/test-pip-repositories/fake-private-package-*/setup.py",
+    # Stage scripts from the PR #862 reproduction harness; the committed
+    # fixtures (.tar.gz, .lock, .yml) are what our tests consume, the
+    # scripts are reproduction scaffolding only.
+    "tests/test-corrupt-repodata/",
 ]
 

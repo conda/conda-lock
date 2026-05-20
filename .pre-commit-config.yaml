@@ -60,8 +60,12 @@ repos:
         ^conda_lock/_vendor/.*\.pyi$
         | ^tests/test-local-pip/setup\.py$
         | ^tests/test-pip-repositories/fake-private-package.*-1\.0\.0/setup\.py$
+        | ^tests/test-corrupt-repodata/
       )
     # First exclude is due to:
     #   conda_lock/_vendor/conda/__init__.py: error: Duplicate module named "conda_lock._vendor.conda" (also at "conda_lock/_vendor/conda.pyi")
     # Second two excludes are due to:
     #   tests/test-pip-repositories/fake-private-package-1.0.0/setup.py: error: Duplicate module named "setup" (also at "tests/test-local-pip/setup.py")
+    # Last exclude: tests/test-corrupt-repodata/ contains stage scripts from
+    # the PR #862 reproduction harness; the committed fixtures are what our
+    # tests consume, the scripts are reproduction scaffolding.

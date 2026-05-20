@@ -9,6 +9,12 @@ channels:
 - nodefaults
 dependencies:
 - check-manifest
+# Single-file conda binary used by the conda/conda-lock#896 reproduction
+# tests in tests/test_conda_solver.py to exercise the conda-standalone
+# code path -- not just mamba. Without this, the `[conda-standalone]`
+# parametrization of test_pr862_corrupt_2_1_1_cache_does_not_drop_packages
+# silently skips and the conda-standalone repro coverage is theater.
+- conda-standalone
 - docker-py
 - doctr
 - flaky

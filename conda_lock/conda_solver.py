@@ -1,3 +1,29 @@
+"""Orchestration entry points for conda-lock's solver pipeline.
+
+The narrow responsibilities split out of this module live under
+``conda_lock.solver``:
+
+- ``solver.repodata_cache``: URL normalization, cache path
+  derivation, record identity checks, mamba 2.1.1-2.3.3 stub-record
+  detection, and ``info/index.json``-based healing.
+- ``solver.dry_run``: normalize a solver's ``--dry-run --json``
+  output into a uniform shape with rich FETCH actions, falling back
+  to disk when the LINK metadata is sparse.
+- ``solver.lockfile_heal``: repair carry-forward empty
+  ``dependencies`` from the local cache before
+  ``fake_conda_environment`` propagates them.
+- ``solver.graph_integrity``: forward-reachability check on the
+  planned package set, with the
+  ``CONDA_LOCK_ALLOW_ORPHANED_LOCKFILE`` escape hatch.
+
+What's left here is glue: drive the conda/mamba subprocess for the
+fresh-solve and update paths, translate the dryrun into
+``LockedDependency`` shapes, run categorization, and assert graph
+integrity. The fake-prefix machinery used by ``--update`` also
+lives here because it is a peer of the subprocess invocation, not
+a cache or graph concern.
+"""
+
 import json
 import logging
 import os
@@ -6,15 +32,10 @@ import shlex
 import shutil
 import subprocess
 import sys
-import time
 
 from collections.abc import Iterable, Iterator, MutableSequence, Sequence
 from contextlib import contextmanager
 from textwrap import dedent
-from typing import (
-    Any,
-    Literal,
-)
 from urllib.parse import urlsplit, urlunsplit
 
 from conda_lock.interfaces.vendored_conda import MatchSpec
@@ -23,13 +44,17 @@ from conda_lock.invoke_conda import (
     _get_conda_flags,
     conda_env_override,
     conda_pkgs_dir,
+    extract_json_object,
     is_micromamba,
 )
 from conda_lock.lockfile import apply_categories
 from conda_lock.lockfile.v2prelim.models import HashModel, LockedDependency
 from conda_lock.models.channel import Channel, normalize_url_with_placeholders
-from conda_lock.models.dry_run_install import DryRunInstall, FetchAction, LinkAction
+from conda_lock.models.dry_run_install import DryRunInstall, LinkAction
 from conda_lock.models.lock_spec import Dependency, VersionedDependency
+from conda_lock.solver.dry_run import reconstruct_fetch_actions
+from conda_lock.solver.graph_integrity import assert_no_orphaned_conda_packages
+from conda_lock.solver.lockfile_heal import heal_locked_dependencies_from_cache
 from conda_lock.tempdir_manager import temporary_directory
 
 
@@ -60,13 +85,6 @@ def _to_match_spec(
     else:
         # this will return only "package_name" even if there's a channel in the kwargs
         return ms.conda_build_form()
-
-
-def extract_json_object(proc_stdout: str) -> str:
-    try:
-        return proc_stdout[proc_stdout.index("{") : proc_stdout.rindex("}") + 1]
-    except ValueError:
-        return proc_stdout
 
 
 def solve_conda(
@@ -159,111 +177,13 @@ def solve_conda(
         mapping_url=mapping_url,
     )
 
+    # Forward-reachability check on the planned package set. The
+    # policy, escape hatch, and the rationale for not
+    # reverse-propagating categories all live in
+    # ``conda_lock.solver.graph_integrity``.
+    assert_no_orphaned_conda_packages(planned, platform)
+
     return planned
-
-
-def _get_repodata_record(
-    pkgs_dirs: list[pathlib.Path], dist_name: str
-) -> FetchAction | None:
-    """Get the repodata_record.json of a given distribution from the package cache.
-
-    On rare occasion during the CI tests, conda fails to find a package in the
-    package cache, perhaps because the package is still being processed? Waiting for
-    0.1 seconds seems to solve the issue. Here we allow for a full second to elapse
-    before giving up.
-    """
-    NUM_RETRIES = 10
-    for retry in range(1, NUM_RETRIES + 1):
-        for pkgs_dir in pkgs_dirs:
-            record = pkgs_dir / dist_name / "info" / "repodata_record.json"
-            if record.exists():
-                with open(record) as f:
-                    repodata: FetchAction = json.load(f)
-                return repodata
-        logger.warning(
-            f"Failed to find repodata_record.json for {dist_name}. "
-            f"Retrying in 0.1 seconds ({retry}/{NUM_RETRIES})"
-        )
-        time.sleep(0.1)
-    logger.warning(f"Failed to find repodata_record.json for {dist_name}. Giving up.")
-    return None
-
-
-def _get_pkgs_dirs(
-    *,
-    conda: PathLike,
-    platform: str,
-    method: Literal["config", "info"] | None = None,
-) -> list[pathlib.Path]:
-    """Extract the package cache directories from the conda configuration."""
-    if method is None:
-        method = "config" if is_micromamba(conda) else "info"
-    if method == "config":
-        # 'package cache' was added to 'micromamba info' in v1.4.6.
-        args = [str(conda), "config", "--json", "list", "pkgs_dirs"]
-    elif method == "info":
-        args = [str(conda), "info", "--json"]
-    env = conda_env_override(platform)
-    output = subprocess.check_output(args, env=env).decode()
-    json_object_str = extract_json_object(output)
-    json_object: dict[str, Any] = json.loads(json_object_str)
-    pkgs_dirs_list: list[str]
-    if "pkgs_dirs" in json_object:
-        pkgs_dirs_list = json_object["pkgs_dirs"]
-    elif "package cache" in json_object:
-        pkgs_dirs_list = json_object["package cache"]
-    else:
-        raise ValueError(
-            f"Unable to extract pkgs_dirs from {json_object}. "
-            "Please report this issue to the conda-lock developers."
-        )
-    pkgs_dirs = [pathlib.Path(d) for d in pkgs_dirs_list]
-    return pkgs_dirs
-
-
-def _reconstruct_fetch_actions(
-    conda: PathLike, platform: str, dry_run_install: DryRunInstall
-) -> DryRunInstall:
-    """
-    Conda may choose to link a previously downloaded distribution from pkgs_dirs rather
-    than downloading a fresh one. Find the repodata record in existing distributions
-    that have only a LINK action, and use it to synthesize a corresponding FETCH action
-    with the metadata we need to extract for the package plan.
-    """
-    if "LINK" not in dry_run_install["actions"]:
-        dry_run_install["actions"]["LINK"] = []
-    if "FETCH" not in dry_run_install["actions"]:
-        dry_run_install["actions"]["FETCH"] = []
-
-    link_actions = {p["name"]: p for p in dry_run_install["actions"]["LINK"]}
-    fetch_actions = {p["name"]: p for p in dry_run_install["actions"]["FETCH"]}
-    link_only_names = set(link_actions.keys()).difference(fetch_actions.keys())
-    if link_only_names:
-        pkgs_dirs = _get_pkgs_dirs(conda=conda, platform=platform)
-    else:
-        pkgs_dirs = []
-
-    for link_pkg_name in link_only_names:
-        link_action = link_actions[link_pkg_name]
-        if "dist_name" in link_action:
-            dist_name = link_action["dist_name"]
-        elif "fn" in link_action:
-            dist_name = str(link_action["fn"])
-            if dist_name.endswith(".tar.bz2"):
-                dist_name = dist_name[:-8]
-            elif dist_name.endswith(".conda"):
-                dist_name = dist_name[:-6]
-            else:
-                raise ValueError(f"Unknown filename format: {dist_name}")
-        else:
-            raise ValueError(f"Unable to extract the dist_name from {link_action}.")
-        repodata = _get_repodata_record(pkgs_dirs, dist_name)
-        if repodata is None:
-            raise FileNotFoundError(
-                f"Distribution '{dist_name}' not found in pkgs_dirs {pkgs_dirs}"
-            )
-        dry_run_install["actions"]["FETCH"].append(repodata)
-    return dry_run_install
 
 
 def solve_specs_for_arch(
@@ -339,7 +259,7 @@ def solve_specs_for_arch(
 
     try:
         dryrun_install: DryRunInstall = json.loads(extract_json_object(proc.stdout))
-        return _reconstruct_fetch_actions(conda, platform, dryrun_install)
+        return reconstruct_fetch_actions(conda, platform, dryrun_install)
     except json.JSONDecodeError as e:
         raise RuntimeError(f"Failed to parse json: '{proc.stdout}'") from e
 
@@ -413,6 +333,73 @@ def update_specs_for_arch(
         Channels to query
 
     """
+
+    # Heal lockfile entries with empty ``dependencies`` from the local
+    # cache before ``fake_conda_environment`` and ``to_fetch_action()``
+    # carry the empty deps forward. Without this step, a lockfile
+    # generated against a corrupt mamba 2.1.1-2.3.3 cache stays corrupt
+    # across every subsequent ``conda-lock lock --update`` even after
+    # the user upgrades to mamba 2.6.0+. See conda/conda-lock#896.
+    #
+    # The heal layer answers narrow per-entry questions; this function
+    # owns the user-facing log policy.
+    heal_report = heal_locked_dependencies_from_cache(
+        locked, conda=conda, platform=platform
+    )
+    if heal_report.healed:
+        logger.warning(
+            "Healed %d lockfile entry/entries with empty 'dependencies' "
+            "from the local package cache on %s: %s. The previous lockfile "
+            "was likely generated against a corrupt cache from "
+            "mamba/micromamba 2.1.1-2.3.3 (see conda/conda-lock#896 / "
+            "mamba-org/mamba#4110); the new lockfile will be correct.",
+            len(heal_report.healed),
+            platform,
+            sorted(heal_report.healed),
+        )
+    if heal_report.ambiguous:
+        # Ambiguous entries have no cache evidence either way: legit-empty
+        # leaves (``tzdata``, ``_libgcc_mutex``, ``python_abi``, ...) and
+        # corrupt-empty entries are indistinguishable here. Healable-
+        # elsewhere is not evidence about an ambiguous entry; partial
+        # caches are normal.
+        #
+        # Two failure modes follow. ``assert_no_orphaned_conda_packages``
+        # downstream catches the silent-vanishing variant (corrupt
+        # entry's transitive deps become orphans). It does NOT catch
+        # the "categorized corrupt-carrier" variant where the corrupt
+        # entry is itself a requested or otherwise-reachable root and
+        # its missing transitive deps are reachable via other paths;
+        # the lockfile remains internally inconsistent and re-locks may
+        # silently drift. The WARNING below is visibility for that
+        # harder-to-detect case so an operator can regenerate from
+        # sources.
+        logger.warning(
+            "On platform %s, %d lockfile entry/entries have empty "
+            "'dependencies' and the local package cache has no "
+            "info/index.json to confirm: %s. %d entry/entries on this "
+            "platform were proven corrupt and healed in place. If you "
+            "suspect a lockfile generated against a corrupt "
+            "mamba/micromamba 2.1.1-2.3.3 cache (see "
+            "conda/conda-lock#896 / mamba-org/mamba#4110) -- e.g. far "
+            "more empty-deps entries than the legitimate handful "
+            "(tzdata, python_abi, _libgcc_mutex, _openmp_mutex, "
+            "nlohmann_json-abi) -- the safe repair is to regenerate "
+            "the lockfile from sources on a known-clean cache "
+            "(`mamba clean -a` then `conda-lock lock -f <your "
+            "sources>`). Do NOT use a potentially-corrupt lockfile to "
+            "populate a real environment: packages that already "
+            "vanished during v1 serialization are unrecoverable from "
+            "it. The orphan check below will hard-fail the "
+            "silent-drop variant; this WARNING is visibility for the "
+            "harder-to-detect categorized-carrier case where the "
+            "corrupt entry is itself a requested or "
+            "transitively-reachable root.",
+            platform,
+            len(heal_report.ambiguous),
+            sorted(heal_report.ambiguous),
+            len(heal_report.healed),
+        )
 
     with fake_conda_environment(locked.values(), platform=platform) as prefix:
         installed = _get_installed_conda_packages(conda, platform, prefix)
@@ -496,7 +483,7 @@ def update_specs_for_arch(
             installed_link_action = installed[package]
             dryrun_install["actions"]["LINK"].append(installed_link_action)
 
-        reconstructed = _reconstruct_fetch_actions(conda, platform, dryrun_install)
+        reconstructed = reconstruct_fetch_actions(conda, platform, dryrun_install)
         return reconstructed
 
 
@@ -593,7 +580,6 @@ def make_fake_python_binary(prefix: str) -> None:
             This was called as:
                 {cmd}
             '''
-
             print(stderr_message, file=sys.stderr, flush=True, end='')
 
             if "-m pip" in cmd:
