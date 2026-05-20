@@ -8,22 +8,23 @@ on:
 
   workflow_dispatch:
 
-permissions:
-  contents: read
+# Deny all permissions by default
+permissions: {}
 
 jobs:
   update:
     runs-on: ubuntu-slim
     permissions:
-      contents: write
-      pull-requests: write
-      issues: write
+      contents: write        # for committing changes
+      pull-requests: write   # for creating pull requests
+      issues: write          # for commenting on issues
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           repository: ${{ env.REPOSITORY || github.repository }}
           ref: ${{ env.REF || '' }}
           token: ${{ secrets.SYNC_TOKEN }}
+          persist-credentials: false
 
       - name: Configure git user
         run: |
