@@ -13,3 +13,5 @@ exclude = [
     "tests/test-pip-repositories/fake-private-package-*/setup.py",
 ]
 
+[analysis]
+allowed-unresolved-imports = ["conda.*", "conda.plugins.*"]

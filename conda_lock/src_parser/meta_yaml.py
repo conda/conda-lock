@@ -32,12 +32,12 @@ class UndefinedNeverFail(jinja2.Undefined):
 
     all_undefined_names: list[str | None] = []
 
-    def __init__(  # type: ignore
+    def __init__(
         self,
-        hint=None,
-        obj=jinja2.utils.missing,
-        name=None,
-        exc=jinja2.exceptions.UndefinedError,
+        hint: Any = None,
+        obj: Any = jinja2.utils.missing,
+        name: Any = None,
+        exc: Any = jinja2.exceptions.UndefinedError,
     ) -> None:
         jinja2.Undefined.__init__(self, hint, obj, name, exc)
 
@@ -54,20 +54,12 @@ class UndefinedNeverFail(jinja2.Undefined):
 
     # Accessing an attribute of an Undefined variable
     # results in another Undefined variable.
-    def __getattr__(self, k: str) -> "UndefinedNeverFail":
+    def __getattr__(self, name: str) -> "UndefinedNeverFail":
         try:
-            return object.__getattr__(self, k)  # type: ignore
+            return object.__getattr__(self, name)  # type: ignore
         except AttributeError:
             assert self._undefined_name is not None
-            return self._return_undefined(self._undefined_name + "." + k)
-
-    # Unlike the methods above, Python requires that these
-    # few methods must always return the correct type
-    __str__ = __repr__ = lambda self: self._return_value("")  # type: ignore
-    __unicode__ = lambda self: self._return_value("")  # noqa: E731
-    __int__ = lambda self: self._return_value(0)  # type: ignore  # noqa: E731
-    __float__ = lambda self: self._return_value(0.0)  # type: ignore  # noqa: E731
-    __nonzero__ = lambda self: self._return_value(False)  # noqa: E731
+            return self._return_undefined(self._undefined_name + "." + name)
 
     def _return_undefined(self, result_name: str) -> "UndefinedNeverFail":
         # Record that this undefined variable was actually used.
@@ -79,10 +71,26 @@ class UndefinedNeverFail(jinja2.Undefined):
             exc=self._undefined_exception,
         )
 
-    def _return_value(self, value=None):
+    def _return_value(self, value: Any = None) -> Any:
         # Record that this undefined variable was actually used.
         UndefinedNeverFail.all_undefined_names.append(self._undefined_name)
         return value
+
+    # Unlike the methods above, Python requires that these
+    # few methods must always return the correct type
+    def __repr__(self) -> str:
+        return self._return_value("")
+
+    __str__ = __repr__
+    __unicode__ = lambda self: self._return_value("")  # noqa: E731
+
+    def __int__(self) -> Any:
+        return self._return_value(0)
+
+    def __float__(self) -> Any:
+        return self._return_value(0.0)
+
+    __nonzero__ = lambda self: self._return_value(False)  # noqa: E731
 
 
 def parse_meta_yaml_file(
