@@ -79,7 +79,7 @@ class UndefinedNeverFail(jinja2.Undefined):
             exc=self._undefined_exception,
         )
 
-    def _return_value(self, value=None):  # type: ignore
+    def _return_value(self, value=None):
         # Record that this undefined variable was actually used.
         UndefinedNeverFail.all_undefined_names.append(self._undefined_name)
         return value
