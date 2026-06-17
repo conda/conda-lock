@@ -27,6 +27,9 @@ class LockedDependency(BaseLockedDependency):
         can only contain a single category, we represent multiple categories as a list
         of v1 dependencies that are identical except for the `category` field. The
         `category` field runs over all categories."""
+        if len(self.categories) == 0:
+            print(f"In to_v1, no categories for {self.name}, adding to main")
+            self.categories = {"main"}
         package_entries_per_category = [
             LockedDependencyV1(
                 name=self.name,
