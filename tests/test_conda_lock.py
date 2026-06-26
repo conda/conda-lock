@@ -3258,15 +3258,17 @@ def test_manylinux_tags():
     assert versions[0] == Version("2.17")
     assert versions == sorted(versions)
 
-    # Verify that the default repodata uses the highest glibc version
+    # Verify that the default glibc versions are covered by MANYLINUX_TAGS.
+    # (The default may be lower than the max tag; higher tags are available
+    # via --virtual-package-spec.)
     default_repodata = default_virtual_package_repodata()
     glibc_versions_in_default_repodata: set[Version] = {
         Version(package.version)
         for package in default_repodata.packages_by_subdir
         if package.name == "__glibc"
     }
-    max_glibc_version_from_manylinux_tags = versions[-1]
-    assert glibc_versions_in_default_repodata == {max_glibc_version_from_manylinux_tags}
+    manylinux_glibc_versions = set(versions)
+    assert glibc_versions_in_default_repodata <= manylinux_glibc_versions
 
 
 def test_pip_respects_glibc_version(
