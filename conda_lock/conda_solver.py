@@ -134,7 +134,11 @@ def solve_conda(
 
         dependencies = {}
         for name, matchspecs in dependency_specs.items():
-            merged_matchspec = MatchSpec.merge(matchspecs)[0]
+            merged_matchspec = (
+                matchspecs[0]
+                if len(matchspecs) == 1
+                else MatchSpec.merge(matchspecs)[0]
+            )
             dependencies[name] = (
                 merged_matchspec.version.spec_str
                 if merged_matchspec.version is not None
