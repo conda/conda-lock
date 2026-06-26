@@ -2811,9 +2811,9 @@ def test_default_virtual_package_input_hash_stability():
 
     # This is the hash that conda-lock v2 would produce.
     expected = {
-        "linux-64": "a949aac83da089258ce729fcd54dc0a3a1724ea325d67680d7a6d7cc9c0f1d1b",
-        "linux-aarch64": "f68603a3a28dbb03d20a25e1dacda3c42b6acc8a93bd31e13c4956115820cfa6",
-        "linux-ppc64le": "ababb6bc556ac8c9e27a499bf9b83b5757f6ded385caa0c3d7bf3f360dfe358d",
+        "linux-64": "52b368abeebb42b6420c2e2270d0d17aad5278f193df982f72d5a2a3f080e408",
+        "linux-aarch64": "c01736931af8f26c78029c21f7839374e5679e0dc92a008ac5e242d4ab5191fa",
+        "linux-ppc64le": "034bc18c326a8d65a8529e46b348557fddfadc485f6afb334f4bc0e8b76ed408",
         "osx-64": "b7eebe4be0654740f67e3023f2ede298f390119ef225f50ad7e7288ea22d5c93",
         "osx-arm64": "cc82018d1b1809b9aebacacc5ed05ee6a4318b3eba039607d2a6957571f8bf2b",
         "win-64": "44239e9f0175404e62e4a80bb8f4be72e38c536280d6d5e484e52fa04b45c9f6",
@@ -2826,8 +2826,10 @@ def test_default_virtual_package_input_hash_stability():
     vpr = default_virtual_package_repodata()
     assert compute_content_hashes(spec, vpr) == expected
 
-    # This is the hash that conda-lock v3.0.0, v3.0.1, and v3.0.2 would produce.
-    expected = {
+    # These are hashes from prior conda-lock versions that should still be
+    # recognized as valid (backwards compatibility).
+    # v3.0.0, v3.0.1, v3.0.2:
+    old_expected = {
         "linux-64": "ebfbb8130f916103373e6521bfb129825cded8b0c3e93f430cc834d8c3664244",
         "linux-aarch64": "5418156c9b6c5ae92b8558087b5d39ee06c66b5ec405a91b4c7ee23d6cec41e2",
         "linux-ppc64le": "7b111d5f69fb0bd81808d1a9272187ad719e5f03c63b3ebb600aca01355b8576",
@@ -2835,7 +2837,16 @@ def test_default_virtual_package_input_hash_stability():
         "osx-arm64": "bb227bce8532d0eee9396306045e270525b110103f4c54be9ac35621baab3dcd",
         "win-64": "1d34ea90abc99d31721cae03335543cbe16ad4e1eaa988e7a7f8563bda2f951d",
     }
-    for platform, hash in expected.items():
+    for platform, hash in old_expected.items():
+        assert hash in backwards_compatible_content_hashes(spec, vpr, platform)
+
+    # v4.x with glibc 2.28 defaults:
+    old_expected_v4 = {
+        "linux-64": "a949aac83da089258ce729fcd54dc0a3a1724ea325d67680d7a6d7cc9c0f1d1b",
+        "linux-aarch64": "f68603a3a28dbb03d20a25e1dacda3c42b6acc8a93bd31e13c4956115820cfa6",
+        "linux-ppc64le": "ababb6bc556ac8c9e27a499bf9b83b5757f6ded385caa0c3d7bf3f360dfe358d",
+    }
+    for platform, hash in old_expected_v4.items():
         assert hash in backwards_compatible_content_hashes(spec, vpr, platform)
 
 
@@ -2846,9 +2857,9 @@ def test_default_virtual_package_input_hash_stability_cuda_version():
 
     # This is the hash that conda-lock v2 would produce.
     expected = {
-        "linux-64": "0257887bdd38bfe371e508a3d00710f82bcc0ffa06ae87a088aa2854fb6f5525",
-        "linux-aarch64": "4c3242ac2adfe9f8d3e34b377db8da48a834c7a3a126cfa84e385cf1bd6bc55f",
-        "linux-ppc64le": "f551f44ac5ea6e3155a05ad2b024049f93857043c44df5a067cc0207d99b397d",
+        "linux-64": "7741c27907f5eac35bc0a798bb878bb6af604e22c3695b42d0898285c77b3aa7",
+        "linux-aarch64": "0e01d9148c215806089dab34ba7b5a66c9aed4314e7e688ea7c387aba7dcc738",
+        "linux-ppc64le": "aa5a655940adec562ae79c0ea160b97d8acce4a49ddd3d8d241d7c340dda8d66",
         "osx-64": "b7eebe4be0654740f67e3023f2ede298f390119ef225f50ad7e7288ea22d5c93",
         "osx-arm64": "cc82018d1b1809b9aebacacc5ed05ee6a4318b3eba039607d2a6957571f8bf2b",
         "win-64": "cf8f3a86e85e953c5a760709b9485c2035de349350924d9f38dfd3161b41842b",
@@ -2861,8 +2872,8 @@ def test_default_virtual_package_input_hash_stability_cuda_version():
     vpr = default_virtual_package_repodata(cuda_version=CUDA_VERSION)
     assert compute_content_hashes(spec, vpr) == expected
 
-    # This is the hash that conda-lock v3.0.0, v3.0.1, and v3.0.2 would produce.
-    expected = {
+    # v3.0.0, v3.0.1, v3.0.2:
+    old_expected = {
         "linux-64": "3e46169a88764ee0b4c1a906bb8bb4e47ee346f2d3fcca166d144615f76c7b4f",
         "linux-aarch64": "9548afc17f91da634ae3b841313f1a7bd5596fbfea35e5597d2eb599c4317d2f",
         "linux-ppc64le": "2a9e00acf651dc0bbb19a12b076388616c90257b37a76ef5c5fb9ed669986157",
@@ -2870,7 +2881,16 @@ def test_default_virtual_package_input_hash_stability_cuda_version():
         "osx-arm64": "bb227bce8532d0eee9396306045e270525b110103f4c54be9ac35621baab3dcd",
         "win-64": "c1effdfa1f4ce1f8c63c64c02d2b395801f792a45dff966c72fa7e36126a7bd7",
     }
-    for platform, hash in expected.items():
+    for platform, hash in old_expected.items():
+        assert hash in backwards_compatible_content_hashes(spec, vpr, platform)
+
+    # v4.x with glibc 2.28 defaults:
+    old_expected_v4 = {
+        "linux-64": "0257887bdd38bfe371e508a3d00710f82bcc0ffa06ae87a088aa2854fb6f5525",
+        "linux-aarch64": "4c3242ac2adfe9f8d3e34b377db8da48a834c7a3a126cfa84e385cf1bd6bc55f",
+        "linux-ppc64le": "f551f44ac5ea6e3155a05ad2b024049f93857043c44df5a067cc0207d99b397d",
+    }
+    for platform, hash in old_expected_v4.items():
         assert hash in backwards_compatible_content_hashes(spec, vpr, platform)
 
 

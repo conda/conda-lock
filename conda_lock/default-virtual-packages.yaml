@@ -5,7 +5,7 @@ subdirs:
       __linux: "5.10"
       __archspec: "1 x86_64"
       # NOTE: Keep this in sync with the MANYLINUX_TAGS maximum in pypi_solver.py
-      __glibc: "2.28"
+      __glibc: "2.34"
       __cuda: "11.4"
   linux-aarch64:
     packages:
@@ -13,7 +13,7 @@ subdirs:
       __linux: "5.10"
       __archspec: "1 aarch64"
       # NOTE: Keep this in sync with the MANYLINUX_TAGS maximum in pypi_solver.py
-      __glibc: "2.28"
+      __glibc: "2.34"
       __cuda: "11.4"
   linux-ppc64le:
     packages:
@@ -21,7 +21,7 @@ subdirs:
       __linux: "5.10"
       __archspec: "1 ppc64le"
       # NOTE: Keep this in sync with the MANYLINUX_TAGS maximum in pypi_solver.py
-      __glibc: "2.28"
+      __glibc: "2.34"
       __cuda: "11.4"
   osx-64:
     packages:
