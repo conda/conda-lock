@@ -127,14 +127,23 @@ def solve_conda(
     # extract dependencies from package plan
     planned = {}
     for action in dry_run_install["actions"]["FETCH"]:
-        dependencies = {}
+        dependency_specs: dict[str, list[MatchSpec]] = {}
         for dep in action.get("depends") or []:
             matchspec = MatchSpec(dep)  # pyright: ignore[reportArgumentType]
-            name = matchspec.name
-            version = (
-                matchspec.version.spec_str if matchspec.version is not None else ""
+            dependency_specs.setdefault(matchspec.name, []).append(matchspec)
+
+        dependencies = {}
+        for name, matchspecs in dependency_specs.items():
+            merged_matchspec = (
+                matchspecs[0]
+                if len(matchspecs) == 1
+                else MatchSpec.merge(matchspecs)[0]
             )
-            dependencies[name] = version
+            dependencies[name] = (
+                merged_matchspec.version.spec_str
+                if merged_matchspec.version is not None
+                else ""
+            )
 
         locked_dependency = LockedDependency(
             name=action["name"],
