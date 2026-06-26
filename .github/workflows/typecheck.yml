@@ -43,7 +43,7 @@ jobs:
           os: ubuntu-latest
     steps:
     # Initialization
-    - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+    - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
       with:
         fetch-depth: 0
         persist-credentials: false
@@ -59,7 +59,7 @@ jobs:
       if: matrix.setup-micromamba == false
       run: python -m pip freeze --local
 
-    - uses: mamba-org/setup-micromamba@add3a49764cedee8ee24e82dfde87f5bc2914462 # v2.0.7
+    - uses: mamba-org/setup-micromamba@d7c9bd84e824b79d2af72a2d4196c7f4300d3476 # v3.0.0
       if: matrix.setup-micromamba == true
       with:
         environment-file: environments/conda-lock.yml
@@ -82,7 +82,7 @@ jobs:
     # Upload logs
     - name: Upload pre-commit log
       if: always()
-      uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
       with:
         name: pre-commit-${{ matrix.name }}.log
         path: /home/runner/.cache/pre-commit/pre-commit.log
