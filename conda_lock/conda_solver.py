@@ -127,7 +127,7 @@ def solve_conda(
     # extract dependencies from package plan
     planned = {}
     for action in dry_run_install["actions"]["FETCH"]:
-        dependency_specs = {}
+        dependency_specs: dict[str, list[MatchSpec]] = {}
         for dep in action.get("depends") or []:
             matchspec = MatchSpec(dep)  # pyright: ignore[reportArgumentType]
             dependency_specs.setdefault(matchspec.name, []).append(matchspec)
