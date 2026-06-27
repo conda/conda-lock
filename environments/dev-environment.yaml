@@ -14,7 +14,8 @@ dependencies:
 - flaky
 - freezegun
 - gitpython
-- mamba
+# Pinned below 2.6.0 until conda-lock supports mamba/micromamba 2.6; see #907.
+- mamba <2.6.0
 - mkdocs
 - mkdocs-click
 - mkdocs-material
