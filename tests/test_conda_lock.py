@@ -78,6 +78,7 @@ from conda_lock.interfaces.vendored_conda import MatchSpec
 from conda_lock.invoke_conda import is_micromamba, reset_conda_pkgs_dir
 from conda_lock.lockfile import parse_conda_lock_file
 from conda_lock.lockfile.v2prelim.models import (
+    DependencySource,
     HashModel,
     LockedDependency,
     MetadataOption,
@@ -94,6 +95,7 @@ from conda_lock.pypi_solver import (
     MANYLINUX_TAGS,
     PlatformEnv,
     _strip_auth,
+    get_package,
     parse_pip_requirement,
     solve_pypi,
 )
@@ -3478,6 +3480,28 @@ def test_pip_full_whl_url(
         typing_extensions_dep.hash.sha256
         == "8f92fc8806f9a6b641eaa5318da32b44d401efaac0f6678c9bc448ba3605faa0"
     )
+
+
+def test_get_package_preserves_version_for_url_source():
+    """A URL-sourced locked dep must reconcile with its real version, not a 0.0.0 placeholder."""
+    url = "https://example.com/foo-1.2.3-py3-none-any.whl"
+    locked = LockedDependency(
+        name="foo",
+        version="1.2.3",
+        manager="pip",
+        platform="linux-64",
+        dependencies={},
+        url=url,
+        hash=HashModel(),
+        source=DependencySource(type="url", url=url),
+    )
+
+    package = get_package(locked)
+
+    assert str(package.version) == "1.2.3"
+    # The dependency stays URL-pinned.
+    assert package.source_type == "url"
+    assert package.source_url == url
 
 
 def test_when_merging_lockfiles_content_hashes_are_updated(
