@@ -205,7 +205,9 @@ class FakeRepoData(BaseModel):
     ) -> Iterator[None]:
         """Temporarily match solver overrides to the target's fake repodata."""
         packages: dict[str, FullVirtualPackage] = {}
-        overrides: dict[str, str] = {}
+        overrides = {
+            name: "" for name in os.environ if name.startswith("CONDA_OVERRIDE_")
+        }
         for package, subdirs in self.packages_by_subdir.items():
             if not package.name.startswith("__"):
                 continue

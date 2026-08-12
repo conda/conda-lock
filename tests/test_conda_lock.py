@@ -2858,6 +2858,40 @@ def test_solve_uses_target_virtual_package_overrides(
     )
 
 
+def test_solve_clears_unconfigured_virtual_package_override(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from conda_lock.virtual_package import virtual_package_repo_from_specification
+
+    actual_cuda_override = None
+
+    def solve_conda(*args: Any, **kwargs: Any) -> dict[str, LockedDependency]:
+        nonlocal actual_cuda_override
+        actual_cuda_override = os.environ.get("CONDA_OVERRIDE_CUDA")
+        return {}
+
+    monkeypatch.setattr("conda_lock.conda_lock.solve_conda", solve_conda)
+    monkeypatch.setenv("CONDA_OVERRIDE_CUDA", "host-value")
+    virtual_package_repo = virtual_package_repo_from_specification(
+        TESTS_DIR / "test-archspec" / "virtual-packages.yaml"
+    )
+    spec = LockSpecification(dependencies={"linux-64": []}, channels=[], sources=[])
+
+    with virtual_package_repo:
+        _solve_for_arch(
+            conda="micromamba",
+            spec=spec,
+            platform="linux-64",
+            channels=[],
+            pip_repositories=[],
+            virtual_package_repo=virtual_package_repo,
+            mapping_url=DEFAULT_MAPPING_URL,
+        )
+
+    assert actual_cuda_override == ""
+    assert os.environ["CONDA_OVERRIDE_CUDA"] == "host-value"
+
+
 def test_default_virtual_package_input_hash_stability():
     from conda_lock.virtual_package import default_virtual_package_repodata
 
