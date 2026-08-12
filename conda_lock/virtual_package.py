@@ -4,7 +4,8 @@ import os
 import pathlib
 
 from collections import defaultdict
-from collections.abc import Iterable
+from collections.abc import Iterable, Iterator
+from contextlib import contextmanager
 from importlib.resources import path
 from types import TracebackType
 from typing import (
@@ -21,6 +22,7 @@ from conda_lock.content_hash_types import (
     PlatformSubdirStr,
     SubdirMetadata,
 )
+from conda_lock.interfaces.vendored_conda import VersionOrder
 from conda_lock.models.channel import Channel
 from conda_lock.tempdir_manager import mkdtemp_with_cleanup
 
@@ -196,6 +198,44 @@ class FakeRepoData(BaseModel):
                 del os.environ[k]
             else:
                 os.environ[k] = v
+
+    @contextmanager
+    def conda_virtual_package_overrides(
+        self, platform: PlatformSubdirStr
+    ) -> Iterator[None]:
+        """Temporarily match solver overrides to the target's fake repodata."""
+        packages: dict[str, FullVirtualPackage] = {}
+        overrides: dict[str, str] = {}
+        for package, subdirs in self.packages_by_subdir.items():
+            if not package.name.startswith("__"):
+                continue
+
+            env_var = f"CONDA_OVERRIDE_{package.name.lstrip('_').upper()}"
+            overrides[env_var] = ""
+            current = packages.get(env_var)
+            if platform in subdirs and (
+                current is None
+                or VersionOrder(package.version) > VersionOrder(current.version)
+            ):
+                packages[env_var] = package
+
+        for env_var, package in packages.items():
+            overrides[env_var] = (
+                package.build_string
+                if package.name == "__archspec"
+                else package.version
+            )
+
+        old_env_vars = {name: os.environ.get(name) for name in overrides}
+        os.environ.update(overrides)
+        try:
+            yield
+        finally:
+            for name, value in old_env_vars.items():
+                if value is None:
+                    del os.environ[name]
+                else:
+                    os.environ[name] = value
 
 
 def _init_fake_repodata() -> FakeRepoData:
