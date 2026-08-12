@@ -17,11 +17,14 @@ permissions: {}
 env:
   MICROMAMBA_VERSION: 'latest'
 
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build:
     name: Deploy docs
     runs-on: ubuntu-latest
-    concurrency: ci-${{ github.ref }}
     permissions:
       contents: write  # for mkdocs gh-deploy to push to gh-pages branch
     steps:
