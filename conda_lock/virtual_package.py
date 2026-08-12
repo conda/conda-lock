@@ -32,6 +32,15 @@ logger = logging.getLogger(__name__)
 # datetime.datetime(2020, 1, 1).timestamp()
 DEFAULT_TIME = 1577854800000
 
+CONDA_VIRTUAL_PACKAGE_OVERRIDES = {
+    "CONDA_OVERRIDE_ARCHSPEC",
+    "CONDA_OVERRIDE_CUDA",
+    "CONDA_OVERRIDE_GLIBC",
+    "CONDA_OVERRIDE_LINUX",
+    "CONDA_OVERRIDE_OSX",
+    "CONDA_OVERRIDE_WIN",
+}
+
 VirtualPackageVersion: TypeAlias = str
 
 
@@ -205,9 +214,11 @@ class FakeRepoData(BaseModel):
     ) -> Iterator[None]:
         """Temporarily match solver overrides to the target's fake repodata."""
         packages: dict[str, FullVirtualPackage] = {}
-        overrides = {
-            name: "" for name in os.environ if name.startswith("CONDA_OVERRIDE_")
-        }
+        overrides = dict.fromkeys(
+            CONDA_VIRTUAL_PACKAGE_OVERRIDES
+            | {name for name in os.environ if name.startswith("CONDA_OVERRIDE_")},
+            "",
+        )
         for package, subdirs in self.packages_by_subdir.items():
             if not package.name.startswith("__"):
                 continue

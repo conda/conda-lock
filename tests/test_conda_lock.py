@@ -2858,8 +2858,9 @@ def test_solve_uses_target_virtual_package_overrides(
     )
 
 
+@pytest.mark.parametrize("cuda_override", [None, "host-value"])
 def test_solve_clears_unconfigured_virtual_package_override(
-    monkeypatch: pytest.MonkeyPatch,
+    monkeypatch: pytest.MonkeyPatch, cuda_override: str | None
 ) -> None:
     from conda_lock.virtual_package import virtual_package_repo_from_specification
 
@@ -2871,7 +2872,10 @@ def test_solve_clears_unconfigured_virtual_package_override(
         return {}
 
     monkeypatch.setattr("conda_lock.conda_lock.solve_conda", solve_conda)
-    monkeypatch.setenv("CONDA_OVERRIDE_CUDA", "host-value")
+    if cuda_override is None:
+        monkeypatch.delenv("CONDA_OVERRIDE_CUDA", raising=False)
+    else:
+        monkeypatch.setenv("CONDA_OVERRIDE_CUDA", cuda_override)
     virtual_package_repo = virtual_package_repo_from_specification(
         TESTS_DIR / "test-archspec" / "virtual-packages.yaml"
     )
@@ -2889,7 +2893,7 @@ def test_solve_clears_unconfigured_virtual_package_override(
         )
 
     assert actual_cuda_override == ""
-    assert os.environ["CONDA_OVERRIDE_CUDA"] == "host-value"
+    assert os.environ.get("CONDA_OVERRIDE_CUDA") == cuda_override
 
 
 def test_default_virtual_package_input_hash_stability():
