@@ -28,11 +28,11 @@ jobs:
       contents: read
       actions: write  # for uploading artifacts
     steps:
-    - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       with:
         persist-credentials: false
     - name: Install Micromamba
-      uses: mamba-org/setup-micromamba@add3a49764cedee8ee24e82dfde87f5bc2914462 # v2.0.7
+      uses: mamba-org/setup-micromamba@f457c30a868e4760d3a6fcea5f25dc655b8edf39 # v3.2.1
       with:
         environment-file: environments/conda-lock.yml
         environment-name: conda-lock-dev
@@ -51,7 +51,7 @@ jobs:
             --lockfile=environments/conda-lock-python-${PYTHON_VERSION}.yaml
 
     - name: Upload lockfile
-      uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
       with:
         name: conda-lock-python-${{ matrix.python-version }}
         path: environments/conda-lock-python-${{ matrix.python-version }}.yaml
@@ -64,12 +64,12 @@ jobs:
       pull-requests: write # for creating pull requests
       actions: read       # for downloading artifacts
     steps:
-    - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       with:
         persist-credentials: false
 
     - name: Download all lockfiles
-      uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+      uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
       with:
         path: environments/
 
