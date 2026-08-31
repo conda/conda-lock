@@ -10,9 +10,9 @@ from conda_lock.virtual_package import default_virtual_package_repodata
 
 
 HASHES_V2 = {
-    "linux-64": "4e3086c79ebb7044f221959819fbca22e3ad4144b2723482e48f2cffef1cb948",
-    "linux-aarch64": "07b90c11b3b0bb858767afd42d753952d0f1c6df852771b0d5d2d3f495628cfa",
-    "linux-ppc64le": "39107ca32794f20f9b443d2d44862b5d06184164df3f851f56901fd0d69483e9",
+    "linux-64": "4a34c25ae4fa250951e1774ca78c8e5fb2c0bb7d49b07bd4db5047ef8c2bdf0c",
+    "linux-aarch64": "a53a32b3676ee7b987d8ba9c816e79483df8b7f8008357edc8bc461b048c3e60",
+    "linux-ppc64le": "73ae6c8ac4d770826d61fd1dcfc0606d2e0a176601105f4171c1cb8d8eb9fd1a",
     "osx-64": "d8bfcbde7a20bc50b27ca25139f0d18ee48d21905c7482722c120793713144b1",
     "osx-arm64": "e5b0208328748fdbbf872160bf8e5aff48d3fd5f38fde26e12dcd72a32d5a0d7",
     "win-64": "a67c2def7fa06f94d92df2f17e7c7c940efbb0998a92788a2c1c4feddd605579",
