@@ -87,7 +87,7 @@ dependencies = [
     "requests-toolbelt >=1.0.0,<2.0.0",
     "shellingham >=1.5,<2.0",
     "trove-classifiers >= 2022.5.19",
-    "virtualenv >=20.26.6,<21.0.0",
+    "virtualenv >=21.7.8,<21.8.0",
     'xattr >=1.0.0,<2.0.0 ; sys_platform == "darwin"',
 ]
 
