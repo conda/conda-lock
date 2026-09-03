@@ -1,0 +1,3 @@
+# Treat tar.gz files as binary (no line ending conversion)
+*.tar.gz binary
+
