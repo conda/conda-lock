@@ -3436,7 +3436,7 @@ def test_parse_environment_file_with_pip_and_platform_selector():
     assert spec.dependencies["linux-64"] == [
         VersionedDependency(name="tomli", manager="conda", version=""),
         VersionedDependency(name="psutil", manager="pip", version="*"),
-        VersionedDependency(name="pip", manager="conda", version="*"),
+        VersionedDependency(name="pip", manager="conda", version="*", is_implicit=True),
     ]
 
 

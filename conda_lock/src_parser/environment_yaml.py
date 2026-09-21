@@ -4,7 +4,11 @@ import sys
 
 import yaml
 
-from conda_lock.models.lock_spec import Dependency, LockSpecification
+from conda_lock.models.lock_spec import (
+    Dependency,
+    LockSpecification,
+    VersionedDependency,
+)
 from conda_lock.src_parser.conda_common import conda_spec_to_versioned_dep
 from conda_lock.src_parser.markers import evaluate_marker
 from conda_lock.src_parser.selectors import filter_platform_selectors
@@ -82,9 +86,9 @@ def _parse_environment_file_for_platform(
                 # e.g. sys_platform == 'win32' for a linux target.
                 dependencies.append(dependency)
 
-        # ensure pip is in target env
+        # Aggregation keeps an explicit conda pip constraint over this fallback.
         dependencies.append(
-            parse_python_requirement("pip", manager="conda", mapping_url=mapping_url)
+            VersionedDependency(name="pip", version="*", is_implicit=True)
         )
 
     return dependencies
