@@ -5,7 +5,7 @@ if [[ ${PYTHON_VERSION} == "" ]]; then
     exit 1
 fi
 
-rm environments/conda-lock-python-${PYTHON_VERSION}.yaml
+rm -f environments/conda-lock-python-${PYTHON_VERSION}.yaml
 conda-lock \
     --file=environments/dev-environment.yaml \
     --file=environments/python-${PYTHON_VERSION}.yaml \
