@@ -551,9 +551,7 @@ def _reconstruct_fetch_actions(
         else:
             deferred.append((link_pkg_name, link_action))
 
-    pkgs_dirs = (
-        _get_pkgs_dirs(conda=conda, platform=platform) if deferred else []
-    )
+    pkgs_dirs = _get_pkgs_dirs(conda=conda, platform=platform) if deferred else []
 
     for _link_pkg_name, link_action in deferred:
         if "dist_name" in link_action:

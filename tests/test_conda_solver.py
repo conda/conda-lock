@@ -16,20 +16,19 @@ from typing import Any
 import pytest
 
 from conda_lock import conda_solver
-from conda_lock.lookup import DEFAULT_MAPPING_URL
-from conda_lock.models.channel import Channel
-from conda_lock.models.lock_spec import VersionedDependency
-
 from conda_lock.conda_solver import (
     _candidate_record_paths,
     _get_repodata_record,
     _hierarchical_cache_subpath,
+    _libmamba_strip_url_secrets,
     _link_action_as_fetch,
     _normalize_url_for_compare,
-    _record_matches_link,
     _reconstruct_fetch_actions,
-    _libmamba_strip_url_secrets,
+    _record_matches_link,
 )
+from conda_lock.lookup import DEFAULT_MAPPING_URL
+from conda_lock.models.channel import Channel
+from conda_lock.models.lock_spec import VersionedDependency
 
 
 TESTS_DIR = Path(__file__).parent
@@ -139,7 +138,9 @@ def test_libmamba_strip_url_secrets_token_without_trailing_slash():
     """libmamba's token regex matches ``/t/<token>`` whether or not there's
     a trailing path component; the previous regex required a trailing
     slash, leaving terminal-token URLs untouched."""
-    assert _libmamba_strip_url_secrets("https://repo.com/t/my-token") == "https://repo.com"
+    assert (
+        _libmamba_strip_url_secrets("https://repo.com/t/my-token") == "https://repo.com"
+    )
     assert (
         _libmamba_strip_url_secrets("https://repo.com/t/my-token/path")
         == "https://repo.com/path"
@@ -167,14 +168,10 @@ def test_normalize_url_for_compare_force_https_strip_slash():
     """The normalized form drops scheme differences and trailing slashes."""
     assert _normalize_url_for_compare(
         "http://conda.example.com/c/linux-64/foo.conda"
-    ) == _normalize_url_for_compare(
-        "https://conda.example.com/c/linux-64/foo.conda/"
-    )
+    ) == _normalize_url_for_compare("https://conda.example.com/c/linux-64/foo.conda/")
     assert _normalize_url_for_compare(
         "https://user:pw@conda.example.com/c/linux-64/foo.conda"
-    ) == _normalize_url_for_compare(
-        "https://conda.example.com/c/linux-64/foo.conda"
-    )
+    ) == _normalize_url_for_compare("https://conda.example.com/c/linux-64/foo.conda")
 
 
 # ---------------------------------------------------------------------------
@@ -282,7 +279,11 @@ def test_record_matches_link_url_takes_precedence_over_channel():
     the same artifact URL."""
     name_version = {"name": "foo", "version": "1.0"}
     url = "https://conda.anaconda.org/conda-forge/linux-64/foo.conda"
-    record = {**name_version, "url": url, "channel": "https://conda.anaconda.org/conda-forge"}
+    record = {
+        **name_version,
+        "url": url,
+        "channel": "https://conda.anaconda.org/conda-forge",
+    }
     link = {**name_version, "url": url, "channel": "conda-forge"}
     assert _matched(record, link)
 
@@ -418,10 +419,7 @@ def test_candidate_record_paths_are_metadata_derived(tmp_path: Path):
         / "libzlib-1.3.2-h25fd6f3_2"
         / "info"
         / "repodata_record.json",
-        tmp_path
-        / "libzlib-1.3.2-h25fd6f3_2"
-        / "info"
-        / "repodata_record.json",
+        tmp_path / "libzlib-1.3.2-h25fd6f3_2" / "info" / "repodata_record.json",
     ]
 
 
@@ -517,9 +515,7 @@ def test_get_repodata_record_logs_specific_reason_at_debug(tmp_path, caplog):
     assert "sha256" in debug_text
 
 
-def test_get_repodata_record_emits_only_one_warning_after_retries(
-    tmp_path, caplog
-):
+def test_get_repodata_record_emits_only_one_warning_after_retries(tmp_path, caplog):
     """One missing package previously produced 11 nearly-identical
     warnings (10 retries + final). Operators don't need that volume.
     Per-retry messages live at DEBUG; only the final give-up is WARNING."""
@@ -538,9 +534,7 @@ def test_get_repodata_record_emits_only_one_warning_after_retries(
     assert any("Retrying" in r.getMessage() for r in debugs)
 
 
-def test_get_repodata_record_warning_prefers_rejected_over_missing(
-    tmp_path, caplog
-):
+def test_get_repodata_record_warning_prefers_rejected_over_missing(tmp_path, caplog):
     """When one candidate path was found-and-rejected and another was
     missing, the final WARNING must report the rejection, not the
     missing-file. The rejection is the actionable signal; the missing
@@ -616,9 +610,7 @@ def test_reconstruct_fetch_actions_real_mamba_2_6_0_dryrun(monkeypatch):
     monkeypatch.setattr("conda_lock.conda_solver._get_pkgs_dirs", boom)
 
     fixture = (
-        TESTS_DIR
-        / "test-mamba-fixtures"
-        / "dryrun-mamba-2.6.0-linux-64-zlib.json"
+        TESTS_DIR / "test-mamba-fixtures" / "dryrun-mamba-2.6.0-linux-64-zlib.json"
     )
     dryrun = json.loads(fixture.read_text())
     assert len(dryrun["actions"]["LINK"]) >= 1
@@ -647,9 +639,7 @@ def test_reconstruct_fetch_actions_disk_fallback_on_hierarchical_cache(
     laid out the way mamba 2.6.0 actually writes it.
     """
     fixture = (
-        TESTS_DIR
-        / "test-mamba-fixtures"
-        / "dryrun-mamba-2.6.0-linux-64-zlib.json"
+        TESTS_DIR / "test-mamba-fixtures" / "dryrun-mamba-2.6.0-linux-64-zlib.json"
     )
     real = json.loads(fixture.read_text())
     real_link = real["actions"]["LINK"][0]
