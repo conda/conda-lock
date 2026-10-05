@@ -56,7 +56,7 @@ _MAMBA_26_LINK_ACTION = {
 
 
 def _matched(record: dict, link: dict) -> bool:
-    matched, _reason = _record_matches_link(record, link)  # type: ignore[ty:invalid-argument-type]
+    matched, _reason = _record_matches_link(record, link)  # type: ignore[ty:invalid-argument-type,arg-type,unused-ignore]
     return matched
 
 
@@ -72,7 +72,7 @@ def _write_record(path: Path, **fields: Any) -> None:
 
 def test_link_action_as_fetch_uses_link_metadata():
     """Mamba 2.6.0 puts every FetchAction field in LINK; reuse it directly."""
-    fetch = _link_action_as_fetch(_MAMBA_26_LINK_ACTION)  # type: ignore[ty:invalid-argument-type]
+    fetch = _link_action_as_fetch(_MAMBA_26_LINK_ACTION)  # type: ignore[ty:invalid-argument-type,arg-type,unused-ignore]
     assert fetch is not None
     assert fetch["url"] == _MAMBA_26_LINK_ACTION["url"]
     assert fetch["sha256"] == _MAMBA_26_LINK_ACTION["sha256"]
@@ -90,16 +90,16 @@ def test_link_action_as_fetch_returns_none_for_sparse_link():
         "platform": "linux-64",
         "version": "1.3.2",
     }
-    assert _link_action_as_fetch(sparse) is None  # type: ignore[ty:invalid-argument-type]
+    assert _link_action_as_fetch(sparse) is None  # type: ignore[ty:invalid-argument-type,arg-type,unused-ignore]
 
 
 def test_link_action_as_fetch_requires_depends_field():
     """A LINK without ``depends`` would silently erase dependencies if we
     synthesized; reject it and force the disk fallback instead."""
     no_depends = {k: v for k, v in _MAMBA_26_LINK_ACTION.items() if k != "depends"}
-    assert _link_action_as_fetch(no_depends) is None  # type: ignore[ty:invalid-argument-type]
+    assert _link_action_as_fetch(no_depends) is None  # type: ignore[ty:invalid-argument-type,arg-type,unused-ignore]
     null_depends = {**_MAMBA_26_LINK_ACTION, "depends": None}
-    assert _link_action_as_fetch(null_depends) is None  # type: ignore[ty:invalid-argument-type]
+    assert _link_action_as_fetch(null_depends) is None  # type: ignore[ty:invalid-argument-type,arg-type,unused-ignore]
 
 
 @pytest.mark.parametrize(
@@ -108,7 +108,7 @@ def test_link_action_as_fetch_requires_depends_field():
 def test_link_action_as_fetch_requires_identity_field(missing: str):
     """Identity-bearing fields are mandatory for synthesis."""
     partial = {k: v for k, v in _MAMBA_26_LINK_ACTION.items() if k != missing}
-    assert _link_action_as_fetch(partial) is None  # type: ignore[ty:invalid-argument-type]
+    assert _link_action_as_fetch(partial) is None  # type: ignore[ty:invalid-argument-type,arg-type,unused-ignore]
 
 
 # ---------------------------------------------------------------------------
@@ -181,7 +181,7 @@ def test_normalize_url_for_compare_force_https_strip_slash():
 
 def test_hierarchical_cache_subpath_from_url():
     """The cache subpath is derived from the package URL, not a glob."""
-    sub = _hierarchical_cache_subpath(_MAMBA_26_LINK_ACTION)  # type: ignore[ty:invalid-argument-type]
+    sub = _hierarchical_cache_subpath(_MAMBA_26_LINK_ACTION)  # type: ignore[ty:invalid-argument-type,arg-type,unused-ignore]
     assert sub == Path("https/conda.anaconda.org/conda-forge/linux-64")
 
 
@@ -191,7 +191,7 @@ def test_hierarchical_cache_subpath_from_base_url_and_platform():
         "base_url": "https://conda.anaconda.org/conda-forge",
         "platform": "linux-64",
     }
-    assert _hierarchical_cache_subpath(sparse) == Path(  # type: ignore[ty:invalid-argument-type]
+    assert _hierarchical_cache_subpath(sparse) == Path(  # type: ignore[ty:invalid-argument-type,arg-type,unused-ignore]
         "https/conda.anaconda.org/conda-forge/linux-64"
     )
 
@@ -202,7 +202,7 @@ def test_hierarchical_cache_subpath_strips_duplicated_platform_suffix():
         "base_url": "https://conda.anaconda.org/conda-forge/linux-64",
         "platform": "linux-64",
     }
-    assert _hierarchical_cache_subpath(sparse) == Path(  # type: ignore[ty:invalid-argument-type]
+    assert _hierarchical_cache_subpath(sparse) == Path(  # type: ignore[ty:invalid-argument-type,arg-type,unused-ignore]
         "https/conda.anaconda.org/conda-forge/linux-64"
     )
 
@@ -210,7 +210,7 @@ def test_hierarchical_cache_subpath_strips_duplicated_platform_suffix():
 def test_hierarchical_cache_subpath_normalizes_port_separator():
     """Per mamba 2.6.0, a port's ``:`` is escaped to ``_``."""
     link = {"url": "http://localhost:8000/mychannel/noarch/foo-1.0-bld.conda"}
-    assert _hierarchical_cache_subpath(link) == Path(  # type: ignore[ty:invalid-argument-type]
+    assert _hierarchical_cache_subpath(link) == Path(  # type: ignore[ty:invalid-argument-type,arg-type,unused-ignore]
         "http/localhost_8000/mychannel/noarch"
     )
 
@@ -223,13 +223,13 @@ def test_hierarchical_cache_subpath_strips_credentials():
     with_userinfo = {
         "url": "https://user:secret@conda.example.com/private/linux-64/foo.conda"
     }
-    assert _hierarchical_cache_subpath(with_userinfo) == Path(  # type: ignore[ty:invalid-argument-type]
+    assert _hierarchical_cache_subpath(with_userinfo) == Path(  # type: ignore[ty:invalid-argument-type,arg-type,unused-ignore]
         "https/conda.example.com/private/linux-64"
     )
     with_token = {
         "url": "https://conda.anaconda.org/t/aa-bbb-ccc/private/linux-64/foo.conda"
     }
-    assert _hierarchical_cache_subpath(with_token) == Path(  # type: ignore[ty:invalid-argument-type]
+    assert _hierarchical_cache_subpath(with_token) == Path(  # type: ignore[ty:invalid-argument-type,arg-type,unused-ignore]
         "https/conda.anaconda.org/private/linux-64"
     )
 
@@ -313,7 +313,7 @@ def test_record_matches_link_falls_back_to_channel_when_link_url_unavailable():
     sparse_link_same_channel = {**name_version, "channel": "conda-forge"}
     assert _matched(record, sparse_link_same_channel)
     sparse_link_other_channel = {**name_version, "channel": "other-channel"}
-    matched, reason = _record_matches_link(record, sparse_link_other_channel)  # type: ignore[ty:invalid-argument-type]
+    matched, reason = _record_matches_link(record, sparse_link_other_channel)  # type: ignore[ty:invalid-argument-type,arg-type,unused-ignore]
     assert not matched
     assert reason and "channel mismatch" in reason
 
@@ -344,7 +344,7 @@ def test_record_matches_link_uses_derived_url_from_base_url_and_fn():
         **link,
         "base_url": "https://other.example.com/conda-forge",
     }
-    matched, reason = _record_matches_link(record, bad_link)  # type: ignore[ty:invalid-argument-type]
+    matched, reason = _record_matches_link(record, bad_link)  # type: ignore[ty:invalid-argument-type,arg-type,unused-ignore]
     assert not matched
     assert reason and "url mismatch" in reason
 
@@ -398,7 +398,7 @@ def test_record_matches_link_returns_reason_for_diagnostic():
     archaeology project later."""
     record = {"name": "foo", "version": "1.0", "sha256": "abc"}
     link = {"name": "foo", "version": "1.0", "sha256": "deadbeef"}
-    matched, reason = _record_matches_link(record, link)  # type: ignore[ty:invalid-argument-type]
+    matched, reason = _record_matches_link(record, link)  # type: ignore[ty:invalid-argument-type,arg-type,unused-ignore]
     assert not matched
     assert reason and "sha256" in reason
 
@@ -413,7 +413,7 @@ def test_candidate_record_paths_are_metadata_derived(tmp_path: Path):
     candidates = _candidate_record_paths(
         tmp_path,
         "libzlib-1.3.2-h25fd6f3_2",
-        _MAMBA_26_LINK_ACTION,  # type: ignore[ty:invalid-argument-type]
+        _MAMBA_26_LINK_ACTION,  # type: ignore[ty:invalid-argument-type,arg-type,unused-ignore]
     )
     assert candidates == [
         tmp_path
@@ -439,7 +439,7 @@ def test_get_repodata_record_legacy_layout(tmp_path: Path):
         "foo-1.0.0-bld",
         {"name": "foo", "version": "1.0.0", "platform": "linux-64"},
     )
-    assert record == {"name": "foo", "version": "1.0.0", "subdir": "linux-64"}
+    assert record == {"name": "foo", "version": "1.0.0", "subdir": "linux-64"}  # type: ignore[comparison-overlap]
 
 
 def test_get_repodata_record_hierarchical_layout(tmp_path: Path):
@@ -460,7 +460,7 @@ def test_get_repodata_record_hierarchical_layout(tmp_path: Path):
     record = _get_repodata_record(
         [hier],
         "libzlib-1.3.2-h25fd6f3_2",
-        _MAMBA_26_LINK_ACTION,  # type: ignore[ty:invalid-argument-type]
+        _MAMBA_26_LINK_ACTION,  # type: ignore[ty:invalid-argument-type,arg-type,unused-ignore]
     )
     assert record is not None
     assert record["url"] == _MAMBA_26_LINK_ACTION["url"]
@@ -486,7 +486,7 @@ def test_get_repodata_record_rejects_cross_channel_collision(tmp_path: Path):
     record = _get_repodata_record(
         [pkgs],
         "libzlib-1.3.2-h25fd6f3_2",
-        _MAMBA_26_LINK_ACTION,  # type: ignore[ty:invalid-argument-type]
+        _MAMBA_26_LINK_ACTION,  # type: ignore[ty:invalid-argument-type,arg-type,unused-ignore]
     )
     assert record is None
 
@@ -515,7 +515,7 @@ def test_get_repodata_record_logs_specific_reason_at_debug(tmp_path, caplog):
         record = _get_repodata_record(
             [pkgs],
             "libzlib-1.3.2-h25fd6f3_2",
-            _MAMBA_26_LINK_ACTION,  # type: ignore[ty:invalid-argument-type]
+            _MAMBA_26_LINK_ACTION,  # type: ignore[ty:invalid-argument-type,arg-type,unused-ignore]
         )
     assert record is None
     debug_text = "\n".join(r.getMessage() for r in caplog.records)
@@ -533,7 +533,7 @@ def test_get_repodata_record_emits_only_one_warning_after_retries(tmp_path, capl
         record = _get_repodata_record(
             [pkgs],
             "missing-1.0.0-bld",
-            _MAMBA_26_LINK_ACTION,  # type: ignore[ty:invalid-argument-type]
+            _MAMBA_26_LINK_ACTION,  # type: ignore[ty:invalid-argument-type,arg-type,unused-ignore]
         )
     assert record is None
     warnings = [r for r in caplog.records if r.levelname == "WARNING"]
@@ -572,7 +572,7 @@ def test_get_repodata_record_warning_prefers_rejected_over_missing(tmp_path, cap
         record = _get_repodata_record(
             [pkgs],
             "libzlib-1.3.2-h25fd6f3_2",
-            _MAMBA_26_LINK_ACTION,  # type: ignore[ty:invalid-argument-type]
+            _MAMBA_26_LINK_ACTION,  # type: ignore[ty:invalid-argument-type,arg-type,unused-ignore]
         )
     assert record is None
     final_warning = caplog.records[-1].getMessage()

@@ -202,16 +202,16 @@ def _link_action_as_fetch(link_action: LinkAction) -> FetchAction | None:
     or null value would silently erase a package's runtime dependencies.
     """
     for key in _FETCH_KEYS_FROM_LINK:
-        if key not in link_action or link_action[key] is None:  # type: ignore[literal-required,ty:invalid-key]
+        if key not in link_action or link_action[key] is None:  # type: ignore[literal-required,ty:invalid-key,unused-ignore]
             return None
-    if not isinstance(link_action["depends"], list):  # type: ignore[typeddict-item]
+    if not isinstance(link_action["depends"], list):
         return None
-    fetch: FetchAction = {  # pyright: ignore[reportAssignmentType]
-        key: link_action[key]  # type: ignore[literal-required,ty:invalid-key]
+    fetch: FetchAction = {  # type: ignore[assignment]  # pyright: ignore[reportAssignmentType]
+        key: link_action[key]  # type: ignore[literal-required,ty:invalid-key,unused-ignore]
         for key in _FETCH_KEYS_FROM_LINK
-    }  # type: ignore[ty:invalid-assignment]
-    fetch["sha256"] = link_action.get("sha256")  # type: ignore[typeddict-item]
-    constrains = link_action.get("constrains")  # type: ignore[typeddict-item]
+    }  # type: ignore[ty:invalid-assignment,unused-ignore]
+    fetch["sha256"] = link_action.get("sha256")
+    constrains = link_action.get("constrains")
     fetch["constrains"] = constrains if isinstance(constrains, list) else []
     return fetch
 
@@ -380,8 +380,8 @@ def _record_matches_link(
     if record_subdir and link_subdir and record_subdir != link_subdir:
         return False, f"subdir mismatch: record={record_subdir!r} link={link_subdir!r}"
     for field in ("fn", "md5", "sha256"):
-        link_val = link_action.get(field)  # type: ignore[call-overload]
-        record_val = record.get(field)  # type: ignore[call-overload]
+        link_val = link_action.get(field)
+        record_val = record.get(field)
         if link_val and record_val and link_val != record_val:
             return False, f"{field} mismatch"
     record_url = record.get("url")
