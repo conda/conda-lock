@@ -11,6 +11,7 @@ on:
 
 jobs:
   create-lockfiles:
+    name: create-lockfiles
     strategy:
       fail-fast: false
       matrix:
@@ -54,6 +55,7 @@ jobs:
         path: environments/conda-lock-python-${{ matrix.python-version }}.yaml
 
   update-pixi:
+    name: update-pixi
     needs: create-lockfiles
     if: (github.event_name == 'schedule' && github.repository == 'conda/conda-lock') || (github.event_name != 'schedule')
     defaults:
@@ -89,6 +91,7 @@ jobs:
         path: pixi.*
 
   create-pr:
+    name: create-pr
     needs:
       - create-lockfiles
       - update-pixi
