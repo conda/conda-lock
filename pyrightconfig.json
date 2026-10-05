@@ -1,9 +1,0 @@
-{
-    "ignore": [
-        "conda_lock/_vendor/conda/**",
-        "conda_lock/_vendor/cleo/**",
-        "conda_lock/_vendor/poetry_core/**",
-        "conda_lock/_vendor/poetry/**",
-    ],
-    "reportUnusedImport": "error",
-}
