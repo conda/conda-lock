@@ -399,9 +399,7 @@ def _get_installed_conda_packages(
     output_json = json.loads(output.decode("utf-8"))
     if isinstance(output_json, MutableMapping) and "packages" in output_json:
         output_json = output_json["packages"]
-    installed: dict[str, LinkAction] = {
-        entry["name"]: entry for entry in output_json
-    }
+    installed: dict[str, LinkAction] = {entry["name"]: entry for entry in output_json}
     return installed
 
 
