@@ -146,8 +146,8 @@ def parse_environment_file(
 
     return LockSpecification(
         dependencies=dep_map,
-        channels=channels,  # type: ignore[ty:invalid-argument-type]
-        pip_repositories=pip_repositories,  # type: ignore[ty:invalid-argument-type]
+        channels=channels,
+        pip_repositories=pip_repositories,
         sources=[environment_file],
         allow_pypi_requests=allow_pypi_requests,
     )

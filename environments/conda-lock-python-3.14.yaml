@@ -15,11 +15,11 @@
 version: 1
 metadata:
   content_hash:
-    linux-64: 2cd058653218bd45bed001482239ce0fd6fee0a7f4430177341201705e8cf924
-    osx-64: 9339d4342061c0c4916f660154d84913f779a3143bf9e74ba2c1759143acc5f5
-    osx-arm64: ded84bc9fee8b940a6392c1844020e8ac429d1f5dc7d26a77793d0aff6544521
-    win-64: 5b2d4ea172ea933e0f1804332a3e311315acd5e2a6492becbdb60386e5f01f53
-    linux-aarch64: f813e2f8c6ecb551c7b8c4272f611f14d07ae5103d634f1684c640e959df1f0c
+    linux-64: b620ca427f53aa64d60bef138229bd164d6fd498feb90f0d13c81eb26babe23d
+    osx-64: 979798dc172636a09aabf6e4689102883726132268db8fe70c36f4d58a2bcc21
+    osx-arm64: 166a3927952fc9fc2e048ef0edec990c53ff0a4b14d3d5cb8aeba24bb89947f1
+    win-64: 3b65bdd87b971f699dbd5ce6378377ff21c16e63dc4841f2aa6a512d0fbe5d35
+    linux-aarch64: 35f1785bec72ea98900873376db7cfafe82ed70dc9314e539ed1090e6d9b438b
   channels:
   - url: conda-forge
     used_env_vars: []
@@ -8098,8 +8098,8 @@ package:
   hash:
     md5: 573cb3ed111004230ed3de650653cd4d
     sha256: 0f7021cfb3ff454c91a5e28e1f5060906a52c6d1cde3f879a7d03ac33c28b1c3
-  category: main
-  optional: false
+  category: dev
+  optional: true
 - name: pip
   version: 26.2.1
   manager: conda
@@ -8110,8 +8110,8 @@ package:
   hash:
     md5: 573cb3ed111004230ed3de650653cd4d
     sha256: 0f7021cfb3ff454c91a5e28e1f5060906a52c6d1cde3f879a7d03ac33c28b1c3
-  category: main
-  optional: false
+  category: dev
+  optional: true
 - name: pip
   version: 26.2.1
   manager: conda
@@ -8122,8 +8122,8 @@ package:
   hash:
     md5: 573cb3ed111004230ed3de650653cd4d
     sha256: 0f7021cfb3ff454c91a5e28e1f5060906a52c6d1cde3f879a7d03ac33c28b1c3
-  category: main
-  optional: false
+  category: dev
+  optional: true
 - name: pip
   version: 26.2.1
   manager: conda
@@ -8134,8 +8134,8 @@ package:
   hash:
     md5: 573cb3ed111004230ed3de650653cd4d
     sha256: 0f7021cfb3ff454c91a5e28e1f5060906a52c6d1cde3f879a7d03ac33c28b1c3
-  category: main
-  optional: false
+  category: dev
+  optional: true
 - name: pip
   version: 26.2.1
   manager: conda
@@ -8146,8 +8146,8 @@ package:
   hash:
     md5: 573cb3ed111004230ed3de650653cd4d
     sha256: 0f7021cfb3ff454c91a5e28e1f5060906a52c6d1cde3f879a7d03ac33c28b1c3
-  category: main
-  optional: false
+  category: dev
+  optional: true
 - name: pkginfo
   version: 1.12.1.2
   manager: conda
@@ -11957,6 +11957,69 @@ package:
     sha256: 9abcd51d09a4d2da757861ad4684b02ae82ff721db6644e6fe477c5fd7e9278c
   category: dev
   optional: true
+- name: ty
+  version: 0.0.84
+  manager: conda
+  platform: linux-64
+  dependencies:
+    __glibc: '>=2.17,<3.0.a0'
+    libgcc: '>=15'
+  url: https://conda.anaconda.org/conda-forge/linux-64/ty-0.0.84-h39d0f39_0.conda
+  hash:
+    md5: 1edd71565e8568cc4e87d781e09b7946
+    sha256: 8139ce764ca575bff4b6415ce439aa17c2b787a716bc0f6da9fce729a4160d25
+  category: dev
+  optional: true
+- name: ty
+  version: 0.0.84
+  manager: conda
+  platform: linux-aarch64
+  dependencies:
+    libgcc: '>=15'
+  url: https://conda.anaconda.org/conda-forge/linux-aarch64/ty-0.0.84-h4cb7313_0.conda
+  hash:
+    md5: d85151338088f0fa6163e3ab1ba615c1
+    sha256: 25a9b728fa11bf1fc410c4cfbc2431db18e818e0accf89a756c63e0b40122392
+  category: dev
+  optional: true
+- name: ty
+  version: 0.0.84
+  manager: conda
+  platform: osx-64
+  dependencies:
+    __osx: '>=11.0'
+  url: https://conda.anaconda.org/conda-forge/osx-64/ty-0.0.84-hee1dffb_0.conda
+  hash:
+    md5: 2fcddb7a9d34a45f2d3bff1508427b6e
+    sha256: 75bc31948f2ae9a6b0158afca0022622aaf394f0869daac13e43c67435024d07
+  category: dev
+  optional: true
+- name: ty
+  version: 0.0.84
+  manager: conda
+  platform: osx-arm64
+  dependencies:
+    __osx: '>=11.0'
+  url: https://conda.anaconda.org/conda-forge/osx-arm64/ty-0.0.84-h9d00c72_0.conda
+  hash:
+    md5: 1c5cc0fe1332b7604439a7956b0fd7bf
+    sha256: 7d4b587d98f3e8a07669255f265039f8e8ee45f249c9aa9d0d7d063da1cfe2ee
+  category: dev
+  optional: true
+- name: ty
+  version: 0.0.84
+  manager: conda
+  platform: win-64
+  dependencies:
+    ucrt: '>=10.0.20348.0'
+    vc: '>=14.3,<15'
+    vc14_runtime: '>=14.44.35208'
+  url: https://conda.anaconda.org/conda-forge/win-64/ty-0.0.84-h2852063_0.conda
+  hash:
+    md5: f83aeee70528a1a5b13d2df7b1720655
+    sha256: 4d8290db9be4616d90581fa17ab979fa123756545c201ecb4923afd9941e5980
+  category: dev
+  optional: true
 - name: types-click
   version: 7.1.8
   manager: conda
@@ -13689,53 +13752,3 @@ package:
     sha256: ca7daae4f218a11fab82cc2857f0ea518ec3f46acec60490485347a4c22c6b3e
   category: main
   optional: false
-- name: ty
-  version: 0.0.84
-  manager: pip
-  platform: linux-64
-  dependencies: {}
-  url: https://files.pythonhosted.org/packages/60/d5/32cd67aedb271f006e716ad093806c96c5d7e2af86be8255469dbd3d76c8/ty-0.0.84-py3-none-manylinux_2_17_x86_64.manylinux2014_x86_64.whl
-  hash:
-    sha256: af17eb391ae3027fed9be1780bea555c2b8a25ba68e184c627b4981b2c9eaab7
-  category: dev
-  optional: true
-- name: ty
-  version: 0.0.84
-  manager: pip
-  platform: linux-aarch64
-  dependencies: {}
-  url: https://files.pythonhosted.org/packages/44/96/f012de4b3c1d9a4773326621380d768b4d48c47e620dc012775c5e01c7d7/ty-0.0.84-py3-none-manylinux_2_17_aarch64.manylinux2014_aarch64.whl
-  hash:
-    sha256: 61155cad0921e890d86d1d911a40b3a0e924ef4bdc3b4f3865a6c89c7e3012dc
-  category: dev
-  optional: true
-- name: ty
-  version: 0.0.84
-  manager: pip
-  platform: osx-64
-  dependencies: {}
-  url: https://files.pythonhosted.org/packages/c5/3b/27f06f49945c36170765fad82076898039ae3873338e9865f876dd62f12c/ty-0.0.84-py3-none-macosx_10_12_x86_64.whl
-  hash:
-    sha256: b00f39b521f0b559cde0f6abf8dd47213b513b04f33d58efeb9b98486a16bb17
-  category: dev
-  optional: true
-- name: ty
-  version: 0.0.84
-  manager: pip
-  platform: osx-arm64
-  dependencies: {}
-  url: https://files.pythonhosted.org/packages/fc/b6/b12dd130e7f30141f0645614f454c925991cd389b1cc6c8284fd6bf32326/ty-0.0.84-py3-none-macosx_11_0_arm64.whl
-  hash:
-    sha256: 8f78c2915567f2ee62ce0c24d86091bc76f81577677755e242d09951db588b9a
-  category: dev
-  optional: true
-- name: ty
-  version: 0.0.84
-  manager: pip
-  platform: win-64
-  dependencies: {}
-  url: https://files.pythonhosted.org/packages/29/ec/994d87252f065dda5a500bc8afc726d18f6582d81d6f4ff1feb8a267c800/ty-0.0.84-py3-none-win_amd64.whl
-  hash:
-    sha256: 71cc9aa7a7c89d4e12c6a814e9c0c3310ad5bee44efedbd6f5a42d91e9ac0f0d
-  category: dev
-  optional: true

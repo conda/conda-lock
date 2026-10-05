@@ -33,6 +33,7 @@ dependencies:
 - ruff
 - tomli
 - twine
+- ty ==0.0.84
 - types-click
 - types-click-default-group
 - types-filelock
@@ -43,5 +44,3 @@ dependencies:
 - types-setuptools
 - wheel
 - zizmor
-- pip:
-  - ty
