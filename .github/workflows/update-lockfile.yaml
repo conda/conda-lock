@@ -56,7 +56,6 @@ jobs:
 
   update-pixi:
     name: update-pixi
-    needs: create-lockfiles
     if: (github.event_name == 'schedule' && github.repository == 'conda/conda-lock') || (github.event_name != 'schedule')
     defaults:
       run:
