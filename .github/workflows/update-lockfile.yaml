@@ -83,7 +83,7 @@ jobs:
         # # One possible workaround is to specify a Personal Access Token (PAT).
         # # This PAT should have read-write permissions for "Pull Requests"
         # # and read-write permissions for "Contents".
-        token: ${{ secrets.GH_PAT_FOR_PR }}
+        token: ${{ secrets.GH_PAT_FOR_PR_2 }}
         commit-message: Relock dependencies
         title: Relock dependencies
         body: >
@@ -91,5 +91,4 @@ jobs:
           It is triggered by [update-lockfile](https://github.com/conda/conda-lock/blob/main/.github/workflows/update-lockfile.yaml).
         branch: relock-deps
         labels: conda-lock
-        reviewers: maresb
         delete-branch: true
