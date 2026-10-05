@@ -51,7 +51,7 @@ jobs:
     - name: Upload lockfile
       uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
       with:
-        name: conda-lock-python-${{ matrix.python-version }}
+        name: conda-lock-python-${{ matrix.python-version }}-${{ github.run_id }}-${{ github.run_attempt }}
         path: environments/conda-lock-python-${{ matrix.python-version }}.yaml
 
   update-pixi:
@@ -87,11 +87,17 @@ jobs:
       run: |
         source scripts/generate_pixi.sh
 
-    - name: Upload pixi files
+    - name: Upload pixi.toml
       uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
       with:
-        name: pixi
-        path: pixi.*
+        name: pixi.toml-${{ github.run_id }}-${{ github.run_attempt }}
+        path: pixi.toml
+
+    - name: Upload pixi.lock
+      uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+      with:
+        name: pixi.lock-${{ github.run_id }}-${{ github.run_attempt }}
+        path: pixi.lock
 
   create-pr:
     name: create-pr
@@ -111,13 +117,15 @@ jobs:
     - name: Download all lockfiles
       uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
       with:
+        name: conda-lock-python-*-${{ github.run_id }}-${{ github.run_attempt }}
         path: environments/
         merge-multiple: true
 
     - name: Download all pixi files
       uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
       with:
-        path: pixi.*
+        name: pixi.*-${{ github.run_id }}-${{ github.run_attempt }}
+        path: .
 
     - name: Open a pull request
       uses: peter-evans/create-pull-request@c0f553fe549906ede9cf27b5156039d195d2ece0 # v8.1.0
