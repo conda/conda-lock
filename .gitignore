@@ -20,3 +20,6 @@ filelock
 .micromamba/
 .pixi/
 # Make ad-hoc experimentation easier; remove these once we settle on a config
+
+# IDK how this is getting made
+uv.lock
