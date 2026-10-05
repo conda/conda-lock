@@ -146,8 +146,8 @@ def parse_environment_file(
 
     return LockSpecification(
         dependencies=dep_map,
-        channels=channels,  # type: ignore[unused-type-ignore-comment,arg-type,unused-ignore,ty:invalid-argument-type]
-        pip_repositories=pip_repositories,  # type: ignore[unused-type-ignore-comment,arg-type,unused-ignore,ty:invalid-argument-type]
+        channels=channels,  # type: ignore[ty:unused-type-ignore-comment,arg-type,unused-ignore,ty:invalid-argument-type]
+        pip_repositories=pip_repositories,  # type: ignore[ty:unused-type-ignore-comment,arg-type,unused-ignore,ty:invalid-argument-type]
         sources=[environment_file],
         allow_pypi_requests=allow_pypi_requests,
     )
