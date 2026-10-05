@@ -793,15 +793,16 @@ def _solve_for_arch(
         for manager in ("conda", "pip")
     }
 
-    conda_deps = solve_conda(
-        conda,
-        specs=requested_deps_by_name["conda"],
-        locked=locked_deps_by_name["conda"],
-        update=update_spec.update,
-        platform=platform,
-        channels=channels,
-        mapping_url=mapping_url,
-    )
+    with virtual_package_repo.conda_virtual_package_overrides(platform):
+        conda_deps = solve_conda(
+            conda,
+            specs=requested_deps_by_name["conda"],
+            locked=locked_deps_by_name["conda"],
+            update=update_spec.update,
+            platform=platform,
+            channels=channels,
+            mapping_url=mapping_url,
+        )
 
     if requested_deps_by_name["pip"]:
         if "python" not in conda_deps:
