@@ -202,14 +202,14 @@ def _link_action_as_fetch(link_action: LinkAction) -> FetchAction | None:
     or null value would silently erase a package's runtime dependencies.
     """
     for key in _FETCH_KEYS_FROM_LINK:
-        if key not in link_action or link_action[key] is None:  # type: ignore[literal-required]
+        if key not in link_action or link_action[key] is None:  # type: ignore[literal-required,ty:invalid-key]
             return None
     if not isinstance(link_action["depends"], list):  # type: ignore[typeddict-item]
         return None
     fetch: FetchAction = {  # pyright: ignore[reportAssignmentType]
-        key: link_action[key]  # type: ignore[literal-required]
+        key: link_action[key]  # type: ignore[literal-required,ty:invalid-key]
         for key in _FETCH_KEYS_FROM_LINK
-    }
+    }  # type: ignore[ty:invalid-assignment]
     fetch["sha256"] = link_action.get("sha256")  # type: ignore[typeddict-item]
     constrains = link_action.get("constrains")  # type: ignore[typeddict-item]
     fetch["constrains"] = constrains if isinstance(constrains, list) else []
