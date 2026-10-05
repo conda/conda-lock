@@ -2806,6 +2806,96 @@ def test_virtual_package_input_hash_stability():
     assert compute_content_hashes(spec, vpr) == {"linux-64": expected}
 
 
+@pytest.mark.parametrize(
+    ("platform", "expected_archspec"),
+    [("osx-64", "x86_64"), ("osx-arm64", "arm64")],
+)
+def test_solve_uses_target_virtual_package_overrides(
+    monkeypatch: pytest.MonkeyPatch, platform: str, expected_archspec: str
+) -> None:
+    override_names = {
+        "CONDA_OVERRIDE_ARCHSPEC",
+        "CONDA_OVERRIDE_CUDA",
+        "CONDA_OVERRIDE_GLIBC",
+        "CONDA_OVERRIDE_LINUX",
+        "CONDA_OVERRIDE_OSX",
+        "CONDA_OVERRIDE_WIN",
+    }
+    for name in override_names:
+        monkeypatch.setenv(name, "host-value")
+
+    actual_overrides: dict[str, str | None] = {}
+
+    def solve_conda(*args: Any, **kwargs: Any) -> dict[str, LockedDependency]:
+        actual_overrides.update({name: os.environ.get(name) for name in override_names})
+        return {}
+
+    monkeypatch.setattr("conda_lock.conda_lock.solve_conda", solve_conda)
+    spec = LockSpecification(dependencies={platform: []}, channels=[], sources=[])
+    virtual_package_repo = default_virtual_package_repodata()
+
+    with virtual_package_repo:
+        _solve_for_arch(
+            conda="micromamba",
+            spec=spec,
+            platform=platform,
+            channels=[],
+            pip_repositories=[],
+            virtual_package_repo=virtual_package_repo,
+            mapping_url=DEFAULT_MAPPING_URL,
+        )
+
+    assert actual_overrides == {
+        "CONDA_OVERRIDE_ARCHSPEC": expected_archspec,
+        "CONDA_OVERRIDE_CUDA": "",
+        "CONDA_OVERRIDE_GLIBC": "",
+        "CONDA_OVERRIDE_LINUX": "",
+        "CONDA_OVERRIDE_OSX": "11.0",
+        "CONDA_OVERRIDE_WIN": "",
+    }
+    assert {name: os.environ[name] for name in override_names} == dict.fromkeys(
+        override_names, "host-value"
+    )
+
+
+@pytest.mark.parametrize("cuda_override", [None, "host-value"])
+def test_solve_clears_unconfigured_virtual_package_override(
+    monkeypatch: pytest.MonkeyPatch, cuda_override: str | None
+) -> None:
+    from conda_lock.virtual_package import virtual_package_repo_from_specification
+
+    actual_cuda_override = None
+
+    def solve_conda(*args: Any, **kwargs: Any) -> dict[str, LockedDependency]:
+        nonlocal actual_cuda_override
+        actual_cuda_override = os.environ.get("CONDA_OVERRIDE_CUDA")
+        return {}
+
+    monkeypatch.setattr("conda_lock.conda_lock.solve_conda", solve_conda)
+    if cuda_override is None:
+        monkeypatch.delenv("CONDA_OVERRIDE_CUDA", raising=False)
+    else:
+        monkeypatch.setenv("CONDA_OVERRIDE_CUDA", cuda_override)
+    virtual_package_repo = virtual_package_repo_from_specification(
+        TESTS_DIR / "test-archspec" / "virtual-packages.yaml"
+    )
+    spec = LockSpecification(dependencies={"linux-64": []}, channels=[], sources=[])
+
+    with virtual_package_repo:
+        _solve_for_arch(
+            conda="micromamba",
+            spec=spec,
+            platform="linux-64",
+            channels=[],
+            pip_repositories=[],
+            virtual_package_repo=virtual_package_repo,
+            mapping_url=DEFAULT_MAPPING_URL,
+        )
+
+    assert actual_cuda_override == ""
+    assert os.environ.get("CONDA_OVERRIDE_CUDA") == cuda_override
+
+
 def test_default_virtual_package_input_hash_stability():
     from conda_lock.virtual_package import default_virtual_package_repodata
 
