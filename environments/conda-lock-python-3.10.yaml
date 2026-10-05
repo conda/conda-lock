@@ -15,11 +15,11 @@
 version: 1
 metadata:
   content_hash:
-    linux-64: 26ba7c8932495f237b06773ba624d8227f347b8362fffc2bf9049867f937f36a
-    osx-64: 3f5b2c87d4e91044d4ae66ccd8cba865013e33beca624d962500302f45c2d152
-    osx-arm64: ec7ce3b218b1f194befa471fdb7f973102328b54f6eafbb47a92f3e83e2f10eb
-    win-64: eb9847b0a6821f62bac3e1fb52b251e8363b218aefab3532bf184de6809aac75
-    linux-aarch64: 0a37d992b5d8a177df7ef223374a57298e9a10e21e6469d7c7e70cf4ce4304c8
+    linux-64: 220d565b1fdd04aca54af5a6dcf6e1aa878b3b2323d4a1372e4f24e842549f4c
+    osx-64: 1e0a048a4069e311901f4c7802e49175c73fcabdb2cb2abf17080b35d2ef121f
+    osx-arm64: adf2bbda714951ea89a6055ab5704ebd4f05e7a942b7d5b21a53b6091a9c79c3
+    win-64: c5f3475981abc9b3fffa63afd69488b37ecda81f4e03b0de0bde264b12b0bd0d
+    linux-aarch64: c11ae971757700dc6abe81c50d8e2626cc2fdee7fe766db1f91fcbfce3714640
   channels:
   - url: conda-forge
     used_env_vars: []
