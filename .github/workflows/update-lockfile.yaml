@@ -11,6 +11,7 @@ on:
 
 jobs:
   create-lockfiles:
+    name: create-lockfiles
     strategy:
       fail-fast: false
       matrix:
@@ -50,11 +51,58 @@ jobs:
     - name: Upload lockfile
       uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
       with:
-        name: conda-lock-python-${{ matrix.python-version }}
+        name: conda-lock-python-${{ matrix.python-version }}-${{ github.run_id }}-${{ github.run_attempt }}
         path: environments/conda-lock-python-${{ matrix.python-version }}.yaml
 
+  update-pixi:
+    name: update-pixi
+    if: (github.event_name == 'schedule' && github.repository == 'conda/conda-lock') || (github.event_name != 'schedule')
+    defaults:
+      run:
+        # Ensure the environment is activated
+        # <https://github.com/mamba-org/provision-with-micromamba#important>
+        shell: bash -l {0}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: write  # for uploading artifacts
+    steps:
+    - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      with:
+        persist-credentials: false
+    - name: Install Micromamba
+      uses: mamba-org/setup-micromamba@add3a49764cedee8ee24e82dfde87f5bc2914462 # v2.0.7
+      with:
+        environment-file: environments/conda-lock.yml
+        environment-name: conda-lock-dev
+
+    - name: Install pixi
+      run: micromamba install pixi --yes
+
+    - name: Install conda-lock from branch
+      run: pip install --editable .
+
+    - name: Run conda-lock to recreate lockfile from scratch
+      run: |
+        source scripts/generate_pixi.sh
+
+    - name: Upload pixi.toml
+      uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+      with:
+        name: pixi.toml-${{ github.run_id }}-${{ github.run_attempt }}
+        path: pixi.toml
+
+    - name: Upload pixi.lock
+      uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+      with:
+        name: pixi.lock-${{ github.run_id }}-${{ github.run_attempt }}
+        path: pixi.lock
+
   create-pr:
-    needs: create-lockfiles
+    name: create-pr
+    needs:
+      - create-lockfiles
+      - update-pixi
     runs-on: ubuntu-latest
     permissions:
       contents: write     # for creating pull requests
@@ -68,7 +116,15 @@ jobs:
     - name: Download all lockfiles
       uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
       with:
+        pattern: conda-lock-python-*-${{ github.run_id }}-${{ github.run_attempt }}
         path: environments/
+        merge-multiple: true
+
+    - name: Download all pixi files
+      uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+      with:
+        pattern: pixi.*-${{ github.run_id }}-${{ github.run_attempt }}
+        path: .
         merge-multiple: true
 
     - name: Open a pull request
