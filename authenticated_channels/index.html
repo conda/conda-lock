@@ -945,16 +945,16 @@
 <div class="tabbed-block">
 <div class="highlight"><pre><span></span><code><span class="k">[tool.conda-lock]</span>
 <span class="n">channels</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span>
-<span class="w">    </span><span class="s1">&#39;http://host.com/t/$MY_REPO_TOKEN/channel&#39;</span>
+<span class="w">    </span><span class="s1">'http://host.com/t/$MY_REPO_TOKEN/channel'</span>
 <span class="p">]</span>
 </code></pre></div>
 </div>
 <div class="tabbed-block">
 <p>Make sure this environment variable is <strong>not</strong> expanded (quote types matter).</p>
-<div class="highlight"><pre><span></span><code>--channel<span class="w"> </span><span class="s1">&#39;http://host.com/t/$MY_REPO_TOKEN/channel&#39;</span>
+<div class="highlight"><pre><span></span><code>--channel<span class="w"> </span><span class="s1">'http://host.com/t/$MY_REPO_TOKEN/channel'</span>
 </code></pre></div>
 <p>If you accidentally pass a channel url that contains a token and its gets expanded like in this case</p>
-<div class="highlight"><pre><span></span><code>--channel<span class="w"> </span><span class="s2">&quot;http://host.com/t/</span><span class="nv">$MY_REPO_TOKEN</span><span class="s2">/channel&quot;</span>
+<div class="highlight"><pre><span></span><code>--channel<span class="w"> </span><span class="s2">"http://host.com/t/</span><span class="nv">$MY_REPO_TOKEN</span><span class="s2">/channel"</span>
 </code></pre></div>
 <p>conda lock will attempt detect the environment variable used, preferring that the environment variables with
 a sensible suffix (<code>KEY</code>, <code>TOKEN</code>, <code>PASS</code>, etc).</p>
@@ -972,7 +972,7 @@ conda-lock<span class="w"> </span>install<span class="w"> </span>-n<span class="
 <h2 id="simple-auth">Simple Auth</h2>
 <p>For other channels (such as those self-managed) basic auth is supported and has the same environment variable
 behavior as for token based channel urls.</p>
-<div class="highlight"><pre><span></span><code>--channel<span class="w"> </span><span class="s1">&#39;http://$USER:$PASSWORD@host.com/channel&#39;</span>
+<div class="highlight"><pre><span></span><code>--channel<span class="w"> </span><span class="s1">'http://$USER:$PASSWORD@host.com/channel'</span>
 </code></pre></div>
 <p>Additionally simple auth also support the <a href="/flags#-strip-auth-auth-and-auth-file">--strip-auth, --auth and --auth-file</a> flags.</p>
 <h2 id="what-gets-stored">What gets stored</h2>

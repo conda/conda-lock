@@ -902,7 +902,7 @@ docker container.  This avoids the case where the <code>conda install xyz</code>
 <span class="k">FROM</span><span class="w"> </span><span class="s">gcr.io/distroless/base-debian10</span>
 <span class="c"># copy over the generated environment</span>
 <span class="k">COPY</span><span class="w"> </span>--from<span class="o">=</span>builder<span class="w"> </span>/opt/env<span class="w"> </span>/opt/env
-<span class="k">ENV</span><span class="w"> </span><span class="nv">PATH</span><span class="o">=</span><span class="s2">&quot;/opt/env/bin:</span><span class="si">${</span><span class="nv">PATH</span><span class="si">}</span><span class="s2">&quot;</span>
+<span class="k">ENV</span><span class="w"> </span><span class="nv">PATH</span><span class="o">=</span><span class="s2">"/opt/env/bin:</span><span class="si">${</span><span class="nv">PATH</span><span class="si">}</span><span class="s2">"</span>
 </code></pre></div>
 <p>To get this to work nicely generate the platform specific lock run something
 like this in your shell</p>
@@ -949,7 +949,7 @@ the <code>--copy</code> flag from <code>conda-lock install</code></p>
 <span class="c"># -----------------</span>
 <span class="k">FROM</span><span class="w"> </span><span class="s">gcr.io/distroless/base-debian10</span>
 <span class="k">COPY</span><span class="w"> </span>--from<span class="o">=</span>builder<span class="w"> </span>/opt/env<span class="w"> </span>/opt/env
-<span class="k">ENV</span><span class="w"> </span><span class="nv">PATH</span><span class="o">=</span><span class="s2">&quot;/opt/env/bin:</span><span class="si">${</span><span class="nv">PATH</span><span class="si">}</span><span class="s2">&quot;</span>
+<span class="k">ENV</span><span class="w"> </span><span class="nv">PATH</span><span class="o">=</span><span class="s2">"/opt/env/bin:</span><span class="si">${</span><span class="nv">PATH</span><span class="si">}</span><span class="s2">"</span>
 </code></pre></div>
 
 

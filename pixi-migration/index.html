@@ -1098,7 +1098,7 @@ Removing pixi from your project is as simple as deleting the files indicated in 
 <h2 id="quick-example">Quick example</h2>
 <p>Use conda-lock and pixi to make a development environment for mypy.</p>
 <div class="highlight"><pre><span></span><code><span class="c1"># Install/upgrade conda-lock</span>
-pipx<span class="w"> </span>upgrade<span class="w"> </span>conda-lock<span class="w"> </span><span class="o">||</span><span class="w"> </span>pipx<span class="w"> </span>install<span class="w"> </span>--force<span class="w"> </span><span class="s2">&quot;conda-lock&gt;=3&quot;</span>
+pipx<span class="w"> </span>upgrade<span class="w"> </span>conda-lock<span class="w"> </span><span class="o">||</span><span class="w"> </span>pipx<span class="w"> </span>install<span class="w"> </span>--force<span class="w"> </span><span class="s2">"conda-lock&gt;=3"</span>
 <span class="nb">cd</span><span class="w"> </span>/tmp
 git<span class="w"> </span>clone<span class="w"> </span>https://github.com/python/mypy
 <span class="nb">cd</span><span class="w"> </span>mypy
@@ -1119,11 +1119,11 @@ mypy<span class="w"> </span>--version
 
 <span class="c1"># Commit the changes</span>
 git<span class="w"> </span>add<span class="w"> </span>.gitignore
-git<span class="w"> </span>commit<span class="w"> </span>-m<span class="w"> </span><span class="s2">&quot;Ignore pixi cache directory&quot;</span>
+git<span class="w"> </span>commit<span class="w"> </span>-m<span class="w"> </span><span class="s2">"Ignore pixi cache directory"</span>
 git<span class="w"> </span>add<span class="w"> </span>pixi.toml
-git<span class="w"> </span>commit<span class="w"> </span>-m<span class="w"> </span><span class="s2">&quot;Add pixi.toml configuration&quot;</span>
+git<span class="w"> </span>commit<span class="w"> </span>-m<span class="w"> </span><span class="s2">"Add pixi.toml configuration"</span>
 git<span class="w"> </span>add<span class="w"> </span>pixi.lock
-git<span class="w"> </span>commit<span class="w"> </span>-m<span class="w"> </span><span class="s2">&quot;Add pixi.lock lock file&quot;</span>
+git<span class="w"> </span>commit<span class="w"> </span>-m<span class="w"> </span><span class="s2">"Add pixi.lock lock file"</span>
 </code></pre></div>
 <h2 id="the-steps-to-get-started">The steps to get started</h2>
 <ol>
@@ -1153,7 +1153,7 @@ Using separate files also provides more clear separation between Python project 
 </li>
 <li>
 <p>Install the latest version of <code>conda-lock</code> if you don't already have it.</p>
-<div class="highlight"><pre><span></span><code>pipx<span class="w"> </span>install<span class="w"> </span>--force<span class="w"> </span><span class="s2">&quot;conda-lock&gt;=3&quot;</span>
+<div class="highlight"><pre><span></span><code>pipx<span class="w"> </span>install<span class="w"> </span>--force<span class="w"> </span><span class="s2">"conda-lock&gt;=3"</span>
 </code></pre></div>
 <p>or</p>
 <div class="highlight"><pre><span></span><code>pipx<span class="w"> </span>upgrade<span class="w"> </span>conda-lock
@@ -1184,7 +1184,7 @@ Using separate files also provides more clear separation between Python project 
 <p>Pay attention to any warnings that <code>conda-lock</code> may print. Some specifications may not be translatable, and others might not yet be implemented.</p>
 <p>By default, dependencies from <code>pyproject.toml</code> will be converted to conda-forge dependencies. If you wish to keep them as PyPI dependencies, you can add the following table to the <code>pyproject.toml</code>:</p>
 <div class="highlight"><pre><span></span><code><span class="k">[tool.conda-lock]</span>
-<span class="n">default-non-conda-source</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;pip&quot;</span>
+<span class="n">default-non-conda-source</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"pip"</span>
 </code></pre></div>
 <p>If you have a <code>test-dependencies.yml</code> file and want it to define a feature named <code>test</code>, then you should add</p>
 <div class="highlight"><pre><span></span><code><span class="nt">category</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">test</span>

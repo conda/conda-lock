@@ -823,17 +823,17 @@
 </code></pre></div>
 <p>In order to <code>conda-lock install</code> a lock file with its basic auth credentials stripped, you will need to create an authentication file in <code>.json</code> format like this:</p>
 <div class="highlight"><pre><span></span><code><span class="p">{</span>
-<span class="w">  </span><span class="nt">&quot;domain&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;username:password&quot;</span>
+<span class="w">  </span><span class="nt">"domain"</span><span class="p">:</span><span class="w"> </span><span class="s2">"username:password"</span>
 <span class="p">}</span>
 </code></pre></div>
 <p>If you have multiple channels that require different authentication within the same domain, you can additionally specify the channel like this:</p>
 <div class="highlight"><pre><span></span><code><span class="p">{</span>
-<span class="w">  </span><span class="nt">&quot;domain.org/channel1&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;username1:password1&quot;</span><span class="p">,</span>
-<span class="w">  </span><span class="nt">&quot;domain.org/channel2&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;username2:password2&quot;</span>
+<span class="w">  </span><span class="nt">"domain.org/channel1"</span><span class="p">:</span><span class="w"> </span><span class="s2">"username1:password1"</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">"domain.org/channel2"</span><span class="p">:</span><span class="w"> </span><span class="s2">"username2:password2"</span>
 <span class="p">}</span>
 </code></pre></div>
 <p>You can provide the authentication either as a yaml/json string through <code>--auth</code></p>
-<div class="highlight"><pre><span></span><code>conda-lock<span class="w"> </span>install<span class="w"> </span>--auth<span class="w"> </span><span class="s2">&quot;{domain: &#39;username:</span><span class="nv">$PASSWORD</span><span class="s2">&#39;}&quot;</span><span class="w"> </span>conda-linux-64.lock
+<div class="highlight"><pre><span></span><code>conda-lock<span class="w"> </span>install<span class="w"> </span>--auth<span class="w"> </span><span class="s2">"{domain: 'username:</span><span class="nv">$PASSWORD</span><span class="s2">'}"</span><span class="w"> </span>conda-linux-64.lock
 </code></pre></div>
 <p>or as a filepath through  <code>--auth-file</code>.</p>
 <div class="highlight"><pre><span></span><code>conda-lock<span class="w"> </span>install<span class="w"> </span>--auth-file<span class="w"> </span>auth.json<span class="w"> </span>conda-linux-64.lock

@@ -1131,7 +1131,7 @@ and update operations. You can supply a different filename with e.g.</p>
 environment files (env or explicit) will be named as as
 <code>"conda-{platform}.lock"</code>.</p>
 <p>If you want to override that call conda-lock as follows.</p>
-<div class="highlight"><pre><span></span><code>conda-lock<span class="w"> </span>-k<span class="w"> </span>explicit<span class="w"> </span>--filename-template<span class="w"> </span><span class="s2">&quot;specific-{platform}.conda.lock&quot;</span>
+<div class="highlight"><pre><span></span><code>conda-lock<span class="w"> </span>-k<span class="w"> </span>explicit<span class="w"> </span>--filename-template<span class="w"> </span><span class="s2">"specific-{platform}.conda.lock"</span>
 </code></pre></div>
 <p>The following fields are available for templating</p>
 <table>
@@ -1233,17 +1233,17 @@ need to regenerate the lockfiles if the underlying input specification for that 
 </code></pre></div>
 <p>In order to <code>conda-lock install</code> a lock file with its basic auth credentials stripped, you will need to create an authentication file in <code>.json</code> format like this:</p>
 <div class="highlight"><pre><span></span><code><span class="p">{</span>
-<span class="w">  </span><span class="nt">&quot;domain&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;username:password&quot;</span>
+<span class="w">  </span><span class="nt">"domain"</span><span class="p">:</span><span class="w"> </span><span class="s2">"username:password"</span>
 <span class="p">}</span>
 </code></pre></div>
 <p>If you have multiple channels that require different authentication within the same domain, you can additionally specify the channel like this:</p>
 <div class="highlight"><pre><span></span><code><span class="p">{</span>
-<span class="w">  </span><span class="nt">&quot;domain.org/channel1&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;username1:password1&quot;</span><span class="p">,</span>
-<span class="w">  </span><span class="nt">&quot;domain.org/channel2&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;username2:password2&quot;</span>
+<span class="w">  </span><span class="nt">"domain.org/channel1"</span><span class="p">:</span><span class="w"> </span><span class="s2">"username1:password1"</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">"domain.org/channel2"</span><span class="p">:</span><span class="w"> </span><span class="s2">"username2:password2"</span>
 <span class="p">}</span>
 </code></pre></div>
 <p>You can provide the authentication either as a yaml/json string through <code>--auth</code></p>
-<div class="highlight"><pre><span></span><code>conda-lock<span class="w"> </span>install<span class="w"> </span>--auth<span class="w"> </span><span class="s2">&quot;{domain: &#39;username:</span><span class="nv">$PASSWORD</span><span class="s2">&#39;}&quot;</span><span class="w"> </span>conda-linux-64.lock
+<div class="highlight"><pre><span></span><code>conda-lock<span class="w"> </span>install<span class="w"> </span>--auth<span class="w"> </span><span class="s2">"{domain: 'username:</span><span class="nv">$PASSWORD</span><span class="s2">'}"</span><span class="w"> </span>conda-linux-64.lock
 </code></pre></div>
 <p>or as a filepath through  <code>--auth-file</code>.</p>
 <div class="highlight"><pre><span></span><code>conda-lock<span class="w"> </span>install<span class="w"> </span>--auth-file<span class="w"> </span>auth.json<span class="w"> </span>conda-linux-64.lock
@@ -1257,13 +1257,13 @@ them into the solution environment with a reasonable guess at what a default sys
 <div class="highlight"><span class="filename">virtual-packages.yml</span><pre><span></span><code><span class="nt">subdirs</span><span class="p">:</span>
 <span class="w">  </span><span class="nt">linux-64</span><span class="p">:</span>
 <span class="w">    </span><span class="nt">packages</span><span class="p">:</span>
-<span class="w">      </span><span class="nt">__glibc</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;2.17&quot;</span>
-<span class="w">      </span><span class="nt">__cuda</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;11.4&quot;</span>
-<span class="w">      </span><span class="nt">__archspec</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;1</span><span class="nv"> </span><span class="s">haswell&quot;</span>
+<span class="w">      </span><span class="nt">__glibc</span><span class="p">:</span><span class="w"> </span><span class="s">"2.17"</span>
+<span class="w">      </span><span class="nt">__cuda</span><span class="p">:</span><span class="w"> </span><span class="s">"11.4"</span>
+<span class="w">      </span><span class="nt">__archspec</span><span class="p">:</span><span class="w"> </span><span class="s">"1</span><span class="nv"> </span><span class="s">haswell"</span>
 <span class="w">  </span><span class="nt">win-64</span><span class="p">:</span>
 <span class="w">    </span><span class="nt">packages</span><span class="p">:</span>
-<span class="w">      </span><span class="nt">__cuda</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;11.4&quot;</span>
-<span class="w">      </span><span class="nt">__archspec</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;1</span><span class="nv"> </span><span class="s">haswell&quot;</span>
+<span class="w">      </span><span class="nt">__cuda</span><span class="p">:</span><span class="w"> </span><span class="s">"11.4"</span>
+<span class="w">      </span><span class="nt">__archspec</span><span class="p">:</span><span class="w"> </span><span class="s">"1</span><span class="nv"> </span><span class="s">haswell"</span>
 </code></pre></div>
 <p>conda-lock will automatically use a <code>virtual-packages.yml</code> it finds in the the current working directory.  Alternatively one can be specified
 explicitly via the flag.</p>
