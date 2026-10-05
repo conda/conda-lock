@@ -77,7 +77,7 @@ class EmptyDict(TypedDict):
     pass
 
 
-HashableVirtualPackageRepresentation: "TypeAlias" = dict[
+HashableVirtualPackageRepresentation = dict[
     PlatformSubdirStr, SubdirMetadata | EmptyDict
 ]
 

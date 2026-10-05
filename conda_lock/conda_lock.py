@@ -793,15 +793,16 @@ def _solve_for_arch(
         for manager in ("conda", "pip")
     }
 
-    conda_deps = solve_conda(
-        conda,
-        specs=requested_deps_by_name["conda"],
-        locked=locked_deps_by_name["conda"],
-        update=update_spec.update,
-        platform=platform,
-        channels=channels,
-        mapping_url=mapping_url,
-    )
+    with virtual_package_repo.conda_virtual_package_overrides(platform):
+        conda_deps = solve_conda(
+            conda,
+            specs=requested_deps_by_name["conda"],
+            locked=locked_deps_by_name["conda"],
+            update=update_spec.update,
+            platform=platform,
+            channels=channels,
+            mapping_url=mapping_url,
+        )
 
     if requested_deps_by_name["pip"]:
         if "python" not in conda_deps:
@@ -1953,7 +1954,7 @@ def render_lock_spec(  # noqa: C901
     editable: Sequence[str],
 ) -> None:
     """Combine source files into a single lock specification"""
-    kinds: Set[Literal["pixi.toml", "raw"]] = set(kind)  # ty: ignore[invalid-assignment]
+    kinds: Set[Literal["pixi.toml", "raw"]] = set(kind)
     if len(kinds) == 0:
         raise ValueError("No kind specified. Add `--kind=pixi.toml` or `--kind=raw`.")
     if not kinds <= {"pixi.toml", "raw"}:

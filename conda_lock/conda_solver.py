@@ -128,14 +128,23 @@ def solve_conda(
     # extract dependencies from package plan
     planned = {}
     for action in dry_run_install["actions"]["FETCH"]:
-        dependencies = {}
+        dependency_specs: dict[str, list[MatchSpec]] = {}
         for dep in action.get("depends") or []:
             matchspec = MatchSpec(dep)  # pyright: ignore[reportArgumentType]
-            name = matchspec.name
-            version = (
-                matchspec.version.spec_str if matchspec.version is not None else ""
+            dependency_specs.setdefault(matchspec.name, []).append(matchspec)
+
+        dependencies = {}
+        for name, matchspecs in dependency_specs.items():
+            merged_matchspec = (
+                matchspecs[0]
+                if len(matchspecs) == 1
+                else MatchSpec.merge(matchspecs)[0]
             )
-            dependencies[name] = version
+            dependencies[name] = (
+                merged_matchspec.version.spec_str
+                if merged_matchspec.version is not None
+                else ""
+            )
 
         locked_dependency = LockedDependency(
             name=action["name"],
@@ -510,8 +519,10 @@ def _get_pkgs_dirs(
 
 
 def _reconstruct_fetch_actions(
-    conda: PathLike, platform: str, dry_run_install: DryRunInstall
-) -> DryRunInstall:
+    conda: PathLike,
+    platform: str,
+    dry_run_install: DryRunInstall | dict[str, dict[str, list[Any]]],
+) -> DryRunInstall | dict[str, dict[str, list[Any]]]:
     """
     Conda may choose to link a previously downloaded distribution from pkgs_dirs rather
     than downloading a fresh one. Find the repodata record in existing distributions
@@ -571,7 +582,7 @@ def solve_specs_for_arch(
     channels: Sequence[Channel],
     specs: list[str],
     platform: str,
-) -> DryRunInstall:
+) -> DryRunInstall | dict[str, dict[str, list[Any]]]:
     """
     Solve conda specifications for the given platform
 
@@ -693,7 +704,7 @@ def update_specs_for_arch(
     update: list[str],
     platform: str,
     channels: Sequence[Channel],
-) -> DryRunInstall:
+) -> DryRunInstall | dict[str, dict[str, list[Any]]]:
     """
     Update a previous solution for the given platform
 
