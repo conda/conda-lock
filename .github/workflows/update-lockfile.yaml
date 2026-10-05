@@ -42,13 +42,10 @@ jobs:
 
     - name: Run conda-lock to recreate lockfile from scratch
       run: |
-        PYTHON_VERSION=${{ matrix.python-version }}
-        rm environments/conda-lock-python-${PYTHON_VERSION}.yaml
-        conda-lock \
-            --file=environments/dev-environment.yaml \
-            --file=environments/python-${PYTHON_VERSION}.yaml \
-            --file=pyproject.toml \
-            --lockfile=environments/conda-lock-python-${PYTHON_VERSION}.yaml
+        export PYTHON_VERSION=${PY_VER}
+        source scripts/update_lockfile.sh
+      env:
+        PY_VER: ${{ matrix.python-version }}
 
     - name: Upload lockfile
       uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
