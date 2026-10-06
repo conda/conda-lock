@@ -27,40 +27,16 @@ concurrency:
 
 jobs:
   typechecks:
-    name: ${{ matrix.name }}
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-        - name: mypy
-          hook: mypy
-          setup-micromamba: false
-          os: ubuntu-latest
-        - name: ty
-          hook: ty
-          setup-micromamba: true
-          os: ubuntu-latest
+    name: ty
+    runs-on: ubuntu-latest
     steps:
     # Initialization
     - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       with:
         fetch-depth: 0
         persist-credentials: false
-    - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
-      if: matrix.setup-micromamba == false
-      with:
-        python-version: 3.14
-
-    - name: Install pre-commit (for mypy)
-      if: matrix.setup-micromamba == false
-      run: python -m pip install pre-commit
-    - name: List pip package versions
-      if: matrix.setup-micromamba == false
-      run: python -m pip freeze --local
 
     - uses: mamba-org/setup-micromamba@add3a49764cedee8ee24e82dfde87f5bc2914462 # v2.0.7
-      if: matrix.setup-micromamba == true
       with:
         environment-file: environments/conda-lock.yml
         environment-name: conda-lock-dev
@@ -69,13 +45,7 @@ jobs:
         create-args: >-
           --category=main --category=dev
 
-    - name: RUN MYPY
-      if: matrix.hook == 'mypy'
-      run: |
-        pre-commit run --verbose --show-diff-on-failure --color=always --all-files --hook-stage=manual mypy
-
-    - name: RUN TY
-      if: matrix.hook == 'ty'
+    - name: Run ty
       run: |
         pre-commit run --verbose --show-diff-on-failure --color=always --all-files ty
 
@@ -84,5 +54,5 @@ jobs:
       if: always()
       uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
       with:
-        name: pre-commit-${{ matrix.name }}.log
+        name: pre-commit-ty.log
         path: /home/runner/.cache/pre-commit/pre-commit.log

@@ -119,8 +119,9 @@ def handle_mapping(
     poetry_version_spec: str | None,
 ) -> PoetryMappedDependencySpec:
     """Handle a dependency in mapping form from a pyproject.toml file"""
+    url: str | None
     if "git" in depattrs:
-        url: str | None = depattrs.get("git", None)
+        url = depattrs.get("git", None)
         manager = "pip"
         # Order is the same as the one used by poetry
         branch_ident = depattrs.get(
