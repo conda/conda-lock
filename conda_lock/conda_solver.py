@@ -8,7 +8,13 @@ import subprocess
 import sys
 import time
 
-from collections.abc import Iterable, Iterator, MutableSequence, Sequence
+from collections.abc import (
+    Iterable,
+    Iterator,
+    MutableMapping,
+    MutableSequence,
+    Sequence,
+)
 from contextlib import contextmanager
 from textwrap import dedent
 from typing import (
@@ -390,10 +396,10 @@ def _get_installed_conda_packages(
         else:
             # Re-raise if it's a different error.
             raise
-    decoded_output = output.decode("utf-8")
-    installed: dict[str, LinkAction] = {
-        entry["name"]: entry for entry in json.loads(decoded_output)
-    }
+    output_json = json.loads(output.decode("utf-8"))
+    if isinstance(output_json, MutableMapping) and "packages" in output_json:
+        output_json = output_json["packages"]
+    installed: dict[str, LinkAction] = {entry["name"]: entry for entry in output_json}
     return installed
 
 
