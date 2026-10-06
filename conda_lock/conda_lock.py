@@ -936,8 +936,9 @@ def create_lockfile_from_spec(
     else:
         git_metadata = None
 
+    inputs_metadata: dict[str, InputMeta] | None
     if metadata_choices & {MetadataOption.InputSha, MetadataOption.InputMd5}:
-        inputs_metadata: dict[str, InputMeta] | None = {
+        inputs_metadata = {
             meta_src: InputMeta.create(
                 metadata_choices=metadata_choices, src_file=src_file
             )

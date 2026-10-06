@@ -431,6 +431,7 @@ def update_specs_for_arch(
         to_update = [
             spec_for_name[name] for name in set(installed).intersection(update)
         ]
+        dryrun_install: DryRunInstall
         if to_update:
             # NB: [micro]mamba and mainline conda have different semantics for `install` and `update`
             # - conda:
@@ -488,7 +489,7 @@ def update_specs_for_arch(
                     f"Could not lock the environment for platform {platform}: {err_json.get('message')}"
                 ) from exc
 
-            dryrun_install: DryRunInstall = json.loads(extract_json_object(proc.stdout))
+            dryrun_install = json.loads(extract_json_object(proc.stdout))
         else:
             dryrun_install = {"actions": {"LINK": [], "FETCH": []}}
 
