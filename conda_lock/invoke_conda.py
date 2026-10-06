@@ -74,7 +74,7 @@ def _invoke_conda(
     command_args: Sequence[PathLike],
     post_args: Sequence[PathLike] = [],
     check_call: bool = False,
-) -> subprocess.Popen:
+) -> "subprocess.Popen[str]":
     """
     Invoke external conda executable
 
@@ -136,6 +136,7 @@ def _invoke_conda(
 
             stdout_thread = threading.Thread(target=read_stdout)
             stdout_thread.start()
+        stderr: list[str] = []
         if p.stderr:
             stderr = _stderr_to_log(p.stderr)
         if stdout_thread:

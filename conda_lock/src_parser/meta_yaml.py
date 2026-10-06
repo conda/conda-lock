@@ -7,6 +7,8 @@ import jinja2.exceptions
 import jinja2.utils
 import yaml
 
+from typing_extensions import override
+
 from conda_lock.common import get_in
 from conda_lock.models.lock_spec import Dependency, LockSpecification
 from conda_lock.src_parser.conda_common import conda_spec_to_versioned_dep
@@ -54,9 +56,10 @@ class UndefinedNeverFail(jinja2.Undefined):
 
     # Accessing an attribute of an Undefined variable
     # results in another Undefined variable.
+    @override
     def __getattr__(self, name: str) -> "UndefinedNeverFail":
         try:
-            return object.__getattr__(self, name)  # type: ignore
+            return object.__getattr__(self, name)  # ty: ignore[unresolved-attribute]
         except AttributeError:
             assert self._undefined_name is not None
             return self._return_undefined(self._undefined_name + "." + name)
@@ -78,15 +81,18 @@ class UndefinedNeverFail(jinja2.Undefined):
 
     # Unlike the methods above, Python requires that these
     # few methods must always return the correct type
+    @override
     def __repr__(self) -> str:
         return self._return_value("")
 
     __str__ = __repr__
     __unicode__ = lambda self: self._return_value("")  # noqa: E731
 
+    @override
     def __int__(self) -> Any:
         return self._return_value(0)
 
+    @override
     def __float__(self) -> Any:
         return self._return_value(0.0)
 

@@ -14,6 +14,7 @@ from urllib.parse import urldefrag, urlsplit, urlunsplit
 from packaging.tags import compatible_tags, cpython_tags, mac_platforms
 from packaging.utils import canonicalize_name
 from packaging.version import Version
+from typing_extensions import override
 
 from conda_lock._vendor.cleo.io.inputs.argv_input import ArgvInput
 from conda_lock._vendor.cleo.io.io import IO
@@ -110,8 +111,11 @@ class PlatformEnv(VirtualEnv):
             # Handle non released Python versions e.g. release candidates
             version_match = re.match(r"(\d+)\.(\d+)\.?(\d+)?", python_version)
             if version_match:
+                # An explicit default types unmatched groups as None instead of Any.
                 self._python_version = tuple(
-                    int(each) for each in version_match.groups() if each is not None
+                    int(each)
+                    for each in version_match.groups(default=None)
+                    if each is not None
                 )
             else:
                 raise ValueError(
@@ -133,6 +137,7 @@ class PlatformEnv(VirtualEnv):
         else:
             raise ValueError(f"Unsupported platform '{platform}'")
 
+    @override
     def get_supported_tags(self) -> list["Tag"]:
         """
         Mimic the output of packaging.tags.sys_tags() on the given platform
@@ -145,6 +150,7 @@ class PlatformEnv(VirtualEnv):
             )
         )
 
+    @override
     def get_marker_env(self) -> dict[str, str]:
         """Return the subset of info needed to match common markers"""
         result: dict[str, str] = {
@@ -593,7 +599,7 @@ def solve_pypi(
         installed=installed,
         locked=locked,
         # ConsoleIO type is expected, but NullIO may be given:
-        io=io,  # pyright: ignore
+        io=io,
     )
     to_update = list(
         {canonicalize_name(spec.name) for spec in pip_locked.values()}.intersection(

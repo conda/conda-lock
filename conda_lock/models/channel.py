@@ -40,6 +40,7 @@ from typing import Any
 from urllib.parse import unquote, urlparse, urlunparse
 
 from pydantic import BaseModel, ConfigDict
+from typing_extensions import override
 
 from conda_lock._vendor.conda.common.url import (
     mask_anaconda_token,
@@ -174,6 +175,7 @@ class Channel(BaseModel):
         _, token = split_anaconda_token(expanded_url)
         return expanded_url.replace(token, "**********", 1) if token else expanded_url
 
+    @override
     def __repr_args__(self) -> list[tuple[str, Any]]:
         """Hide falsy values from repr.
 

@@ -109,7 +109,7 @@ class FullVirtualPackage(VirtualPackage):
 class FakeRepoData(BaseModel):
     base_path: pathlib.Path
     packages_by_subdir: defaultdict[FullVirtualPackage, set[PackageNameStr]] = Field(
-        default_factory=lambda: defaultdict(set)  # type: ignore[arg-type,unused-ignore]
+        default_factory=lambda: defaultdict(set)
     )
     all_subdirs: set[PlatformSubdirStr] = {
         "noarch",
