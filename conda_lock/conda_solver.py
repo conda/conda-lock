@@ -499,11 +499,12 @@ def update_specs_for_arch(
         else:
             dryrun_install = {"actions": {"LINK": [], "FETCH": []}}
 
-        if "actions" not in dryrun_install:
-            dryrun_install["actions"] = {"LINK": [], "FETCH": []}
-
-        updated = {entry["name"]: entry for entry in dryrun_install["actions"]["LINK"]}
-        for package in set(installed).difference(updated):
+        actions = dryrun_install.setdefault("actions", {"LINK": [], "FETCH": []})
+        actions.setdefault("LINK", [])
+        actions.setdefault("FETCH", [])
+        updated = {entry["name"] for entry in actions["LINK"]}
+        removed = {entry["name"] for entry in actions.get("UNLINK", [])}
+        for package in set(installed).difference(updated, removed):
             # This is the case where the package is unchanged.
             # First create a FETCH action based on the original lockfile entry.
             original_lockfile_entry = locked[package]
