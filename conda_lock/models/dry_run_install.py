@@ -1,5 +1,7 @@
 from typing import TypedDict
 
+from typing_extensions import NotRequired
+
 
 class FetchAction(TypedDict):
     """
@@ -37,6 +39,7 @@ class LinkAction(TypedDict):
 class InstallActions(TypedDict):
     LINK: list[LinkAction]
     FETCH: list[FetchAction]
+    UNLINK: NotRequired[list[LinkAction]]
 
 
 class DryRunInstall(TypedDict):
