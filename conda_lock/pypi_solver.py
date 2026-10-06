@@ -111,8 +111,11 @@ class PlatformEnv(VirtualEnv):
             # Handle non released Python versions e.g. release candidates
             version_match = re.match(r"(\d+)\.(\d+)\.?(\d+)?", python_version)
             if version_match:
+                # An explicit default types unmatched groups as None instead of Any.
                 self._python_version = tuple(
-                    int(each) for each in version_match.groups() if each is not None
+                    int(each)
+                    for each in version_match.groups(default=None)
+                    if each is not None
                 )
             else:
                 raise ValueError(
