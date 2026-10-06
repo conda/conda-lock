@@ -1,12 +1,17 @@
 import logging
 
+from collections.abc import Set
 from itertools import chain
 from typing import TypeVar
 
 from conda_lock.common import ordered_union
 from conda_lock.errors import ChannelAggregationError
 from conda_lock.models.channel import Channel
-from conda_lock.models.lock_spec import Dependency, LockSpecification
+from conda_lock.models.lock_spec import (
+    Dependency,
+    LockSpecification,
+    VersionedDependency,
+)
 from conda_lock.models.pip_repository import PipRepository
 
 
@@ -16,6 +21,8 @@ logger = logging.getLogger(__name__)
 def aggregate_lock_specs(
     lock_specs: list[LockSpecification],
     platforms: list[str],
+    *,
+    filtered_categories: Set[str] | None = None,
 ) -> LockSpecification:
     for lock_spec in lock_specs:
         if set(lock_spec.platforms) != set(platforms):
@@ -30,11 +37,64 @@ def aggregate_lock_specs(
     for platform in platforms:
         # unique dependencies
         unique_deps: dict[tuple[str, str], Dependency] = {}
+        # Conda pip is special: every `pip:` subsection generates an unconstrained
+        # fallback requirement. It takes part in ordinary last-wins like any other
+        # dependency, so existing results and content hashes are unchanged, unless
+        # the effective explicit requirement is a real constraint. Only the final
+        # explicit requirement and the final fallback decide; anything either of
+        # them superseded is irrelevant.
+        explicit_pip: Dependency | None = None
+        fallback_pip: VersionedDependency | None = None
         for dep in chain.from_iterable(
             lock_spec.dependencies.get(platform, []) for lock_spec in lock_specs
         ):
             key = (dep.manager, dep.name)
+            if key == ("conda", "pip"):
+                if isinstance(dep, VersionedDependency) and dep.is_implicit:
+                    # Provenance is resolved here and never leaves the aggregate.
+                    dep = fallback_pip = dep.model_copy(update={"is_implicit": False})
+                else:
+                    # Whatever the source wrote last, including a URL, VCS or
+                    # path reference, is the explicit requirement.
+                    explicit_pip = dep
             unique_deps[key] = dep
+
+        # A real explicit constraint beats the fallback wherever either appears.
+        pip_constraint: Dependency | None = None
+        if (
+            explicit_pip is not None
+            and fallback_pip is not None
+            and not _is_unconstrained(explicit_pip)
+        ):
+            pip_constraint = explicit_pip
+            unique_deps[("conda", "pip")] = pip_constraint
+
+        # Preserve last-wins handling of explicit dependencies, then filter categories.
+        if filtered_categories is not None:
+            unique_deps = {
+                key: dep
+                for key, dep in unique_deps.items()
+                if dep.category in filtered_categories
+            }
+        if (
+            pip_constraint is not None
+            and fallback_pip is not None
+            and (
+                filtered_categories is None
+                or fallback_pip.category in filtered_categories
+            )
+        ):
+            if ("conda", "pip") not in unique_deps:
+                # The constraint belongs to an excluded category, so the
+                # subsection's own requirement applies again.
+                unique_deps[("conda", "pip")] = fallback_pip
+            elif pip_constraint.category != fallback_pip.category:
+                # pip is needed by the subsection's category as well as by the
+                # constraint. The fallback's main category is installed with every
+                # selection, so it covers both without merging anything.
+                unique_deps[("conda", "pip")] = pip_constraint.model_copy(
+                    update={"category": fallback_pip.category}
+                )
 
         dependencies[platform] = list(unique_deps.values())
 
@@ -64,6 +124,16 @@ def aggregate_lock_specs(
         allow_pypi_requests=all(
             lock_spec.allow_pypi_requests for lock_spec in lock_specs
         ),
+    )
+
+
+def _is_unconstrained(dep: Dependency) -> bool:
+    return (
+        isinstance(dep, VersionedDependency)
+        and dep.version in ("", "*")
+        and dep.build is None
+        and dep.conda_channel is None
+        and dep.hash is None
     )
 
 

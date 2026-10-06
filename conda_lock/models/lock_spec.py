@@ -28,6 +28,10 @@ class VersionedDependency(_BaseDependency):
     build: str | None = None
     conda_channel: str | None = None
     hash: str | None = None
+    # Marks the conda pip fallback that a pip subsection generates. Aggregation
+    # resolves it, so aggregated specifications, solver input and content hashes
+    # never carry it.
+    is_implicit: bool = Field(default=False, exclude=True, repr=False)
 
 
 class URLDependency(_BaseDependency):
