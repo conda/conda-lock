@@ -8,19 +8,12 @@ from __future__ import annotations
 
 
 try:
-    from conda.plugins import (
-        hookimpl,  # type: ignore[unused-ignore]
-    )
-    from conda.plugins.types import (
-        CondaSubcommand,  # type: ignore[unused-ignore]
-    )
-
-    HAVE_CONDA = True
+    from conda.plugins import hookimpl
+    from conda.plugins.types import CondaSubcommand
 except ImportError:
     HAVE_CONDA = False
-
-
-if HAVE_CONDA:
+else:
+    HAVE_CONDA = True
 
     def _execute(args: tuple[str, ...]) -> int | None:
         """Dispatch plugin arguments to the lock CLI.

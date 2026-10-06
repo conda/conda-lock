@@ -324,7 +324,7 @@ def solve_specs_for_arch(
         encoding="utf8",
     )
 
-    def print_proc(proc: subprocess.CompletedProcess) -> None:
+    def print_proc(proc: "subprocess.CompletedProcess[str]") -> None:
         print(f"    Command: {proc.args}", file=sys.stderr)
         if proc.stdout:
             print(f"    STDOUT:\n{proc.stdout}", file=sys.stderr)
@@ -433,7 +433,7 @@ def update_specs_for_arch(
 
     with fake_conda_environment(locked.values(), platform=platform) as prefix:
         installed = _get_installed_conda_packages(conda, platform, prefix)
-        spec_for_name = {MatchSpec(v).name: v for v in specs}  # pyright: ignore
+        spec_for_name = {MatchSpec(v).name: v for v in specs}
         to_update = [
             spec_for_name[name] for name in set(installed).intersection(update)
         ]

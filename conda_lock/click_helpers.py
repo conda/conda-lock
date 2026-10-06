@@ -4,6 +4,7 @@ from typing import Any
 import click
 
 from click_default_group import DefaultGroup
+from typing_extensions import override
 
 
 class OrderedGroup(DefaultGroup):
@@ -17,5 +18,6 @@ class OrderedGroup(DefaultGroup):
         #: the registered subcommands by their exported names.
         self.commands = commands or OrderedDict()
 
+    @override
     def list_commands(self, ctx: click.Context) -> dict[str, click.Command]:
         return self.commands

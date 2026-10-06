@@ -219,7 +219,7 @@ class GitMeta(StrictModel):
                 most_recent_datetime: datetime.datetime | None = None
                 for src_file in src_files:
                     relative_src_file_path = relative_path(
-                        pathlib.Path(repo.working_tree_dir),  # type: ignore
+                        pathlib.Path(repo.working_tree_dir),  # ty: ignore[invalid-argument-type]
                         src_file,
                     )
                     commit = list(
@@ -240,9 +240,9 @@ class GitMeta(StrictModel):
                             most_recent_datetime = commit.committed_datetime
                             git_sha = commit.hexsha
             if MetadataOption.GitUserName in metadata_choices:
-                git_user_name = repo.config_reader().get_value("user", "name", None)  # type: ignore
+                git_user_name = repo.config_reader().get_value("user", "name", None)  # ty: ignore[invalid-assignment]
             if MetadataOption.GitUserEmail in metadata_choices:
-                git_user_email = repo.config_reader().get_value("user", "email", None)  # type: ignore
+                git_user_email = repo.config_reader().get_value("user", "email", None)  # ty: ignore[invalid-assignment]
         except git.exc.InvalidGitRepositoryError:
             pass
 
