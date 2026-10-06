@@ -199,7 +199,9 @@ line-length = 88
 extend-exclude = ["conda_lock/_vendor"]
 
 [tool.ruff.lint]
+extend-select = ["ANN"]
 ignore = [
+    "ANN401",  # Preserve existing explicit Any annotations.
     "E501",
     "F403",
     # Disabled during migration to Ruff:
@@ -239,3 +241,12 @@ max-complexity = 18
 [tool.ruff.lint.isort]
 lines-after-imports = 2
 lines-between-types = 1
+
+[tool.ruff.lint.flake8-annotations]
+# Match mypy's treatment of __init__ with annotated parameters.
+mypy-init-return = true
+
+[tool.ruff.lint.per-file-ignores]
+# Match the previous annotation requirement for first-party package code.
+"!conda_lock/**" = ["ANN"]
+"conda_lock/scripts/vendor_poetry/**" = ["ANN"]
