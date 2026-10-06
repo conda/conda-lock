@@ -26,3 +26,15 @@ unsupported-dynamic-base = "error"
 [terminal]
 # Preserve enforcement of default warning rules, including unused ignores.
 error-on-warning = true
+
+# The content-hash schemas already pass these stronger checks.
+[[overrides]]
+include = [
+    "conda_lock/content_hash.py",
+    "conda_lock/content_hash_types.py",
+    "conda_lock/models/dry_run_install.py",
+]
+[overrides.rules]
+missing-type-argument = "error"
+unsound-assignment = "error"
+unsound-return-statement = "error"
