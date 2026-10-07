@@ -31,12 +31,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     # Initialization
-    - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       with:
         fetch-depth: 0
         persist-credentials: false
 
-    - uses: mamba-org/setup-micromamba@add3a49764cedee8ee24e82dfde87f5bc2914462 # v2.0.7
+    - uses: mamba-org/setup-micromamba@f457c30a868e4760d3a6fcea5f25dc655b8edf39 # v3.2.1
       with:
         environment-file: environments/conda-lock.yml
         environment-name: conda-lock-dev
@@ -52,7 +52,7 @@ jobs:
     # Upload logs
     - name: Upload pre-commit log
       if: always()
-      uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
       with:
         name: pre-commit-ty.log
         path: /home/runner/.cache/pre-commit/pre-commit.log
