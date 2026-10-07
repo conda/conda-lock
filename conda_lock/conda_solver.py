@@ -21,7 +21,7 @@ from typing import (
     Any,
     Literal,
 )
-from urllib.parse import urlsplit, urlunsplit
+from urllib.parse import unquote, urlsplit, urlunsplit
 
 from conda_lock.interfaces.vendored_conda import MatchSpec
 from conda_lock.invoke_conda import (
@@ -545,7 +545,7 @@ def fake_conda_environment(
             channel = urlunsplit(
                 (url.scheme, url.hostname, str(path.parent), None, None)
             )
-            truncated_path = path
+            truncated_path = path.with_name(unquote(path.name))
             while truncated_path.suffix in {".tar", ".bz2", ".gz", ".conda"}:
                 truncated_path = truncated_path.with_suffix("")
             build = truncated_path.name.split("-")[-1]
@@ -562,7 +562,7 @@ def fake_conda_environment(
                 "build_number": build_number,
                 "version": dep.version,
                 "subdir": path.parent.name,
-                "fn": path.name,
+                "fn": unquote(path.name),
                 "depends": [f"{k} {v}".strip() for k, v in dep.dependencies.items()],
             }
             # mamba requires these to be stringlike so null are not allowed here
