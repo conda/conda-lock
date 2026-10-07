@@ -2,6 +2,34 @@
 
 conda-lock has experimental support to allow locking mixed conda/pip environments.
 
+Declare `pip` in your conda dependencies if you need it. A `pip:` section in an
+environment file also requests the installer automatically. Requesting only
+Python does not request pip; a package that actually depends on pip still brings
+it in as a dependency.
+
+This changes previous Mamba behavior: conda-lock now disables Mamba's automatic
+pip injection, as it already does for conda. Existing lockfiles retain their
+packages when installed. Fresh locks and selective updates apply this policy
+using the source specification and verified channel dependencies, even if you
+switch solver versions. An older lockfile's inclusion of pip does not establish
+that it was requested.
+
+Mamba versions affected by [mamba#4422](https://github.com/mamba-org/mamba/issues/4422)
+still inject pip for an explicit Python request despite this setting. Conda-lock
+removes verified unrequested pip and dependencies needed exclusively by it. It
+preserves shared dependencies and genuine pip requirements with their proper
+categories. This normalization applies before pinning old packages during updates
+and after a successful solve.
+
+Retaining explicitly requested or genuinely required pip does not itself require
+another channel query. Before omitting unrequested pip, or deciding whether a
+Python-to-pip dependency is genuine, conda-lock verifies the plan against channel
+metadata. Offline Mamba cannot perform that verification for remote channels;
+see [offline verification limits](basic_usage.md#updating-packages).
+
+If injected pip makes the solver itself fail, post-processing cannot repair that
+failure. Use a Mamba version with the upstream fix or use conda for that solve.
+
 ## Usage with environment.yaml
 
 `conda-lock` can lock the `dependencies.pip` section of
