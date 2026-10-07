@@ -37,9 +37,11 @@ from conda_lock.models.lock_spec import Dependency, VersionedDependency
 from conda_lock.solver.channel_metadata import verified_channel_records
 from conda_lock.solver.dry_run import reconstruct_fetch_actions_in_place
 from conda_lock.solver.graph_integrity import (
+    check_categories_assigned,
     check_dependencies_present,
     check_dependency_constraints,
 )
+from conda_lock.solver.pip_policy import omit_unrequested_pip, unrequested_pip_packages
 from conda_lock.tempdir_manager import temporary_directory
 
 
@@ -146,11 +148,30 @@ def solve_conda(
         )
     logging.debug("dry_run_install:\n%s", dry_run_install)
 
-    check_dependency_constraints(dry_run_install["actions"]["FETCH"])
+    records = dry_run_install["actions"]["FETCH"]
+    by_name = {record["name"]: record for record in records}
+    requested = {name for name, dep in specs.items() if dep.manager == "conda"}
+    if "pip" in by_name and (
+        unrequested_pip_packages(by_name, requested)
+        or any(
+            MatchSpec(dep).name == "pip"
+            for dep in by_name.get("python", {}).get("depends", []) or []
+        )
+    ):
+        # Verify before omitting anything, or interpreting a possible injected
+        # Python -> pip edge. Even rich live actions can come from extracted
+        # records in offline Mamba. Connected pip otherwise needs no extra query.
+        records = list(
+            omit_unrequested_pip(
+                verified_channel_records(conda, platform, records),
+                requested,
+            ).values()
+        )
+    check_dependency_constraints(records)
 
     # extract dependencies from package plan
     planned = {}
-    for action in dry_run_install["actions"]["FETCH"]:
+    for action in records:
         dependencies = _dependency_versions(action.get("depends") or [])
 
         locked_dependency = LockedDependency(
@@ -178,6 +199,7 @@ def solve_conda(
         mapping_url=mapping_url,
     )
 
+    check_categories_assigned(planned)
     return planned
 
 
@@ -346,8 +368,13 @@ def update_specs_for_arch(
             "Refreshed dependency metadata from verified channel artifacts: %s",
             refreshed,
         )
+    current_records = omit_unrequested_pip(
+        current_records, (MatchSpec(spec).name for spec in specs)
+    )
     with fake_conda_environment(
-        locked.values(), platform=platform, repodata=current_records
+        (dep for name, dep in locked.items() if name in current_records),
+        platform=platform,
+        repodata=current_records,
     ) as prefix:
         installed = _get_installed_conda_packages(conda, platform, prefix)
         spec_for_name = {MatchSpec(v).name: v for v in specs}  # pyright: ignore

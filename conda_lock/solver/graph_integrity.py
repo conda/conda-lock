@@ -1,4 +1,4 @@
-"""Check required packages and constraints in the supplied solver graph."""
+"""Check supplied dependency edges, package constraints and category assignment."""
 
 from collections.abc import Mapping, Sequence
 from pathlib import PurePosixPath
@@ -26,6 +26,18 @@ def check_dependencies_present(planned: Mapping[str, LockedDependency]) -> None:
     if missing:
         raise MetadataConsistencyError(
             f"Solver plan is missing required packages: {missing}"
+        )
+
+
+def check_categories_assigned(planned: Mapping[str, LockedDependency]) -> None:
+    orphans = sorted(
+        name
+        for name, package in planned.items()
+        if not package.categories and not name.startswith("__")
+    )
+    if orphans:
+        raise MetadataConsistencyError(
+            f"Planned packages have no category and would be omitted from the lockfile: {orphans}"
         )
 
 

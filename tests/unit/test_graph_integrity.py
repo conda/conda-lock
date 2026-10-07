@@ -6,7 +6,7 @@ from conda_lock.models.channel import Channel
 from conda_lock.models.lock_spec import VersionedDependency
 
 
-@pytest.mark.parametrize("missing_dependency", [True])
+@pytest.mark.parametrize("missing_dependency", [False, True])
 def test_incomplete_plan_fails_before_packages_can_be_dropped(
     monkeypatch, missing_dependency
 ):
