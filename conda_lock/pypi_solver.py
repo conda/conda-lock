@@ -351,7 +351,7 @@ def get_package(locked: LockedDependency) -> PoetryPackage:
             locked.name,
             source_type="url",
             source_url=locked.source.url,
-            version="0.0.0",
+            version=locked.version,
         )
     else:
         return PoetryPackage(locked.name, version=locked.version)
