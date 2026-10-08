@@ -98,3 +98,29 @@ def test_remote_verification_respects_offline_from_configuration(monkeypatch):
         channel_metadata.query_channel_records(
             "/solver", "linux-64", [MAMBA_26_LINK_ACTION]
         )
+
+
+@pytest.mark.parametrize("version", [None, Version("2.7.0"), Version("2.8.0")])
+def test_channel_query_does_not_normalize_null_after_upstream_fix(monkeypatch, version):
+    monkeypatch.setenv("CONDA_FLAGS", "")
+    monkeypatch.setattr(channel_metadata, "mamba_binary_version", lambda _: version)
+    record = {**MAMBA_26_LINK_ACTION, "depends": None}
+    response = {"result": {"pkgs": [record]}} if version else {record["name"]: [record]}
+
+    def run(command, **kwargs):
+        if command[1:3] == ["config", "list"]:
+            return subprocess.CompletedProcess(command, 0, '{"offline": false}')
+        return subprocess.CompletedProcess(command, 0, json.dumps(response))
+
+    monkeypatch.setattr(channel_metadata.subprocess, "run", run)
+    if version == Version("2.7.0"):
+        verified = channel_metadata.verified_channel_records(
+            "/solver", "linux-64", [record]
+        )
+        assert verified[MAMBA_26_LINK_ACTION["name"]]["depends"] == []
+    else:
+        with pytest.raises(
+            MetadataConsistencyError, match="identity cannot be verified"
+        ):
+            channel_metadata.verified_channel_records("/solver", "linux-64", [record])
+

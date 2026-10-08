@@ -88,7 +88,8 @@ def _validate_live_actions(
     ]
     if null_depends:
         version = mamba_binary_version(str(conda))
-        if version is not None and Version("2.0") <= version < Version("2.9"):
+        # Fixed by https://github.com/mamba-org/mamba/pull/4284 in 2.8.0.
+        if version is not None and Version("2.0") <= version < Version("2.8"):
             for record in null_depends:
                 record["depends"] = []
 

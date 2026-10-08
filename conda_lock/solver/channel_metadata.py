@@ -127,7 +127,8 @@ def query_channel_records(
         raise MetadataConsistencyError(
             "Could not query channel metadata for cached packages"
         ) from exc
-    if version is not None and Version("2") <= version < Version("2.9"):
+    # JSON flattening lost empty arrays before mamba-org/mamba#4284 (2.8.0).
+    if version is not None and Version("2") <= version < Version("2.8"):
         for record in result:
             if "depends" in record and record["depends"] is None:
                 record["depends"] = []

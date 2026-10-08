@@ -436,20 +436,21 @@ def test_conflicting_live_actions_are_rejected(field, value):
         reconstruct_fetch_actions_in_place("/dummy", "linux-64", dryrun)
 
 
-def test_null_dependencies_are_only_normalized_for_known_live_protocol(monkeypatch):
+@pytest.mark.parametrize("version", ["2.6.0", "2.7.0", "2.8.0", None])
+def test_null_dependencies_are_only_normalized_for_known_live_protocol(
+    monkeypatch, version
+):
     from packaging.version import Version
 
     monkeypatch.setattr(
-        "conda_lock.solver.dry_run.mamba_binary_version", lambda _: Version("2.6.0")
+        "conda_lock.solver.dry_run.mamba_binary_version",
+        lambda _: Version(version) if version else None,
     )
     record = {**_MAMBA_26_LINK_ACTION, "depends": None}
-    dryrun = {"actions": {"LINK": [dict(record)]}}
-    reconstruct_fetch_actions_in_place("/dummy", "linux-64", dryrun)
-    assert dryrun["actions"]["FETCH"][0]["depends"] == []
-    monkeypatch.setattr(
-        "conda_lock.solver.dry_run.mamba_binary_version", lambda _: None
-    )
-    with pytest.raises(MetadataConsistencyError, match="depends must be"):
-        reconstruct_fetch_actions_in_place(
-            "/dummy", "linux-64", {"actions": {"FETCH": [record]}}
-        )
+    dryrun = {"actions": {"FETCH": [record]}}
+    if version in {"2.6.0", "2.7.0"}:
+        reconstruct_fetch_actions_in_place("/dummy", "linux-64", dryrun)
+        assert dryrun["actions"]["FETCH"][0]["depends"] == []
+    else:
+        with pytest.raises(MetadataConsistencyError, match="depends must be"):
+            reconstruct_fetch_actions_in_place("/dummy", "linux-64", dryrun)
