@@ -1,10 +1,25 @@
+# Default virtual packages used when no --virtual-package-spec is provided.
+#
+# Each version represents the assumed minimum system capability. The solver
+# filters out any package that requires a newer version, so these act as upper
+# bounds on which packages are considered. Conversely, they act as lower bounds
+# on the systems where the resulting lockfile can be installed.
+#
+# For example, with __glibc: "2.28", packages requiring glibc > 2.28 are
+# excluded from the lockfile, and the lockfile is installable on any system
+# with glibc >= 2.28.
+#
+# Tradeoff: increasing a version widens the set of candidate packages but
+# narrows the set of compatible target systems. If a package you need is being
+# filtered out, increase the version. If the lockfile is incompatible with your
+# target system, decrease the version. To override these defaults, create a
+# virtual-packages.yml file (see README.md).
 subdirs:
   linux-64:
     packages:
       __unix: "0"
       __linux: "5.10"
       __archspec: "1 x86_64"
-      # NOTE: Keep this in sync with the MANYLINUX_TAGS maximum in pypi_solver.py
       __glibc: "2.28"
       __cuda: "11.4"
   linux-aarch64:
@@ -12,7 +27,6 @@ subdirs:
       __unix: "0"
       __linux: "5.10"
       __archspec: "1 aarch64"
-      # NOTE: Keep this in sync with the MANYLINUX_TAGS maximum in pypi_solver.py
       __glibc: "2.28"
       __cuda: "11.4"
   linux-ppc64le:
@@ -20,7 +34,6 @@ subdirs:
       __unix: "0"
       __linux: "5.10"
       __archspec: "1 ppc64le"
-      # NOTE: Keep this in sync with the MANYLINUX_TAGS maximum in pypi_solver.py
       __glibc: "2.28"
       __cuda: "11.4"
   osx-64:
