@@ -1,14 +1,13 @@
-"""Check extracted package records against the solver's channel metadata API."""
+"""Check extracted package records using the solver's JSON search commands."""
 
 import json
 import os
-import re
 import shlex
 import subprocess
 
 from collections.abc import Mapping, Sequence
 from typing import Any
-from urllib.parse import urlsplit, urlunsplit
+from urllib.parse import quote, urlsplit, urlunsplit
 
 from packaging.version import Version
 
@@ -26,25 +25,43 @@ from conda_lock.solver.repodata_cache import (
 )
 
 
+def _conda_record_with_url(record: dict[str, Any]) -> dict[str, Any]:
+    # Recent Conda search output omits `url`, but its `channel` is the full
+    # subdirectory URL. Never infer an artifact location from a channel alias.
+    if "url" in record or not isinstance(record.get("channel"), str):
+        return record
+    location = urlsplit(record["channel"])
+    filename = record.get("fn")
+    if (
+        location.scheme in {"https", "http", "file"}
+        and location.path.rstrip("/").rsplit("/", 1)[-1] == record.get("subdir")
+        and isinstance(filename, str)
+    ):
+        url = urlunsplit(
+            location._replace(path=location.path.rstrip("/") + "/" + quote(filename))
+        )
+        return {**record, "url": url}
+    return record
+
+
 def query_channel_records(
     conda: PathLike, platform: str, records: Sequence[Mapping[str, Any]]
 ) -> list[dict[str, Any]]:
     """Read channel records without solving or trusting installed metadata.
 
-    Query only the channels of the selected artifacts. Mamba's repoquery API
+    Query only the channels of the selected artifacts. Mamba's repoquery command
     handles both full and sharded repodata, so this does not depend on private
     cache filenames or interpret an archive's index.json as channel metadata.
     """
     version = mamba_binary_version(conda)
     names = sorted({record["name"] for record in records})
     if version is not None and version >= Version("2"):
-        command = [str(conda), "repoquery", "search", *names]
+        commands = [[str(conda), "repoquery", "search", *names]]
     else:
-        # Conda accepts one MatchSpec. Parentheses have special meaning in its
-        # parser, so use anchored alternatives without a capturing group.
-        query = "|".join(f"^{re.escape(name)}$" for name in names)
-        command = [str(conda), "search", query]
-    command.extend(["--json", "--override-channels"])
+        # Conda accepts one MatchSpec per search. Recent versions reject regex
+        # package names (conda/conda#16096), so query exact names individually.
+        commands = [[str(conda), "search", name] for name in names]
+    flags = ["--json", "--override-channels"]
     offline = "--offline" in shlex.split(os.environ.get("CONDA_FLAGS", ""))
     channels = set()
     for record in records:
@@ -54,7 +71,7 @@ def query_channel_records(
             urlunsplit(parsed._replace(path=channel_path, query="", fragment=""))
         )
     for channel in sorted(channels):
-        command.extend(["--channel", channel])
+        flags.extend(["--channel", channel])
     env = {
         **conda_env_override(platform),
         "MAMBA_ADD_PIP_AS_PYTHON_DEPENDENCY": "False",
@@ -96,37 +113,42 @@ def query_channel_records(
                     "Use conda for offline verification or allow an online channel query"
                 )
     if offline:
-        command.append("--offline")
-    proc = subprocess.run(  # noqa: UP022  # Poetry monkeypatch breaks capture_output
-        command,
-        # repoquery can inject Python -> pip while loading records, even though
-        # it is not solving. Verification needs the actual channel dependencies.
-        env=env,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        encoding="utf8",
-    )
-    try:
-        proc.check_returncode()
-        data = json.loads(extract_json_object(proc.stdout))
-        if version is not None and version >= Version("2"):
-            result = data["result"]["pkgs"]
-        else:
-            result = [record for entries in data.values() for record in entries]
-        if not isinstance(result, list) or any(
-            not isinstance(record, dict) for record in result
-        ):
-            raise ValueError("channel query did not return package records")
-    except (
-        subprocess.CalledProcessError,
-        ValueError,
-        TypeError,
-        KeyError,
-        AttributeError,
-    ) as exc:
-        raise MetadataConsistencyError(
-            "Could not query channel metadata for cached packages"
-        ) from exc
+        flags.append("--offline")
+    result = []
+    for command in commands:
+        proc = subprocess.run(  # noqa: UP022  # Poetry monkeypatch breaks capture_output
+            [*command, *flags],
+            # repoquery can inject Python -> pip while loading records, even though
+            # it is not solving. Verification needs the actual channel dependencies.
+            env=env,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            encoding="utf8",
+        )
+        try:
+            proc.check_returncode()
+            data = json.loads(extract_json_object(proc.stdout))
+            if version is not None and version >= Version("2"):
+                entries = data["result"]["pkgs"]
+            else:
+                entries = [record for records in data.values() for record in records]
+            if not isinstance(entries, list) or any(
+                not isinstance(record, dict) for record in entries
+            ):
+                raise ValueError("channel query did not return package records")
+            if version is None or version < Version("2"):
+                entries = [_conda_record_with_url(record) for record in entries]
+        except (
+            subprocess.CalledProcessError,
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+        ) as exc:
+            raise MetadataConsistencyError(
+                "Could not query channel metadata for cached packages"
+            ) from exc
+        result.extend(entries)
     # JSON flattening lost empty arrays before mamba-org/mamba#4284 (2.8.0).
     if version is not None and Version("2") <= version < Version("2.8"):
         for record in result:

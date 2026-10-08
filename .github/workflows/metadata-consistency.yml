@@ -30,6 +30,8 @@ jobs:
             executable: bin/micromamba
           - package: micromamba=2.9.0
             executable: bin/micromamba
+          - package: conda=26.7.2
+            executable: bin/conda
           - package: conda-standalone=26.1.1
             executable: standalone_conda/conda.exe
     name: ${{ matrix.package }}

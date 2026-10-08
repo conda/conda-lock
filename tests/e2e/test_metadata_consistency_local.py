@@ -122,7 +122,7 @@ def test_cold_warm_contaminated_update_and_install(
     condarc = tmp_path / "condarc"
     condarc.write_text("channels: []\n")
     monkeypatch.setenv("CONDARC", str(condarc))
-    offline_flags = [] if Path(solver).name == "conda.exe" else ["--offline"]
+    offline_flags = [] if Path(solver).name in {"conda", "conda.exe"} else ["--offline"]
     monkeypatch.setenv("CONDA_FLAGS", " ".join(offline_flags))
     monkeypatch.setenv("CONDA_OVERRIDE_GLIBC", "99.0")  # #928 must replace this.
     captures = []
