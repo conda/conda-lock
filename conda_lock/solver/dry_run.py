@@ -157,7 +157,7 @@ def reconstruct_fetch_actions_in_place(
 
     # Mamba-family solvers put the full repodata into LINK actions, so we
     # can often synthesize FETCH without going to disk. Resolve those first
-    # and only query the (potentially expensive) ``pkgs_dirs`` listing if
+    # and only run another subprocess to discover ``pkgs_dirs`` if
     # anything is left over.
     deferred: list[tuple[str, LinkAction]] = []
     for link_pkg_name in link_only_names:

@@ -33,6 +33,7 @@ logger = logging.getLogger(__name__)
 # `/t/<token>` with no requirement on a trailing path -- the URL may end
 # right after the token. We accept the same character class without
 # requiring a trailing slash.
+# https://github.com/mamba-org/mamba/blob/e0172cadfb4c286ff51b08c0314bdcf213707c0f/libmamba/src/core/util.cpp#L77
 _TOKEN_PATH_RE = re.compile(r"/t/[a-zA-Z0-9_-]*")
 
 
@@ -41,11 +42,12 @@ def libmamba_strip_url_secrets(url: str) -> str:
 
     This is a *libmamba-compat helper*, not a general-purpose URL
     sanitizer. The callers (cache path derivation and cache record
-    URL comparison) need bit-for-bit parity with how libmamba 2.6.0
-    cleans URLs, including the deliberately overbroad ``/t/<chars>``
-    handling pinned in tests. Don't reuse this for security-sensitive
-    URL scrubbing without re-reading what libmamba's
-    ``remove_secrets_and_login_credentials`` actually does.
+    URL comparison) follow libmamba 2.6.0 for the package URL forms tested
+    here, including its deliberately broad ``/t/<chars>`` handling. This
+    does not reproduce every input accepted by its text sanitizer (for
+    example, already-masked tokens). Do not use it for security-sensitive
+    URL scrubbing. Upstream ``remove_secrets_and_login_credentials``:
+    https://github.com/mamba-org/mamba/blob/e0172cadfb4c286ff51b08c0314bdcf213707c0f/libmamba/src/core/util.cpp#L1673
 
     Covers the cases that conda-lock encounters for package URLs:
 
@@ -65,6 +67,7 @@ def libmamba_strip_url_secrets(url: str) -> str:
     # Scheme-less URL: ``urlsplit`` parks everything in ``path``, so
     # handle userinfo and token explicitly. This mirrors libmamba's
     # explicit no-scheme tests in test_cpp.cpp.
+    # https://github.com/mamba-org/mamba/blob/e0172cadfb4c286ff51b08c0314bdcf213707c0f/libmamba/tests/src/core/test_cpp.cpp#L149
     at_pos = url.find("@")
     slash_pos = url.find("/")
     if at_pos != -1 and (slash_pos == -1 or at_pos < slash_pos):
@@ -80,6 +83,9 @@ def _normalize_url_for_cache_path(url: str) -> str:
     ``package_cache_folder_relative_path``: scheme separators ``://``
     become ``/`` and remaining ``:`` / ``\\`` are replaced with ``_``.
     Path separators are preserved.
+
+    Upstream ``package_cache_folder_relative_path``:
+    https://github.com/mamba-org/mamba/blob/e0172cadfb4c286ff51b08c0314bdcf213707c0f/libmamba/src/core/package_cache.cpp#L26
 
     >>> _normalize_url_for_cache_path("https://conda.anaconda.org/conda-forge/linux-64")
     'https/conda.anaconda.org/conda-forge/linux-64'
@@ -110,6 +116,7 @@ def hierarchical_cache_subpath(link_action: Mapping[str, Any]) -> pathlib.Path |
 
     Prefers the LINK action's ``url`` (stripping the filename), falling back
     to ``base_url`` + ``platform``. Returns ``None`` when neither is usable.
+    See ``package_cache_folder_relative_path`` linked above for the layout.
 
     >>> hierarchical_cache_subpath(
     ...     {"url": "https://conda.anaconda.org/conda-forge/linux-64/libzlib-1.3.2-h25fd6f3_2.conda"}

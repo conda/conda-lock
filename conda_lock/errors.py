@@ -31,5 +31,9 @@ class MetadataConsistencyError(CondaLockError):
             f"{detail}. Cannot safely construct the lockfile dependency graph. "
             "Regenerate from the original source files with a fresh package cache "
             "and a current solver, writing to a new lockfile path without --update. "
-            "Also check for additional pkgs_dirs in your solver configuration."
+            "To locate additional caches, run `mamba config list pkgs_dirs --sources` "
+            "(use `micromamba` instead for micromamba), or "
+            "`conda config --show-sources` and `conda config --show pkgs_dirs`. "
+            "For cache isolation and recovery commands, see "
+            "https://conda.github.io/conda-lock/troubleshooting/#metadata-consistency-errors"
         )
