@@ -260,7 +260,7 @@ def test_candidate_record_paths_are_metadata_derived(tmp_path: Path):
         pkgs, "libzlib-1.3.2-h25fd6f3_2", _MAMBA_26_LINK_ACTION
     )
     assert len(paths) == 2
-    assert "https/conda.anaconda.org/conda-forge/linux-64" in str(paths[0])
+    assert "https/conda.anaconda.org/conda-forge/linux-64" in paths[0].as_posix()
     assert paths[1] == pkgs / "libzlib-1.3.2-h25fd6f3_2/info/repodata_record.json"
 
 
