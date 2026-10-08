@@ -1,0 +1,81 @@
+name: metadata consistency
+
+permissions: {}
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}
+  cancel-in-progress: true
+
+jobs:
+  metadata:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - package: mamba=2.3.2
+            executable: bin/mamba
+          - package: mamba=2.6.0
+            executable: bin/mamba
+          - package: mamba=2.9.0
+            executable: bin/mamba
+          - package: micromamba=2.6.2
+            executable: bin/micromamba
+          - package: micromamba=2.9.0
+            executable: bin/micromamba
+          - package: conda=26.7.2
+            executable: bin/conda
+          - package: conda-standalone=26.1.1
+            executable: standalone_conda/conda.exe
+    name: ${{ matrix.package }}
+    defaults:
+      run:
+        shell: bash -leo pipefail {0}
+    env:
+      SOLVER_PACKAGE: ${{ matrix.package }}
+      SOLVER_EXECUTABLE: ${{ matrix.executable }}
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+      - name: Prepare locked test environment
+        run: |
+          mkdir -p "$RUNNER_TEMP/metadata-env"
+          cp environments/conda-lock-python-3.14.yaml "$RUNNER_TEMP/metadata-env/conda-lock.yml"
+      - uses: mamba-org/setup-micromamba@add3a49764cedee8ee24e82dfde87f5bc2914462 # v2.0.7
+        with:
+          micromamba-version: '2.5.0-2'
+          environment-file: ${{ runner.temp }}/metadata-env/conda-lock.yml
+          environment-name: conda-lock-dev
+          init-shell: bash
+          cache-environment: true
+          create-args: --category=main --category=dev
+      - name: Install conda-lock and the matrix solver
+        run: |
+          pip install -e . --no-deps
+          micromamba create -y --override-channels -c conda-forge \
+            -p "$RUNNER_TEMP/metadata-solver" "$SOLVER_PACKAGE"
+          micromamba create -y --override-channels -c conda-forge \
+            -p "$RUNNER_TEMP/metadata-baseline" 'mamba=2.3.2'
+      - name: Exercise cold, warm, contaminated and updated locks
+        run: |
+          export CONDA_LOCK_METADATA_SOLVERS="$RUNNER_TEMP/metadata-solver/$SOLVER_EXECUTABLE"
+          export CONDA_LOCK_METADATA_BASELINE_SOLVER="$RUNNER_TEMP/metadata-baseline/bin/mamba"
+          test -x "$CONDA_LOCK_METADATA_SOLVERS"
+          test -x "$CONDA_LOCK_METADATA_BASELINE_SOLVER"
+          "$CONDA_LOCK_METADATA_SOLVERS" --version
+          pytest -n 0 tests/e2e/test_metadata_consistency_local.py \
+            tests/e2e/test_pip_normalization.py \
+            --basetemp="$RUNNER_TEMP/metadata-evidence"
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        if: failure()
+        with:
+          name: metadata-${{ strategy.job-index }}
+          path: ${{ runner.temp }}/metadata-evidence

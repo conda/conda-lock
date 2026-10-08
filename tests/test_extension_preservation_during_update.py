@@ -5,6 +5,7 @@ This file focuses on unit tests for helper functions and will contain
 the new integration test that uses a local conda channel fixture.
 """
 
+import hashlib
 import io
 import json
 import tarfile
@@ -34,7 +35,7 @@ def local_conda_channel(tmp_path: Path) -> Generator[Path, None, None]:
     linux_64_path.mkdir(parents=True)
     noarch_path.mkdir(parents=True)
 
-    packages = [
+    packages: list[dict[str, Any]] = [
         {
             "name": "libgcc-ng",
             "version": "9.3.0",
@@ -42,8 +43,6 @@ def local_conda_channel(tmp_path: Path) -> Generator[Path, None, None]:
             "build_number": 17,
             "conda_format": False,
             "depends": [],
-            "md5": "ccc6922251f043975762cb348d3b25e7",
-            "sha256": "5c929a9a528691a039751797c23f140ecffe258788915ff75e533088b9a11756",
             "platform": "linux-64",
         },
         {
@@ -53,8 +52,6 @@ def local_conda_channel(tmp_path: Path) -> Generator[Path, None, None]:
             "build_number": 0,
             "conda_format": True,
             "depends": [],
-            "md5": "2382ac3ccca4632e14b0c4c4be432fba",
-            "sha256": "74e464a5ee94c6e7b0b5c5ad32d7ad1e1f1c5e3b52e5f5c6f5c24ed98f7a3f8b",
             "platform": "noarch",
         },
         {
@@ -64,8 +61,6 @@ def local_conda_channel(tmp_path: Path) -> Generator[Path, None, None]:
             "build_number": 5,
             "conda_format": False,
             "depends": ["libgcc-ng >=9.3.0"],
-            "md5": "1234567890abcdef1234567890abcdef",
-            "sha256": "abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890",
             "platform": "linux-64",
         },
         {
@@ -75,8 +70,6 @@ def local_conda_channel(tmp_path: Path) -> Generator[Path, None, None]:
             "build_number": 0,
             "conda_format": True,
             "depends": [],
-            "md5": "fedcba0987654321fedcba0987654321",
-            "sha256": "1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef",
             "platform": "linux-64",
         },
         {
@@ -86,13 +79,14 @@ def local_conda_channel(tmp_path: Path) -> Generator[Path, None, None]:
             "build_number": 0,
             "conda_format": True,
             "depends": [],
-            "md5": "newHash123456789abcdef",
-            "sha256": "newSha256Hash1234567890abcdef1234567890abcdef1234567890abcdef",
             "platform": "noarch",
         },
     ]
 
-    repodata: dict[str, dict[str, Any]] = {"packages": {}, "packages.conda": {}}
+    repodata: dict[str, dict[str, Any]] = {
+        subdir: {"packages": {}, "packages.conda": {}}
+        for subdir in ("linux-64", "noarch")
+    }
 
     for pkg in packages:
         extension = ".conda" if pkg["conda_format"] else ".tar.bz2"
@@ -116,13 +110,14 @@ def local_conda_channel(tmp_path: Path) -> Generator[Path, None, None]:
                 tarinfo.size = len(info_content)
                 tf.addfile(tarinfo, fileobj=io.BytesIO(info_content.encode()))
 
+        content = pkg_file.read_bytes()
         repo_key = "packages.conda" if pkg["conda_format"] else "packages"
-        repodata[repo_key][filename] = {
+        repodata[pkg["platform"]][repo_key][filename] = {
             "build": pkg["build"],
             "build_number": pkg["build_number"],
             "depends": pkg["depends"],
-            "md5": pkg["md5"],
-            "sha256": pkg["sha256"],
+            "md5": hashlib.md5(content).hexdigest(),
+            "sha256": hashlib.sha256(content).hexdigest(),
             "name": pkg["name"],
             "version": pkg["version"],
             "subdir": pkg["platform"],
@@ -130,7 +125,7 @@ def local_conda_channel(tmp_path: Path) -> Generator[Path, None, None]:
 
     for path in [linux_64_path, noarch_path]:
         with open(path / "repodata.json", "w") as f:
-            json.dump(repodata, f)
+            json.dump(repodata[path.name], f)
 
     yield channel_path
 
@@ -223,7 +218,7 @@ def test_update_with_local_channel_preserves_extensions(
     preserve their file extensions (.conda vs .tar.bz2) during an update.
     """
     monkeypatch.chdir(tmp_path)
-    channel_url = f"file://{local_conda_channel}"
+    channel_url = local_conda_channel.as_uri()
 
     # 1. Initial lockfile generation
     initial_env_file = tmp_path / "environment.yml"

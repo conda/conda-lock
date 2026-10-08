@@ -2,6 +2,19 @@
 
 conda-lock has experimental support to allow locking mixed conda/pip environments.
 
+Declare `pip` in your conda dependencies if you need it. A `pip:` section in an
+environment file also requests the installer automatically. A package that
+actually depends on pip still brings it in as a dependency.
+
+Conda and Mamba normally add pip when you request Python. Conda-lock deliberately
+disables this automatic addition so that Python alone does not bring in an
+unrequested installer. This also applies when updating an older lockfile that
+included pip implicitly. Installing an existing lockfile keeps its packages
+unchanged.
+
+For failures with older Mamba versions or offline locking, see
+[troubleshooting pip and offline solves](troubleshooting.md#pip-and-offline-solves).
+
 ## Usage with environment.yaml
 
 `conda-lock` can lock the `dependencies.pip` section of
