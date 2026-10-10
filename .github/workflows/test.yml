@@ -55,25 +55,11 @@ jobs:
             pytest-split-group-index: 9
           - os: ubuntu-latest
             pytest-split-group-index: 10
-          - os: macos-latest
-            pytest-split-group-index: 4
-          - os: macos-latest
-            pytest-split-group-index: 5
-          - os: macos-latest
-            pytest-split-group-index: 6
-          - os: macos-latest
-            pytest-split-group-index: 7
-          - os: macos-latest
-            pytest-split-group-index: 8
-          - os: macos-latest
-            pytest-split-group-index: 9
-          - os: macos-latest
-            pytest-split-group-index: 10
         include:
           - os: ubuntu-latest
             pytest-split-group-size: 3
           - os: macos-latest
-            pytest-split-group-size: 3
+            pytest-split-group-size: 10
           - os: windows-latest
             pytest-split-group-size: 10
 
