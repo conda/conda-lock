@@ -14,7 +14,7 @@ import subprocess
 import sys
 import tempfile
 
-from collections.abc import Iterator, Sequence, Set
+from collections.abc import Generator, Sequence, Set
 from contextlib import contextmanager
 from functools import partial
 from importlib.metadata import distribution
@@ -986,7 +986,7 @@ def _add_auth_to_lockfile(lockfile: str, auth: dict[str, str]) -> str:
 
 
 @contextmanager
-def _add_auth(lockfile: str, auth: dict[str, str]) -> Iterator[pathlib.Path]:
+def _add_auth(lockfile: str, auth: dict[str, str]) -> Generator[pathlib.Path]:
     lockfile_with_auth = _add_auth_to_lockfile(lockfile, auth)
     with temporary_file_with_contents(lockfile_with_auth) as path:
         yield path
@@ -1028,7 +1028,7 @@ def _render_lockfile_for_install(
     include_dev_dependencies: bool = True,
     extras: Set[str] | None = None,
     force_platform: str | None = None,
-) -> Iterator[pathlib.Path]:
+) -> Generator[pathlib.Path]:
     """
     Render lock content into a temporary, explicit lockfile for the current platform
 
