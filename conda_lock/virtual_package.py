@@ -4,7 +4,7 @@ import os
 import pathlib
 
 from collections import defaultdict
-from collections.abc import Iterable, Iterator
+from collections.abc import Generator, Iterable
 from contextlib import contextmanager
 from importlib.resources import path
 from types import TracebackType
@@ -211,7 +211,7 @@ class FakeRepoData(BaseModel):
     @contextmanager
     def conda_virtual_package_overrides(
         self, platform: PlatformSubdirStr
-    ) -> Iterator[None]:
+    ) -> Generator[None]:
         """Temporarily match solver overrides to the target's fake repodata."""
         packages: dict[str, FullVirtualPackage] = {}
         overrides = dict.fromkeys(
