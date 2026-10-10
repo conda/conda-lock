@@ -42,7 +42,7 @@ def write_file(obj: str, filepath: str | pathlib.Path) -> None:
         fp.write(obj)
 
 
-def read_json(filepath: str | pathlib.Path) -> dict:
+def read_json(filepath: str | pathlib.Path) -> dict[str, Any]:
     with open(filepath) as fp:
         return json.load(fp)
 

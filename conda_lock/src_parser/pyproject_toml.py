@@ -109,7 +109,7 @@ def poetry_version_to_conda_version(version_string: str | None) -> str | None:
 
 
 def handle_mapping(
-    depattrs: collections.abc.Mapping,
+    depattrs: collections.abc.Mapping[str, Any],
     depname: str,
     path: pathlib.Path,
     category: str,

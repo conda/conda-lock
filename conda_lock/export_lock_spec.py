@@ -234,7 +234,9 @@ def arrange_for_toml(
     return sorted_result
 
 
-def toml_ordering(item: tuple[TomlTableKey, dict]) -> tuple[str, str, str]:
+def toml_ordering(
+    item: tuple[TomlTableKey, dict[str, Dependency | EditableDependency]],
+) -> tuple[str, str, str]:
     """Make a sort key to properly order the dependency tables in the pixi.toml.
 
     The main category = default feature comes first. Then the other categories.

@@ -199,7 +199,7 @@ line-length = 88
 extend-exclude = ["conda_lock/_vendor"]
 
 [tool.ruff.lint]
-extend-select = ["ANN"]
+extend-select = ["ANN", "PGH003"]
 ignore = [
     "ANN401",  # Preserve existing explicit Any annotations.
     "E501",
