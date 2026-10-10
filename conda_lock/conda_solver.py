@@ -9,8 +9,8 @@ import sys
 import time
 
 from collections.abc import (
+    Generator,
     Iterable,
-    Iterator,
     MutableMapping,
     MutableSequence,
     Sequence,
@@ -521,7 +521,7 @@ def update_specs_for_arch(
 @contextmanager
 def fake_conda_environment(
     locked: Iterable[LockedDependency], platform: str
-) -> Iterator[str]:
+) -> Generator[str]:
     """
     Create a fake conda prefix containing metadata corresponding to the provided dependencies
 

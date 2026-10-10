@@ -19,11 +19,6 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}
   cancel-in-progress: true
 
-env:
-  # See also the same variable in test.yml
-  # Pinned below 2.6.0 until conda-lock supports micromamba 2.6; see #907.
-  MICROMAMBA_VERSION: '2.5.0-2'
-
 defaults:
   run:
     shell: bash -elx {0}
@@ -104,9 +99,6 @@ jobs:
       - name: Install Conda environment with Micromamba
         uses: mamba-org/setup-micromamba@add3a49764cedee8ee24e82dfde87f5bc2914462 # v2.0.7
         with:
-          micromamba-version: ${{ env.MICROMAMBA_VERSION }}
-          # # Use micromamba-url instead of micromamba-version to test prereleases
-          # micromamba-url: https://github.com/mamba-org/micromamba-releases/releases/download/${{ env.MICROMAMBA_VERSION }}/micromamba-${{ env.CONDA_PLATFORM }}
           init-shell: bash
       - name: Download lockfiles
         uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
@@ -245,3 +237,20 @@ jobs:
           cat conda-$CONDA_PLATFORM.lock
           cat conda-$CONDA_PLATFORM.lock.yml
           cat conda-lock.yml
+
+  # this little bit follows the same pattern from conda-build
+  integration-test-status:
+    name: integration-test-status
+    needs:
+      - lock-gdal
+      - install-gdal-with-micromamba
+      - install-gdal-with-conda
+      - install-gdal-with-conda-lock
+      - lock-gdal-via-conda
+    if: '!cancelled()'
+    runs-on: ubuntu-slim
+    steps:
+      - name: determine success
+        uses: re-actors/alls-green@b5b5b37504aa4183270bd3d855c52a67f212be35 # v1.3.0
+        with:
+          jobs: ${{ toJSON(needs) }}
