@@ -55,11 +55,13 @@ xattr = "<2.0.0,>=1.0.0"
 
 [feature.dev.dependencies]
 check-manifest = "*"
+conda = "*"
 docker-py = "*"
 doctr = "*"
 flaky = "*"
 freezegun = "*"
 mamba = "*"
+micromamba = "*"
 mkdocs = "*"
 mkdocs-click = "*"
 mkdocs-include-markdown-plugin = "*"
