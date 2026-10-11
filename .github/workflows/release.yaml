@@ -9,6 +9,13 @@ on:
       - published
   push:
     branches: [master, main]
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: 'The git ref to release.'
+        default: ''
+        required: false
+        type: string
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.release.tag_name || github.ref }}
@@ -25,6 +32,7 @@ jobs:
       with:
         fetch-depth: 0
         persist-credentials: false
+        ref: ${{ case(github.event_name == 'workflow_dispatch', github.event.inputs.ref, '') }}
 
     - name: Set up Python
       uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
@@ -55,7 +63,7 @@ jobs:
   publish:
     name: Publish Python 🐍 distributions 📦 to PyPI
     runs-on: ubuntu-latest
-    if: ${{ github.event_name == 'release' }}
+    if: ${{ github.event_name == 'release' || github.event_name == 'workflow_dispatch' }}
     needs: build
     # Run this job in an isolated GHA environment containing the OIDC credentials.
     environment: release
@@ -68,4 +76,4 @@ jobs:
         name: dist-files
         path: dist
     - name: Publish a Python distribution to PyPI
-      uses: pypa/gh-action-pypi-publish@ed0c53931b1dc9bd32cbe73a98c7f6766f8a527e # v1.13.0
+      uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33 # v1.14.2
