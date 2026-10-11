@@ -135,11 +135,21 @@ When the input_hash of the input files, channels match those present in a given 
 
 ## --virtual-package-spec
 
-Conda makes use of [virtual packages](https://conda.io/projects/conda/en/latest/user-guide/tasks/manage-virtual.html) that are available at
-runtime to gate dependency on system features.  Due to these not generally existing on your local execution platform conda-lock will inject
-them into the solution environment with a reasonable guess at what a default system configuration should be.
+Conda uses [virtual packages](https://conda.io/projects/conda/en/latest/user-guide/tasks/manage-virtual.html) to describe system-level
+features like the glibc version, macOS version, or CUDA version.  Since conda-lock generates
+lockfiles independently of a target system, it assumes a default set of virtual package versions
+that represent a reasonable minimum system configuration.
 
-If you want to override which virtual packages are injected you can create a virtual package spec file
+Each virtual package version acts as an upper bound on which packages are considered by
+the solver (packages requiring a newer version are excluded) and as a lower bound on
+compatible target systems (the lockfile is installable on systems that meet or exceed
+these versions).
+
+There is a tradeoff: increasing a version widens the set of candidate packages but narrows
+the set of compatible target systems.  If a package you need is being filtered out, increase the
+relevant version.  If the lockfile is incompatible with your target system, decrease it.
+
+To override the defaults, create a virtual package spec file
 
 ```{.yaml title="virtual-packages.yml"}
 subdirs:
