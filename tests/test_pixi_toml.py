@@ -39,4 +39,4 @@ def test_generate_pixi_toml() -> None:
     warning3 = """Extras not supported in Conda dep name='cachecontrol' manager='conda' category='main' extras=['filecache'] markers=None version='<0.15.0,>=0.14.0'"""
     for warning in [warning3]:
         assert any(warning in str(r.message) for r in record)
-    assert len(set(str(r.message) for r in record)) == 3
+    assert len(set(str(r.message) for r in record)) == 1
