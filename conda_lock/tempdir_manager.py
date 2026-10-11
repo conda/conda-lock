@@ -48,7 +48,7 @@ import sys
 import tempfile
 import threading
 
-from collections.abc import Iterator
+from collections.abc import Generator
 from contextlib import contextmanager
 
 
@@ -135,7 +135,7 @@ def temporary_directory(
     prefix: str = "conda-lock-",
     dir: str | None = None,
     delete: bool | None = None,
-) -> Iterator[str]:
+) -> Generator[str]:
     """
     Create a temporary directory honoring deletion behavior.
 
@@ -234,7 +234,7 @@ def temporary_file_with_contents(
     prefix: str = "conda-lock-",
     dir: str | None = None,
     delete: bool | None = None,
-) -> Iterator[pathlib.Path]:
+) -> Generator[pathlib.Path]:
     """Generate a temporary file with the given content.
 
     Use as a context manager; it yields a `pathlib.Path` to the created file.
