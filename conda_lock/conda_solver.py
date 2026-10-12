@@ -19,7 +19,6 @@ from contextlib import contextmanager
 from textwrap import dedent
 from typing import (
     Any,
-    Literal,
 )
 from urllib.parse import unquote, urlsplit, urlunsplit
 
@@ -29,6 +28,8 @@ from conda_lock.invoke_conda import (
     _get_conda_flags,
     conda_env_override,
     conda_pkgs_dir,
+    extract_json_object,
+    get_pkgs_dirs,
     is_micromamba,
 )
 from conda_lock.lockfile import apply_categories
@@ -66,13 +67,6 @@ def _to_match_spec(
     else:
         # this will return only "package_name" even if there's a channel in the kwargs
         return ms.conda_build_form()
-
-
-def extract_json_object(proc_stdout: str) -> str:
-    try:
-        return proc_stdout[proc_stdout.index("{") : proc_stdout.rindex("}") + 1]
-    except ValueError:
-        return proc_stdout
 
 
 def solve_conda(
@@ -204,38 +198,6 @@ def _get_repodata_record(
     return None
 
 
-def _get_pkgs_dirs(
-    *,
-    conda: PathLike,
-    platform: str,
-    method: Literal["config", "info"] | None = None,
-) -> list[pathlib.Path]:
-    """Extract the package cache directories from the conda configuration."""
-    if method is None:
-        method = "config" if is_micromamba(conda) else "info"
-    if method == "config":
-        # 'package cache' was added to 'micromamba info' in v1.4.6.
-        args = [str(conda), "config", "--json", "list", "pkgs_dirs"]
-    elif method == "info":
-        args = [str(conda), "info", "--json"]
-    env = conda_env_override(platform)
-    output = subprocess.check_output(args, env=env).decode()
-    json_object_str = extract_json_object(output)
-    json_object: dict[str, Any] = json.loads(json_object_str)
-    pkgs_dirs_list: list[str]
-    if "pkgs_dirs" in json_object:
-        pkgs_dirs_list = json_object["pkgs_dirs"]
-    elif "package cache" in json_object:
-        pkgs_dirs_list = json_object["package cache"]
-    else:
-        raise ValueError(
-            f"Unable to extract pkgs_dirs from {json_object}. "
-            "Please report this issue to the conda-lock developers."
-        )
-    pkgs_dirs = [pathlib.Path(d) for d in pkgs_dirs_list]
-    return pkgs_dirs
-
-
 def _reconstruct_fetch_actions(
     conda: PathLike,
     platform: str,
@@ -256,7 +218,7 @@ def _reconstruct_fetch_actions(
     fetch_actions = {p["name"]: p for p in dry_run_install["actions"]["FETCH"]}
     link_only_names = set(link_actions.keys()).difference(fetch_actions.keys())
     if link_only_names:
-        pkgs_dirs = _get_pkgs_dirs(conda=conda, platform=platform)
+        pkgs_dirs = get_pkgs_dirs(conda=conda, platform=platform)
     else:
         pkgs_dirs = []
 
