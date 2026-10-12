@@ -130,3 +130,122 @@ def hierarchical_cache_subpath(link_action: Mapping[str, Any]) -> pathlib.Path |
     if directory is None:
         return None
     return pathlib.Path(_normalize_url_for_cache_path(directory))
+
+
+def _link_action_explicit_or_derived_url(link_action: Mapping[str, Any]) -> str | None:
+    """Best-effort URL for the linked package, with explicit-vs-derived
+    intent baked into the name.
+
+    Returns the LINK's explicit ``url`` (from any solver that emits
+    the full repodata in LINK, i.e. mamba 2.x / micromamba) if
+    present. Otherwise derives
+    one from ``base_url``/``platform``/``fn`` -- this is the
+    conda / Python-mamba-1.x
+    sparse-LINK case, where the URL is reconstructed from disjoint
+    fields and is therefore weaker evidence than an explicit value.
+    """
+    url = link_action.get("url")
+    if url:
+        return url
+    base_url = link_action.get("base_url")
+    fn = link_action.get("fn")
+    if not base_url or not fn:
+        return None
+    base = base_url.rstrip("/")
+    platform = link_action.get("platform") or link_action.get("subdir")
+    if platform:
+        suffix = f"/{platform}"
+        if not base.endswith(suffix):
+            base = f"{base}{suffix}"
+    return f"{base}/{fn}"
+
+
+def record_matches_link(
+    record: Mapping[str, Any], link_action: Mapping[str, Any]
+) -> tuple[bool, str | None]:
+    """Require positive artifact identity and reject every known contradiction.
+
+    A filename alone cannot distinguish two channels publishing the same build.
+    Sparse conda LINKs instead provide a base URL and distribution name, which
+    together identify the artifact location (the record supplies the extension).
+    """
+    for field in ("name", "version"):
+        if not record.get(field) or record.get(field) != link_action.get(field):
+            return False, f"{field} mismatch"
+    link_subdir = link_action.get("subdir") or link_action.get("platform")
+    if link_subdir and record.get("subdir") != link_subdir:
+        return False, "subdir mismatch"
+    for field in ("fn", "md5", "sha256", "build", "build_string"):
+        expected, actual = link_action.get(field), record.get(field)
+        if expected and actual and expected != actual:
+            return False, f"{field} mismatch"
+    filename = record.get("fn") or ""
+    stem = filename.removesuffix(".tar.bz2").removesuffix(".conda")
+    if link_action.get("dist_name") and stem != link_action["dist_name"]:
+        return False, "dist_name mismatch"
+    link_url = _link_action_explicit_or_derived_url(link_action)
+    if not link_url and link_action.get("base_url") and filename:
+        link_url = _link_action_explicit_or_derived_url({**link_action, "fn": filename})
+    record_url = record.get("url")
+    if link_url and record_url:
+        if normalize_url_for_compare(link_url) != normalize_url_for_compare(record_url):
+            return False, "url mismatch"
+        return True, None
+    # A matching digest is positive evidence even if one side has no URL.
+    for field in ("sha256", "md5"):
+        if record.get(field) and record.get(field) == link_action.get(field):
+            return True, None
+    return False, "no positive artifact identity (URL or digest)"
+
+
+def record_validation_error(record: Any) -> str | None:
+    """Validate untyped JSON before treating it as a FETCH record.
+
+    Missing/null dependencies are unknown, whereas an explicit empty list can
+    be legitimate. No fingerprint can establish arbitrary metadata correctness.
+    """
+    if not isinstance(record, Mapping):
+        return "record must be a JSON object"
+    for key in ("name", "version", "url", "fn", "subdir"):
+        if not isinstance(record.get(key), str) or not record[key]:
+            return f"missing or invalid {key}"
+    depends = record.get("depends")
+    if not isinstance(depends, list) or any(
+        not isinstance(dep, str) or not dep.strip() for dep in depends
+    ):
+        return "depends must be an explicit list of dependency strings"
+    constrains = record.get("constrains")
+    if constrains is not None and (
+        not isinstance(constrains, list)
+        or any(not isinstance(spec, str) or not spec.strip() for spec in constrains)
+    ):
+        return "constrains must be a list of dependency strings"
+    if not any(
+        isinstance(record.get(key), str) and record[key] for key in ("md5", "sha256")
+    ):
+        return "missing artifact digest"
+    for key in ("md5", "sha256"):
+        if record.get(key) is not None and not isinstance(record[key], str):
+            return f"invalid {key}"
+    if (
+        unquote(pathlib.PurePosixPath(urlsplit(record["url"]).path).name)
+        != record["fn"]
+    ):
+        return "url/filename mismatch"
+    filename = record["fn"]
+    if not filename.endswith((".conda", ".tar.bz2")):
+        return "unsupported artifact filename"
+    stem = filename.removesuffix(".conda").removesuffix(".tar.bz2")
+    parts = stem.rsplit("-", 2)
+    if len(parts) != 3 or parts[:2] != [record["name"], record["version"]]:
+        return "name/version disagree with artifact filename"
+    if any(
+        record.get(key) and record[key] != parts[2] for key in ("build", "build_string")
+    ):
+        return "build disagrees with artifact filename"
+    if (
+        pathlib.PurePosixPath(urlsplit(record["url"]).path).parent.name
+        != record["subdir"]
+    ):
+        return "subdir disagrees with artifact URL"
+    return None

@@ -8,8 +8,14 @@ from conda_lock.solver.repodata_cache import (
     hierarchical_cache_subpath,
     libmamba_strip_url_secrets,
     normalize_url_for_compare,
+    record_matches_link,
 )
 from tests.support.fixtures import MAMBA_26_LINK_ACTION
+
+
+def _matched(record: dict, link: dict) -> bool:
+    matched, _reason = record_matches_link(record, link)
+    return matched
 
 
 # ---------------------------------------------------------------------------
@@ -140,6 +146,109 @@ def test_hierarchical_cache_subpath_strips_credentials():
 # ---------------------------------------------------------------------------
 
 
+def test_record_matches_link_validates_identity():
+    record = {
+        "name": "zlib",
+        "version": "1.3.2",
+        "subdir": "linux-64",
+        "sha256": "abc",
+        "md5": "111",
+        "fn": "zlib-1.3.2-bld.conda",
+        "url": "https://conda.anaconda.org/conda-forge/linux-64/zlib-1.3.2-bld.conda",
+        "channel": "conda-forge",
+    }
+    link = {
+        "name": "zlib",
+        "version": "1.3.2",
+        "platform": "linux-64",
+        "sha256": "abc",
+        "md5": "111",
+        "fn": "zlib-1.3.2-bld.conda",
+        "url": "https://conda.anaconda.org/conda-forge/linux-64/zlib-1.3.2-bld.conda",
+        "channel": "conda-forge",
+    }
+    assert _matched(record, link)
+    assert not _matched({**record, "version": "9.9.9"}, link)
+    assert not _matched({**record, "subdir": "osx-64"}, link)
+    assert not _matched({**record, "sha256": "deadbeef"}, link)
+    assert not _matched({**record, "md5": "deadbeef"}, link)
+    assert not _matched({**record, "name": "other"}, link)
+
+
+def test_record_matches_link_url_takes_precedence_over_channel():
+    """If both sides expose a URL, comparison is on the URL (with
+    libmamba-compat normalization), not on the channel string."""
+    record = {
+        "name": "foo",
+        "version": "1.0",
+        "url": "https://conda.example.com/c/linux-64/foo-1.0-bld.conda",
+        "channel": "https://conda.example.com/c",
+    }
+    link = {
+        "name": "foo",
+        "version": "1.0",
+        "url": "https://conda.example.com/c/linux-64/foo-1.0-bld.conda",
+        "channel": "conda-example",  # different spelling -- accepted
+    }
+    assert _matched(record, link)
+
+
+def test_record_matches_link_requires_more_than_a_channel_name():
+    name_version = {"name": "foo", "version": "1.0"}
+    record = {**name_version, "channel": "conda-forge"}
+    link = {**name_version, "channel": "conda-forge"}
+    assert not _matched(record, link)
+    link_other = {**name_version, "channel": "other"}
+    assert not _matched(record, link_other)
+
+
+def test_record_matches_link_url_compare_matches_libmamba():
+    """``compare_cleaned_url``-style: scheme/credentials/trailing slash
+    are normalized away before comparison."""
+    name_version = {"name": "foo", "version": "1.0"}
+    record = {**name_version, "url": "http://conda.example.com/c/linux-64/foo.conda"}
+    link = {**name_version, "url": "https://conda.example.com/c/linux-64/foo.conda/"}
+    assert _matched(record, link)
+    record = {
+        **name_version,
+        "url": "https://user:pw@conda.example.com/c/linux-64/foo.conda",
+    }
+    link = {**name_version, "url": "https://conda.example.com/c/linux-64/foo.conda"}
+    assert _matched(record, link)
+
+
+def test_record_matches_link_returns_reason_for_diagnostic():
+    record = {"name": "foo", "version": "1.0", "sha256": "abc"}
+    link = {"name": "foo", "version": "1.0", "sha256": "deadbeef"}
+    matched, reason = record_matches_link(record, link)
+    assert not matched
+    assert reason is not None
+    assert "sha256" in reason
+
+
 # ---------------------------------------------------------------------------
 # candidate_record_paths and get_repodata_record
 # ---------------------------------------------------------------------------
+
+
+def test_encoded_epoch_url_matches_literal_filename():
+    from conda_lock.solver.repodata_cache import record_validation_error
+
+    record = dict(MAMBA_26_LINK_ACTION)
+    record.update(
+        name="metomi-isodatetime",
+        build="0",
+        build_string="0",
+        version="1!3.1.0",
+        fn="metomi-isodatetime-1!3.1.0-0.conda",
+        url="https://example.org/c/noarch/metomi-isodatetime-1%213.1.0-0.conda",
+        subdir="noarch",
+    )
+    assert record_validation_error(record) is None
+    assert _matched(record, {**record, "url": record["url"].replace("%21", "!")})
+    assert normalize_url_for_compare(
+        "file:///c/foo.conda"
+    ) != normalize_url_for_compare("https:///c/foo.conda")
+    assert normalize_url_for_compare(
+        "https://example.org/a%2Fb/pkg.conda"
+    ) != normalize_url_for_compare("https://example.org/a/b/pkg.conda")
