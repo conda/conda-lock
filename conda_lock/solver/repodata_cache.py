@@ -4,13 +4,17 @@ Identity checks here establish which artifact a cached record describes.
 Channel metadata verification is handled by channel_metadata.py.
 """
 
+import json
 import logging
 import pathlib
 import re
+import time
 
 from collections.abc import Mapping
 from typing import Any
 from urllib.parse import quote, unquote, urlsplit, urlunsplit
+
+from conda_lock.models.dry_run_install import FetchAction
 
 
 logger = logging.getLogger(__name__)
@@ -248,4 +252,114 @@ def record_validation_error(record: Any) -> str | None:
         != record["subdir"]
     ):
         return "subdir disagrees with artifact URL"
+    return None
+
+
+def candidate_record_paths(
+    pkgs_dir: pathlib.Path,
+    dist_name: str,
+    link_action: Mapping[str, Any],
+) -> list[pathlib.Path]:
+    """Candidate ``repodata_record.json`` locations, in priority order.
+
+    Conda and pre-2.6 mamba use a flat layout (``<pkgs_dir>/<dist_name>/...``).
+    Mamba/micromamba 2.6.0 nests packages under the channel and subdir
+    derived from the package URL (see mamba-org/mamba#4163). We compute the
+    expected hierarchical path from the LINK metadata rather than walking the
+    cache, then fall back to the legacy flat path.
+
+    >>> import pathlib
+    >>> [
+    ...     p.as_posix()
+    ...     for p in candidate_record_paths(
+    ...         pathlib.Path("/pkgs"),
+    ...         "libzlib-1.3.2-h25fd6f3_2",
+    ...         {"url": "https://conda.anaconda.org/conda-forge/linux-64/libzlib-1.3.2-h25fd6f3_2.conda"},
+    ...     )
+    ... ]  # doctest: +NORMALIZE_WHITESPACE
+    ['/pkgs/https/conda.anaconda.org/conda-forge/linux-64/libzlib-1.3.2-h25fd6f3_2/info/repodata_record.json',
+     '/pkgs/libzlib-1.3.2-h25fd6f3_2/info/repodata_record.json']
+    >>> [
+    ...     p.as_posix()
+    ...     for p in candidate_record_paths(
+    ...         pathlib.Path("/pkgs"), "libzlib-1.3.2-h25fd6f3_2", {"name": "libzlib"}
+    ...     )
+    ... ]
+    ['/pkgs/libzlib-1.3.2-h25fd6f3_2/info/repodata_record.json']
+    """
+    candidates: list[pathlib.Path] = []
+    sub = hierarchical_cache_subpath(link_action)
+    if sub is not None:
+        candidates.append(pkgs_dir / sub / dist_name / "info" / "repodata_record.json")
+    candidates.append(pkgs_dir / dist_name / "info" / "repodata_record.json")
+    return candidates
+
+
+def get_repodata_record(
+    pkgs_dirs: list[pathlib.Path],
+    dist_name: str,
+    link_action: Mapping[str, Any],
+) -> FetchAction | None:
+    """Look up ``repodata_record.json`` for one LINK action in the cache.
+
+    Validates each found candidate against the LINK via
+    ``record_matches_link`` so a same-dist record from a different
+    channel (legacy flat layout collision) cannot be silently
+    returned for the wrong package.
+
+    On rare occasion during CI tests, conda fails to find a package
+    in the package cache; waiting 0.1 seconds resolves it. Allow up
+    to a full second to elapse before giving up. Distinct failure
+    modes are logged at DEBUG so that a final ``not found`` doesn't
+    bury whether we never saw the file or saw it and rejected it.
+
+    A candidate that exists but fails to parse as JSON is skipped
+    (logged at DEBUG) rather than treated as a hard error, for the
+    same reason the retry loop exists: the solver may still be
+    writing the record (the write is not atomic), and another
+    candidate path or ``pkgs_dir`` -- or the same path 0.1s later --
+    may hold a good copy. Aborting the whole lookup on the first
+    unparseable file would turn a transient partial write into a
+    hard failure even when a valid record is available. If every
+    candidate fails, the lookup still fails loudly via the
+    giving-up WARNING below.
+    """
+    NUM_RETRIES = 10
+    last_rejected: str | None = None
+    last_missing: str | None = None
+    for retry in range(1, NUM_RETRIES + 1):
+        for pkgs_dir in pkgs_dirs:
+            for candidate in candidate_record_paths(pkgs_dir, dist_name, link_action):
+                if not candidate.is_file():
+                    last_missing = f"file not found: {candidate}"
+                    logger.debug(last_missing)
+                    continue
+                try:
+                    with open(candidate) as f:
+                        record: FetchAction = json.load(f)
+                except (OSError, json.JSONDecodeError) as exc:
+                    last_rejected = f"failed to read {candidate}: {exc}"
+                    logger.debug(last_rejected)
+                    continue
+                invalid = record_validation_error(record)
+                if invalid:
+                    last_rejected = f"invalid metadata at {candidate}: {invalid}"
+                    continue
+                matched, reason = record_matches_link(record, link_action)
+                if matched:
+                    return record
+                last_rejected = f"identity mismatch at {candidate}: {reason}"
+                logger.debug(last_rejected)
+        final_reason = last_rejected or last_missing
+        logger.debug(
+            f"Failed to find repodata_record.json for {dist_name} "
+            f"(last reason: {final_reason}). "
+            f"Retrying in 0.1 seconds ({retry}/{NUM_RETRIES})"
+        )
+        time.sleep(0.1)
+    final_reason = last_rejected or last_missing
+    logger.warning(
+        f"Failed to find repodata_record.json for {dist_name}. Giving up. "
+        f"Last reason: {final_reason}"
+    )
     return None
