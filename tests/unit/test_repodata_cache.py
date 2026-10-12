@@ -2,9 +2,14 @@
 
 from __future__ import annotations
 
+import json
+
 from pathlib import Path
+from typing import Any
 
 from conda_lock.solver.repodata_cache import (
+    candidate_record_paths,
+    get_repodata_record,
     hierarchical_cache_subpath,
     libmamba_strip_url_secrets,
     normalize_url_for_compare,
@@ -16,6 +21,11 @@ from tests.support.fixtures import MAMBA_26_LINK_ACTION
 def _matched(record: dict, link: dict) -> bool:
     matched, _reason = record_matches_link(record, link)
     return matched
+
+
+def _write_record(path: Path, **fields: Any) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps({**MAMBA_26_LINK_ACTION, **fields}))
 
 
 # ---------------------------------------------------------------------------
@@ -231,6 +241,82 @@ def test_record_matches_link_returns_reason_for_diagnostic():
 # ---------------------------------------------------------------------------
 
 
+def test_candidate_record_paths_are_metadata_derived(tmp_path: Path):
+    """Hierarchical first, legacy flat second."""
+    pkgs = tmp_path / "pkgs"
+    paths = candidate_record_paths(
+        pkgs, "libzlib-1.3.2-h25fd6f3_2", MAMBA_26_LINK_ACTION
+    )
+    assert len(paths) == 2
+    assert "https/conda.anaconda.org/conda-forge/linux-64" in paths[0].as_posix()
+    assert paths[1] == pkgs / "libzlib-1.3.2-h25fd6f3_2/info/repodata_record.json"
+
+
+def test_get_repodata_record_legacy_layout(tmp_path: Path):
+    """Pre-2.6 mamba and conda still use the flat ``<pkgs>/<dist>/info`` layout."""
+    flat = tmp_path / "flat"
+    dist = "libzlib-1.3.2-h25fd6f3_2"
+    _write_record(flat / dist / "info" / "repodata_record.json", **MAMBA_26_LINK_ACTION)
+    record = get_repodata_record(
+        [flat],
+        dist,
+        {
+            "name": "libzlib",
+            "version": "1.3.2",
+            "platform": "linux-64",
+            "dist_name": dist,
+            "base_url": "https://conda.anaconda.org/conda-forge",
+        },
+    )
+    assert record == dict(MAMBA_26_LINK_ACTION)
+
+
+def test_get_repodata_record_hierarchical_layout(tmp_path: Path):
+    """Mamba 2.6.0 hierarchical layout."""
+    hier = tmp_path / "hier"
+    _write_record(
+        hier
+        / "https/conda.anaconda.org/conda-forge/linux-64"
+        / "libzlib-1.3.2-h25fd6f3_2"
+        / "info"
+        / "repodata_record.json",
+        name="libzlib",
+        version="1.3.2",
+        subdir="linux-64",
+        sha256=MAMBA_26_LINK_ACTION["sha256"],
+        url=MAMBA_26_LINK_ACTION["url"],
+    )
+    record = get_repodata_record(
+        [hier], "libzlib-1.3.2-h25fd6f3_2", MAMBA_26_LINK_ACTION
+    )
+    assert record is not None
+    assert record["url"] == MAMBA_26_LINK_ACTION["url"]
+
+
+def test_get_repodata_record_rejects_cross_channel_collision(tmp_path: Path):
+    """A different package with the same dist_name in a different channel
+    must NOT be returned. Mamba 2.6.0's hierarchy exists precisely to
+    disambiguate such collisions; conda-lock must not silently pick the
+    wrong record."""
+    pkgs = tmp_path / "pkgs"
+    _write_record(
+        pkgs
+        / "https/repo.example.com/private/linux-64"
+        / "libzlib-1.3.2-h25fd6f3_2"
+        / "info"
+        / "repodata_record.json",
+        name="libzlib",
+        version="9.9.9",
+        subdir="linux-64",
+        sha256="deadbeef",
+        url="https://repo.example.com/private/linux-64/libzlib-1.3.2-h25fd6f3_2.conda",
+    )
+    record = get_repodata_record(
+        [pkgs], "libzlib-1.3.2-h25fd6f3_2", MAMBA_26_LINK_ACTION
+    )
+    assert record is None
+
+
 def test_encoded_epoch_url_matches_literal_filename():
     from conda_lock.solver.repodata_cache import record_validation_error
 
@@ -252,3 +338,16 @@ def test_encoded_epoch_url_matches_literal_filename():
     assert normalize_url_for_compare(
         "https://example.org/a%2Fb/pkg.conda"
     ) != normalize_url_for_compare("https://example.org/a/b/pkg.conda")
+
+
+def test_bad_cache_candidate_does_not_hide_later_valid_record(tmp_path, monkeypatch):
+    monkeypatch.setattr("conda_lock.solver.repodata_cache.time.sleep", lambda _: None)
+    dist = "libzlib-1.3.2-h25fd6f3_2"
+    first, second = tmp_path / "first", tmp_path / "second"
+    for directory, data in [(first, []), (second, dict(MAMBA_26_LINK_ACTION))]:
+        path = directory / dist / "info/repodata_record.json"
+        path.parent.mkdir(parents=True)
+        path.write_text(json.dumps(data))
+    assert get_repodata_record([first, second], dist, MAMBA_26_LINK_ACTION) == dict(
+        MAMBA_26_LINK_ACTION
+    )
