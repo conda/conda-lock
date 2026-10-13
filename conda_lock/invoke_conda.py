@@ -279,6 +279,7 @@ def conda_env_override(platform: str) -> dict[str, str]:
             "CONDA_PKGS_DIRS": conda_pkgs_dir(),
             "CONDA_UNSATISFIABLE_HINTS_CHECK_DEPTH": "0",
             "CONDA_ADD_PIP_AS_PYTHON_DEPENDENCY": "False",
+            "MAMBA_ADD_PIP_AS_PYTHON_DEPENDENCY": "False",
         }
     )
     return env
