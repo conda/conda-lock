@@ -42,6 +42,11 @@ from conda_lock.solver.channel_metadata import (
     verified_channel_records,
 )
 from conda_lock.solver.dry_run import reconstruct_fetch_actions_in_place
+from conda_lock.solver.graph_integrity import (
+    check_categories_assigned,
+    check_dependencies_present,
+    check_dependency_constraints,
+)
 from conda_lock.tempdir_manager import temporary_directory
 
 
@@ -150,6 +155,7 @@ def solve_conda(
     logging.debug("dry_run_install:\n%s", dry_run_install)
 
     records = dry_run_install["actions"]["FETCH"]
+    check_dependency_constraints(records)
 
     # extract dependencies from package plan
     planned = {}
@@ -172,6 +178,8 @@ def solve_conda(
         )
         planned[action["name"]] = locked_dependency
 
+    check_dependencies_present(planned)
+
     # propagate categories from explicit to transitive dependencies
     apply_categories(
         requested={k: v for k, v in specs.items() if v.manager == "conda"},
@@ -179,6 +187,24 @@ def solve_conda(
         mapping_url=mapping_url,
     )
 
+    # A solver may select pip alongside Python without a Python -> pip edge,
+    # despite injection being disabled. Retain its selection and dependency
+    # metadata. Otherwise these category-less packages disappear on serialization.
+    # Only orphaned pip inherits Python's categories; explicitly requested or
+    # genuinely connected pip keeps the categories assigned above.
+    if "pip" in planned and not planned["pip"].categories and "python" in planned:
+        for category in sorted(planned["python"].categories):
+            apply_categories(
+                requested={
+                    "pip": VersionedDependency(
+                        name="pip", version="*", category=category
+                    )
+                },
+                planned=planned,
+                mapping_url=mapping_url,
+            )
+
+    check_categories_assigned(planned)
     return planned
 
 
