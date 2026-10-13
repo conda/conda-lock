@@ -789,3 +789,174 @@ def test_update_without_repoquery(tmp_path, monkeypatch, caplog, solver, fallbac
             assert updated["root-dev"].dependencies == {}
             assert updated["shared"].categories == {"dev"}
             assert "skipping channel verification" in caplog.text
+
+
+@pytest.mark.parametrize("solver", SOLVERS)
+@pytest.mark.parametrize(
+    "patch", ["new-dependency", "tighter-constraint", "source-conflict"]
+)
+def test_channel_patch_repairs_initial_update_request(
+    tmp_path, monkeypatch, solver, patch
+):
+    channel = tmp_path / "channel"
+    definitions = [
+        (
+            "analysis-tool",
+            "1.0",
+            [] if patch == "new-dependency" else ["runtime-lib >=1"],
+            "noarch",
+        ),
+        ("reporting-tool", "1.0", [], "linux-64"),
+        ("reporting-tool", "2.0", [], "linux-64"),
+        ("runtime-lib", "1.0", [], "linux-64"),
+        ("runtime-lib", "2.0", [], "linux-64"),
+        ("unrelated", "1.0", [], "linux-64"),
+        ("unrelated", "2.0", [], "linux-64"),
+    ]
+    records = make_channel(channel, definitions)
+    rc = tmp_path / "condarc"
+    rc.write_text("channels: []\n")
+    monkeypatch.setenv("CONDARC", str(rc))
+    monkeypatch.setenv("MAMBARC", str(rc))
+    monkeypatch.setenv("MAMBA_ROOT_PREFIX", str(tmp_path / "root"))
+    monkeypatch.setenv("CONDA_FLAGS", "")
+    monkeypatch.setattr(invoke_conda, "CONDA_PKGS_DIRS", str(tmp_path / "cache"))
+
+    def publish():
+        for subdir, packages in records.items():
+            for filename in ["repodata.json", "current_repodata.json"]:
+                (channel / subdir / filename).write_text(
+                    json.dumps(
+                        {
+                            "info": {"subdir": subdir},
+                            "packages": packages,
+                            "packages.conda": {},
+                        }
+                    )
+                )
+
+    delayed = {
+        name: records["linux-64"].pop(f"{name}-2.0-0.tar.bz2")
+        for name in ["reporting-tool", "runtime-lib", "unrelated"]
+    }
+    publish()
+    specs: dict[str, Dependency] = {
+        name: VersionedDependency(
+            name=name, version="==1.0" if name == "analysis-tool" else "*"
+        )
+        for name in ["analysis-tool", "reporting-tool", "unrelated"]
+    }
+    if patch == "source-conflict":
+        specs["runtime-lib"] = VersionedDependency(name="runtime-lib", version="==1.0")
+
+    def solve(locked, update):
+        return conda_solver.solve_conda(
+            conda=solver,
+            specs=specs,
+            locked=locked,
+            update=update,
+            platform="linux-64",
+            channels=[Channel.from_string(channel.as_uri())],
+            mapping_url="unused",
+        )
+
+    old = solve({}, [])
+    original = copy.deepcopy(old)
+    records["noarch"]["analysis-tool-1.0-0.tar.bz2"]["depends"] = ["runtime-lib >=2"]
+    records["linux-64"].update(
+        {f"{name}-2.0-0.tar.bz2": record for name, record in delayed.items()}
+    )
+    publish()
+    if patch == "source-conflict":
+        with pytest.raises(RuntimeError):
+            solve(old, ["reporting-tool"])
+    else:
+        result = solve(old, ["reporting-tool"])
+        assert result["analysis-tool"].dependencies == {"runtime-lib": ">=2"}
+        assert result["analysis-tool"].url == old["analysis-tool"].url
+        assert result["analysis-tool"].hash == old["analysis-tool"].hash
+        assert (
+            result["reporting-tool"].version == result["runtime-lib"].version == "2.0"
+        )
+        assert result["unrelated"] == old["unrelated"]
+    assert old == original
+
+
+@pytest.mark.parametrize("solver", SOLVERS)
+@pytest.mark.parametrize("operation", ["fresh", "update"])
+def test_final_verification_observes_channel_patch_after_solving(
+    tmp_path, monkeypatch, solver, operation
+):
+    channel = tmp_path / "channel"
+    records = make_channel(
+        channel,
+        [
+            ("analysis-tool", "1.0", [], "noarch"),
+            ("analysis-tool", "2.0", [], "noarch"),
+            ("test-tool", "1.0", ["shared"], "linux-64"),
+            ("shared", "1.0", [], "linux-64"),
+        ],
+    )
+    rc = tmp_path / "condarc"
+    rc.write_text("channels: []\n")
+    monkeypatch.setenv("CONDARC", str(rc))
+    monkeypatch.setenv("MAMBARC", str(rc))
+    monkeypatch.setenv("MAMBA_ROOT_PREFIX", str(tmp_path / "root"))
+    monkeypatch.setenv("CONDA_FLAGS", "")
+    monkeypatch.setattr(invoke_conda, "CONDA_PKGS_DIRS", str(tmp_path / "cache"))
+    new = records["noarch"].pop("analysis-tool-2.0-0.tar.bz2")
+
+    def publish():
+        for filename in ["repodata.json", "current_repodata.json"]:
+            (channel / "noarch" / filename).write_text(
+                json.dumps(
+                    {
+                        "info": {"subdir": "noarch"},
+                        "packages": records["noarch"],
+                        "packages.conda": {},
+                    }
+                )
+            )
+
+    def solve(locked, update):
+        return conda_solver.solve_conda(
+            conda=solver,
+            platform="linux-64",
+            channels=[Channel.from_string(channel.as_uri())],
+            locked=locked,
+            update=update,
+            mapping_url="unused",
+            specs={
+                name: VersionedDependency(name=name, version="*", category=cat)
+                for name, cat in [("analysis-tool", "main"), ("test-tool", "dev")]
+            },
+        )
+
+    publish()
+    old = solve({}, []) if operation == "update" else {}
+    if operation == "update":
+        records["noarch"]["analysis-tool-2.0-0.tar.bz2"] = new
+        publish()
+    selected_version = "2.0" if old else "1.0"
+    run = subprocess.run
+    published = []
+
+    def publish_after_solve(command, **kwargs):
+        result = run(command, **kwargs)
+        if "--dry-run" in command and result.returncode == 0:
+            # Simulate a real channel publisher after the solver's metadata read;
+            # do not modify or synthesize the solver's returned records.
+            records["noarch"][f"analysis-tool-{selected_version}-0.tar.bz2"][
+                "depends"
+            ] = ["shared"]
+            publish()
+            published.append(True)
+        return result
+
+    monkeypatch.setattr(subprocess, "run", publish_after_solve)
+    result = solve(old, ["analysis-tool"] if old else [])
+    assert published == [True]
+    assert result["analysis-tool"].version == selected_version
+    assert result["analysis-tool"].dependencies == {"shared": ""}
+    assert result["shared"].categories == {"main"}
+    assert set(result) == {"analysis-tool", "test-tool", "shared"}
