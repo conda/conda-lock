@@ -55,6 +55,7 @@ nav:
   - Authenticated Channels: authenticated_channels.md
   - Usage:
     - Basic Usage: basic_usage.md
+    - Troubleshooting: troubleshooting.md
     - Docker: docker.md
     - CLI Reference: cli/gen.md
 

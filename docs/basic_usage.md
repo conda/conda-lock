@@ -42,6 +42,9 @@ compatible with the source specification. This command overrides the lockfile.
 conda-lock --update numpy
 ```
 
+If an update cannot verify the existing packages, see
+[recovering from metadata errors](troubleshooting.md#metadata-consistency-errors).
+
 ### Adding new Packages
 
 Add a new package to the environment
