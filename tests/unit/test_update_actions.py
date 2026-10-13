@@ -2,6 +2,7 @@ import json
 import subprocess
 
 from copy import deepcopy
+from pathlib import Path
 
 import pytest
 
@@ -11,6 +12,80 @@ from conda_lock.lockfile.v2prelim.models import HashModel, LockedDependency
 from conda_lock.models.channel import Channel
 from conda_lock.models.dry_run_install import FetchAction
 from conda_lock.models.lock_spec import VersionedDependency
+
+
+@pytest.mark.parametrize(
+    "failure", ["query", "resurrected-artifact", "verification-skipped"]
+)
+def test_removed_artifact_update_never_publishes_unverified_replacement(
+    monkeypatch, failure
+):
+    locked = {
+        "root": LockedDependency(
+            name="root",
+            version="1.0",
+            manager="conda",
+            platform="linux-64",
+            dependencies={},
+            url="https://example.org/c/linux-64/root-1.0-0.conda",
+            hash=HashModel(md5="0" * 32),
+            categories={"main"},
+        )
+    }
+    before = deepcopy(locked)
+    queries = []
+    solves = []
+
+    def query(*args):
+        queries.append(True)
+        if failure == "query":
+            raise MetadataConsistencyError(
+                "Channel metadata query exited with status 1"
+            )
+        if len(queries) == 2 and failure == "verification-skipped":
+            return None
+        return []
+
+    monkeypatch.setattr(
+        "conda_lock.solver.channel_metadata.query_channel_records", query
+    )
+
+    def installed(conda, platform, prefix):
+        assert not list((Path(prefix) / "conda-meta").glob("*.json"))
+        return {}
+
+    monkeypatch.setattr(conda_solver, "_get_installed_conda_packages", installed)
+
+    def solve(command, **kwargs):
+        solves.append(command)
+        assert command[1] == "install"
+        assert "root" in command
+        prefix = Path(command[command.index("-p") + 1])
+        assert (prefix / "conda-meta" / "pinned").read_text() == "root\n"
+        record = locked["root"].to_fetch_action()
+        return subprocess.CompletedProcess(
+            command, 0, json.dumps({"actions": {"FETCH": [record], "LINK": [record]}})
+        )
+
+    monkeypatch.setattr(conda_solver.subprocess, "run", solve)
+    with pytest.raises(
+        MetadataConsistencyError,
+        match={
+            "query": "exited with status 1",
+            "resurrected-artifact": "is unavailable",
+            "verification-skipped": "Cannot verify replacements",
+        }[failure],
+    ):
+        conda_solver.update_specs_for_arch(
+            conda="micromamba",
+            specs=["root"],
+            locked=locked,
+            update=["root"],
+            platform="linux-64",
+            channels=[],
+        )
+    assert len(solves) == (0 if failure == "query" else 1)
+    assert locked == before
 
 
 @pytest.mark.parametrize("missing", ["root", "leaf"])
