@@ -19,6 +19,8 @@ from conda_lock import conda_solver, invoke_conda
 from conda_lock.conda_lock import render_lockfile_for_platform
 from conda_lock.lockfile import parse_conda_lock_file, write_conda_lock_file
 from conda_lock.lockfile.v2prelim.models import (
+    HashModel,
+    LockedDependency,
     Lockfile,
     LockMeta,
 )
@@ -316,3 +318,72 @@ def test_pip_categories_survive_serialization_and_warm_cache(
         name: {cat} for name, cat in expected_categories(expected, plans[-1]).items()
     }
     serialize(updated, channel, tmp_path / "updated.yml")
+
+
+@pytest.mark.parametrize("source_solver, destination_solver", SWITCHES)
+def test_solver_switch_updates_explicit_pip_with_python(
+    tmp_path, channel, source_solver, destination_solver
+):
+    # Capture a real plan with an older Python/pip pair, including injected edges.
+    env = {
+        **invoke_conda.conda_env_override("linux-64"),
+        "MAMBA_ADD_PIP_AS_PYTHON_DEPENDENCY": "True",
+        "CONDA_ADD_PIP_AS_PYTHON_DEPENDENCY": "True",
+    }
+    proc = subprocess.run(
+        [
+            source_solver,
+            "create",
+            "--dry-run",
+            "--json",
+            "-p",
+            str(tmp_path / "old-prefix"),
+            "--override-channels",
+            "-c",
+            channel.as_uri(),
+            "python=3.10.0",
+        ],
+        env=env,
+        capture_output=True,
+        text=True,
+        timeout=60,
+    )
+    assert proc.returncode == 0, proc.stdout + proc.stderr
+    raw = json.loads(invoke_conda.extract_json_object(proc.stdout))
+    (tmp_path / "old-solver-plan.json").write_text(json.dumps(raw, indent=2))
+    conda_solver.reconstruct_fetch_actions_in_place(
+        source_solver, "linux-64", raw, channels=[Channel.from_string(channel.as_uri())]
+    )
+    old = {
+        record["name"]: LockedDependency(
+            name=record["name"],
+            version=record["version"],
+            manager="conda",
+            platform="linux-64",
+            dependencies=conda_solver._dependency_versions(record["depends"] or []),
+            url=record["url"],
+            hash=HashModel(md5=record["md5"], sha256=record.get("sha256")),
+            categories={"main"},
+        )
+        for record in raw["actions"]["FETCH"]
+    }
+    assert old["pip"].version == "24.0"
+    assert "<3.12" in old["pip"].dependencies["python"]
+    before = copy.deepcopy(old)
+    serialized = serialize(old, channel, tmp_path / "old.yml")
+    updated = solve(
+        destination_solver,
+        channel,
+        {"python": "main", "pip": "main"},
+        locked={p.name: p for p in serialized.package},
+        update=["python", "pip"],
+        python_version="==3.12.0",
+    )
+    assert set(updated) == {"python", "runtime", "pip", "setuptools", "wheel"}
+    assert updated["pip"].version == "25.0"
+    assert updated["python"].version == "3.12.0"
+    assert updated["runtime"].url == old["runtime"].url
+    assert updated["runtime"].hash == old["runtime"].hash
+    assert all(dep.categories == {"main"} for dep in updated.values())
+    assert old == before
+    serialize(updated, channel, tmp_path / "new.yml")
