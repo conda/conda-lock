@@ -7,6 +7,7 @@ import shlex
 import subprocess
 
 from collections.abc import Mapping, Sequence
+from copy import deepcopy
 from typing import Any, Literal, cast
 from urllib.parse import quote, urlsplit, urlunsplit
 
@@ -270,19 +271,32 @@ def verified_channel_records(
     records: Sequence[Mapping[str, Any]],
     *,
     allow_missing: bool = False,
+    verified_cache: dict[str, dict[str, Any]] | None = None,
 ) -> dict[str, dict[str, Any]] | None:
     """Return verified records, or None for the explicit batching opt-out.
 
     Only the pre-update refresh may omit unavailable artifacts: its caller must
     ask the solver for replacements. Reconstruction of an already selected plan
     still requires every artifact. Query and identity failures are always fatal.
+
+    verified_cache is owned by one solver/platform operation. Store only checked
+    artifacts, not all versions returned by search, and recheck identity/hashes
+    on every hit. Returned records are independent copies. No entries survive
+    the operation: this reuses a channel observation, not persistent metadata,
+    and cannot detect a later channel patch to an artifact already verified.
     """
     if not records:
         return {}
-    queried = query_channel_records(conda, platform, records)
+    cache = verified_cache if verified_cache is not None else {}
+    missing = [
+        record
+        for record in records
+        if normalize_url_for_compare(record["url"]) not in cache
+    ]
+    queried = query_channel_records(conda, platform, missing) if missing else []
     if queried is None:
         return None  # Never present the input records as verified channel metadata.
-    by_url: dict[str, list[dict[str, Any]]] = {}
+    by_url = {url: [record] for url, record in cache.items()}
     for record in queried:
         if (
             not isinstance(record.get("name"), str)
@@ -292,7 +306,9 @@ def verified_channel_records(
             raise MetadataConsistencyError(
                 "Channel metadata query returned a record without a name or artifact URL"
             )
-        by_url.setdefault(normalize_url_for_compare(record["url"]), []).append(record)
+        url = normalize_url_for_compare(record["url"])
+        if url not in cache:
+            by_url.setdefault(url, []).append(record)
     verified = {}
     for expected in records:
         candidates = by_url.get(normalize_url_for_compare(expected["url"]), [])
@@ -328,7 +344,8 @@ def verified_channel_records(
                 raise MetadataConsistencyError(
                     f"Conflicting channel metadata for {expected['name']}"
                 )
-        verified[expected["name"]] = dict(candidates[0])
+        cache[normalize_url_for_compare(expected["url"])] = deepcopy(candidates[0])
+        verified[expected["name"]] = deepcopy(candidates[0])
         # Verification may return equivalent URL spelling (notably ! vs %21).
         # Refresh metadata without rewriting the selected artifact's location.
         verified[expected["name"]]["url"] = expected["url"]
