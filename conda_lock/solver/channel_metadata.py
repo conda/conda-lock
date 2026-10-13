@@ -19,6 +19,11 @@ from conda_lock.invoke_conda import (
     extract_json_object,
     mamba_binary_version,
 )
+from conda_lock.solver.repodata_cache import (
+    normalize_url_for_compare,
+    record_matches_link,
+    record_validation_error,
+)
 
 
 def metadata_fallback() -> Literal["error", "unbatched", "skip"]:
@@ -257,3 +262,77 @@ def query_channel_records(
             if "depends" in record and record["depends"] is None:
                 record["depends"] = []
     return result
+
+
+def verified_channel_records(
+    conda: PathLike,
+    platform: str,
+    records: Sequence[Mapping[str, Any]],
+    *,
+    allow_missing: bool = False,
+) -> dict[str, dict[str, Any]] | None:
+    """Return verified records, or None for the explicit batching opt-out.
+
+    Only the pre-update refresh may omit unavailable artifacts: its caller must
+    ask the solver for replacements. Reconstruction of an already selected plan
+    still requires every artifact. Query and identity failures are always fatal.
+    """
+    if not records:
+        return {}
+    queried = query_channel_records(conda, platform, records)
+    if queried is None:
+        return None  # Never present the input records as verified channel metadata.
+    by_url: dict[str, list[dict[str, Any]]] = {}
+    for record in queried:
+        if (
+            not isinstance(record.get("name"), str)
+            or not isinstance(record.get("url"), str)
+            or not record["url"]
+        ):
+            raise MetadataConsistencyError(
+                "Channel metadata query returned a record without a name or artifact URL"
+            )
+        by_url.setdefault(normalize_url_for_compare(record["url"]), []).append(record)
+    verified = {}
+    for expected in records:
+        candidates = by_url.get(normalize_url_for_compare(expected["url"]), [])
+        if not candidates:
+            if allow_missing:
+                continue
+            raise MetadataConsistencyError(
+                f"Channel metadata for package {expected['name']} is unavailable",
+                recovery=(
+                    "The original artifact may have been removed or moved; this does "
+                    "not prove the old lockfile is corrupt. Restore access to its "
+                    "original channel metadata, or regenerate from the source files "
+                    "to a new lockfile path without --update and review package changes. "
+                    "Clearing the package cache cannot restore a removed channel record."
+                ),
+            )
+        for candidate in candidates:
+            reason = record_validation_error(candidate)
+            matched, _ = record_matches_link(candidate, expected)
+            same_digest = any(
+                candidate.get(key) and candidate.get(key) == expected.get(key)
+                for key in ("md5", "sha256")
+            )
+            if reason or not matched or not same_digest:
+                raise MetadataConsistencyError(
+                    f"Channel artifact identity cannot be verified for {expected['name']}"
+                )
+            if any(
+                sorted(candidate.get(field) or [])
+                != sorted(candidates[0].get(field) or [])
+                for field in ("depends", "constrains")
+            ):
+                raise MetadataConsistencyError(
+                    f"Conflicting channel metadata for {expected['name']}"
+                )
+        verified[expected["name"]] = dict(candidates[0])
+        # Verification may return equivalent URL spelling (notably ! vs %21).
+        # Refresh metadata without rewriting the selected artifact's location.
+        verified[expected["name"]]["url"] = expected["url"]
+        for digest in ("md5", "sha256"):
+            if not candidates[0].get(digest) and expected.get(digest):
+                verified[expected["name"]][digest] = expected[digest]
+    return verified
