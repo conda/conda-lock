@@ -63,3 +63,24 @@ def test_raw_build_constraints_are_checked_before_version_only_serialization(fie
         check_dependency_constraints(records)
     records[1]["fn"] = "blas-1-0_openblas.conda"
     check_dependency_constraints(records)
+
+
+@pytest.mark.parametrize(
+    "spec, expected",
+    [("leaf >=2", {"leaf"}), ("leaf >=1", set()), ("absent", {"absent"})],
+)
+def test_pre_solve_check_identifies_missing_or_incompatible_dependencies(
+    spec, expected
+):
+    from conda_lock.solver.graph_integrity import packages_requiring_repair
+
+    records = [
+        {
+            "name": "root",
+            "fn": "root-1-0.conda",
+            "depends": [spec],
+            "constrains": ["optional >=99"],
+        },
+        {"name": "leaf", "version": "1", "fn": "leaf-1-0.conda"},
+    ]
+    assert packages_requiring_repair(records) == expected

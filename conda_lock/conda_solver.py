@@ -44,6 +44,7 @@ from conda_lock.solver.graph_integrity import (
     check_categories_assigned,
     check_dependencies_present,
     check_dependency_constraints,
+    packages_requiring_repair,
 )
 from conda_lock.tempdir_manager import temporary_directory
 
@@ -382,7 +383,7 @@ def _log_artifact_replacements(
 def _packages_requiring_replacement(
     records: Mapping[str, Mapping[str, Any]], unavailable: set[str]
 ) -> set[str]:
-    """Re-solve parents of unavailable artifacts instead of retaining broken prefixes."""
+    """Re-solve affected parents instead of retaining an inconsistent prefix."""
     parents: dict[str, set[str]] = {}
     for name, record in records.items():
         for dependency in record["depends"]:
@@ -426,6 +427,8 @@ def update_specs_for_arch(
     update: list[str],
     platform: str,
     channels: Sequence[Channel],
+    *,
+    verified_cache: dict[str, dict[str, Any]] | None = None,
 ) -> DryRunInstall | dict[str, dict[str, list[Any]]]:
     """
     Update a previous solution for the given platform
@@ -447,13 +450,19 @@ def update_specs_for_arch(
 
     """
 
+    if verified_cache is None:
+        verified_cache = {}
     expected_records = []
     for dependency in locked.values():
         record = dependency.to_fetch_action()
         record["url"] = os.path.expandvars(record["url"])
         expected_records.append(record)
     current_records = verified_channel_records(
-        conda, platform, expected_records, allow_missing=True
+        conda,
+        platform,
+        expected_records,
+        allow_missing=True,
+        verified_cache=verified_cache,
     )
     metadata_verified = current_records is not None
     unavailable: set[str] = set()
@@ -481,11 +490,6 @@ def update_specs_for_arch(
                 refreshed,
             )
     requested = {MatchSpec(spec).name for spec in specs}
-    reinstall = (
-        _packages_requiring_replacement(current_records, unavailable) | set(update)
-        if unavailable
-        else set()
-    )
     if metadata_verified:
         unrequested = _unrequested_packages(current_records, requested)
         current_records = {
@@ -493,6 +497,23 @@ def update_specs_for_arch(
             for name, record in current_records.items()
             if name not in unrequested
         }
+    inconsistent = (
+        packages_requiring_repair(list(current_records.values()))
+        if metadata_verified
+        else set()
+    )
+    repair = unavailable | inconsistent
+    reinstall = (
+        _packages_requiring_replacement(current_records, repair) | set(update)
+        if repair
+        else set()
+    )
+    if inconsistent:
+        logger.info(
+            "Refreshed requirements need a new selection for %s; including their "
+            "dependents in the initial update solve.",
+            sorted(inconsistent),
+        )
     with fake_conda_environment(
         (
             dep
@@ -501,7 +522,7 @@ def update_specs_for_arch(
         ),
         platform=platform,
         repodata=current_records,
-        specs=specs if unavailable else None,
+        specs=specs if repair else None,
     ) as prefix:
         installed = _get_installed_conda_packages(conda, platform, prefix)
         spec_for_name = {MatchSpec(v).name: v for v in specs}  # pyright: ignore
@@ -509,7 +530,7 @@ def update_specs_for_arch(
             spec_for_name.get(name, name)
             for name in sorted(set(installed).intersection(update))
         ]
-        if unavailable:
+        if repair:
             # Mamba update ignores absent packages. Install all current roots so
             # unavailable roots and transitive packages can be selected afresh.
             # Omit explicit update targets from the fake prefix too: otherwise
@@ -527,7 +548,7 @@ def update_specs_for_arch(
         if to_update:
             _write_update_pins(
                 prefix,
-                specs if unavailable else (),
+                specs if repair else (),
                 installed,
                 update,
                 pin_installed=pathlib.Path(conda).name.startswith("mamba"),
@@ -547,7 +568,7 @@ def update_specs_for_arch(
             if pathlib.Path(conda).name.startswith("mamba"):
                 args = [
                     str(conda),
-                    "install" if unavailable else "update",
+                    "install" if repair else "update",
                     *_get_conda_flags(channels=channels, platform=platform),
                 ]
                 print(
@@ -558,7 +579,7 @@ def update_specs_for_arch(
             else:
                 args = [
                     str(conda),
-                    "update" if is_micromamba(conda) and not unavailable else "install",
+                    "update" if is_micromamba(conda) and not repair else "install",
                     *_get_conda_flags(channels=channels, platform=platform),
                 ]
             cmd = [
@@ -612,47 +633,38 @@ def update_specs_for_arch(
             installed_link_action = installed[package]
             dryrun_install["actions"]["LINK"].append(installed_link_action)
 
-        reconstruct_fetch_actions_in_place(conda, platform, dryrun_install)
+        reconstruct_fetch_actions_in_place(
+            conda, platform, dryrun_install, verified_cache=verified_cache
+        )
         records = {
             record["name"]: record for record in dryrun_install["actions"]["FETCH"]
         }
-        if unavailable:
-            # A solver may still see the old artifact in another cache. Never
-            # publish an unverified replacement or resurrect a removed artifact.
-            verified = verified_channel_records(conda, platform, list(records.values()))
-            if verified is None:
-                raise MetadataConsistencyError(
-                    "Cannot verify replacements for unavailable locked artifacts"
-                )
+        verified = verified_channel_records(
+            conda, platform, list(records.values()), verified_cache=verified_cache
+        )
+        if verified is None and repair:
+            raise MetadataConsistencyError(
+                "Cannot verify replacements for unavailable or inconsistent locked artifacts"
+            )
+        if verified is not None:
             records = verified
             dryrun_install["actions"]["FETCH"] = [
                 cast(FetchAction, record) for record in records.values()
             ]
-        unrequested = _unrequested_packages(records, requested)
-        if metadata_verified and unrequested and unrequested.issubset(current_records):
-            # Conda can retain installed packages whose last incoming edge was
-            # removed by this update. Only omit old packages, and verify the
-            # entire new graph before trusting that those edges disappeared.
-            verified = (
-                records
-                if unavailable
-                else verified_channel_records(conda, platform, list(records.values()))
-            )
-            if verified is None:
-                return dryrun_install  # Keep unverified orphans for the final guards.
-            unrequested = _unrequested_packages(verified, requested)
-            if not unrequested.issubset(current_records):
-                unrequested = set()  # New unexplained orphans must still fail.
-            dryrun_install["actions"]["FETCH"] = [
-                cast(FetchAction, record)
-                for name, record in verified.items()
-                if name not in unrequested
-            ]
-            dryrun_install["actions"]["LINK"] = [
-                record
-                for record in dryrun_install["actions"]["LINK"]
-                if record["name"] not in unrequested
-            ]
+            unrequested = _unrequested_packages(records, requested)
+            if metadata_verified and unrequested.issubset(current_records):
+                # Only old packages can be omitted. New unexplained orphans
+                # still fail the final category guard. The graph is verified.
+                dryrun_install["actions"]["FETCH"] = [
+                    record
+                    for record in dryrun_install["actions"]["FETCH"]
+                    if record["name"] not in unrequested
+                ]
+                dryrun_install["actions"]["LINK"] = [
+                    record
+                    for record in dryrun_install["actions"]["LINK"]
+                    if record["name"] not in unrequested
+                ]
         if unavailable:
             _log_artifact_replacements(
                 platform, locked, unavailable, dryrun_install["actions"]["FETCH"]

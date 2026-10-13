@@ -1,6 +1,6 @@
 """Check supplied dependency edges, package constraints and category assignment."""
 
-from collections.abc import Mapping, Sequence
+from collections.abc import Iterator, Mapping, Sequence
 from pathlib import PurePosixPath
 from types import SimpleNamespace
 from typing import Any
@@ -37,12 +37,14 @@ def check_categories_assigned(planned: Mapping[str, LockedDependency]) -> None:
     )
     if orphans:
         raise MetadataConsistencyError(
-            f"Planned packages have no category and would be omitted from the lockfile: {orphans}"
+            f"Planned packages have no category and would be omitted from the lockfile: {orphans}",
         )
 
 
-def check_dependency_constraints(records: Sequence[Mapping[str, Any]]) -> None:
-    """Check raw version/build requirements before reducing them to lockfile edges."""
+def _constraint_violations(
+    records: Sequence[Mapping[str, Any]], *, include_missing: bool = False
+) -> Iterator[tuple[str, str]]:
+    """Yield affected dependency names and explanations from raw MatchSpecs."""
     selected = {}
     for record in records:
         filename = record.get("fn") or unquote(
@@ -58,8 +60,13 @@ def check_dependency_constraints(records: Sequence[Mapping[str, Any]]) -> None:
             *(record.get("constrains") or []),
         ]:
             spec = MatchSpec(constraint)
-            if spec.name.startswith("__") or spec.name not in selected:
-                continue  # Missing required packages are checked separately.
+            name: str = spec.name
+            if spec.name.startswith("__"):
+                continue
+            if spec.name not in selected:
+                if include_missing and constraint in (record.get("depends") or []):
+                    yield name, f"{record['name']} requires missing {constraint}"
+                continue  # Optional constrains do not require a package's presence.
             try:
                 matches = spec.match(selected[spec.name])
             except (AttributeError, TypeError) as exc:
@@ -67,6 +74,20 @@ def check_dependency_constraints(records: Sequence[Mapping[str, Any]]) -> None:
                     f"Cannot verify {record['name']}'s requirement {constraint}"
                 ) from exc
             if not matches:
-                raise MetadataConsistencyError(
-                    f"Selected {spec.name} does not satisfy {record['name']}'s requirement {constraint}"
+                yield (
+                    name,
+                    (
+                        f"Selected {spec.name} does not satisfy {record['name']}'s requirement {constraint}"
+                    ),
                 )
+
+
+def packages_requiring_repair(records: Sequence[Mapping[str, Any]]) -> set[str]:
+    """Find missing/incompatible packages before constructing an update prefix."""
+    return {name for name, _ in _constraint_violations(records, include_missing=True)}
+
+
+def check_dependency_constraints(records: Sequence[Mapping[str, Any]]) -> None:
+    """Check raw version/build requirements before reducing them to lockfile edges."""
+    for _, explanation in _constraint_violations(records):
+        raise MetadataConsistencyError(explanation)

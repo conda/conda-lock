@@ -154,7 +154,11 @@ def test_update_only_omits_verified_obsolete_installed_packages(
             "depends": updated_dependencies
             + (["leaf"] if scenario == "lost-edge" else []),
         }
-        return [*installed.values(), canonical]
+        return [
+            *installed.values(),
+            canonical,
+            *[r for r in plan if r["name"] == "unexpected"],
+        ]
 
     monkeypatch.setattr(
         "conda_lock.solver.channel_metadata.query_channel_records", query
@@ -184,7 +188,7 @@ def test_update_only_omits_verified_obsolete_installed_packages(
     if scenario == "new-orphan":
         with pytest.raises(MetadataConsistencyError, match="have no category"):
             solve()
-        assert len(queries) == 1
+        assert len(queries) == 2
     else:
         result = solve()
         expected = {"root", "leaf"} if scenario == "lost-edge" else {"root"}
@@ -231,6 +235,10 @@ def test_update_does_not_resurrect_unlinked_packages(monkeypatch, removal_only):
             "url": "https://example.org/c/linux-64/root-2.0-0.conda",
         }
         actions.update(LINK=[updated], FETCH=[updated])
+    monkeypatch.setattr(
+        "conda_lock.solver.channel_metadata.query_channel_records",
+        lambda *args: [*installed.values(), *actions.get("FETCH", [])],
+    )
     monkeypatch.setattr(
         conda_solver.subprocess,
         "run",
