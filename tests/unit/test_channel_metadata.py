@@ -414,3 +414,74 @@ def test_skip_setting_does_not_bypass_supported_verification(
         channel_metadata.verified_channel_records(
             "/solver", "linux-64", [MAMBA_26_LINK_ACTION]
         )
+
+
+def test_verification_reuses_only_checked_artifacts_and_rechecks_hashes(monkeypatch):
+    old = copy.deepcopy(dict(MAMBA_26_LINK_ACTION))
+    new = {
+        **old,
+        "version": "9.0",
+        "build": "0",
+        "build_string": "0",
+        "build_number": 0,
+        "fn": "libzlib-9.0-0.conda",
+        "url": old["url"].rsplit("/", 1)[0] + "/libzlib-9.0-0.conda",
+        "md5": "a" * 32,
+        "sha256": "b" * 64,
+    }
+    calls = []
+
+    def query(conda, platform, records):
+        calls.append([r["url"] for r in records])
+        return [old, new]  # A search includes versions not selected by this plan.
+
+    monkeypatch.setattr(channel_metadata, "query_channel_records", query)
+    cache = {}
+    first = channel_metadata.verified_channel_records(
+        "solver", "linux-64", [old], verified_cache=cache
+    )
+    assert first is not None
+    first[old["name"]]["depends"].append("do-not-cache-caller-mutations")
+    again = channel_metadata.verified_channel_records(
+        "solver", "linux-64", [old], verified_cache=cache
+    )
+    assert again is not None
+    assert again[old["name"]]["depends"] == old["depends"]
+    assert len(calls) == 1
+    channel_metadata.verified_channel_records(
+        "solver", "linux-64", [new], verified_cache=cache
+    )
+    assert calls == [[old["url"]], [new["url"]]]
+    with pytest.raises(MetadataConsistencyError, match="identity cannot be verified"):
+        channel_metadata.verified_channel_records(
+            "solver", "linux-64", [{**new, "sha256": "c" * 64}], verified_cache=cache
+        )
+    assert len(calls) == 2  # Even an in-memory hit must reject contradictory hashes.
+
+
+def test_missing_or_skipped_records_are_not_cached(monkeypatch):
+    record = copy.deepcopy(dict(MAMBA_26_LINK_ACTION))
+    replies = iter([None, [], [record]])
+    monkeypatch.setattr(
+        channel_metadata, "query_channel_records", lambda *args: next(replies)
+    )
+    cache = {}
+    assert (
+        channel_metadata.verified_channel_records(
+            "solver", "linux-64", [record], verified_cache=cache
+        )
+        is None
+    )
+    assert cache == {}
+    assert (
+        channel_metadata.verified_channel_records(
+            "solver", "linux-64", [record], allow_missing=True, verified_cache=cache
+        )
+        == {}
+    )
+    assert cache == {}
+    verified = channel_metadata.verified_channel_records(
+        "solver", "linux-64", [record], verified_cache=cache
+    )
+    assert verified is not None
+    assert verified[record["name"]] == record
