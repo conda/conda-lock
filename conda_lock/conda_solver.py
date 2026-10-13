@@ -10,6 +10,7 @@ import sys
 from collections.abc import (
     Generator,
     Iterable,
+    Mapping,
     MutableMapping,
     MutableSequence,
     Sequence,
@@ -18,6 +19,7 @@ from contextlib import contextmanager
 from textwrap import dedent
 from typing import (
     Any,
+    cast,
 )
 from urllib.parse import unquote, urlsplit, urlunsplit
 
@@ -33,9 +35,12 @@ from conda_lock.invoke_conda import (
 from conda_lock.lockfile import apply_categories
 from conda_lock.lockfile.v2prelim.models import HashModel, LockedDependency
 from conda_lock.models.channel import Channel, normalize_url_with_placeholders
-from conda_lock.models.dry_run_install import DryRunInstall, LinkAction
+from conda_lock.models.dry_run_install import DryRunInstall, FetchAction, LinkAction
 from conda_lock.models.lock_spec import Dependency, VersionedDependency
-from conda_lock.solver.channel_metadata import metadata_fallback
+from conda_lock.solver.channel_metadata import (
+    metadata_fallback,
+    verified_channel_records,
+)
 from conda_lock.solver.dry_run import reconstruct_fetch_actions_in_place
 from conda_lock.tempdir_manager import temporary_directory
 
@@ -67,6 +72,25 @@ def _to_match_spec(
     else:
         # this will return only "package_name" even if there's a channel in the kwargs
         return ms.conda_build_form()
+
+
+def _dependency_versions(depends: Iterable[str]) -> dict[str, str]:
+    dependency_specs: dict[str, list[MatchSpec]] = {}
+    for dep in depends:
+        matchspec = MatchSpec(dep)  # pyright: ignore[reportArgumentType]
+        dependency_specs.setdefault(matchspec.name, []).append(matchspec)
+
+    dependencies = {}
+    for name, matchspecs in dependency_specs.items():
+        merged_matchspec = (
+            matchspecs[0] if len(matchspecs) == 1 else MatchSpec.merge(matchspecs)[0]
+        )
+        dependencies[name] = (
+            merged_matchspec.version.spec_str
+            if merged_matchspec.version is not None
+            else ""
+        )
+    return dependencies
 
 
 def solve_conda(
@@ -125,26 +149,12 @@ def solve_conda(
         )
     logging.debug("dry_run_install:\n%s", dry_run_install)
 
+    records = dry_run_install["actions"]["FETCH"]
+
     # extract dependencies from package plan
     planned = {}
-    for action in dry_run_install["actions"]["FETCH"]:
-        dependency_specs: dict[str, list[MatchSpec]] = {}
-        for dep in action.get("depends") or []:
-            matchspec = MatchSpec(dep)  # pyright: ignore[reportArgumentType]
-            dependency_specs.setdefault(matchspec.name, []).append(matchspec)
-
-        dependencies = {}
-        for name, matchspecs in dependency_specs.items():
-            merged_matchspec = (
-                matchspecs[0]
-                if len(matchspecs) == 1
-                else MatchSpec.merge(matchspecs)[0]
-            )
-            dependencies[name] = (
-                merged_matchspec.version.spec_str
-                if merged_matchspec.version is not None
-                else ""
-            )
+    for action in records:
+        dependencies = _dependency_versions(action.get("depends") or [])
 
         locked_dependency = LockedDependency(
             name=action["name"],
@@ -321,7 +331,31 @@ def update_specs_for_arch(
 
     """
 
-    with fake_conda_environment(locked.values(), platform=platform) as prefix:
+    expected_records = []
+    for dependency in locked.values():
+        record = dependency.to_fetch_action()
+        record["url"] = os.path.expandvars(record["url"])
+        expected_records.append(record)
+    current_records = verified_channel_records(conda, platform, expected_records)
+    if current_records is None:
+        current_records = {record["name"]: record for record in expected_records}
+    else:
+        refreshed = sorted(
+            name
+            for name, dep in locked.items()
+            if dep.dependencies
+            != _dependency_versions(current_records[name]["depends"])
+        )
+        if refreshed:
+            logger.info(
+                "Refreshed dependency metadata from verified channel artifacts: %s",
+                refreshed,
+            )
+    with fake_conda_environment(
+        (dep for name, dep in locked.items() if name in current_records),
+        platform=platform,
+        repodata=current_records,
+    ) as prefix:
         installed = _get_installed_conda_packages(conda, platform, prefix)
         spec_for_name = {MatchSpec(v).name: v for v in specs}  # pyright: ignore
         to_update = [
@@ -396,9 +430,8 @@ def update_specs_for_arch(
         removed = {entry["name"] for entry in actions.get("UNLINK", [])}
         for package in set(installed).difference(updated, removed):
             # This is the case where the package is unchanged.
-            # First create a FETCH action based on the original lockfile entry.
-            original_lockfile_entry = locked[package]
-            original_fetch_action = original_lockfile_entry.to_fetch_action()
+            # Carry refreshed metadata, or the original lock metadata in skip mode.
+            original_fetch_action = cast(FetchAction, current_records[package].copy())
             dryrun_install["actions"]["FETCH"].append(original_fetch_action)
 
             # Then create a LINK action to indicate that the package is installed.
@@ -411,7 +444,9 @@ def update_specs_for_arch(
 
 @contextmanager
 def fake_conda_environment(
-    locked: Iterable[LockedDependency], platform: str
+    locked: Iterable[LockedDependency],
+    platform: str,
+    repodata: Mapping[str, Mapping[str, Any]] | None = None,
 ) -> Generator[str]:
     """
     Create a fake conda prefix containing metadata corresponding to the provided dependencies
@@ -456,9 +491,24 @@ def fake_conda_environment(
                 "fn": unquote(path.name),
                 "depends": [f"{k} {v}".strip() for k, v in dep.dependencies.items()],
             }
+            if repodata is not None:
+                # Retain raw dependency build constraints, constrains and other
+                # solver metadata from the channel record, or the original
+                # lockfile record when verification was explicitly skipped.
+                entry.update(repodata[dep.name])
+                # repoquery's channel may be a bare name or empty for file URLs.
+                # Conda prefix records need the actual subdirectory location.
+                artifact_url = urlsplit(entry["url"])
+                entry["channel"] = urlunsplit(
+                    artifact_url._replace(
+                        path=artifact_url.path.rsplit("/", 1)[0], query="", fragment=""
+                    )
+                )
             # mamba requires these to be stringlike so null are not allowed here
             if dep.hash.sha256 is not None:
                 entry["sha256"] = dep.hash.sha256
+            elif entry.get("sha256") is None:
+                entry.pop("sha256", None)
 
             with open(conda_meta / (truncated_path.name + ".json"), "w") as f:
                 json.dump(entry, f, indent=2)
