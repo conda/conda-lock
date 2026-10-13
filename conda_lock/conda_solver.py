@@ -142,7 +142,7 @@ def solve_conda(
 
     """
 
-    metadata_fallback()  # Reject typos even when a fresh solve needs no channel query.
+    metadata_fallback()  # Reject typos before invoking the solver.
     conda_specs = [
         _to_match_spec(dep.name, dep.version, dep.build, dep.conda_channel)
         for dep in specs.values()
@@ -152,6 +152,7 @@ def solve_conda(
     metadata_channels = _metadata_channels(channels, conda_specs)
     to_update = set(update).intersection(conda_locked)
 
+    verified_cache: dict[str, dict[str, Any]] = {}
     if to_update:
         dry_run_install = update_specs_for_arch(
             conda=conda,
@@ -160,6 +161,7 @@ def solve_conda(
             specs=conda_specs,
             locked=conda_locked,
             update=list(to_update),
+            verified_cache=verified_cache,
         )
     else:
         dry_run_install = solve_specs_for_arch(
@@ -167,10 +169,20 @@ def solve_conda(
             platform=platform,
             channels=channels,
             specs=conda_specs,
+            verified_cache=verified_cache,
         )
     logging.debug("dry_run_install:\n%s", dry_run_install)
 
     records = dry_run_install["actions"]["FETCH"]
+    verified = verified_channel_records(
+        conda,
+        platform,
+        records,
+        channels=metadata_channels,
+        verified_cache=verified_cache,
+    )
+    if verified is not None:
+        records = list(verified.values())
     check_dependency_constraints(records)
 
     # extract dependencies from package plan
@@ -231,6 +243,8 @@ def solve_specs_for_arch(
     channels: Sequence[Channel],
     specs: list[str],
     platform: str,
+    *,
+    verified_cache: dict[str, dict[str, Any]] | None = None,
 ) -> DryRunInstall | dict[str, dict[str, list[Any]]]:
     """
     Solve conda specifications for the given platform
@@ -304,6 +318,7 @@ def solve_specs_for_arch(
             platform,
             dryrun_install,
             channels=_metadata_channels(channels, specs),
+            verified_cache=verified_cache,
         )
         return dryrun_install
     except json.JSONDecodeError as e:

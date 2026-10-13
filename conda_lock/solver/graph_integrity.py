@@ -25,7 +25,7 @@ def check_dependencies_present(planned: Mapping[str, LockedDependency]) -> None:
     }
     if missing:
         raise MetadataConsistencyError(
-            f"Solver plan is missing required packages: {missing}"
+            f"Solver plan is missing required packages: {missing}", report_bug=True
         )
 
 
@@ -38,6 +38,7 @@ def check_categories_assigned(planned: Mapping[str, LockedDependency]) -> None:
     if orphans:
         raise MetadataConsistencyError(
             f"Planned packages have no category and would be omitted from the lockfile: {orphans}",
+            report_bug=True,
         )
 
 
@@ -90,4 +91,4 @@ def packages_requiring_repair(records: Sequence[Mapping[str, Any]]) -> set[str]:
 def check_dependency_constraints(records: Sequence[Mapping[str, Any]]) -> None:
     """Check raw version/build requirements before reducing them to lockfile edges."""
     for _, explanation in _constraint_violations(records):
-        raise MetadataConsistencyError(explanation)
+        raise MetadataConsistencyError(explanation, report_bug=True)

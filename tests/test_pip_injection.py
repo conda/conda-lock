@@ -23,7 +23,7 @@ from conda_lock.models.lock_spec import VersionedDependency
     ],
     ids=["python-only", "transitive-python", "explicit-pip-pin", "pip-dependency"],
 )
-def test_pip_selection_comes_from_the_configured_solver(
+def test_pip_selection_survives_full_channel_verification(
     conda_exe: PathLike,
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -67,11 +67,14 @@ def test_pip_selection_comes_from_the_configured_solver(
         return plan
 
     monkeypatch.setattr(conda_solver, "solve_specs_for_arch", capture)
-    monkeypatch.setattr(
-        conda_solver,
-        "verified_channel_records",
-        lambda *args: pytest.fail("Pip must not trigger a channel query"),
-    )
+    verify = conda_solver.verified_channel_records
+    verified_selections = []
+
+    def verify_selection(*args, **kwargs):
+        verified_selections.append({record["name"] for record in args[2]})
+        return verify(*args, **kwargs)
+
+    monkeypatch.setattr(conda_solver, "verified_channel_records", verify_selection)
     planned = solve_conda(
         conda=conda_exe,
         specs={
@@ -87,11 +90,14 @@ def test_pip_selection_comes_from_the_configured_solver(
         mapping_url=DEFAULT_MAPPING_URL,
     )
     assert set(planned) == {record["name"] for record in captured}
+    assert verified_selections == [set(planned)]
     assert expected <= set(planned) <= expected | {"pip"}
     for record in captured:
+        expected_depends = records[record["fn"]]["depends"]
+        assert isinstance(expected_depends, list)
         assert planned[
             record["name"]
-        ].dependencies == conda_solver._dependency_versions(record["depends"] or [])
+        ].dependencies == conda_solver._dependency_versions(expected_depends)
     assert all(package.categories == {"dev"} for package in planned.values())
     if "pip" in requested:
         assert planned["pip"].version == "24.0"

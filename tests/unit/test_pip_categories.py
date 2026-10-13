@@ -28,21 +28,23 @@ def records_for(dependencies):
 
 
 @pytest.mark.parametrize("pip_root", ["pip", "app"])
-def test_connected_pip_does_not_require_another_channel_query(monkeypatch, pip_root):
+def test_connected_pip_uses_the_same_final_verification(monkeypatch, pip_root):
     records = records_for(
         {"python": [], "pip": ["python", "wheel"], "wheel": ["python"]}
     )
     if pip_root == "app":
         records.update(records_for({"app": ["pip"]}))
-    monkeypatch.setenv("CONDA_FLAGS", "--offline")
     monkeypatch.setattr(
         conda_solver,
         "solve_specs_for_arch",
         lambda **kwargs: {"actions": {"FETCH": list(records.values())}},
     )
 
-    def query(*args):
-        pytest.fail("Connected pip must not trigger another channel query")
+    queries = []
+
+    def query(conda, platform, selected, **kwargs):
+        queries.append([r["name"] for r in selected])
+        return copy.deepcopy(records)
 
     monkeypatch.setattr(conda_solver, "verified_channel_records", query)
     planned = conda_solver.solve_conda(
@@ -57,6 +59,8 @@ def test_connected_pip_does_not_require_another_channel_query(monkeypatch, pip_r
         channels=[],
         mapping_url="unused",
     )
+    assert len(queries) == 1
+    assert set(queries[0]) == set(records)
     assert planned["python"].categories == {"main"}
     assert planned["pip"].categories == planned["wheel"].categories == {"dev"}
 
@@ -116,7 +120,6 @@ def test_solver_selection_and_edges_survive_pip_category_assignment(
 ):
     records = records_for(dependencies)
     before = copy.deepcopy(records)
-    monkeypatch.setenv("CONDA_FLAGS", "--offline")
     monkeypatch.setattr(
         conda_solver,
         "solve_specs_for_arch",
@@ -125,7 +128,7 @@ def test_solver_selection_and_edges_survive_pip_category_assignment(
     monkeypatch.setattr(
         conda_solver,
         "verified_channel_records",
-        lambda *args: pytest.fail("Pip must not cause a verification query"),
+        lambda *args, **kwargs: copy.deepcopy(records),
     )
     planned = conda_solver.solve_conda(
         conda="solver",
@@ -194,7 +197,7 @@ def test_pip_exception_does_not_relax_other_integrity_checks(
     monkeypatch.setattr(
         conda_solver,
         "verified_channel_records",
-        lambda *args: pytest.fail("Pip must not cause a verification query"),
+        lambda *args, **kwargs: copy.deepcopy(records),
     )
     with pytest.raises(MetadataConsistencyError, match=error):
         conda_solver.solve_conda(

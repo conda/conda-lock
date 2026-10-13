@@ -26,7 +26,9 @@ class ChannelAggregationError(CondaLockError):
 class MetadataConsistencyError(CondaLockError):
     """The available records cannot establish a consistent package plan."""
 
-    def __init__(self, detail: str, *, recovery: str | None = None) -> None:
+    def __init__(
+        self, detail: str, *, recovery: str | None = None, report_bug: bool = False
+    ) -> None:
         if recovery is None:
             recovery = (
                 "Regenerate from the original source files with a fresh package cache "
@@ -34,6 +36,13 @@ class MetadataConsistencyError(CondaLockError):
                 "To locate additional caches, run `mamba config list pkgs_dirs --sources` "
                 "(use `micromamba` instead for micromamba), or "
                 "`conda config --show-sources` and `conda config --show pkgs_dirs`."
+            )
+        if report_bug:
+            recovery += (
+                " If this occurred with metadata verification enabled, please report "
+                "the inconsistent result at https://github.com/conda/conda-lock/issues "
+                "with conda-lock/solver versions and a reproducible example; "
+                "remove credentials from shared files and output."
             )
         super().__init__(
             f"{detail}. Cannot safely construct the lockfile dependency graph. "
