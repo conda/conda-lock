@@ -13,6 +13,8 @@ import os
 import subprocess
 import tarfile
 
+from pathlib import Path
+
 import pytest
 
 from conda_lock import conda_solver, invoke_conda
@@ -20,10 +22,12 @@ from conda_lock.conda_lock import (
     create_lockfile_from_spec,
     render_lockfile_for_platform,
 )
+from conda_lock.errors import MetadataConsistencyError
 from conda_lock.lockfile import parse_conda_lock_file, write_conda_lock_file
 from conda_lock.lockfile.v2prelim.models import UpdateSpecification
 from conda_lock.models.channel import Channel
 from conda_lock.models.lock_spec import (
+    Dependency,
     LockSpecification,
     VersionedDependency,
 )
@@ -97,6 +101,173 @@ def make_channel(root, definitions=None):
         (root / subdir / "repodata.json").write_text(data)
         (root / subdir / "current_repodata.json").write_text(data)
     return records
+
+
+@pytest.mark.parametrize("solver", SOLVERS)
+def test_channel_qualified_source_is_verified_on_fresh_lock_and_update(
+    tmp_path, monkeypatch, solver
+):
+    source = tmp_path / "source"
+    make_channel(source)
+    other = tmp_path / "other"
+    make_channel(
+        other, [("decoy", "1.0", [], "linux-64"), ("decoy-all", "1.0", [], "noarch")]
+    )
+    monkeypatch.setattr(invoke_conda, "CONDA_PKGS_DIRS", str(tmp_path / "cache"))
+    monkeypatch.setenv("MAMBA_ROOT_PREFIX", str(tmp_path / "root"))
+    monkeypatch.setenv("CONDA_FLAGS", "")
+    condarc = tmp_path / "condarc"
+    condarc.write_text(f"channels: []\nchannel_alias: {tmp_path.as_uri()}\n")
+    monkeypatch.setenv("CONDARC", str(condarc))
+    monkeypatch.setenv("MAMBARC", str(condarc))
+    channels = [Channel.from_string(other.as_uri())]
+    root_spec = VersionedDependency(
+        name="root-main", version="1.0", conda_channel="source"
+    )
+    specs: dict[str, Dependency] = {"root-main": root_spec}
+
+    def solve(locked, update):
+        return conda_solver.solve_conda(
+            conda=solver,
+            specs=specs,
+            locked=locked,
+            update=update,
+            platform="linux-64",
+            channels=channels,
+            mapping_url="unused",
+        )
+
+    locked = solve({}, [])
+    assert set(locked) == {"root-main", "shared"}
+    assert locked["root-main"].version == "1.0"
+    root_spec.version = "2.0"
+    updated = solve(locked, ["root-main"])
+    assert set(updated) == {"root-main", "shared"}
+    assert updated["root-main"].version == "2.0"
+    assert updated["shared"] == locked["shared"]
+    assert channels == [Channel.from_string(other.as_uri())]
+    assert all(package.url.startswith(source.as_uri()) for package in updated.values())
+
+
+@pytest.mark.parametrize("solver", SOLVERS)
+@pytest.mark.parametrize(
+    "removed",
+    [
+        "other-root",
+        "update-target",
+        "transitive",
+        "all",
+        "source-pin",
+        "retained-source-pin",
+        "no-replacement",
+        "removed-source",
+    ],
+)
+def test_update_replaces_unavailable_artifacts(
+    tmp_path, monkeypatch, caplog, solver, removed
+):
+    channel = tmp_path / "channel"
+    definitions = [
+        ("analysis-tool", "1.0", ["shared >=1"], "noarch"),
+        ("runtime", "1.0", [], "linux-64"),
+        ("shared", "1.0", [], "linux-64"),
+        ("unrelated", "1.0", [], "linux-64"),
+    ]
+    make_channel(channel, definitions)
+    monkeypatch.setenv("MAMBA_ROOT_PREFIX", str(tmp_path / "root"))
+    condarc = tmp_path / "condarc"
+    condarc.write_text("channels: []\n")
+    monkeypatch.setenv("CONDARC", str(condarc))
+    monkeypatch.setenv("MAMBARC", str(condarc))
+    monkeypatch.setenv("CONDA_FLAGS", "")
+    monkeypatch.setattr(invoke_conda, "CONDA_PKGS_DIRS", str(tmp_path / "cold-cache"))
+    specs: dict[str, Dependency] = {
+        name: VersionedDependency(name=name, version="*", category=category)
+        for name, category in [
+            ("analysis-tool", "dev"),
+            ("runtime", "main"),
+            ("unrelated", "main"),
+        ]
+    }
+
+    def solve(locked, update):
+        return conda_solver.solve_conda(
+            conda=solver,
+            specs=specs,
+            locked=locked,
+            update=update,
+            platform="linux-64",
+            channels=[Channel.from_string(channel.as_uri())],
+            mapping_url="unused",
+        )
+
+    locked = solve({}, [])
+    original = copy.deepcopy(locked)
+    removed_names = {
+        "other-root": {"analysis-tool"},
+        "update-target": {"runtime"},
+        "transitive": {"shared"},
+        "all": {name for name, _, _, _ in definitions},
+        "source-pin": {"analysis-tool"},
+        "retained-source-pin": {"analysis-tool"},
+        "no-replacement": {"analysis-tool"},
+        "removed-source": {"analysis-tool"},
+    }[removed]
+    available = [
+        definition for definition in definitions if definition[0] not in removed_names
+    ]
+    available.extend(
+        (name, "2.0", depends, subdir)
+        for name, _, depends, subdir in definitions
+        if removed != "no-replacement" or name != "analysis-tool"
+    )
+    # Remove only repodata entries. Keeping the archives proves that an old URL
+    # still being downloadable does not authorize retaining a delisted artifact.
+    make_channel(channel, available)
+    monkeypatch.setattr(invoke_conda, "CONDA_PKGS_DIRS", str(tmp_path / "update-cache"))
+    if removed == "source-pin":
+        specs["analysis-tool"] = VersionedDependency(
+            name="analysis-tool", version="==1.0", category="dev"
+        )
+    if removed == "retained-source-pin":
+        specs["unrelated"] = VersionedDependency(name="unrelated", version="==3.0")
+    if removed == "removed-source":
+        del specs["analysis-tool"]
+    if removed in {"source-pin", "retained-source-pin", "no-replacement"}:
+        with pytest.raises(RuntimeError, match="Replacements must satisfy") as exc:
+            solve(locked, ["runtime"])
+        assert ": None" not in str(exc.value)
+        assert "Artifact replacement on" not in caplog.text
+    else:
+        result = solve(locked, ["runtime"])
+        assert set(result) == (
+            set(locked) - {"analysis-tool", "shared"}
+            if removed == "removed-source"
+            else set(locked)
+        )
+        for name in (removed_names & set(result)) | {"runtime"}:
+            assert result[name].version == "2.0"
+            assert result[name].url != locked[name].url
+        if removed != "removed-source":
+            assert result["analysis-tool"].dependencies == {"shared": ">=1"}
+            assert (
+                result["analysis-tool"].categories
+                == result["shared"].categories
+                == {"dev"}
+            )
+        assert (
+            result["runtime"].categories == result["unrelated"].categories == {"main"}
+        )
+        if "unrelated" not in removed_names:
+            assert result["unrelated"] == locked["unrelated"]
+        for name in removed_names:
+            replacement = (
+                f"{name}-{result[name].version}-0.tar.bz2"
+                if name in result
+                else "not selected"
+            )
+            assert f"{name}-1.0-0.tar.bz2 -> {replacement}" in caplog.text
+    assert locked == original
 
 
 def snapshot(lock):
@@ -351,6 +522,54 @@ def test_cold_warm_contaminated_update_and_install(
 
 
 @pytest.mark.parametrize("solver", SOLVERS)
+def test_update_removes_obsolete_transitive_packages(tmp_path, monkeypatch, solver):
+    channel = tmp_path / "channel"
+    make_channel(channel)
+    for filename in ("repodata.json", "current_repodata.json"):
+        path = channel / "linux-64" / filename
+        data = json.loads(path.read_text())
+        data["packages"]["root-main-1.0-0.tar.bz2"]["depends"] = ["shared", "dev-leaf"]
+        data["packages"]["root-main-2.0-0.tar.bz2"]["depends"] = []
+        path.write_text(json.dumps(data))
+    monkeypatch.setattr(invoke_conda, "CONDA_PKGS_DIRS", str(tmp_path / "cache"))
+    monkeypatch.setenv("MAMBA_ROOT_PREFIX", str(tmp_path / "root"))
+    condarc = tmp_path / "condarc"
+    condarc.write_text("channels: []\n")
+    monkeypatch.setenv("CONDARC", str(condarc))
+    monkeypatch.setenv("CONDA_FLAGS", "")
+    specs: dict[str, Dependency] = {
+        "root-main": VersionedDependency(name="root-main", version="==1.0"),
+        "root-tool": VersionedDependency(
+            name="root-tool", version="*", category="tools"
+        ),
+    }
+
+    def solve(locked, update):
+        return conda_solver.solve_conda(
+            conda=solver,
+            specs=specs,
+            locked=locked,
+            update=update,
+            platform="linux-64",
+            channels=[Channel.from_string(channel.as_uri())],
+            mapping_url="unused",
+        )
+
+    original = solve({}, [])
+    before = copy.deepcopy(original)
+    specs["root-main"] = VersionedDependency(name="root-main", version="==2.0")
+    updated = solve(original, ["root-main"])
+    assert set(updated) == {"root-main", "root-tool", "shared", "tool-leaf"}
+    assert updated["root-main"].version == "2.0"
+    assert original["shared"].categories == {"main"}
+    assert updated["shared"].categories == {"tools"}
+    for name in ("root-tool", "shared", "tool-leaf"):
+        assert updated[name].url == original[name].url
+        assert updated[name].hash == original[name].hash
+    assert original == before
+
+
+@pytest.mark.parametrize("solver", SOLVERS)
 def test_explicit_install_does_not_recover_channel_patches(
     tmp_path, monkeypatch, solver
 ):
@@ -409,3 +628,164 @@ def test_explicit_install_does_not_recover_channel_patches(
     assert refreshed is not None
     assert refreshed[record["name"]]["depends"] == record["depends"]
     assert not installed_record.get("depends")
+
+
+@pytest.mark.parametrize("solver", SOLVERS)
+def test_update_refreshes_a_legitimate_channel_patch(tmp_path, monkeypatch, solver):
+    channel = tmp_path / "channel"
+    records = make_channel(channel)
+    monkeypatch.setenv("MAMBA_ROOT_PREFIX", str(tmp_path / "root"))
+    condarc = tmp_path / "condarc"
+    condarc.write_text("channels: []\n")
+    monkeypatch.setenv("CONDARC", str(condarc))
+    monkeypatch.setattr(invoke_conda, "CONDA_PKGS_DIRS", str(tmp_path / "cold-cache"))
+    specs: dict[str, Dependency] = {
+        name: VersionedDependency(name=name, version="==1.0", category="dev")
+        for name in ["root-dev", "root-tool"]
+    }
+
+    def solve(locked, update):
+        return conda_solver.solve_conda(
+            conda=solver,
+            specs=specs,
+            locked=locked,
+            update=update,
+            platform="linux-64",
+            channels=[Channel.from_string(channel.as_uri())],
+            mapping_url="unused",
+        )
+
+    locked = solve({}, [])
+    original = copy.deepcopy(locked)
+    # Patch repodata only; the selected package archives and their hashes stay put.
+    records["linux-64"]["root-dev-1.0-0.tar.bz2"]["depends"] = [
+        "shared >=1,<2",
+        "dev-leaf",
+    ]
+    for subdir, packages in records.items():
+        data = json.dumps(
+            dict(info=dict(subdir=subdir), packages=packages, **{"packages.conda": {}})
+        )
+        for filename in ["repodata.json", "current_repodata.json"]:
+            (channel / subdir / filename).write_text(data)
+    # Ensure the solver reads the patched channel instead of an earlier snapshot.
+    monkeypatch.setattr(invoke_conda, "CONDA_PKGS_DIRS", str(tmp_path / "update-cache"))
+    updated = solve(locked, ["root-tool"])
+    assert locked == original
+    assert updated["root-dev"].dependencies["shared"] == ">=1,<2"
+    for name, package in updated.items():
+        assert package.url == locked[name].url
+        assert package.hash == locked[name].hash
+        assert package.categories == {"dev"}
+    assert set(updated) == set(locked)
+
+
+@pytest.mark.parametrize("solver", SOLVERS)
+@pytest.mark.parametrize("python_requires_pip", [False, True])
+def test_channel_query_preserves_real_python_dependencies(
+    tmp_path, monkeypatch, solver, python_requires_pip
+):
+    """Querying pip alongside Python must not fabricate or remove an edge."""
+    from conda_lock.solver.channel_metadata import query_channel_records
+
+    channel = tmp_path / "channel"
+    records = {}
+    for name in ["python", "pip"]:
+        filename = f"{name}-3.0-0.tar.bz2"
+        records[filename] = {
+            "name": name,
+            "version": "3.0",
+            "build": "0",
+            "build_number": 0,
+            "depends": ["pip"] if name == "python" and python_requires_pip else [],
+            "subdir": "linux-64",
+            "md5": "0" * 32,
+            "size": 1,
+        }
+    for subdir in ["linux-64", "noarch"]:
+        directory = channel / subdir
+        directory.mkdir(parents=True)
+        data = json.dumps({"packages": records if subdir == "linux-64" else {}})
+        for filename in ["repodata.json", "current_repodata.json"]:
+            (directory / filename).write_text(data)
+    monkeypatch.setenv("MAMBA_ADD_PIP_AS_PYTHON_DEPENDENCY", "True")
+    monkeypatch.setenv("MAMBA_ROOT_PREFIX", str(tmp_path / "root"))
+    monkeypatch.setattr(invoke_conda, "CONDA_PKGS_DIRS", str(tmp_path / "cache"))
+    queried = query_channel_records(
+        solver,
+        "linux-64",
+        [
+            {**record, "url": (channel / "linux-64" / filename).as_uri()}
+            for filename, record in records.items()
+        ],
+        channels=[Channel.from_string(channel.as_uri())],
+    )
+    assert queried is not None
+    python = next(record for record in queried if record["name"] == "python")
+    assert python["depends"] == (["pip"] if python_requires_pip else [])
+    assert os.environ["MAMBA_ADD_PIP_AS_PYTHON_DEPENDENCY"] == "True"
+
+
+@pytest.mark.parametrize(
+    "solver", [s for s in SOLVERS if Path(s).name in {"conda", "conda.exe"}]
+)
+@pytest.mark.parametrize("fallback", ["error", "unbatched", "skip"])
+def test_update_without_repoquery(tmp_path, monkeypatch, caplog, solver, fallback):
+    """Disable the real plugin, then exercise each fallback through an update."""
+    channel = tmp_path / "channel"
+    make_channel(channel)
+    condarc = tmp_path / "condarc"
+    condarc.write_text("channels: []\n")
+    monkeypatch.setenv("CONDARC", str(condarc))
+    monkeypatch.setattr(invoke_conda, "CONDA_PKGS_DIRS", str(tmp_path / "cache"))
+    monkeypatch.delenv("CONDA_LOCK_METADATA_FALLBACK", raising=False)
+    specs: dict[str, Dependency] = {
+        name: VersionedDependency(name=name, version="==1.0", category=category)
+        for name, category in [
+            ("root-dev", "main"),
+            ("dev-leaf", "main"),
+            ("root-tool", "dev"),
+        ]
+    }
+
+    def solve(locked, update):
+        return conda_solver.solve_conda(
+            conda=solver,
+            specs=specs,
+            locked=locked,
+            update=update,
+            platform="linux-64",
+            channels=[Channel.from_string(channel.as_uri())],
+            mapping_url="unused",
+        )
+
+    locked = solve({}, [])
+    assert locked["shared"].categories == {"main"}
+    monkeypatch.setenv("CONDA_NO_PLUGINS", "true")
+    monkeypatch.setenv("CONDA_SOLVER", "classic")
+    # Erasing this list hides an edge without creating an orphan: root-tool
+    # still reaches shared, and dev-leaf is explicitly requested.
+    locked["root-dev"].dependencies = {}
+    original = copy.deepcopy(locked)
+    if fallback == "error":
+        with pytest.raises(MetadataConsistencyError, match="cannot batch"):
+            solve(locked, ["root-tool"])
+    else:
+        monkeypatch.setenv("CONDA_LOCK_METADATA_FALLBACK", fallback)
+        updated = solve(locked, ["root-tool"])
+        assert set(updated) == set(locked)
+        assert locked == original
+        for name in updated:
+            assert updated[name].url == locked[name].url
+            assert updated[name].hash == locked[name].hash
+        if fallback == "unbatched":
+            assert updated["root-dev"].dependencies == {
+                "shared": ">=1",
+                "dev-leaf": "",
+            }
+            assert updated["shared"].categories == {"main"}
+            assert "individual searches" in caplog.text
+        else:
+            assert updated["root-dev"].dependencies == {}
+            assert updated["shared"].categories == {"dev"}
+            assert "skipping channel verification" in caplog.text
