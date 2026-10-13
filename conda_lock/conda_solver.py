@@ -420,7 +420,8 @@ def update_specs_for_arch(
         installed = _get_installed_conda_packages(conda, platform, prefix)
         spec_for_name = {MatchSpec(v).name: v for v in specs}  # pyright: ignore
         to_update = [
-            spec_for_name[name] for name in set(installed).intersection(update)
+            spec_for_name.get(name, name)
+            for name in set(installed).intersection(update)
         ]
         dryrun_install: DryRunInstall
         if to_update:

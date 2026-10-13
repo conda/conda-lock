@@ -177,8 +177,9 @@ def test_update_does_not_resurrect_unlinked_packages(monkeypatch, removal_only):
 
 
 @pytest.mark.parametrize("old_dependencies", [{}, {"leaf": "<3"}])
+@pytest.mark.parametrize("update_name", ["root", "leaf"])
 def test_update_refreshes_metadata_before_solving_without_mutating_old_lock(
-    monkeypatch, old_dependencies
+    monkeypatch, old_dependencies, update_name
 ):
     locked = {
         name: LockedDependency(
@@ -222,16 +223,23 @@ def test_update_refreshes_metadata_before_solving_without_mutating_old_lock(
         return by_name
 
     monkeypatch.setattr(conda_solver, "_get_installed_conda_packages", installed)
+
+    def solve(command, **kwargs):
+        # A transitive target has no source MatchSpec. Request it by name while
+        # preserving the refreshed parent's constraints in the temporary prefix.
+        assert command[-1] == update_name
+        return subprocess.CompletedProcess(command, 0, '{"actions": {}}')
+
     monkeypatch.setattr(
         conda_solver.subprocess,
         "run",
-        lambda *args, **kwargs: subprocess.CompletedProcess(args, 0, '{"actions": {}}'),
+        solve,
     )
     result = conda_solver.update_specs_for_arch(
         conda="micromamba",
         specs=["root"],
         locked=locked,
-        update=["root"],
+        update=[update_name],
         platform="linux-64",
         channels=[Channel.from_string("https://example.org/c")],
     )
