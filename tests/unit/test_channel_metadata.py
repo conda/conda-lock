@@ -8,7 +8,7 @@ import pytest
 
 from packaging.version import Version
 
-from conda_lock.errors import MetadataConsistencyError
+from conda_lock.errors import CondaLockError, MetadataConsistencyError
 from conda_lock.solver import channel_metadata
 from tests.support.fixtures import MAMBA_26_LINK_ACTION
 
@@ -380,6 +380,28 @@ def test_conda_batch_capability_requires_multiple_specs(
         lambda cmd, **kw: subprocess.CompletedProcess(cmd, status, help_text),
     )
     assert channel_metadata._supports_conda_repoquery("/solver", {}) is supported
+
+
+@pytest.mark.parametrize("value", [" ", "skpi", "false"])
+def test_invalid_metadata_fallback_fails_before_solving(monkeypatch, value):
+    from conda_lock import conda_solver
+
+    monkeypatch.setenv("CONDA_LOCK_METADATA_FALLBACK", value)
+    monkeypatch.setattr(
+        conda_solver,
+        "solve_specs_for_arch",
+        lambda **kw: pytest.fail("Invalid setting must fail before solving"),
+    )
+    with pytest.raises(CondaLockError, match="Invalid CONDA_LOCK_METADATA_FALLBACK"):
+        conda_solver.solve_conda(
+            conda="/solver",
+            specs={},
+            locked={},
+            update=[],
+            platform="linux-64",
+            channels=[],
+            mapping_url="unused",
+        )
 
 
 @pytest.mark.parametrize(

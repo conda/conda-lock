@@ -8,15 +8,19 @@ rich-LINK actions (mamba 2.x / micromamba), sparse-LINK actions
 (conda, Python mamba 1.x), or already-complete FETCH actions.
 """
 
+import logging
+
 from collections.abc import Mapping
 from typing import Any, cast
 
 from packaging.version import Version
 
 from conda_lock.errors import MetadataConsistencyError
-from conda_lock.invoke_conda import PathLike, mamba_binary_version
-from conda_lock.models.dry_run_install import DryRunInstall, FetchAction
+from conda_lock.invoke_conda import PathLike, get_pkgs_dirs, mamba_binary_version
+from conda_lock.models.dry_run_install import DryRunInstall, FetchAction, LinkAction
+from conda_lock.solver.channel_metadata import verified_channel_records
 from conda_lock.solver.repodata_cache import (
+    get_repodata_record,
     record_matches_link,
     record_validation_error,
 )
@@ -114,3 +118,110 @@ def _validate_live_actions(
                     raise MetadataConsistencyError(
                         f"FETCH/LINK dependencies disagree for {name}"
                     )
+
+
+def reconstruct_fetch_actions_in_place(
+    conda: PathLike,
+    platform: str,
+    dry_run_install: DryRunInstall | dict[str, Any],
+    *,
+    verified_cache: dict[str, dict[str, Any]] | None = None,
+) -> None:
+    """Normalize a conda/mamba dryrun so every planned package has a FETCH.
+
+    Conda may choose to link a previously downloaded distribution from
+    ``pkgs_dirs`` rather than downloading a fresh one, in which case
+    its dryrun returns only a LINK action, which for conda and the
+    Python ``mamba`` 1.x CLI lacks the ``url`` / ``md5`` / ``sha256``
+    / ``depends`` fields the package plan needs.
+    For each LINK without a matching FETCH, this function either
+    synthesizes one from the LINK metadata (mamba-family fast path)
+    or verifies cached ``repodata_record.json`` against channel metadata.
+    An explicit skip fallback retains shape- and identity-checked cache records
+    without channel verification when the solver cannot batch queries.
+
+    Mutates ``actions["FETCH"]`` in place and creates missing LINK/FETCH lists.
+    Deep-copy the input first if the original plan must be preserved.
+    """
+    if "LINK" not in dry_run_install["actions"]:
+        dry_run_install["actions"]["LINK"] = []
+    if "FETCH" not in dry_run_install["actions"]:
+        dry_run_install["actions"]["FETCH"] = []
+
+    _validate_live_actions(conda, dry_run_install)
+    link_actions = {p["name"]: p for p in dry_run_install["actions"]["LINK"]}
+    fetch_actions = {p["name"]: p for p in dry_run_install["actions"]["FETCH"]}
+    link_only_names = set(link_actions.keys()).difference(fetch_actions.keys())
+
+    # Mamba-family solvers often put complete metadata into LINK actions.
+    # It may originate in extracted records, especially when offline.
+    # Synthesize FETCH without reading those same records again, then
+    # and only run another subprocess to discover ``pkgs_dirs`` if
+    # anything is left over.
+    deferred: list[tuple[str, LinkAction]] = []
+    suspicious = []
+    for link_pkg_name in link_only_names:
+        link_action = link_actions[link_pkg_name]
+        from_link = link_action_as_fetch(link_action)
+        if from_link is not None:
+            dry_run_install["actions"]["FETCH"].append(from_link)
+            if link_action.get("timestamp") == 0 and link_action.get("license") == "":
+                suspicious.append(link_pkg_name)
+        else:
+            deferred.append((link_pkg_name, link_action))
+
+    if deferred:
+        pkgs_dirs = get_pkgs_dirs(conda=conda, platform=platform)
+    else:
+        pkgs_dirs = []
+
+    reconstructed = []
+    for _link_pkg_name, link_action in deferred:
+        if "dist_name" in link_action:
+            dist_name = link_action["dist_name"]
+        elif "fn" in link_action:
+            dist_name = str(link_action["fn"])
+            if dist_name.endswith(".tar.bz2"):
+                dist_name = dist_name[:-8]
+            elif dist_name.endswith(".conda"):
+                dist_name = dist_name[:-6]
+            else:
+                raise ValueError(f"Unknown filename format: {dist_name}")
+        else:
+            raise ValueError(f"Unable to extract the dist_name from {link_action}.")
+        repodata = get_repodata_record(pkgs_dirs, dist_name, link_action)
+        if repodata is None:
+            raise MetadataConsistencyError(
+                f"No valid cache record matching distribution '{dist_name}' "
+                f"was found in pkgs_dirs {pkgs_dirs}"
+            )
+        reconstructed.append(repodata)
+    if reconstructed:
+        verified = verified_channel_records(
+            conda, platform, reconstructed, verified_cache=verified_cache
+        )
+        if verified is None:
+            # Shape and artifact identity were checked by get_repodata_record;
+            # the explicit skip fallback does not establish dependency correctness.
+            recovered = reconstructed
+            suspicious.extend(
+                record["name"]
+                for record in reconstructed
+                if record.get("timestamp") == 0 and record.get("license") == ""
+            )
+        else:
+            recovered = list(verified.values())
+        dry_run_install["actions"]["FETCH"].extend(
+            cast(FetchAction, record) for record in recovered
+        )
+
+    if suspicious:
+        logging.getLogger(__name__).warning(
+            "Package metadata for %s has timestamp=0 and an empty license, "
+            "a pattern written by older Mamba versions. Dependencies may be missing; "
+            "this warning does not establish corruption or repair the metadata. "
+            "Before using this lockfile, regenerate online with an isolated cache "
+            "and a current solver, writing to a new path without --update. "
+            "See https://conda.github.io/conda-lock/troubleshooting/#suspicious-package-metadata",
+            ", ".join(sorted(suspicious)),
+        )
