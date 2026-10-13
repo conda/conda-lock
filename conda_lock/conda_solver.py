@@ -355,6 +355,69 @@ def _unrequested_packages(
     return set(records).difference(needed)
 
 
+def _log_artifact_replacements(
+    platform: str,
+    locked: Mapping[str, LockedDependency],
+    unavailable: set[str],
+    records: Sequence[Mapping[str, Any]],
+) -> None:
+    # Filenames include versions and builds without exposing channel credentials.
+    selected = {record["name"]: record for record in records}
+    for name in sorted(unavailable):
+        old_filename = unquote(urlsplit(locked[name].url).path.rsplit("/", 1)[-1])
+        new_filename = (
+            unquote(urlsplit(selected[name]["url"]).path.rsplit("/", 1)[-1])
+            if name in selected
+            else "not selected"
+        )
+        logger.info(
+            "Artifact replacement on %s: %s -> %s",
+            platform,
+            old_filename,
+            new_filename,
+        )
+
+
+def _packages_requiring_replacement(
+    records: Mapping[str, Mapping[str, Any]], unavailable: set[str]
+) -> set[str]:
+    """Re-solve parents of unavailable artifacts instead of retaining broken prefixes."""
+    parents: dict[str, set[str]] = {}
+    for name, record in records.items():
+        for dependency in record["depends"]:
+            parents.setdefault(MatchSpec(dependency).name, set()).add(name)
+    affected = set(unavailable)
+    pending = list(unavailable)
+    while pending:
+        for name in parents.get(pending.pop(), set()).difference(affected):
+            affected.add(name)
+            pending.append(name)
+    return affected
+
+
+def _write_update_pins(
+    prefix: str,
+    source_specs: Sequence[str],
+    installed: Mapping[str, LinkAction],
+    update: Sequence[str],
+    *,
+    pin_installed: bool,
+) -> None:
+    # Conda may relax historical requests, so replacement solves also express
+    # source requirements as hard pins. Mamba's existing selective-update policy
+    # additionally pins retained packages; unavailable artifacts never enter here.
+    pins = list(source_specs)
+    if pin_installed:
+        pins.extend(
+            f"{name} =={installed[name]['version']}"
+            for name in sorted(set(installed).difference(update))
+        )
+    if pins:
+        filename = pathlib.Path(prefix) / "conda-meta" / "pinned"
+        assert not filename.exists()
+        filename.write_text("\n".join(pins) + "\n")
+
+
 def update_specs_for_arch(
     conda: PathLike,
     specs: list[str],
@@ -533,6 +596,7 @@ def fake_conda_environment(
     locked: Iterable[LockedDependency],
     platform: str,
     repodata: Mapping[str, Mapping[str, Any]] | None = None,
+    specs: Sequence[str] | None = None,
 ) -> Generator[str]:
     """
     Create a fake conda prefix containing metadata corresponding to the provided dependencies
@@ -549,6 +613,13 @@ def fake_conda_environment(
         conda_meta = pathlib.Path(prefix) / "conda-meta"
         conda_meta.mkdir()
         (conda_meta / "history").touch()
+        if specs is not None:
+            # Conda reads source requirements from its normal transaction history.
+            # This prefix is synthetic, so the date carries no historical meaning.
+            (conda_meta / "history").write_text(
+                "==> 2000-01-01 00:00:00 <==\n"
+                f"# cmd: conda-lock\n# update specs: {list(specs)!r}\n"
+            )
         for dep in (
             dep for dep in locked if dep.manager == "conda" and dep.platform == platform
         ):
