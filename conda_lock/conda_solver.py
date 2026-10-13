@@ -6,7 +6,6 @@ import shlex
 import shutil
 import subprocess
 import sys
-import time
 
 from collections.abc import (
     Generator,
@@ -29,14 +28,15 @@ from conda_lock.invoke_conda import (
     conda_env_override,
     conda_pkgs_dir,
     extract_json_object,
-    get_pkgs_dirs,
     is_micromamba,
 )
 from conda_lock.lockfile import apply_categories
 from conda_lock.lockfile.v2prelim.models import HashModel, LockedDependency
 from conda_lock.models.channel import Channel, normalize_url_with_placeholders
-from conda_lock.models.dry_run_install import DryRunInstall, FetchAction, LinkAction
+from conda_lock.models.dry_run_install import DryRunInstall, LinkAction
 from conda_lock.models.lock_spec import Dependency, VersionedDependency
+from conda_lock.solver.channel_metadata import metadata_fallback
+from conda_lock.solver.dry_run import reconstruct_fetch_actions_in_place
 from conda_lock.tempdir_manager import temporary_directory
 
 
@@ -98,6 +98,7 @@ def solve_conda(
 
     """
 
+    metadata_fallback()  # Reject typos even when a fresh solve needs no channel query.
     conda_specs = [
         _to_match_spec(dep.name, dep.version, dep.build, dep.conda_channel)
         for dep in specs.values()
@@ -169,80 +170,6 @@ def solve_conda(
     )
 
     return planned
-
-
-def _get_repodata_record(
-    pkgs_dirs: list[pathlib.Path], dist_name: str
-) -> FetchAction | None:
-    """Get the repodata_record.json of a given distribution from the package cache.
-
-    On rare occasion during the CI tests, conda fails to find a package in the
-    package cache, perhaps because the package is still being processed? Waiting for
-    0.1 seconds seems to solve the issue. Here we allow for a full second to elapse
-    before giving up.
-    """
-    NUM_RETRIES = 10
-    for retry in range(1, NUM_RETRIES + 1):
-        for pkgs_dir in pkgs_dirs:
-            record = pkgs_dir / dist_name / "info" / "repodata_record.json"
-            if record.exists():
-                with open(record) as f:
-                    repodata: FetchAction = json.load(f)
-                return repodata
-        logger.warning(
-            f"Failed to find repodata_record.json for {dist_name}. "
-            f"Retrying in 0.1 seconds ({retry}/{NUM_RETRIES})"
-        )
-        time.sleep(0.1)
-    logger.warning(f"Failed to find repodata_record.json for {dist_name}. Giving up.")
-    return None
-
-
-def _reconstruct_fetch_actions(
-    conda: PathLike,
-    platform: str,
-    dry_run_install: DryRunInstall | dict[str, dict[str, list[Any]]],
-) -> DryRunInstall | dict[str, dict[str, list[Any]]]:
-    """
-    Conda may choose to link a previously downloaded distribution from pkgs_dirs rather
-    than downloading a fresh one. Find the repodata record in existing distributions
-    that have only a LINK action, and use it to synthesize a corresponding FETCH action
-    with the metadata we need to extract for the package plan.
-    """
-    if "LINK" not in dry_run_install["actions"]:
-        dry_run_install["actions"]["LINK"] = []
-    if "FETCH" not in dry_run_install["actions"]:
-        dry_run_install["actions"]["FETCH"] = []
-
-    link_actions = {p["name"]: p for p in dry_run_install["actions"]["LINK"]}
-    fetch_actions = {p["name"]: p for p in dry_run_install["actions"]["FETCH"]}
-    link_only_names = set(link_actions.keys()).difference(fetch_actions.keys())
-    if link_only_names:
-        pkgs_dirs = get_pkgs_dirs(conda=conda, platform=platform)
-    else:
-        pkgs_dirs = []
-
-    for link_pkg_name in link_only_names:
-        link_action = link_actions[link_pkg_name]
-        if "dist_name" in link_action:
-            dist_name = link_action["dist_name"]
-        elif "fn" in link_action:
-            dist_name = str(link_action["fn"])
-            if dist_name.endswith(".tar.bz2"):
-                dist_name = dist_name[:-8]
-            elif dist_name.endswith(".conda"):
-                dist_name = dist_name[:-6]
-            else:
-                raise ValueError(f"Unknown filename format: {dist_name}")
-        else:
-            raise ValueError(f"Unable to extract the dist_name from {link_action}.")
-        repodata = _get_repodata_record(pkgs_dirs, dist_name)
-        if repodata is None:
-            raise FileNotFoundError(
-                f"Distribution '{dist_name}' not found in pkgs_dirs {pkgs_dirs}"
-            )
-        dry_run_install["actions"]["FETCH"].append(repodata)
-    return dry_run_install
 
 
 def solve_specs_for_arch(
@@ -318,7 +245,8 @@ def solve_specs_for_arch(
 
     try:
         dryrun_install: DryRunInstall = json.loads(extract_json_object(proc.stdout))
-        return _reconstruct_fetch_actions(conda, platform, dryrun_install)
+        reconstruct_fetch_actions_in_place(conda, platform, dryrun_install)
+        return dryrun_install
     except json.JSONDecodeError as e:
         raise RuntimeError(f"Failed to parse json: '{proc.stdout}'") from e
 
@@ -477,8 +405,8 @@ def update_specs_for_arch(
             installed_link_action = installed[package]
             dryrun_install["actions"]["LINK"].append(installed_link_action)
 
-        reconstructed = _reconstruct_fetch_actions(conda, platform, dryrun_install)
-        return reconstructed
+        reconstruct_fetch_actions_in_place(conda, platform, dryrun_install)
+        return dryrun_install
 
 
 @contextmanager
