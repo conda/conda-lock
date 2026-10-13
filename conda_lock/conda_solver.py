@@ -20,6 +20,7 @@ from textwrap import dedent
 from typing import Any, cast
 from urllib.parse import unquote, urlsplit, urlunsplit
 
+from conda_lock.errors import MetadataConsistencyError
 from conda_lock.interfaces.vendored_conda import MatchSpec
 from conda_lock.invoke_conda import (
     PathLike,
@@ -451,15 +452,27 @@ def update_specs_for_arch(
         record = dependency.to_fetch_action()
         record["url"] = os.path.expandvars(record["url"])
         expected_records.append(record)
-    current_records = verified_channel_records(conda, platform, expected_records)
+    current_records = verified_channel_records(
+        conda, platform, expected_records, allow_missing=True
+    )
     metadata_verified = current_records is not None
+    unavailable: set[str] = set()
     if current_records is None:
         current_records = {record["name"]: record for record in expected_records}
     else:
+        unavailable = set(locked).difference(current_records)
+        if unavailable:
+            logger.warning(
+                "The channel query no longer lists the locked artifacts for %s. "
+                "Solving again under the source requirements; these packages may "
+                "change even if they were not named in --update.",
+                sorted(unavailable),
+            )
         refreshed = sorted(
             name
             for name, dep in locked.items()
-            if dep.dependencies
+            if name in current_records
+            and dep.dependencies
             != _dependency_versions(current_records[name]["depends"])
         )
         if refreshed:
@@ -468,6 +481,11 @@ def update_specs_for_arch(
                 refreshed,
             )
     requested = {MatchSpec(spec).name for spec in specs}
+    reinstall = (
+        _packages_requiring_replacement(current_records, unavailable) | set(update)
+        if unavailable
+        else set()
+    )
     if metadata_verified:
         unrequested = _unrequested_packages(current_records, requested)
         current_records = {
@@ -476,18 +494,44 @@ def update_specs_for_arch(
             if name not in unrequested
         }
     with fake_conda_environment(
-        (dep for name, dep in locked.items() if name in current_records),
+        (
+            dep
+            for name, dep in locked.items()
+            if name in current_records and name not in reinstall
+        ),
         platform=platform,
         repodata=current_records,
+        specs=specs if unavailable else None,
     ) as prefix:
         installed = _get_installed_conda_packages(conda, platform, prefix)
         spec_for_name = {MatchSpec(v).name: v for v in specs}  # pyright: ignore
         to_update = [
             spec_for_name.get(name, name)
-            for name in set(installed).intersection(update)
+            for name in sorted(set(installed).intersection(update))
         ]
+        if unavailable:
+            # Mamba update ignores absent packages. Install all current roots so
+            # unavailable roots and transitive packages can be selected afresh.
+            # Omit explicit update targets from the fake prefix too: otherwise
+            # Mamba install may keep their old versions instead of updating them.
+            if is_micromamba(conda) or pathlib.Path(conda).name.startswith("mamba"):
+                to_update = list(specs)
+            else:
+                # Conda uses the fake prefix's requested-spec history to retain
+                # other roots and their source constraints without upgrading them.
+                to_update = [
+                    spec for spec in specs if MatchSpec(spec).name not in installed
+                ]
+            to_update += [name for name in update if name not in requested]
         dryrun_install: DryRunInstall
         if to_update:
+            _write_update_pins(
+                prefix,
+                specs if unavailable else (),
+                installed,
+                update,
+                pin_installed=pathlib.Path(conda).name.startswith("mamba"),
+            )
             # NB: [micro]mamba and mainline conda have different semantics for `install` and `update`
             # - conda:
             #   * update -> apply all nonmajor updates unconditionally (unless pinned)
@@ -501,15 +545,9 @@ def update_specs_for_arch(
             # Our `update` should always update the target to the latest version compatible with the constraint,
             # while updating as few other packages as possible. With mamba this can only be done with pinning.
             if pathlib.Path(conda).name.startswith("mamba"):
-                # pin non-updated packages to prevent _any_ movement
-                pinned_filename = pathlib.Path(prefix) / "conda-meta" / "pinned"
-                assert not pinned_filename.exists()
-                with open(pinned_filename, "w") as pinned:
-                    for name in set(installed.keys()).difference(update):
-                        pinned.write(f"{name} =={installed[name]['version']}\n")
                 args = [
                     str(conda),
-                    "update",
+                    "install" if unavailable else "update",
                     *_get_conda_flags(channels=channels, platform=platform),
                 ]
                 print(
@@ -520,7 +558,7 @@ def update_specs_for_arch(
             else:
                 args = [
                     str(conda),
-                    "update" if is_micromamba(conda) else "install",
+                    "update" if is_micromamba(conda) and not unavailable else "install",
                     *_get_conda_flags(channels=channels, platform=platform),
                 ]
             cmd = [
@@ -540,8 +578,19 @@ def update_specs_for_arch(
                 proc.check_returncode()
             except subprocess.CalledProcessError as exc:
                 err_json = json.loads(proc.stdout)
+                message = err_json.get("message") or (
+                    f"solver exited with status {proc.returncode}"
+                )
+                removal_context = (
+                    f" Previously locked artifacts are no longer listed for "
+                    f"{sorted(unavailable)}. Replacements must satisfy the current "
+                    "source requirements; review any pins that prevent replacement."
+                    if unavailable
+                    else ""
+                )
                 raise RuntimeError(
-                    f"Could not lock the environment for platform {platform}: {err_json.get('message')}"
+                    f"Could not lock the environment for platform {platform}: "
+                    f"{message}{removal_context}"
                 ) from exc
 
             dryrun_install = json.loads(extract_json_object(proc.stdout))
@@ -567,12 +616,28 @@ def update_specs_for_arch(
         records = {
             record["name"]: record for record in dryrun_install["actions"]["FETCH"]
         }
+        if unavailable:
+            # A solver may still see the old artifact in another cache. Never
+            # publish an unverified replacement or resurrect a removed artifact.
+            verified = verified_channel_records(conda, platform, list(records.values()))
+            if verified is None:
+                raise MetadataConsistencyError(
+                    "Cannot verify replacements for unavailable locked artifacts"
+                )
+            records = verified
+            dryrun_install["actions"]["FETCH"] = [
+                cast(FetchAction, record) for record in records.values()
+            ]
         unrequested = _unrequested_packages(records, requested)
         if metadata_verified and unrequested and unrequested.issubset(current_records):
             # Conda can retain installed packages whose last incoming edge was
             # removed by this update. Only omit old packages, and verify the
             # entire new graph before trusting that those edges disappeared.
-            verified = verified_channel_records(conda, platform, list(records.values()))
+            verified = (
+                records
+                if unavailable
+                else verified_channel_records(conda, platform, list(records.values()))
+            )
             if verified is None:
                 return dryrun_install  # Keep unverified orphans for the final guards.
             unrequested = _unrequested_packages(verified, requested)
@@ -588,6 +653,10 @@ def update_specs_for_arch(
                 for record in dryrun_install["actions"]["LINK"]
                 if record["name"] not in unrequested
             ]
+        if unavailable:
+            _log_artifact_replacements(
+                platform, locked, unavailable, dryrun_install["actions"]["FETCH"]
+            )
         return dryrun_install
 
 
