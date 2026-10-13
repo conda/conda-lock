@@ -6,9 +6,121 @@ from copy import deepcopy
 import pytest
 
 from conda_lock import conda_solver
+from conda_lock.errors import MetadataConsistencyError
 from conda_lock.lockfile.v2prelim.models import HashModel, LockedDependency
 from conda_lock.models.channel import Channel
 from conda_lock.models.dry_run_install import FetchAction
+from conda_lock.models.lock_spec import VersionedDependency
+
+
+@pytest.mark.parametrize("missing", ["root", "leaf"])
+def test_update_pruning_defers_when_requested_closure_is_incomplete(missing):
+    records = {
+        "root": {"depends": ["leaf"]},
+        "leaf": {"depends": []},
+        "orphan": {"depends": []},
+    }
+    del records[missing]
+    original = deepcopy(records)
+    assert conda_solver._unrequested_packages(records, ["root"]) == set()
+    assert records == original
+
+
+@pytest.mark.parametrize("scenario", ["removed-edge", "lost-edge", "new-orphan"])
+@pytest.mark.parametrize("with_pip", [False, True])
+def test_update_only_omits_verified_obsolete_installed_packages(
+    monkeypatch, scenario, with_pip
+):
+    dependencies = {"root": {"leaf": ""}, "leaf": {}}
+    if with_pip:
+        dependencies["root"]["python"] = ""
+        dependencies.update(
+            python={}, pip={"python": "", "wheel": ""}, wheel={"python": ""}
+        )
+    locked = {
+        name: LockedDependency(
+            name=name,
+            version="1.0",
+            manager="conda",
+            platform="linux-64",
+            dependencies=deps,
+            url=f"https://example.org/c/linux-64/{name}-1.0-0.conda",
+            hash=HashModel(md5="0" * 32),
+            categories={"main"},
+        )
+        for name, deps in dependencies.items()
+    }
+    before = deepcopy(locked)
+    installed = {name: dep.to_fetch_action() for name, dep in locked.items()}
+    updated_dependencies = ["python"] if with_pip else []
+    updated: FetchAction = {
+        **installed["root"],
+        "version": "2.0",
+        "depends": updated_dependencies,
+        "fn": "root-2.0-0.conda",
+        "url": "https://example.org/c/linux-64/root-2.0-0.conda",
+    }
+    plan = [updated]
+    if scenario == "new-orphan":
+        plan.append(
+            {
+                **installed["leaf"],
+                "name": "unexpected",
+                "fn": "unexpected-1.0-0.conda",
+                "url": "https://example.org/c/linux-64/unexpected-1.0-0.conda",
+            }
+        )
+    queries = []
+
+    def query(*args):
+        queries.append(True)
+        canonical = {
+            **updated,
+            "depends": updated_dependencies
+            + (["leaf"] if scenario == "lost-edge" else []),
+        }
+        return [*installed.values(), canonical]
+
+    monkeypatch.setattr(
+        "conda_lock.solver.channel_metadata.query_channel_records", query
+    )
+    monkeypatch.setattr(
+        conda_solver, "_get_installed_conda_packages", lambda *args: installed
+    )
+    monkeypatch.setattr(
+        conda_solver.subprocess,
+        "run",
+        lambda *args, **kwargs: subprocess.CompletedProcess(
+            args, 0, json.dumps({"actions": {"LINK": plan, "FETCH": plan}})
+        ),
+    )
+
+    def solve():
+        return conda_solver.solve_conda(
+            conda="micromamba",
+            specs={"root": VersionedDependency(name="root", version="==2.0")},
+            locked=locked,
+            update=["root"],
+            platform="linux-64",
+            channels=[],
+            mapping_url="unused",
+        )
+
+    if scenario == "new-orphan":
+        with pytest.raises(MetadataConsistencyError, match="have no category"):
+            solve()
+        assert len(queries) == 1
+    else:
+        result = solve()
+        expected = {"root", "leaf"} if scenario == "lost-edge" else {"root"}
+        assert set(result) == expected | (
+            {"python", "pip", "wheel"} if with_pip else set()
+        )
+        if with_pip:
+            assert result["pip"].categories == result["wheel"].categories == {"main"}
+            assert result["python"].dependencies == {}
+        assert len(queries) == 2
+    assert locked == before
 
 
 @pytest.mark.parametrize("removal_only", [False, True])

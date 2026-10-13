@@ -17,10 +17,7 @@ from collections.abc import (
 )
 from contextlib import contextmanager
 from textwrap import dedent
-from typing import (
-    Any,
-    cast,
-)
+from typing import Any, cast
 from urllib.parse import unquote, urlsplit, urlunsplit
 
 from conda_lock.interfaces.vendored_conda import MatchSpec
@@ -329,6 +326,35 @@ def _get_installed_conda_packages(
     return installed
 
 
+def _unrequested_packages(
+    records: Mapping[str, Mapping[str, Any]], requested: Iterable[str]
+) -> set[str]:
+    """Find packages outside the requested closure; verify before omitting them.
+
+    If a root or reachable edge is missing, defer pruning so the solver can
+    repair the graph and the final consistency checks can validate it.
+    """
+    needed: set[str] = set()
+    pending = list(requested)
+    while True:
+        if not pending:
+            # As with category assignment, retain a possible pip injection once
+            # Python is reachable. Missing edges still defer pruning, and this
+            # exception does not excuse unrelated packages.
+            if "python" in needed and "pip" in records and "pip" not in needed:
+                pending.append("pip")
+            else:
+                break
+        name = pending.pop()
+        if name in needed or name.startswith("__"):
+            continue
+        if name not in records:
+            return set()
+        needed.add(name)
+        pending.extend(MatchSpec(spec).name for spec in records[name]["depends"])
+    return set(records).difference(needed)
+
+
 def update_specs_for_arch(
     conda: PathLike,
     specs: list[str],
@@ -363,6 +389,7 @@ def update_specs_for_arch(
         record["url"] = os.path.expandvars(record["url"])
         expected_records.append(record)
     current_records = verified_channel_records(conda, platform, expected_records)
+    metadata_verified = current_records is not None
     if current_records is None:
         current_records = {record["name"]: record for record in expected_records}
     else:
@@ -377,6 +404,14 @@ def update_specs_for_arch(
                 "Refreshed dependency metadata from verified channel artifacts: %s",
                 refreshed,
             )
+    requested = {MatchSpec(spec).name for spec in specs}
+    if metadata_verified:
+        unrequested = _unrequested_packages(current_records, requested)
+        current_records = {
+            name: record
+            for name, record in current_records.items()
+            if name not in unrequested
+        }
     with fake_conda_environment(
         (dep for name, dep in locked.items() if name in current_records),
         platform=platform,
@@ -465,6 +500,30 @@ def update_specs_for_arch(
             dryrun_install["actions"]["LINK"].append(installed_link_action)
 
         reconstruct_fetch_actions_in_place(conda, platform, dryrun_install)
+        records = {
+            record["name"]: record for record in dryrun_install["actions"]["FETCH"]
+        }
+        unrequested = _unrequested_packages(records, requested)
+        if metadata_verified and unrequested and unrequested.issubset(current_records):
+            # Conda can retain installed packages whose last incoming edge was
+            # removed by this update. Only omit old packages, and verify the
+            # entire new graph before trusting that those edges disappeared.
+            verified = verified_channel_records(conda, platform, list(records.values()))
+            if verified is None:
+                return dryrun_install  # Keep unverified orphans for the final guards.
+            unrequested = _unrequested_packages(verified, requested)
+            if not unrequested.issubset(current_records):
+                unrequested = set()  # New unexplained orphans must still fail.
+            dryrun_install["actions"]["FETCH"] = [
+                cast(FetchAction, record)
+                for name, record in verified.items()
+                if name not in unrequested
+            ]
+            dryrun_install["actions"]["LINK"] = [
+                record
+                for record in dryrun_install["actions"]["LINK"]
+                if record["name"] not in unrequested
+            ]
         return dryrun_install
 
 
