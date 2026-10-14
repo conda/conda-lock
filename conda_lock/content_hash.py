@@ -159,6 +159,42 @@ def _virtual_package_content_for_platform(
     return result
 
 
+def _replace_glibc_version(
+    virtual_package_repo: FakeRepoData,
+    platform: PlatformSubdirStr,
+    target_version: str,
+) -> FakeRepoData | None:
+    """Create a VPR variant with a different glibc version.
+
+    Returns None if the platform has no glibc package or already matches.
+    """
+    repodata = virtual_package_repo.all_repodata
+    if platform not in repodata:
+        return None
+    subdir_data = repodata[platform]
+    if not isinstance(subdir_data, dict) or "packages" not in subdir_data:
+        return None
+    packages = subdir_data["packages"]
+    # Find the glibc package key
+    glibc_keys = [k for k in packages if k.startswith("__glibc-")]
+    if not glibc_keys:
+        return None
+    glibc_key = glibc_keys[0]
+    current_version = packages[glibc_key].get("version")
+    if current_version == target_version:
+        return None
+
+    new_repo = virtual_package_repo.model_copy(deep=True)
+    new_subdir = cast(SubdirMetadata, new_repo.all_repodata[platform])
+    new_packages = new_subdir["packages"]
+    # Remove old key, add new one
+    old_pkg = new_packages.pop(glibc_key)
+    new_key = f"__glibc-{target_version}-0.tar.bz2"
+    old_pkg["version"] = target_version
+    new_packages[new_key] = old_pkg
+    return new_repo
+
+
 def backwards_compatible_content_hashes(
     lock_spec: LockSpecification,
     virtual_package_repo: FakeRepoData | None,
@@ -190,6 +226,13 @@ def backwards_compatible_content_hashes(
     for vpr in virtual_package_repo_variants.copy():
         if platform == "osx-64" and _contains_osx_11_0_0_tar_bz2(vpr):
             virtual_package_repo_variants.append(add_or_remove_osx_10_15_0_tar_bz2(vpr))
+
+    # Support previous default glibc version (2.28) for backwards compatibility.
+    for vpr in virtual_package_repo_variants.copy():
+        if platform.startswith("linux"):
+            variant = _replace_glibc_version(vpr, platform, "2.28")
+            if variant is not None:
+                virtual_package_repo_variants.append(variant)
 
     # Reinsert spurious build number in build string
     for vpr in virtual_package_repo_variants.copy():
