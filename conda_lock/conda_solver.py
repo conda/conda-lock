@@ -640,7 +640,7 @@ def update_specs_for_arch(
                     f"solver exited with status {proc.returncode}"
                 )
                 removal_context = (
-                    f" Previously locked artifacts are no longer listed for "
+                    f". Previously locked artifacts are no longer listed for "
                     f"{sorted(unavailable)}. Replacements must satisfy the current "
                     "source requirements; review any pins that prevent replacement."
                     if unavailable

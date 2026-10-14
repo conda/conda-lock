@@ -148,7 +148,7 @@ def test_skip_keeps_integrity_guards(
 def test_skip_sparse_cache_reconstruction_keeps_identity_checks_and_warns(
     skip_verification, monkeypatch, tmp_path, caplog, damage
 ):
-    record = {**MAMBA_26_LINK_ACTION, "depends": [], "timestamp": 0, "license": ""}
+    record = {**MAMBA_26_LINK_ACTION, "depends": []}
     sparse = {
         k: v for k, v in record.items() if k not in {"depends", "timestamp", "license"}
     }
@@ -173,7 +173,6 @@ def test_skip_sparse_cache_reconstruction_keeps_identity_checks_and_warns(
         )
         assert plan["actions"]["FETCH"] == [record]
         assert "skipping channel verification" in caplog.text
-        assert "timestamp=0 and an empty license" in caplog.text
     else:
         with pytest.raises(MetadataConsistencyError, match="No valid cache record"):
             dry_run.reconstruct_fetch_actions_in_place(

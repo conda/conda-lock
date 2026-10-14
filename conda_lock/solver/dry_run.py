@@ -8,8 +8,6 @@ rich-LINK actions (mamba 2.x / micromamba), sparse-LINK actions
 (conda, Python mamba 1.x), or already-complete FETCH actions.
 """
 
-import logging
-
 from collections.abc import Mapping, Sequence
 from typing import Any, cast
 
@@ -169,14 +167,11 @@ def reconstruct_fetch_actions_in_place(
     # and only run another subprocess to discover ``pkgs_dirs`` if
     # anything is left over.
     deferred: list[tuple[str, LinkAction]] = []
-    suspicious = []
     for link_pkg_name in link_only_names:
         link_action = link_actions[link_pkg_name]
         from_link = link_action_as_fetch(link_action)
         if from_link is not None:
             dry_run_install["actions"]["FETCH"].append(from_link)
-            if link_action.get("timestamp") == 0 and link_action.get("license") == "":
-                suspicious.append(link_pkg_name)
         else:
             deferred.append((link_pkg_name, link_action))
 
@@ -220,24 +215,8 @@ def reconstruct_fetch_actions_in_place(
             # Shape and artifact identity were checked by get_repodata_record;
             # the explicit skip fallback does not establish dependency correctness.
             recovered = reconstructed
-            suspicious.extend(
-                record["name"]
-                for record in reconstructed
-                if record.get("timestamp") == 0 and record.get("license") == ""
-            )
         else:
             recovered = list(verified.values())
         dry_run_install["actions"]["FETCH"].extend(
             cast(FetchAction, record) for record in recovered
-        )
-
-    if suspicious:
-        logging.getLogger(__name__).warning(
-            "Package metadata for %s has timestamp=0 and an empty license, "
-            "a pattern written by older Mamba versions. Dependencies may be missing; "
-            "this warning does not establish corruption or repair the metadata. "
-            "Before using this lockfile, regenerate online with an isolated cache "
-            "and a current solver, writing to a new path without --update. "
-            "See https://conda.github.io/conda-lock/troubleshooting/#suspicious-package-metadata",
-            ", ".join(sorted(suspicious)),
         )
