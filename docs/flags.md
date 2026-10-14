@@ -226,8 +226,7 @@ CONDA_LOCK_METADATA_FALLBACK=unbatched conda-lock lock --update pytest
 ```
 
 In PowerShell, set `$env:CONDA_LOCK_METADATA_FALLBACK = 'unbatched'` before
-running the command. Remove the override afterwards with
-`Remove-Item Env:CONDA_LOCK_METADATA_FALLBACK`.
+running the command.
 
 Use `skip` only if you accept unverified requirements. It also disables
 conda-lock's removal of obsolete packages during updates; the solver's own removals
