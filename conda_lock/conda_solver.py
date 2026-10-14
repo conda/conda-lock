@@ -689,7 +689,13 @@ def update_specs_for_arch(
         )
         if verified is None and repair:
             raise MetadataConsistencyError(
-                "Cannot verify replacements for unavailable or inconsistent locked artifacts"
+                "Cannot verify replacements for unavailable or inconsistent locked artifacts",
+                recovery=(
+                    "Replacement packages require channel verification. Use a solver "
+                    "with batched repoquery support, or set "
+                    "CONDA_LOCK_METADATA_FALLBACK=unbatched for slower full verification. "
+                    "See https://conda.github.io/conda-lock/flags/#conda_lock_metadata_fallback"
+                ),
             )
         if verified is not None:
             records = verified

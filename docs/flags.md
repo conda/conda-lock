@@ -171,3 +171,42 @@ we recommend creating a `virtual-packages.yml` file to lock down the virtual pac
 
     Micromamba does not presently support some of the overrides to remove all discovered virtual packages, consequently the set of virtual packages
     available at solve time may be larger than those specified in your specification.
+
+## Environment variables
+
+### CONDA_LOCK_METADATA_FALLBACK
+
+When locking or updating, conda-lock verifies package requirements against channel
+metadata. If the selected solver cannot query multiple packages at once, this
+variable controls how to proceed:
+
+| Value | Behavior when batching is unavailable |
+| --- | --- |
+| `error` (default) | Stop with instructions for enabling batched queries. |
+| `unbatched` | Verify all required records using individual searches. This can take minutes or hours for large environments. |
+| `skip` | Warn and retain unverified lockfile/cache metadata. Missing dependencies or constraints can propagate undetected. |
+
+Prefer enabling batched queries. For Conda, install or enable
+`conda-libmamba-solver >=24.11.0` in the installation selected by [`--conda`](#-conda).
+Older plugins may provide `repoquery` without supporting multiple package names.
+
+To retain verification when upgrading the solver is not possible, use a
+one-command override in a POSIX shell:
+
+```shell
+CONDA_LOCK_METADATA_FALLBACK=unbatched conda-lock lock --update pytest
+```
+
+In PowerShell, set `$env:CONDA_LOCK_METADATA_FALLBACK = 'unbatched'` before
+running the command. Remove the override afterwards with
+`Remove-Item Env:CONDA_LOCK_METADATA_FALLBACK`.
+
+Use `skip` only if you accept unverified requirements. It also disables
+conda-lock's removal of obsolete packages during updates; the solver's own removals
+and the identity/graph checks remain active. An update can therefore still fail
+on inconsistent metadata or leftover packages.
+
+These choices apply only when batching is unavailable. A capable solver always
+verifies, and neither override bypasses query failures, identity mismatches or
+unsupported offline verification. An empty value means `error`; other values
+are rejected. Installing an existing lockfile is unaffected.

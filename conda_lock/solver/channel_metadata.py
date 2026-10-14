@@ -53,7 +53,8 @@ def metadata_fallback() -> Literal["error", "unbatched", "skip"]:
     if value not in {"error", "unbatched", "skip"}:
         raise CondaLockError(
             f"Invalid CONDA_LOCK_METADATA_FALLBACK={value!r}; "
-            "expected error, unbatched, or skip"
+            "expected error, unbatched, or skip. See "
+            "https://conda.github.io/conda-lock/flags/#conda_lock_metadata_fallback"
         )
     return cast(Literal["error", "unbatched", "skip"], value)
 
@@ -70,7 +71,7 @@ def _use_unbatched_fallback(fallback: str, platform: str, package_count: int) ->
                 "Alternatively set CONDA_LOCK_METADATA_FALLBACK=unbatched for "
                 "slow full verification, or =skip to retain unverified metadata "
                 "without automatic pruning. See "
-                "https://conda.github.io/conda-lock/troubleshooting/#metadata-query-fallbacks"
+                "https://conda.github.io/conda-lock/flags/#conda_lock_metadata_fallback"
             ),
         )
     if fallback == "skip":
@@ -247,7 +248,15 @@ def query_channel_records(
                 TypeError,
             ) as exc:
                 raise MetadataConsistencyError(
-                    "Could not determine Mamba's offline setting"
+                    "Could not determine Mamba's offline setting",
+                    recovery=(
+                        "Using the selected solver executable, run `mamba config list "
+                        "offline --json` (use `micromamba` instead for micromamba). "
+                        "Resolve any configuration error it reports, then retry. "
+                        "If valid JSON still causes this error, report the solver "
+                        "version and output to https://github.com/conda/conda-lock/issues; "
+                        "remove credentials before sharing output."
+                    ),
                 ) from exc
             if offline or configured_offline:
                 raise MetadataConsistencyError(
@@ -336,7 +345,8 @@ def verified_channel_records(
             or not record["url"]
         ):
             raise MetadataConsistencyError(
-                "Channel metadata query returned a record without a name or artifact URL"
+                "Channel metadata query returned a record without a name or artifact URL",
+                report_bug=True,
             )
         record = record_with_channel_credentials(record, channels)
         url = normalize_url_for_compare(record["url"])
@@ -367,7 +377,13 @@ def verified_channel_records(
             )
             if reason or not matched or not same_digest:
                 raise MetadataConsistencyError(
-                    f"Channel artifact identity cannot be verified for {expected['name']}"
+                    f"Channel artifact identity cannot be verified for {expected['name']}",
+                    recovery=(
+                        "The channel record does not establish the selected artifact's "
+                        "identity and hash. Check the configured channels and mirrors "
+                        "with their administrator before retrying; do not edit the "
+                        "lockfile's hashes to bypass this check."
+                    ),
                 )
             if any(
                 sorted(candidate.get(field) or [])
@@ -375,7 +391,14 @@ def verified_channel_records(
                 for field in ("depends", "constrains")
             ):
                 raise MetadataConsistencyError(
-                    f"Conflicting channel metadata for {expected['name']}"
+                    f"Conflicting channel metadata for {expected['name']}",
+                    recovery=(
+                        "The channel query returned different requirements for the "
+                        "same artifact. Check the configured channels and mirrors "
+                        "with their administrator, then retry once the records agree. "
+                        "Clearing the package cache cannot resolve conflicting "
+                        "channel records."
+                    ),
                 )
         cache[normalize_url_for_compare(expected["url"])] = deepcopy(candidates[0])
         verified[expected["name"]] = deepcopy(candidates[0])
