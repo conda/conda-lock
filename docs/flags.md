@@ -171,3 +171,69 @@ we recommend creating a `virtual-packages.yml` file to lock down the virtual pac
 
     Micromamba does not presently support some of the overrides to remove all discovered virtual packages, consequently the set of virtual packages
     available at solve time may be larger than those specified in your specification.
+
+## Environment variables
+
+### CONDA_LOCK_METADATA_FALLBACK
+
+When locking or updating, conda-lock verifies package requirements against channel
+metadata. If the selected solver cannot query multiple packages at once, this
+variable controls how to proceed:
+
+| Value | Behavior when batching is unavailable |
+| --- | --- |
+| `error` (default) | Stop with instructions for enabling batched queries. |
+| `unbatched` | Verify all required records using individual searches. This can take minutes or hours for large environments. |
+| `skip` | Warn and retain unverified lockfile/cache metadata. Missing dependencies or constraints can propagate undetected. |
+
+Prefer enabling batched queries. Expected support in the installation selected
+by [`--conda`](#-conda) is:
+
+| Solver version | Required plugin/libraries | Batched verification |
+| --- | --- | --- |
+| Mamba or Micromamba **2.0.0+** | Compatible **libmamba 2+**; Micromamba bundles it. Neither needs the Conda plugin or `libmambapy`. | Yes. |
+| Mamba or Micromamba **1.x** | The older libmamba 1.x stack; Python-based Mamba also uses `libmambapy`. | No; upgrade to 2.x or choose a fallback. |
+| Conda **25.1.0+** | A working, enabled **conda-libmamba-solver 24.11.0+**, with **libmambapy 2+** and compatible **libmamba 2+**. | Expected in a normal installation, subject to the capability check below. |
+| Conda **23.7.3–24.x** | An upgraded plugin and compatible libraries as above. The 24.11.0 plugin declares Conda 23.7.3 as its minimum; newer plugins may require newer Conda. | Yes if the installed combination provides the required command. |
+| Any Conda with an older, missing, disabled or unloadable plugin | No working multi-package `repoquery`. Updating only `libmamba` is insufficient. | No; fix the plugin installation or choose a fallback. |
+
+[Mamba/Micromamba 2.0's query interface](https://github.com/mamba-org/mamba/blob/micromamba-2.0.0/libmamba/include/mamba/api/repoquery.hpp)
+accepts multiple package names. For Conda, `repoquery` first appeared in plugin
+[23.9.0](https://github.com/conda/conda-libmamba-solver/blob/23.9.0/CHANGELOG.md),
+but [multi-package search arrived in 24.11.0](https://github.com/conda/conda-libmamba-solver/blob/24.11.0/conda_libmamba_solver/repoquery.py),
+along with the [libmambapy 2 requirement](https://github.com/conda/conda-libmamba-solver/blob/24.11.0/pyproject.toml).
+[Conda 25.1.0](https://github.com/conda/conda/blob/25.1.0/CHANGELOG.md#2510-2025-01-17)
+raised its plugin dependency to 24.11.0. A Conda version number alone does not
+prove the plugin is available, including in a bundled `conda-standalone` executable.
+
+To check the selected Conda installation without querying channels, run:
+
+```shell
+conda repoquery search --help
+```
+
+Replace `conda` with the executable passed to `--conda`. Its help must include
+both `specs [specs ...]` and `--no-installed`; conda-lock checks these capabilities
+rather than requiring a particular Conda version. Selecting Conda's `classic`
+solver does not itself disable the repoquery plugin. Let the package manager
+install compatible library dependencies rather than upgrading `libmamba` alone.
+
+To retain verification when upgrading the solver is not possible, use a
+one-command override in a POSIX shell:
+
+```shell
+CONDA_LOCK_METADATA_FALLBACK=unbatched conda-lock lock --update pytest
+```
+
+In PowerShell, set `$env:CONDA_LOCK_METADATA_FALLBACK = 'unbatched'` before
+running the command.
+
+Use `skip` only if you accept unverified requirements. It also disables
+conda-lock's removal of obsolete packages during updates; the solver's own removals
+and the identity/graph checks remain active. An update can therefore still fail
+on inconsistent metadata or leftover packages.
+
+These choices apply only when batching is unavailable. A capable solver always
+verifies, and neither override bypasses query failures, identity mismatches or
+unsupported offline verification. An empty value means `error`; other values
+are rejected. Installing an existing lockfile is unaffected.

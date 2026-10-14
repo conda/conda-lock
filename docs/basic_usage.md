@@ -42,6 +42,12 @@ compatible with the source specification. This command overrides the lockfile.
 conda-lock --update numpy
 ```
 
+Updates also refresh the locked packages' requirements from channel metadata.
+Channel corrections or removal of a previously locked artifact can require the
+solver to change packages beyond the named update target. Review the resulting
+lockfile; conda-lock does not automatically retry a failed update as a full
+regeneration.
+
 ### Adding new Packages
 
 Add a new package to the environment
