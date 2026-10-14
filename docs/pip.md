@@ -13,8 +13,9 @@ dependencies. Declare pip if you need it, so its availability does not depend on
 the solver's injection behavior. Installing an existing lockfile keeps its
 packages unchanged.
 
-For failures with older Mamba versions, see
-[troubleshooting pip solves](troubleshooting.md#pip-solves).
+If Mamba reports a Python/pip conflict even though you did not request pip, try
+the same command with `--conda conda --no-mamba --no-micromamba`. Conda-lock
+cannot repair a solve that fails before returning a package plan.
 
 ## Usage with environment.yaml
 

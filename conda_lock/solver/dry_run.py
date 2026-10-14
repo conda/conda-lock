@@ -98,12 +98,14 @@ def _validate_live_actions(
     link_actions = {p["name"]: p for p in dry_run_install["actions"]["LINK"]}
     fetch_actions = {p["name"]: p for p in dry_run_install["actions"]["FETCH"]}
     if len(link_actions) != len(links) or len(fetch_actions) != len(fetches):
-        raise MetadataConsistencyError("Duplicate package names in solver actions")
+        raise MetadataConsistencyError(
+            "Duplicate package names in solver actions", report_bug=True
+        )
     for name, fetch in fetch_actions.items():
         reason = record_validation_error(fetch)
         if reason:
             raise MetadataConsistencyError(
-                f"Invalid FETCH metadata for {name}: {reason}"
+                f"Invalid FETCH metadata for {name}: {reason}", report_bug=True
             )
         link = link_actions.get(name)
         if link is not None:
@@ -113,7 +115,8 @@ def _validate_live_actions(
             )
             if not matched:
                 raise MetadataConsistencyError(
-                    f"FETCH/LINK identity mismatch for {name}: {reason}"
+                    f"FETCH/LINK identity mismatch for {name}: {reason}",
+                    report_bug=True,
                 )
             if "depends" in link:
                 depends = link["depends"]
@@ -123,7 +126,7 @@ def _validate_live_actions(
                     or sorted(fetch["depends"] or []) != sorted(depends)
                 ):
                     raise MetadataConsistencyError(
-                        f"FETCH/LINK dependencies disagree for {name}"
+                        f"FETCH/LINK dependencies disagree for {name}", report_bug=True
                     )
 
 
@@ -200,7 +203,16 @@ def reconstruct_fetch_actions_in_place(
         if repodata is None:
             raise MetadataConsistencyError(
                 f"No valid cache record matching distribution '{dist_name}' "
-                f"was found in pkgs_dirs {pkgs_dirs}"
+                f"was found in pkgs_dirs {pkgs_dirs}",
+                recovery=(
+                    "Inspect package-cache settings with the selected solver: "
+                    "`mamba config list pkgs_dirs --sources` (use `micromamba` instead "
+                    "for micromamba), or `conda config --show-sources` and "
+                    "`conda config --show pkgs_dirs`. Temporarily point the reported "
+                    "pkgs_dirs settings at a new, empty directory, preserving channel "
+                    "and authentication settings, then rerun the command. Restore "
+                    "your settings afterwards; existing caches need not be deleted."
+                ),
             )
         reconstructed.append(repodata)
     if reconstructed:

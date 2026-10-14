@@ -29,24 +29,15 @@ class MetadataConsistencyError(CondaLockError):
     def __init__(
         self, detail: str, *, recovery: str | None = None, report_bug: bool = False
     ) -> None:
-        if recovery is None:
-            recovery = (
-                "Regenerate from the original source files with a fresh package cache "
-                "and a current solver, writing to a new lockfile path without --update. "
-                "To locate additional caches, run `mamba config list pkgs_dirs --sources` "
-                "(use `micromamba` instead for micromamba), or "
-                "`conda config --show-sources` and `conda config --show pkgs_dirs`."
-            )
+        message = f"{detail}. Cannot safely construct the lockfile dependency graph."
+        if recovery:
+            message += f" {recovery}"
         if report_bug:
-            recovery += (
+            message += (
                 " If this occurred with metadata verification enabled, please report "
                 "the inconsistent result at https://github.com/conda/conda-lock/issues "
                 "with conda-lock/solver versions and a reproducible example; "
-                "remove credentials from shared files and output."
+                "remove credentials from shared files and output. "
+                "If verification was skipped, rerun with verification enabled first."
             )
-        super().__init__(
-            f"{detail}. Cannot safely construct the lockfile dependency graph. "
-            f"{recovery} "
-            "For cache isolation and recovery commands, see "
-            "https://conda.github.io/conda-lock/troubleshooting/#metadata-consistency-errors"
-        )
+        super().__init__(message)

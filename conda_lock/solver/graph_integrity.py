@@ -72,7 +72,8 @@ def _constraint_violations(
                 matches = spec.match(selected[spec.name])
             except (AttributeError, TypeError) as exc:
                 raise MetadataConsistencyError(
-                    f"Cannot verify {record['name']}'s requirement {constraint}"
+                    f"Cannot verify {record['name']}'s requirement {constraint}",
+                    report_bug=True,
                 ) from exc
             if not matches:
                 yield (
