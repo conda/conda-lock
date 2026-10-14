@@ -16,6 +16,7 @@ from collections.abc import (
     Sequence,
 )
 from contextlib import contextmanager
+from posixpath import expandvars
 from textwrap import dedent
 from typing import Any, cast
 from urllib.parse import unquote, urlsplit, urlunsplit
@@ -97,6 +98,21 @@ def _dependency_versions(depends: Iterable[str]) -> dict[str, str]:
     return dependencies
 
 
+def _metadata_channels(
+    channels: Sequence[Channel], specs: Sequence[str]
+) -> list[Channel]:
+    # A source request such as comet_ml::comet_ml names a channel without adding
+    # it to the general channel list. Include it for verification only: adding
+    # it to the solve's --channel flags could change package selection/priority.
+    result = list(channels)
+    for spec in specs:
+        if "::" in spec:
+            channel = Channel.from_string(spec.rsplit("::", 1)[0])
+            if channel not in result:
+                result.append(channel)
+    return result
+
+
 def solve_conda(
     conda: PathLike,
     specs: dict[str, Dependency],
@@ -133,6 +149,7 @@ def solve_conda(
         if isinstance(dep, VersionedDependency) and dep.manager == "conda"
     ]
     conda_locked = {dep.name: dep for dep in locked.values() if dep.manager == "conda"}
+    metadata_channels = _metadata_channels(channels, conda_specs)
     to_update = set(update).intersection(conda_locked)
 
     if to_update:
@@ -168,7 +185,9 @@ def solve_conda(
             platform=platform,
             dependencies=dependencies,
             # TODO: Normalize URL here and inject env vars
-            url=normalize_url_with_placeholders(action["url"], channels=channels),
+            url=normalize_url_with_placeholders(
+                action["url"], channels=metadata_channels
+            ),
             # NB: virtual packages may have no hash
             hash=HashModel(
                 md5=action["md5"] if "md5" in action else "",
@@ -280,7 +299,12 @@ def solve_specs_for_arch(
 
     try:
         dryrun_install: DryRunInstall = json.loads(extract_json_object(proc.stdout))
-        reconstruct_fetch_actions_in_place(conda, platform, dryrun_install)
+        reconstruct_fetch_actions_in_place(
+            conda,
+            platform,
+            dryrun_install,
+            channels=_metadata_channels(channels, specs),
+        )
         return dryrun_install
     except json.JSONDecodeError as e:
         raise RuntimeError(f"Failed to parse json: '{proc.stdout}'") from e
@@ -452,15 +476,13 @@ def update_specs_for_arch(
 
     if verified_cache is None:
         verified_cache = {}
-    expected_records = []
-    for dependency in locked.values():
-        record = dependency.to_fetch_action()
-        record["url"] = os.path.expandvars(record["url"])
-        expected_records.append(record)
+    metadata_channels = _metadata_channels(channels, specs)
+    expected_records = [dependency.to_fetch_action() for dependency in locked.values()]
     current_records = verified_channel_records(
         conda,
         platform,
         expected_records,
+        channels=metadata_channels,
         allow_missing=True,
         verified_cache=verified_cache,
     )
@@ -634,13 +656,21 @@ def update_specs_for_arch(
             dryrun_install["actions"]["LINK"].append(installed_link_action)
 
         reconstruct_fetch_actions_in_place(
-            conda, platform, dryrun_install, verified_cache=verified_cache
+            conda,
+            platform,
+            dryrun_install,
+            channels=metadata_channels,
+            verified_cache=verified_cache,
         )
         records = {
             record["name"]: record for record in dryrun_install["actions"]["FETCH"]
         }
         verified = verified_channel_records(
-            conda, platform, list(records.values()), verified_cache=verified_cache
+            conda,
+            platform,
+            list(records.values()),
+            channels=metadata_channels,
+            verified_cache=verified_cache,
         )
         if verified is None and repair:
             raise MetadataConsistencyError(
@@ -734,6 +764,9 @@ def fake_conda_environment(
                 # solver metadata from the channel record, or the original
                 # lockfile record when verification was explicitly skipped.
                 entry.update(repodata[dep.name])
+                # Expand placeholders at the solver IO boundary; retain them
+                # in lockfile metadata.
+                entry["url"] = expandvars(entry["url"])
                 # repoquery's channel may be a bare name or empty for file URLs.
                 # Conda prefix records need the actual subdirectory location.
                 artifact_url = urlsplit(entry["url"])

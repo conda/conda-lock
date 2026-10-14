@@ -36,7 +36,7 @@ def test_removed_artifact_update_never_publishes_unverified_replacement(
     queries = []
     solves = []
 
-    def query(*args):
+    def query(*args, **kwargs):
         queries.append(True)
         if failure == "query":
             raise MetadataConsistencyError(
@@ -147,7 +147,7 @@ def test_update_only_omits_verified_obsolete_installed_packages(
         )
     queries = []
 
-    def query(*args):
+    def query(*args, **kwargs):
         queries.append(True)
         canonical = {
             **updated,
@@ -219,7 +219,7 @@ def test_update_does_not_resurrect_unlinked_packages(monkeypatch, removal_only):
     }
     monkeypatch.setattr(
         "conda_lock.solver.channel_metadata.query_channel_records",
-        lambda *args: [dep.to_fetch_action() for dep in locked.values()],
+        lambda *args, **kwargs: [dep.to_fetch_action() for dep in locked.values()],
     )
     original = deepcopy(locked)
     installed = {name: dep.to_fetch_action() for name, dep in locked.items()}
@@ -237,7 +237,7 @@ def test_update_does_not_resurrect_unlinked_packages(monkeypatch, removal_only):
         actions.update(LINK=[updated], FETCH=[updated])
     monkeypatch.setattr(
         "conda_lock.solver.channel_metadata.query_channel_records",
-        lambda *args: [*installed.values(), *actions.get("FETCH", [])],
+        lambda *args, **kwargs: [*installed.values(), *actions.get("FETCH", [])],
     )
     monkeypatch.setattr(
         conda_solver.subprocess,
@@ -283,7 +283,7 @@ def test_update_refreshes_metadata_before_solving_without_mutating_old_lock(
     records["root"]["constrains"] = ["optional <2"]
     monkeypatch.setattr(
         "conda_lock.solver.channel_metadata.query_channel_records",
-        lambda *args: list(records.values()),
+        lambda *args, **kwargs: list(records.values()),
     )
     inspected = []
 

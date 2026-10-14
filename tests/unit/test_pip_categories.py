@@ -230,7 +230,7 @@ def test_update_retains_pip_component_in_prefix_pins_and_result(monkeypatch):
     before = copy.deepcopy(locked)
     monkeypatch.setattr(
         "conda_lock.solver.channel_metadata.query_channel_records",
-        lambda *args: list(canonical.values()),
+        lambda *args, **kwargs: list(canonical.values()),
     )
     seen = []
 

@@ -168,10 +168,14 @@ def test_skip_sparse_cache_reconstruction_keeps_identity_checks_and_warns(
     )
     plan = {"actions": {"LINK": [sparse], "FETCH": []}}
     if damage == "erased-deps":
-        dry_run.reconstruct_fetch_actions_in_place("conda", "linux-64", plan)
+        dry_run.reconstruct_fetch_actions_in_place(
+            "conda", "linux-64", plan, channels=[]
+        )
         assert plan["actions"]["FETCH"] == [record]
         assert "skipping channel verification" in caplog.text
         assert "timestamp=0 and an empty license" in caplog.text
     else:
         with pytest.raises(MetadataConsistencyError, match="No valid cache record"):
-            dry_run.reconstruct_fetch_actions_in_place("conda", "linux-64", plan)
+            dry_run.reconstruct_fetch_actions_in_place(
+                "conda", "linux-64", plan, channels=[]
+            )
