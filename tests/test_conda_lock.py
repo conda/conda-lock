@@ -3083,6 +3083,7 @@ def test_private_lock(
     tmp_path: Path,
     monkeypatch: "pytest.MonkeyPatch",
     capsys: "pytest.CaptureFixture[str]",
+    caplog: "pytest.LogCaptureFixture",
     conda_exe: str,
     placeholder,
     install_lock,
@@ -3117,6 +3118,27 @@ def test_private_lock(
             env=dict(os.environ, QUETZ_API_KEY=quetz_server.api_key),
         )
         assert result.exit_code == 0
+
+    before_update = parse_conda_lock_file(tmp_path / "conda-lock.yml")
+    caplog.clear()
+    with capsys.disabled():
+        result = runner.invoke(
+            main,
+            ["lock", "--conda", conda_exe, "--update", "zlib"],
+            catch_exceptions=False,
+            env=dict(os.environ, QUETZ_API_KEY=quetz_server.api_key),
+        )
+        assert result.exit_code == 0
+    after_update = parse_conda_lock_file(tmp_path / "conda-lock.yml")
+    # Changing token masks between create and repoquery must not make retained
+    # artifacts appear delisted, even if re-solving would pick the same versions.
+    assert "no longer lists the locked artifacts" not in caplog.text
+    assert "Artifact replacement" not in caplog.text
+    assert after_update.package == before_update.package
+    lock_text = (tmp_path / "conda-lock.yml").read_text()
+    assert "${QUETZ_API_KEY}" in lock_text
+    assert quetz_server.api_key not in lock_text
+    assert "*****" not in lock_text
 
     def run_install(with_env: bool) -> CliResult:
         with capsys.disabled():

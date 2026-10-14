@@ -10,15 +10,19 @@ rich-LINK actions (mamba 2.x / micromamba), sparse-LINK actions
 
 import logging
 
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from typing import Any, cast
 
 from packaging.version import Version
 
 from conda_lock.errors import MetadataConsistencyError
 from conda_lock.invoke_conda import PathLike, get_pkgs_dirs, mamba_binary_version
+from conda_lock.models.channel import Channel
 from conda_lock.models.dry_run_install import DryRunInstall, FetchAction, LinkAction
-from conda_lock.solver.channel_metadata import verified_channel_records
+from conda_lock.solver.channel_metadata import (
+    record_with_channel_credentials,
+    verified_channel_records,
+)
 from conda_lock.solver.repodata_cache import (
     get_repodata_record,
     record_matches_link,
@@ -75,7 +79,9 @@ def link_action_as_fetch(link_action: Mapping[str, Any]) -> FetchAction | None:
 
 
 def _validate_live_actions(
-    conda: PathLike, dry_run_install: DryRunInstall | dict[str, Any]
+    conda: PathLike,
+    dry_run_install: DryRunInstall | dict[str, Any],
+    channels: Sequence[Channel],
 ) -> None:
     links = dry_run_install["actions"]["LINK"]
     fetches = dry_run_install["actions"]["FETCH"]
@@ -103,7 +109,10 @@ def _validate_live_actions(
             )
         link = link_actions.get(name)
         if link is not None:
-            matched, reason = record_matches_link(fetch, link)
+            matched, reason = record_matches_link(
+                record_with_channel_credentials(fetch, channels),
+                record_with_channel_credentials(link, channels),
+            )
             if not matched:
                 raise MetadataConsistencyError(
                     f"FETCH/LINK identity mismatch for {name}: {reason}"
@@ -125,6 +134,7 @@ def reconstruct_fetch_actions_in_place(
     platform: str,
     dry_run_install: DryRunInstall | dict[str, Any],
     *,
+    channels: Sequence[Channel],
     verified_cache: dict[str, dict[str, Any]] | None = None,
 ) -> None:
     """Normalize a conda/mamba dryrun so every planned package has a FETCH.
@@ -148,7 +158,7 @@ def reconstruct_fetch_actions_in_place(
     if "FETCH" not in dry_run_install["actions"]:
         dry_run_install["actions"]["FETCH"] = []
 
-    _validate_live_actions(conda, dry_run_install)
+    _validate_live_actions(conda, dry_run_install, channels)
     link_actions = {p["name"]: p for p in dry_run_install["actions"]["LINK"]}
     fetch_actions = {p["name"]: p for p in dry_run_install["actions"]["FETCH"]}
     link_only_names = set(link_actions.keys()).difference(fetch_actions.keys())
@@ -189,7 +199,9 @@ def reconstruct_fetch_actions_in_place(
                 raise ValueError(f"Unknown filename format: {dist_name}")
         else:
             raise ValueError(f"Unable to extract the dist_name from {link_action}.")
-        repodata = get_repodata_record(pkgs_dirs, dist_name, link_action)
+        repodata = get_repodata_record(
+            pkgs_dirs, dist_name, record_with_channel_credentials(link_action, channels)
+        )
         if repodata is None:
             raise MetadataConsistencyError(
                 f"No valid cache record matching distribution '{dist_name}' "
@@ -198,7 +210,11 @@ def reconstruct_fetch_actions_in_place(
         reconstructed.append(repodata)
     if reconstructed:
         verified = verified_channel_records(
-            conda, platform, reconstructed, verified_cache=verified_cache
+            conda,
+            platform,
+            reconstructed,
+            channels=channels,
+            verified_cache=verified_cache,
         )
         if verified is None:
             # Shape and artifact identity were checked by get_repodata_record;

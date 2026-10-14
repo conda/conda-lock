@@ -290,6 +290,13 @@ def _get_conda_flags(channels: Sequence[Channel], platform: str) -> list[str]:
     conda_flags = os.environ.get("CONDA_FLAGS")
     if conda_flags:
         args.extend(shlex.split(conda_flags))
+    args.extend(_get_channel_flags(channels, platform))
+    return args
+
+
+def _get_channel_flags(channels: Sequence[Channel], platform: str) -> list[str]:
+    """Share channel credentials and platform aliases between solve and query."""
+    args = []
     if channels:
         args.append("--override-channels")
 

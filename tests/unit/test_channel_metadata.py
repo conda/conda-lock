@@ -9,11 +9,112 @@ import pytest
 from packaging.version import Version
 
 from conda_lock.errors import CondaLockError, MetadataConsistencyError
+from conda_lock.models.channel import Channel
 from conda_lock.solver import channel_metadata
 from tests.support.fixtures import MAMBA_26_LINK_ACTION
 
 
+CHANNELS = [Channel.from_string("https://conda.anaconda.org/conda-forge")]
+
+
 MULTI_NAME_HELP = "usage: conda repoquery search [--no-installed] specs [specs ...]"
+
+
+@pytest.mark.parametrize(
+    "expected_token, queried_token",
+    [
+        ("**********", "*****"),  # create vs repoquery on Mamba 2
+        ("$CHANNEL_TOKEN", "<TOKEN>"),  # stored lock vs Conda
+        ("${CHANNEL_TOKEN}", "*****"),  # stored lock vs Mamba
+        ("${CHANNEL_TOKEN}", None),  # Conda repoquery can omit the token entirely
+    ],
+)
+def test_private_channel_verification_uses_configured_credentials(
+    monkeypatch, expected_token, queried_token
+):
+    monkeypatch.setenv("CHANNEL_TOKEN", "test-secret")
+    placeholder = expected_token if expected_token.startswith("$") else "$CHANNEL_TOKEN"
+    channel = Channel.from_string(f"https://example.org/t/{placeholder}/private")
+    filename = MAMBA_26_LINK_ACTION["fn"]
+
+    def record(token):
+        token_path = f"/t/{token}" if token is not None else ""
+        return {
+            **MAMBA_26_LINK_ACTION,
+            "url": f"https://example.org{token_path}/private/linux-64/{filename}",
+        }
+
+    expected = {**record(expected_token), "depends": []}
+    original = copy.deepcopy(expected)
+    canonical = record(queried_token)
+    commands = []
+    monkeypatch.setenv("CONDA_FLAGS", "")
+    monkeypatch.setattr(channel_metadata, "mamba_binary_version", lambda _: None)
+
+    def run(command, **kwargs):
+        commands.append(command)
+        if command[-1] == "--help":
+            return subprocess.CompletedProcess(command, 0, MULTI_NAME_HELP)
+        assert command[command.index("--channel") + 1] == (
+            "https://example.org/t/test-secret/private"
+        )
+        return subprocess.CompletedProcess(
+            command, 0, json.dumps({"result": {"pkgs": [canonical]}})
+        )
+
+    monkeypatch.setattr(channel_metadata.subprocess, "run", run)
+    cache = {}
+    verified = channel_metadata.verified_channel_records(
+        "/solver",
+        "linux-64",
+        [expected],
+        channels=[channel],
+        allow_missing=True,
+        verified_cache=cache,
+    )
+    assert verified is not None
+    assert verified["libzlib"] == {**canonical, "url": expected["url"]}
+    assert expected == original
+
+    # Another solve phase can spell the same URL differently; it must reuse the
+    # verified observation, but still check hashes and preserve its input URL.
+    alternate = record("**********")
+    again = channel_metadata.verified_channel_records(
+        "/solver",
+        "linux-64",
+        [alternate],
+        channels=[channel],
+        verified_cache=cache,
+    )
+    assert again is not None
+    assert again["libzlib"]["url"] == alternate["url"]
+    assert len(commands) == 2  # capability probe + one batch query
+    with pytest.raises(MetadataConsistencyError, match="identity cannot be verified"):
+        channel_metadata.verified_channel_records(
+            "/solver",
+            "linux-64",
+            [{**alternate, "md5": "wrong"}],
+            channels=[channel],
+            verified_cache=cache,
+        )
+    assert len(commands) == 2
+
+    # Equal names, builds and hashes in a different channel do not establish
+    # that the expected artifact is still published in its original location.
+    moved = {**canonical, "url": canonical["url"].replace("/private/", "/other/")}
+    monkeypatch.setattr(
+        channel_metadata, "query_channel_records", lambda *args, **kwargs: [moved]
+    )
+    assert (
+        channel_metadata.verified_channel_records(
+            "/solver",
+            "linux-64",
+            [expected],
+            channels=[channel],
+            allow_missing=True,
+        )
+        == {}
+    )
 
 
 @pytest.mark.parametrize("version", ["26.1.1", "26.7.2"])
@@ -45,7 +146,9 @@ def test_conda_repoquery_batches_names_without_installed_records(monkeypatch, ve
         return subprocess.CompletedProcess(command, 0, response)
 
     monkeypatch.setattr(channel_metadata.subprocess, "run", run)
-    result = channel_metadata.verified_channel_records("/solver", "linux-64", records)
+    result = channel_metadata.verified_channel_records(
+        "/solver", "linux-64", records, channels=CHANNELS
+    )
     assert result == {record["name"]: record for record in records}
     assert len(seen) == 2  # Local capability probe, then one channel query.
 
@@ -78,10 +181,14 @@ def test_query_uses_solver_search_and_accepts_empty_dependencies(
     monkeypatch.setattr(channel_metadata.subprocess, "run", run)
     if version and offline:
         with pytest.raises(MetadataConsistencyError, match="Offline Mamba"):
-            channel_metadata.query_channel_records("/solver", "linux-64", [record])
+            channel_metadata.query_channel_records(
+                "/solver", "linux-64", [record], channels=CHANNELS
+            )
         assert not commands
         return
-    result = channel_metadata.query_channel_records("/solver", "linux-64", [record])
+    result = channel_metadata.query_channel_records(
+        "/solver", "linux-64", [record], channels=CHANNELS
+    )
     assert result is not None
     assert result[0]["depends"] == []
     assert commands[0][1:3] == (
@@ -97,12 +204,12 @@ def test_query_uses_solver_search_and_accepts_empty_dependencies(
 def test_channel_dependencies_cannot_be_replaced_by_archive_dependencies(monkeypatch):
     trusted = dict(MAMBA_26_LINK_ACTION)
     monkeypatch.setattr(
-        channel_metadata, "query_channel_records", lambda *args: [trusted]
+        channel_metadata, "query_channel_records", lambda *args, **kwargs: [trusted]
     )
     damaged = {**trusted, "depends": []}
     original = copy.deepcopy(damaged)
     refreshed = channel_metadata.verified_channel_records(
-        "/solver", "linux-64", [damaged]
+        "/solver", "linux-64", [damaged], channels=CHANNELS
     )
     assert refreshed is not None
     assert refreshed[trusted["name"]] == trusted
@@ -118,10 +225,10 @@ def test_verified_metadata_preserves_selected_epoch_url_spelling(monkeypatch):
     }
     expected = {**source, "url": source["url"].replace("!", "%21"), "depends": []}
     monkeypatch.setattr(
-        channel_metadata, "query_channel_records", lambda *args: [source]
+        channel_metadata, "query_channel_records", lambda *args, **kwargs: [source]
     )
     result = channel_metadata.verified_channel_records(
-        "/solver", "linux-64", [expected]
+        "/solver", "linux-64", [expected], channels=CHANNELS
     )
     assert result is not None
     assert result["libzlib"]["url"] == expected["url"]
@@ -129,10 +236,12 @@ def test_verified_metadata_preserves_selected_epoch_url_spelling(monkeypatch):
 
 
 def test_missing_channel_artifact_is_unverifiable_not_proven_corrupt(monkeypatch):
-    monkeypatch.setattr(channel_metadata, "query_channel_records", lambda *args: [])
+    monkeypatch.setattr(
+        channel_metadata, "query_channel_records", lambda *args, **kwargs: []
+    )
     with pytest.raises(MetadataConsistencyError, match="is unavailable"):
         channel_metadata.verified_channel_records(
-            "/solver", "linux-64", [dict(MAMBA_26_LINK_ACTION)]
+            "/solver", "linux-64", [dict(MAMBA_26_LINK_ACTION)], channels=CHANNELS
         )
 
 
@@ -140,17 +249,19 @@ def test_update_refresh_can_omit_an_unavailable_artifact(monkeypatch):
     expected = dict(MAMBA_26_LINK_ACTION)
     replacement = {**expected, "url": expected["url"] + ".different", "depends": []}
     monkeypatch.setattr(
-        channel_metadata, "query_channel_records", lambda *args: [replacement]
+        channel_metadata, "query_channel_records", lambda *args, **kwargs: [replacement]
     )
     assert (
         channel_metadata.verified_channel_records(
-            "/solver", "linux-64", [expected], allow_missing=True
+            "/solver", "linux-64", [expected], channels=CHANNELS, allow_missing=True
         )
         == {}
     )
     # A different artifact's metadata must never be attached to the old artifact.
     with pytest.raises(MetadataConsistencyError, match="is unavailable"):
-        channel_metadata.verified_channel_records("/solver", "linux-64", [expected])
+        channel_metadata.verified_channel_records(
+            "/solver", "linux-64", [expected], channels=CHANNELS
+        )
 
 
 @pytest.mark.parametrize("damage", ["no-url", "hash", "shape", "conflict"])
@@ -167,11 +278,11 @@ def test_unavailable_artifact_policy_does_not_hide_invalid_records(monkeypatch, 
         candidate["depends"] = []
     queried = [expected, candidate] if damage == "conflict" else [candidate]
     monkeypatch.setattr(
-        channel_metadata, "query_channel_records", lambda *args: queried
+        channel_metadata, "query_channel_records", lambda *args, **kwargs: queried
     )
     with pytest.raises(MetadataConsistencyError):
         channel_metadata.verified_channel_records(
-            "/solver", "linux-64", [expected], allow_missing=True
+            "/solver", "linux-64", [expected], channels=CHANNELS, allow_missing=True
         )
 
 
@@ -199,7 +310,7 @@ def test_failed_repoquery_does_not_fall_back_to_other_metadata(
     monkeypatch.setattr(channel_metadata.subprocess, "run", run)
     with pytest.raises(MetadataConsistencyError, match=message) as exc:
         channel_metadata.query_channel_records(
-            "/solver", "linux-64", [MAMBA_26_LINK_ACTION]
+            "/solver", "linux-64", [MAMBA_26_LINK_ACTION], channels=CHANNELS
         )
     assert "fresh package cache" not in str(exc.value)
     assert "sensitive stderr" not in str(exc.value)
@@ -210,10 +321,12 @@ def test_refresh_requires_a_matching_digest_not_just_the_same_url(monkeypatch):
     expected = {**MAMBA_26_LINK_ACTION, "sha256": None}
     source = {**MAMBA_26_LINK_ACTION, "md5": None}
     monkeypatch.setattr(
-        channel_metadata, "query_channel_records", lambda *args: [source]
+        channel_metadata, "query_channel_records", lambda *args, **kwargs: [source]
     )
     with pytest.raises(MetadataConsistencyError, match="identity cannot be verified"):
-        channel_metadata.verified_channel_records("/solver", "linux-64", [expected])
+        channel_metadata.verified_channel_records(
+            "/solver", "linux-64", [expected], channels=CHANNELS
+        )
 
 
 @pytest.mark.parametrize("fallback", ["error", "unbatched", "skip"])
@@ -233,7 +346,7 @@ def test_remote_verification_respects_offline_from_configuration(monkeypatch, fa
     monkeypatch.setattr(channel_metadata.subprocess, "run", run)
     with pytest.raises(MetadataConsistencyError, match="Offline Mamba") as exc:
         channel_metadata.query_channel_records(
-            "/solver", "linux-64", [MAMBA_26_LINK_ACTION]
+            "/solver", "linux-64", [MAMBA_26_LINK_ACTION], channels=CHANNELS
         )
     message = str(exc.value)
     assert "is not supported" in message
@@ -260,7 +373,7 @@ def test_channel_query_does_not_normalize_null_after_upstream_fix(monkeypatch, v
     monkeypatch.setattr(channel_metadata.subprocess, "run", run)
     if version == Version("2.7.0"):
         verified = channel_metadata.verified_channel_records(
-            "/solver", "linux-64", [record]
+            "/solver", "linux-64", [record], channels=CHANNELS
         )
         assert verified is not None
         assert verified[MAMBA_26_LINK_ACTION["name"]]["depends"] == []
@@ -268,7 +381,9 @@ def test_channel_query_does_not_normalize_null_after_upstream_fix(monkeypatch, v
         with pytest.raises(
             MetadataConsistencyError, match="identity cannot be verified"
         ):
-            channel_metadata.verified_channel_records("/solver", "linux-64", [record])
+            channel_metadata.verified_channel_records(
+                "/solver", "linux-64", [record], channels=CHANNELS
+            )
 
 
 def test_conda_exact_name_queries_reconstruct_urls_from_explicit_channel(monkeypatch):
@@ -294,12 +409,14 @@ def test_conda_exact_name_queries_reconstruct_urls_from_explicit_channel(monkeyp
 
     monkeypatch.setattr(channel_metadata.subprocess, "run", run)
     records = [MAMBA_26_LINK_ACTION, {**MAMBA_26_LINK_ACTION, "name": "other"}]
-    result = channel_metadata.query_channel_records("/solver", "linux-64", records)
+    result = channel_metadata.query_channel_records(
+        "/solver", "linux-64", records, channels=CHANNELS
+    )
     assert result is not None
     assert seen == ["libzlib", "other"]
     assert result[0]["url"] == MAMBA_26_LINK_ACTION["url"]
     verified = channel_metadata.verified_channel_records(
-        "/solver", "linux-64", [MAMBA_26_LINK_ACTION]
+        "/solver", "linux-64", [MAMBA_26_LINK_ACTION], channels=CHANNELS
     )
     assert verified is not None
     assert verified["libzlib"]["md5"] == source["md5"]
@@ -308,7 +425,7 @@ def test_conda_exact_name_queries_reconstruct_urls_from_explicit_channel(monkeyp
         MetadataConsistencyError, match="without a name or artifact URL"
     ):
         channel_metadata.verified_channel_records(
-            "/solver", "linux-64", [MAMBA_26_LINK_ACTION]
+            "/solver", "linux-64", [MAMBA_26_LINK_ACTION], channels=CHANNELS
         )
 
 
@@ -344,12 +461,14 @@ def test_metadata_fallback_requires_explicit_choice(
     monkeypatch.setattr(channel_metadata.subprocess, "run", run)
     if fallback in {"error", ""}:
         with pytest.raises(MetadataConsistencyError, match="cannot batch") as error:
-            channel_metadata.verified_channel_records("/solver", "linux-64", records)
+            channel_metadata.verified_channel_records(
+                "/solver", "linux-64", records, channels=CHANNELS
+            )
         assert "CONDA_LOCK_METADATA_FALLBACK=unbatched" in str(error.value)
         assert searches == []
     else:
         verified = channel_metadata.verified_channel_records(
-            "/solver", "linux-64", records
+            "/solver", "linux-64", records, channels=CHANNELS
         )
         if fallback == "skip":
             assert verified is None
@@ -434,7 +553,7 @@ def test_skip_setting_does_not_bypass_supported_verification(
     monkeypatch.setattr(channel_metadata.subprocess, "run", run)
     with pytest.raises(MetadataConsistencyError, match=message):
         channel_metadata.verified_channel_records(
-            "/solver", "linux-64", [MAMBA_26_LINK_ACTION]
+            "/solver", "linux-64", [MAMBA_26_LINK_ACTION], channels=CHANNELS
         )
 
 
@@ -453,30 +572,34 @@ def test_verification_reuses_only_checked_artifacts_and_rechecks_hashes(monkeypa
     }
     calls = []
 
-    def query(conda, platform, records):
+    def query(conda, platform, records, **kwargs):
         calls.append([r["url"] for r in records])
         return [old, new]  # A search includes versions not selected by this plan.
 
     monkeypatch.setattr(channel_metadata, "query_channel_records", query)
     cache = {}
     first = channel_metadata.verified_channel_records(
-        "solver", "linux-64", [old], verified_cache=cache
+        "solver", "linux-64", [old], channels=CHANNELS, verified_cache=cache
     )
     assert first is not None
     first[old["name"]]["depends"].append("do-not-cache-caller-mutations")
     again = channel_metadata.verified_channel_records(
-        "solver", "linux-64", [old], verified_cache=cache
+        "solver", "linux-64", [old], channels=CHANNELS, verified_cache=cache
     )
     assert again is not None
     assert again[old["name"]]["depends"] == old["depends"]
     assert len(calls) == 1
     channel_metadata.verified_channel_records(
-        "solver", "linux-64", [new], verified_cache=cache
+        "solver", "linux-64", [new], channels=CHANNELS, verified_cache=cache
     )
     assert calls == [[old["url"]], [new["url"]]]
     with pytest.raises(MetadataConsistencyError, match="identity cannot be verified"):
         channel_metadata.verified_channel_records(
-            "solver", "linux-64", [{**new, "sha256": "c" * 64}], verified_cache=cache
+            "solver",
+            "linux-64",
+            [{**new, "sha256": "c" * 64}],
+            channels=CHANNELS,
+            verified_cache=cache,
         )
     assert len(calls) == 2  # Even an in-memory hit must reject contradictory hashes.
 
@@ -485,25 +608,30 @@ def test_missing_or_skipped_records_are_not_cached(monkeypatch):
     record = copy.deepcopy(dict(MAMBA_26_LINK_ACTION))
     replies = iter([None, [], [record]])
     monkeypatch.setattr(
-        channel_metadata, "query_channel_records", lambda *args: next(replies)
+        channel_metadata, "query_channel_records", lambda *args, **kwargs: next(replies)
     )
     cache = {}
     assert (
         channel_metadata.verified_channel_records(
-            "solver", "linux-64", [record], verified_cache=cache
+            "solver", "linux-64", [record], channels=CHANNELS, verified_cache=cache
         )
         is None
     )
     assert cache == {}
     assert (
         channel_metadata.verified_channel_records(
-            "solver", "linux-64", [record], allow_missing=True, verified_cache=cache
+            "solver",
+            "linux-64",
+            [record],
+            channels=CHANNELS,
+            allow_missing=True,
+            verified_cache=cache,
         )
         == {}
     )
     assert cache == {}
     verified = channel_metadata.verified_channel_records(
-        "solver", "linux-64", [record], verified_cache=cache
+        "solver", "linux-64", [record], channels=CHANNELS, verified_cache=cache
     )
     assert verified is not None
     assert verified[record["name"]] == record

@@ -9,6 +9,7 @@ from pathlib import Path
 import pytest
 
 from conda_lock.errors import MetadataConsistencyError
+from conda_lock.models.channel import Channel
 from conda_lock.solver.dry_run import (
     link_action_as_fetch,
     reconstruct_fetch_actions_in_place,
@@ -25,7 +26,7 @@ def captured_channel_metadata(monkeypatch):
     # Independent channel evidence for the disk-fallback fixtures below.
     monkeypatch.setattr(
         "conda_lock.solver.channel_metadata.query_channel_records",
-        lambda *args: [
+        lambda *args, **kwargs: [
             dict(MAMBA_26_LINK_ACTION),
             {
                 **MAMBA_26_LINK_ACTION,
@@ -37,6 +38,42 @@ def captured_channel_metadata(monkeypatch):
 
 
 TESTS_DIR = Path(__file__).resolve().parent.parent
+
+
+@pytest.mark.parametrize("sparse", [False, True])
+def test_private_actions_match_cache_and_placeholder_urls(
+    tmp_path, monkeypatch, sparse
+):
+    monkeypatch.setenv("CHANNEL_TOKEN", "test-secret")
+    channel = Channel.from_string("https://example.org/t/$CHANNEL_TOKEN/private")
+    record = {
+        **MAMBA_26_LINK_ACTION,
+        "url": f"{channel.env_replaced_url()}/linux-64/{MAMBA_26_LINK_ACTION['fn']}",
+    }
+    link = {**record, "url": record["url"].replace("test-secret", "**********")}
+    if sparse:
+        link.pop("depends")
+        dist_name = record["fn"].removesuffix(".conda")
+        info = tmp_path / dist_name / "info"
+        info.mkdir(parents=True)
+        (info / "repodata_record.json").write_text(json.dumps(record))
+        monkeypatch.setattr(
+            "conda_lock.solver.dry_run.get_pkgs_dirs", lambda **kw: [tmp_path]
+        )
+        monkeypatch.setattr(
+            "conda_lock.solver.channel_metadata.query_channel_records",
+            lambda *args, **kw: [record],
+        )
+        fetches = []
+    else:
+        fetches = [
+            {**record, "url": record["url"].replace("test-secret", "${CHANNEL_TOKEN}")}
+        ]
+    plan = {"actions": {"LINK": [link], "FETCH": fetches}}
+    reconstruct_fetch_actions_in_place("/dummy", "linux-64", plan, channels=[channel])
+    assert len(plan["actions"]["FETCH"]) == 1
+    assert plan["actions"]["FETCH"][0]["depends"] == record["depends"]
+    assert plan["actions"]["LINK"][0]["url"] == link["url"]
 
 
 # ---------------------------------------------------------------------------
@@ -126,7 +163,7 @@ def test_reconstruct_fetch_actions_synthesizes_from_link(monkeypatch):
             "FETCH": [],
         }
     }
-    reconstruct_fetch_actions_in_place("/dummy", "linux-64", dryrun)
+    reconstruct_fetch_actions_in_place("/dummy", "linux-64", dryrun, channels=[])
     assert len(dryrun["actions"]["FETCH"]) == 1
     fetch = dryrun["actions"]["FETCH"][0]
     assert fetch["name"] == "libzlib"
@@ -152,7 +189,7 @@ def test_reconstruct_fetch_actions_real_mamba_2_6_0_dryrun(monkeypatch):
     dryrun = json.loads(fixture.read_text())
     assert len(dryrun["actions"]["LINK"]) >= 1
     assert dryrun["actions"].get("FETCH", []) == []
-    reconstruct_fetch_actions_in_place("/dummy", "linux-64", dryrun)
+    reconstruct_fetch_actions_in_place("/dummy", "linux-64", dryrun, channels=[])
     fetched = dryrun["actions"]["FETCH"]
     assert len(fetched) == len(dryrun["actions"]["LINK"])
     by_name = {f["name"]: f for f in fetched}
@@ -185,7 +222,7 @@ def test_reconstruct_fetch_actions_real_micromamba_1_5_dryrun(monkeypatch):
     dryrun = json.loads(fixture.read_text())
     assert dryrun["actions"].get("FETCH") in (None, [])
     link = dryrun["actions"]["LINK"][0]
-    reconstruct_fetch_actions_in_place("/dummy", "linux-64", dryrun)
+    reconstruct_fetch_actions_in_place("/dummy", "linux-64", dryrun, channels=[])
     fetched = dryrun["actions"]["FETCH"]
     assert [f["name"] for f in fetched] == ["libzlib"]
     assert fetched[0]["url"] == link["url"]
@@ -224,7 +261,7 @@ def test_reconstruct_fetch_actions_real_sparse_dryrun_uses_disk(
         lambda **_kwargs: [tmp_path / "pkgs"],
     )
 
-    reconstruct_fetch_actions_in_place("/dummy", "linux-64", dryrun)
+    reconstruct_fetch_actions_in_place("/dummy", "linux-64", dryrun, channels=[])
     fetched = dryrun["actions"]["FETCH"]
     assert [f["name"] for f in fetched] == ["libzlib"]
     assert fetched[0]["depends"] == record["depends"]
@@ -279,7 +316,9 @@ def test_reconstruct_fetch_actions_disk_fallback_on_hierarchical_cache(
         lambda **_kwargs: [pkgs_dir],
     )
 
-    reconstruct_fetch_actions_in_place("/dummy", real_link["subdir"], dryrun)
+    reconstruct_fetch_actions_in_place(
+        "/dummy", real_link["subdir"], dryrun, channels=[]
+    )
     assert len(dryrun["actions"]["FETCH"]) == 1
     fetch = dryrun["actions"]["FETCH"][0]
     assert fetch["url"] == real_link["url"]
@@ -307,13 +346,15 @@ def test_reconstruct_fetch_actions_disk_fallback_on_hierarchical_cache(
     sparse_no_url = {k: v for k, v in sparse_link.items() if k != "url"}
     dryrun = {"actions": {"LINK": [sparse_no_url], "FETCH": []}}
     with pytest.raises(MetadataConsistencyError, match="No valid cache record"):
-        reconstruct_fetch_actions_in_place("/dummy", real_link["subdir"], dryrun)
+        reconstruct_fetch_actions_in_place(
+            "/dummy", real_link["subdir"], dryrun, channels=[]
+        )
 
 
 def test_reconstruct_fetch_actions_creates_missing_action_keys():
     """A dryrun without LINK/FETCH keys is normalized, not crashed on."""
     dryrun = {"actions": {}}
-    reconstruct_fetch_actions_in_place("/dummy", "linux-64", dryrun)
+    reconstruct_fetch_actions_in_place("/dummy", "linux-64", dryrun, channels=[])
     assert dryrun["actions"] == {"LINK": [], "FETCH": []}
 
 
@@ -344,7 +385,7 @@ def test_reconstruct_fetch_actions_derives_dist_name_from_fn(
     # No dist_name, no depends -> fast path declines, disk fallback runs.
     link = {k: v for k, v in record.items() if k not in ("depends",)}
     dryrun = {"actions": {"LINK": [link], "FETCH": []}}
-    reconstruct_fetch_actions_in_place("/dummy", "linux-64", dryrun)
+    reconstruct_fetch_actions_in_place("/dummy", "linux-64", dryrun, channels=[])
     assert dryrun["actions"]["FETCH"][0]["depends"] == record["depends"]
 
 
@@ -355,7 +396,7 @@ def test_reconstruct_fetch_actions_rejects_unknown_filename_format(monkeypatch):
     link = {"name": "weird", "fn": "weird-1.0-0.zip"}
     dryrun = {"actions": {"LINK": [link], "FETCH": []}}
     with pytest.raises(ValueError, match="Unknown filename format"):
-        reconstruct_fetch_actions_in_place("/dummy", "linux-64", dryrun)
+        reconstruct_fetch_actions_in_place("/dummy", "linux-64", dryrun, channels=[])
 
 
 def test_reconstruct_fetch_actions_requires_dist_name_or_fn(monkeypatch):
@@ -364,7 +405,7 @@ def test_reconstruct_fetch_actions_requires_dist_name_or_fn(monkeypatch):
     monkeypatch.setattr("conda_lock.solver.dry_run.get_pkgs_dirs", lambda **_kwargs: [])
     dryrun = {"actions": {"LINK": [{"name": "mystery"}], "FETCH": []}}
     with pytest.raises(ValueError, match="Unable to extract the dist_name"):
-        reconstruct_fetch_actions_in_place("/dummy", "linux-64", dryrun)
+        reconstruct_fetch_actions_in_place("/dummy", "linux-64", dryrun, channels=[])
 
 
 @pytest.mark.parametrize(
@@ -380,7 +421,7 @@ def test_link_metadata_fingerprint_warns_without_changing_dependencies(
         "depends": [],
     }
     dryrun = {"actions": {"FETCH": [], "LINK": [dict(record)]}}
-    reconstruct_fetch_actions_in_place("/dummy", "linux-64", dryrun)
+    reconstruct_fetch_actions_in_place("/dummy", "linux-64", dryrun, channels=[])
     assert dryrun["actions"]["FETCH"][0]["depends"] == []
     assert link_action_as_fetch(record) is not None
     assert ("timestamp=0 and an empty license" in caplog.text) is warns
@@ -392,7 +433,7 @@ def test_link_metadata_fingerprint_warns_without_changing_dependencies(
 def test_fetch_metadata_with_empty_license_and_timestamp_is_accepted(caplog):
     record = {**MAMBA_26_LINK_ACTION, "timestamp": 0, "license": "", "depends": []}
     dryrun = {"actions": {"FETCH": [record], "LINK": [dict(record)]}}
-    reconstruct_fetch_actions_in_place("/dummy", "linux-64", dryrun)
+    reconstruct_fetch_actions_in_place("/dummy", "linux-64", dryrun, channels=[])
     assert dryrun["actions"]["FETCH"] == [record]
     assert not caplog.records
 
@@ -406,7 +447,7 @@ def test_conflicting_live_actions_are_rejected(field, value):
         }
     }
     with pytest.raises(MetadataConsistencyError, match="FETCH/LINK"):
-        reconstruct_fetch_actions_in_place("/dummy", "linux-64", dryrun)
+        reconstruct_fetch_actions_in_place("/dummy", "linux-64", dryrun, channels=[])
 
 
 @pytest.mark.parametrize("version", ["2.6.0", "2.7.0", "2.8.0", None])
@@ -422,8 +463,10 @@ def test_null_dependencies_are_only_normalized_for_known_live_protocol(
     record = {**MAMBA_26_LINK_ACTION, "depends": None}
     dryrun = {"actions": {"FETCH": [record]}}
     if version in {"2.6.0", "2.7.0"}:
-        reconstruct_fetch_actions_in_place("/dummy", "linux-64", dryrun)
+        reconstruct_fetch_actions_in_place("/dummy", "linux-64", dryrun, channels=[])
         assert dryrun["actions"]["FETCH"][0]["depends"] == []
     else:
         with pytest.raises(MetadataConsistencyError, match="depends must be"):
-            reconstruct_fetch_actions_in_place("/dummy", "linux-64", dryrun)
+            reconstruct_fetch_actions_in_place(
+                "/dummy", "linux-64", dryrun, channels=[]
+            )

@@ -8,6 +8,7 @@ import subprocess
 
 from collections.abc import Mapping, Sequence
 from copy import deepcopy
+from posixpath import expandvars
 from typing import Any, Literal, cast
 from urllib.parse import quote, urlsplit, urlunsplit
 
@@ -16,15 +17,35 @@ from packaging.version import Version
 from conda_lock.errors import CondaLockError, MetadataConsistencyError
 from conda_lock.invoke_conda import (
     PathLike,
+    _get_channel_flags,
     conda_env_override,
     extract_json_object,
     mamba_binary_version,
 )
+from conda_lock.models.channel import Channel, normalize_url_with_placeholders
 from conda_lock.solver.repodata_cache import (
     normalize_url_for_compare,
     record_matches_link,
     record_validation_error,
 )
+
+
+def record_with_channel_credentials(
+    record: Mapping[str, Any], channels: Sequence[Channel]
+) -> dict[str, Any]:
+    """Resolve solver masks and lockfile placeholders for identity/cache lookup.
+
+    Return a copy: the stored lockfile and solver actions retain their URL
+    spelling. Once resolved, the existing URL comparison also handles Conda's
+    token-free URLs. Query destinations still come only from configured channels.
+    """
+    result = dict(record)
+    for key in ("url", "base_url"):
+        if isinstance(result.get(key), str):
+            result[key] = expandvars(
+                normalize_url_with_placeholders(expandvars(result[key]), list(channels))
+            )
+    return result
 
 
 def metadata_fallback() -> Literal["error", "unbatched", "skip"]:
@@ -156,12 +177,18 @@ def _query_result_records(
 
 
 def query_channel_records(
-    conda: PathLike, platform: str, records: Sequence[Mapping[str, Any]]
+    conda: PathLike,
+    platform: str,
+    records: Sequence[Mapping[str, Any]],
+    *,
+    channels: Sequence[Channel],
 ) -> list[dict[str, Any]] | None:
     """Read channel records without solving or trusting installed metadata.
 
-    Query only the channels of the selected artifacts. Mamba's repoquery command
-    handles both full and sharded repodata, so this does not depend on private
+    Query the configured channels with their credentials. Solver JSON can censor
+    credentials, so artifact URLs must never supply query destinations.
+    Mamba's repoquery command handles both full and sharded repodata,
+    so this does not depend on private
     cache filenames or interpret an archive's index.json as channel metadata.
     None means the user explicitly skipped verification on a solver without
     batching. Query failures never activate that fallback.
@@ -171,17 +198,9 @@ def query_channel_records(
     names = sorted({record["name"] for record in records})
     if not names:
         return []
-    flags = ["--json", "--override-channels"]
+    flags = ["--json", *_get_channel_flags(channels, platform)]
     offline = "--offline" in shlex.split(os.environ.get("CONDA_FLAGS", ""))
-    channels = set()
-    for record in records:
-        parsed = urlsplit(record["url"])
-        channel_path = parsed.path.rsplit("/", 2)[0]
-        channels.add(
-            urlunsplit(parsed._replace(path=channel_path, query="", fragment=""))
-        )
-    for channel in sorted(channels):
-        flags.extend(["--channel", channel])
+    channel_urls = [channel.env_replaced_url() for channel in channels]
     env = {
         **conda_env_override(platform),
         "MAMBA_ADD_PIP_AS_PYTHON_DEPENDENCY": "False",
@@ -199,7 +218,9 @@ def query_channel_records(
         # search. Recent Conda rejects regex names (conda/conda#16096).
         commands = [[str(conda), "search", name] for name in names]
     if version is not None and version >= Version("2"):
-        if all(urlsplit(channel).scheme == "file" for channel in channels):
+        if channel_urls and all(
+            urlsplit(channel).scheme == "file" for channel in channel_urls
+        ):
             # Offline Mamba also loads extracted package records. For local
             # channels read repodata directly instead; no network is involved.
             offline = False
@@ -270,6 +291,7 @@ def verified_channel_records(
     platform: str,
     records: Sequence[Mapping[str, Any]],
     *,
+    channels: Sequence[Channel],
     allow_missing: bool = False,
     verified_cache: dict[str, dict[str, Any]] | None = None,
 ) -> dict[str, dict[str, Any]] | None:
@@ -287,13 +309,23 @@ def verified_channel_records(
     """
     if not records:
         return {}
+    # create, repoquery and stored lockfiles can spell the same credential as
+    # different masks or environment placeholders. Use configured channel
+    # identities on both sides, including cache hits, without weakening hashes.
+    expected_records = [
+        record_with_channel_credentials(record, channels) for record in records
+    ]
     cache = verified_cache if verified_cache is not None else {}
     missing = [
         record
-        for record in records
+        for record in expected_records
         if normalize_url_for_compare(record["url"]) not in cache
     ]
-    queried = query_channel_records(conda, platform, missing) if missing else []
+    queried = (
+        query_channel_records(conda, platform, missing, channels=channels)
+        if missing
+        else []
+    )
     if queried is None:
         return None  # Never present the input records as verified channel metadata.
     by_url = {url: [record] for url, record in cache.items()}
@@ -306,11 +338,12 @@ def verified_channel_records(
             raise MetadataConsistencyError(
                 "Channel metadata query returned a record without a name or artifact URL"
             )
+        record = record_with_channel_credentials(record, channels)
         url = normalize_url_for_compare(record["url"])
         if url not in cache:
             by_url.setdefault(url, []).append(record)
     verified = {}
-    for expected in records:
+    for original, expected in zip(records, expected_records):
         candidates = by_url.get(normalize_url_for_compare(expected["url"]), [])
         if not candidates:
             if allow_missing:
@@ -348,7 +381,7 @@ def verified_channel_records(
         verified[expected["name"]] = deepcopy(candidates[0])
         # Verification may return equivalent URL spelling (notably ! vs %21).
         # Refresh metadata without rewriting the selected artifact's location.
-        verified[expected["name"]]["url"] = expected["url"]
+        verified[expected["name"]]["url"] = original["url"]
         for digest in ("md5", "sha256"):
             if not candidates[0].get(digest) and expected.get(digest):
                 verified[expected["name"]][digest] = expected[digest]
