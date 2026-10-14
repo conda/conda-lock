@@ -1,4 +1,4 @@
-"""Tests for rich LINK synthesis, sparse LINK verification and metadata warnings."""
+"""Tests for rich LINK synthesis and sparse LINK verification."""
 
 from __future__ import annotations
 
@@ -406,36 +406,6 @@ def test_reconstruct_fetch_actions_requires_dist_name_or_fn(monkeypatch):
     dryrun = {"actions": {"LINK": [{"name": "mystery"}], "FETCH": []}}
     with pytest.raises(ValueError, match="Unable to extract the dist_name"):
         reconstruct_fetch_actions_in_place("/dummy", "linux-64", dryrun, channels=[])
-
-
-@pytest.mark.parametrize(
-    "timestamp, license, warns", [(0, "", True), (1, "", False), (0, "MIT", False)]
-)
-def test_link_metadata_fingerprint_warns_without_changing_dependencies(
-    caplog, timestamp, license, warns
-):
-    record = {
-        **MAMBA_26_LINK_ACTION,
-        "timestamp": timestamp,
-        "license": license,
-        "depends": [],
-    }
-    dryrun = {"actions": {"FETCH": [], "LINK": [dict(record)]}}
-    reconstruct_fetch_actions_in_place("/dummy", "linux-64", dryrun, channels=[])
-    assert dryrun["actions"]["FETCH"][0]["depends"] == []
-    assert link_action_as_fetch(record) is not None
-    assert ("timestamp=0 and an empty license" in caplog.text) is warns
-    if warns:
-        assert "libzlib" in caplog.text
-        assert "without --update" in caplog.text
-
-
-def test_fetch_metadata_with_empty_license_and_timestamp_is_accepted(caplog):
-    record = {**MAMBA_26_LINK_ACTION, "timestamp": 0, "license": "", "depends": []}
-    dryrun = {"actions": {"FETCH": [record], "LINK": [dict(record)]}}
-    reconstruct_fetch_actions_in_place("/dummy", "linux-64", dryrun, channels=[])
-    assert dryrun["actions"]["FETCH"] == [record]
-    assert not caplog.records
 
 
 @pytest.mark.parametrize("field, value", [("depends", []), ("md5", "other-digest")])

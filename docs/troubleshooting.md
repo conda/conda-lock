@@ -200,18 +200,3 @@ Full verification does not make offline locking supported. Explicitly skipping
 verification on a solver without batching can still carry damaged metadata into
 a lockfile. Reading a local `file://` channel with its own repodata is separate
 from reusing a remote channel's package cache.
-
-## Suspicious package metadata
-
-Conda-lock warns when it uses a solver-provided LINK record, or an unverified
-cache record in skip mode, with both a zero timestamp and an empty license.
-Older Mamba versions wrote damaged cache records
-with this pattern, but valid packages can also have these values. The warning
-does not repair the metadata or prove it is corrupt; other forms of damage may
-go undetected.
-
-Keep your existing lockfile. Before using the new result, regenerate online with
-a current solver and an isolated cache, following the recovery steps above.
-Compare the replacement, including its dependency categories. If the warning
-persists with a clean cache, check the affected packages' channel metadata;
-missing license and timestamp fields can be legitimate.
