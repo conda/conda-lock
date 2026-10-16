@@ -22,6 +22,7 @@ jobs:
   test:
     name: pytest py${{ matrix.python-version }} on ${{ matrix.os }} (${{ matrix.pytest-split-group-index }}/${{ matrix.pytest-split-group-size }})
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 90
     permissions:
       contents: read
       actions: write  # for uploading artifacts

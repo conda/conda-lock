@@ -145,6 +145,7 @@ addopts = [
     "--ignore-glob=**/_vendor/**"
 ]
 log_level = "DEBUG"
+faulthandler_timeout = 600
 testpaths = ["tests", "conda_lock"]
 
 [tool.vendoring]
