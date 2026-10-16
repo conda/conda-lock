@@ -29,8 +29,7 @@ classifiers = [
 "Issue Tracker" = "https://github.com/ibis-project/ibis/issues"
 
 [tool.poetry.dependencies]
-# Keep this historical category-propagation fixture on a compatible interpreter.
-# Its numpy<2 constraint makes an open-ended Python solve unnecessarily expensive.
+# Pin Python to speed up dependency resolution in CI.
 python = "3.12.*"
 atpublic = ">=2.3,<4"
 bidict = ">=0.22.1,<1"
