@@ -79,7 +79,7 @@ def mock_private_pypi(  # noqa: C901
         def _make_response(
             request: requests.Request,
             status: int,
-            headers: dict | None = None,
+            headers: dict[str, str] | None = None,
             text: str = "",
             reason: str = "",
             file: str | None = None,
@@ -92,7 +92,7 @@ def mock_private_pypi(  # noqa: C901
             if not file:
                 response.encoding = "utf-8"
                 response._content = text.encode(encoding=response.encoding)
-                response._content_consumed = True  # type: ignore
+                response._content_consumed = True  # ty: ignore[unresolved-attribute]
             else:
                 assert not text
                 response.headers.setdefault("Content-Type", "application/octet-stream")

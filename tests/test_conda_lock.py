@@ -1900,14 +1900,14 @@ def test_run_with_channel_inversion(
     lockfile = parse_conda_lock_file(channel_inversion.parent / DEFAULT_LOCKFILE_NAME)
     for package in lockfile.package:
         if package.name == "zlib":
-            ms = MatchSpec(package.url)  # pyright: ignore
+            ms = MatchSpec(package.url)
             assert ms.get("channel") == "conda-forge"
             break
     else:
         raise ValueError("zlib not found!")
     for package in lockfile.package:
         if package.name == "libgomp":
-            ms = MatchSpec(package.url)  # pyright: ignore
+            ms = MatchSpec(package.url)
             assert ms.get("channel") == "defaults"
             break
     else:
@@ -2396,7 +2396,7 @@ def test_install(
 
     prefix = root_prefix / "test_env"
 
-    context: contextlib.AbstractContextManager
+    context: contextlib.AbstractContextManager[object]
     if sys.platform.lower().startswith("linux"):
         context = contextlib.nullcontext()
     else:
@@ -2453,7 +2453,7 @@ def test_install_with_pip_deps(
     package = "requests"
     prefix = root_prefix / "test_env"
 
-    context: contextlib.AbstractContextManager
+    context: contextlib.AbstractContextManager[object]
     if sys.platform.lower().startswith("linux"):
         context = contextlib.nullcontext()
     else:
@@ -2495,7 +2495,7 @@ def test_install_multiple_subcategories(
     root_prefix.mkdir(exist_ok=True)
     prefix = root_prefix / "test_env"
 
-    context: contextlib.AbstractContextManager
+    context: contextlib.AbstractContextManager[object]
     if sys.platform.lower().startswith("linux"):
         context = contextlib.nullcontext()
     else:
