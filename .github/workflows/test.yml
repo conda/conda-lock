@@ -22,6 +22,7 @@ jobs:
   test:
     name: pytest py${{ matrix.python-version }} on ${{ matrix.os }} (${{ matrix.pytest-split-group-index }}/${{ matrix.pytest-split-group-size }})
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 90
     permissions:
       contents: read
       actions: write  # for uploading artifacts
@@ -110,7 +111,8 @@ jobs:
       - name: install conda-lock
         run: |
           which pip
-          pip install -e . --no-deps
+          # Use PyPI until conda-forge's ensureconda 1.7.0 supports Python 3.10.
+          pip install -e . "ensureconda>=1.7.0" --no-deps
 
       - name: run pip check
         run: pip check
