@@ -111,7 +111,8 @@ jobs:
       - name: install conda-lock
         run: |
           which pip
-          pip install -e . --no-deps
+          # Use PyPI until conda-forge's ensureconda 1.7.0 supports Python 3.10.
+          pip install -e . "ensureconda>=1.7.0" --no-deps
 
       - name: run pip check
         run: pip check
