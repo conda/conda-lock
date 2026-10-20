@@ -5,7 +5,7 @@ description = ""
 authors = ["conda-lock"]
 
 [tool.poetry.dependencies]
-python = "^3.10"
+python = "^3.11"
 pytest = "~5.1.0"
 fake-private-package = { path = "./fake-private-package-1.0.0" }
 

@@ -5,10 +5,11 @@ There is incidentally also a lot of virtual package stuff here.
 
 from typing import (
     Literal,
+    NotRequired,
     TypeAlias,
 )
 
-from typing_extensions import NotRequired, TypedDict
+from typing_extensions import TypedDict
 
 
 # Use TypeAlias to be descriptive about what kinds of strings are expected.
