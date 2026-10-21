@@ -4,6 +4,49 @@ from conda_lock import conda_solver
 from conda_lock.errors import MetadataConsistencyError
 from conda_lock.models.channel import Channel
 from conda_lock.models.lock_spec import VersionedDependency
+from conda_lock.solver.graph_integrity import (
+    check_dependency_constraints,
+    packages_requiring_repair,
+)
+
+
+MALFORMED_SPEC = "pillow-heif >=0.10.0,<1.0.0<py312|>=0.13.0,<1.0.0>=py312"
+
+
+@pytest.mark.parametrize(
+    "check", [check_dependency_constraints, packages_requiring_repair]
+)
+def test_malformed_optional_constraints_warn_but_do_not_block_locks(check, caplog):
+    records = [
+        {"name": "willow", "fn": "willow-1.8.0-0.conda", "constrains": [MALFORMED_SPEC]}
+    ]
+    check(records)
+    assert "Ignoring malformed optional constraint" in caplog.text
+    assert "willow" in caplog.text
+    assert MALFORMED_SPEC in caplog.text
+
+
+@pytest.mark.parametrize(
+    "boundary", ["final", "repair", "prune", "replace", "serialize"]
+)
+def test_malformed_required_dependencies_have_recovery_at_every_boundary(boundary):
+    records = {
+        "root": {"name": "root", "fn": "root-1-0.conda", "depends": [MALFORMED_SPEC]}
+    }
+    with pytest.raises(
+        MetadataConsistencyError, match="Cannot parse required dependency"
+    ) as error:
+        if boundary == "final":
+            check_dependency_constraints(list(records.values()))
+        elif boundary == "repair":
+            packages_requiring_repair(list(records.values()))
+        elif boundary == "prune":
+            conda_solver._unrequested_packages(records, ["root"])
+        elif boundary == "replace":
+            conda_solver._packages_requiring_replacement(records, {"leaf"})
+        else:
+            conda_solver._dependency_versions([MALFORMED_SPEC])
+    assert "channel maintainer" in str(error.value)
 
 
 @pytest.mark.parametrize("missing_dependency", [False, True])

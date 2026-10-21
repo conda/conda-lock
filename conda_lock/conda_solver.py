@@ -46,6 +46,7 @@ from conda_lock.solver.graph_integrity import (
     check_dependencies_present,
     check_dependency_constraints,
     packages_requiring_repair,
+    parse_dependency_spec,
 )
 from conda_lock.tempdir_manager import temporary_directory
 
@@ -82,7 +83,7 @@ def _to_match_spec(
 def _dependency_versions(depends: Iterable[str]) -> dict[str, str]:
     dependency_specs: dict[str, list[MatchSpec]] = {}
     for dep in depends:
-        matchspec = MatchSpec(dep)  # pyright: ignore[reportArgumentType]
+        matchspec = parse_dependency_spec(dep)
         dependency_specs.setdefault(matchspec.name, []).append(matchspec)
 
     dependencies = {}
@@ -392,7 +393,9 @@ def _unrequested_packages(
         if name not in records:
             return set()
         needed.add(name)
-        pending.extend(MatchSpec(spec).name for spec in records[name]["depends"])
+        pending.extend(
+            parse_dependency_spec(spec).name for spec in records[name]["depends"]
+        )
     return set(records).difference(needed)
 
 
@@ -426,7 +429,7 @@ def _packages_requiring_replacement(
     parents: dict[str, set[str]] = {}
     for name, record in records.items():
         for dependency in record["depends"]:
-            parents.setdefault(MatchSpec(dependency).name, set()).add(name)
+            parents.setdefault(parse_dependency_spec(dependency).name, set()).add(name)
     affected = set(unavailable)
     pending = list(unavailable)
     while pending:

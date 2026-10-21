@@ -1,5 +1,7 @@
 """Check supplied dependency edges, package constraints and category assignment."""
 
+import logging
+
 from collections.abc import Iterator, Mapping, Sequence
 from pathlib import PurePosixPath
 from types import SimpleNamespace
@@ -7,8 +9,23 @@ from typing import Any
 from urllib.parse import unquote, urlsplit
 
 from conda_lock.errors import MetadataConsistencyError
-from conda_lock.interfaces.vendored_conda import MatchSpec
+from conda_lock.interfaces.vendored_conda import InvalidSpec, MatchSpec
 from conda_lock.lockfile.v2prelim.models import LockedDependency
+
+
+def parse_dependency_spec(dependency: str) -> MatchSpec:
+    """Give malformed required metadata the same recovery path at every boundary."""
+    try:
+        return MatchSpec(dependency)
+    except InvalidSpec as exc:
+        raise MetadataConsistencyError(
+            f"Cannot parse required dependency {dependency!r}",
+            recovery=(
+                "Report the malformed dependency to the channel maintainer, or "
+                "select a package build with valid dependency metadata. "
+                "Required dependencies cannot safely be ignored."
+            ),
+        ) from exc
 
 
 def check_dependencies_present(planned: Mapping[str, LockedDependency]) -> None:
@@ -56,16 +73,28 @@ def _constraint_violations(
         )
         selected[record["name"]] = SimpleNamespace(**{**record, "build": build})
     for record in records:
-        for constraint in [
-            *(record.get("depends") or []),
-            *(record.get("constrains") or []),
+        for field, constraint in [
+            (field, constraint)
+            for field in ("depends", "constrains")
+            for constraint in (record.get(field) or [])
         ]:
-            spec = MatchSpec(constraint)
+            try:
+                spec = parse_dependency_spec(constraint)
+            except MetadataConsistencyError:
+                if field == "depends":
+                    raise
+                logging.getLogger(__name__).warning(
+                    "Ignoring malformed optional constraint %r from %s, "
+                    "as Conda solvers do; report it to the channel maintainer.",
+                    constraint,
+                    record["name"],
+                )
+                continue
             name: str = spec.name
             if spec.name.startswith("__"):
                 continue
             if spec.name not in selected:
-                if include_missing and constraint in (record.get("depends") or []):
+                if include_missing and field == "depends":
                     yield name, f"{record['name']} requires missing {constraint}"
                 continue  # Optional constrains do not require a package's presence.
             try:
