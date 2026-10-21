@@ -81,6 +81,13 @@ def test_libmamba_strip_url_secrets_token_regex_is_intentionally_overreaching():
     )
 
 
+def test_file_channel_token_shaped_directories_remain_distinct():
+    first = "file:///channels/t/first/linux-64/root-1-0.conda"
+    second = first.replace("/first/", "/second/")
+    assert normalize_url_for_compare(first) != normalize_url_for_compare(second)
+    assert normalize_url_for_compare(first) == first
+
+
 def test_normalize_url_for_compare_force_https_strip_slash():
     """The normalized form drops scheme differences and trailing slashes."""
     assert normalize_url_for_compare(

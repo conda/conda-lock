@@ -93,7 +93,10 @@ def normalize_url_for_compare(url: str) -> str:
     Decode and re-encode each path segment so escaped epoch markers compare
     equal, while an encoded slash remains distinct from a path separator.
     """
-    parsed = urlsplit(libmamba_strip_url_secrets(url))
+    # /t/name is an ordinary directory in a file channel, not a masked token.
+    parsed = urlsplit(url)
+    if parsed.scheme != "file":
+        parsed = urlsplit(libmamba_strip_url_secrets(url))
     scheme = "https" if parsed.scheme in {"http", "https"} else parsed.scheme
     path = "/".join(
         quote(unquote(part), safe="!$&'()*+,;=:@-._~")
