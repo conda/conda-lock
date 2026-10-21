@@ -8,6 +8,7 @@ import subprocess
 import threading
 
 from collections.abc import Iterator, Sequence
+from functools import lru_cache
 from logging import getLogger
 from typing import IO, Any, Literal, TypeAlias
 
@@ -405,6 +406,7 @@ def get_pkgs_dirs(
     return pkgs_dirs
 
 
+@lru_cache(maxsize=32)
 def mamba_binary_version(conda: PathLike) -> Version | None:
     """Best-effort version probe of a mamba/micromamba executable.
 

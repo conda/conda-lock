@@ -11,6 +11,24 @@ import pytest
 from conda_lock.invoke_conda import get_pkgs_dirs
 
 
+def test_mamba_version_probe_is_reused_per_executable(monkeypatch, tmp_path):
+    from packaging.version import Version
+
+    from conda_lock import invoke_conda
+
+    calls = []
+
+    def version(path):
+        calls.append(path)
+        return Version("2.9")
+
+    monkeypatch.setattr(invoke_conda, "determine_mamba_version", version)
+    for _ in range(2):
+        assert invoke_conda.mamba_binary_version(tmp_path / "mamba") == Version("2.9")
+    assert invoke_conda.mamba_binary_version(tmp_path / "micromamba") == Version("2.9")
+    assert len(calls) == 2
+
+
 @pytest.mark.parametrize(
     ("method", "payload", "expected"),
     [

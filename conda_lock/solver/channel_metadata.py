@@ -8,6 +8,7 @@ import subprocess
 
 from collections.abc import Mapping, Sequence
 from copy import deepcopy
+from functools import lru_cache
 from pathlib import Path
 from posixpath import expandvars
 from typing import Any, Literal, cast
@@ -192,11 +193,20 @@ def _conda_record_with_url(record: dict[str, Any]) -> dict[str, Any]:
 
 
 def _supports_conda_repoquery(conda: PathLike, env: Mapping[str, str]) -> bool:
+    return _cached_conda_repoquery(str(conda), tuple(sorted(env.items())))
+
+
+@lru_cache(maxsize=32)
+def _cached_conda_repoquery(
+    conda: str, environment: tuple[tuple[str, str], ...]
+) -> bool:
+    # Cache capability only, never channel records. Include the environment so
+    # disabling plugins or changing configuration still triggers a fresh probe.
     # repoquery is supplied by conda-libmamba-solver, which need not be installed
     # or enabled. Check the command, not the Conda version or solver setting.
     proc = subprocess.run(  # noqa: UP022  # Poetry monkeypatch breaks capture_output
         [str(conda), "repoquery", "search", "--help"],
-        env=env,
+        env=dict(environment),
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         encoding="utf8",

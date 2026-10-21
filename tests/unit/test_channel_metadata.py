@@ -20,6 +20,31 @@ CHANNELS = [Channel.from_string("https://conda.anaconda.org/conda-forge")]
 MULTI_NAME_HELP = "usage: conda repoquery search [--no-installed] specs [specs ...]"
 
 
+@pytest.fixture(autouse=True)
+def clear_capability_cache():
+    channel_metadata._cached_conda_repoquery.cache_clear()
+    yield
+    channel_metadata._cached_conda_repoquery.cache_clear()
+
+
+def test_capability_probe_is_reused_until_solver_or_environment_changes(monkeypatch):
+    calls = []
+
+    def run(command, **kwargs):
+        calls.append(command)
+        return subprocess.CompletedProcess(command, 0, MULTI_NAME_HELP)
+
+    monkeypatch.setattr(channel_metadata.subprocess, "run", run)
+    for _ in range(2):
+        assert channel_metadata._supports_conda_repoquery("/solver", {})
+    assert len(calls) == 1
+    assert channel_metadata._supports_conda_repoquery("/other/solver", {})
+    assert channel_metadata._supports_conda_repoquery(
+        "/solver", {"CONDA_NO_PLUGINS": "true"}
+    )
+    assert len(calls) == 3
+
+
 @pytest.mark.parametrize(
     "exception,empty", [("PackagesNotFoundError", True), ("CondaHTTPError", False)]
 )
