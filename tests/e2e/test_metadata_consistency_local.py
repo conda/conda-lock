@@ -105,6 +105,71 @@ def make_channel(root, definitions=None):
 
 
 @pytest.mark.parametrize("solver", SOLVERS)
+def test_malformed_optional_constraint_survives_fresh_lock_and_update(
+    tmp_path, monkeypatch, solver
+):
+    channel = tmp_path / "channel"
+    make_channel(channel, [("root", "1.0", [], "linux-64")])
+    malformed = "pillow-heif >=0.10.0,<1.0.0<py312|>=0.13.0,<1.0.0>=py312"
+    for filename in ("repodata.json", "current_repodata.json"):
+        path = channel / "linux-64" / filename
+        data = json.loads(path.read_text())
+        data["packages"]["root-1.0-0.tar.bz2"]["constrains"] = [malformed]
+        path.write_text(json.dumps(data))
+    condarc = tmp_path / "condarc"
+    condarc.write_text("channels: []\n")
+    monkeypatch.setenv("CONDARC", str(condarc))
+    monkeypatch.setenv("MAMBARC", str(condarc))
+    monkeypatch.setenv("MAMBA_ROOT_PREFIX", str(tmp_path / "root"))
+    monkeypatch.setenv("CONDA_FLAGS", "")
+    monkeypatch.setattr(invoke_conda, "CONDA_PKGS_DIRS", str(tmp_path / "cache"))
+
+    def solve(locked, update):
+        return conda_solver.solve_conda(
+            conda=solver,
+            specs={"root": VersionedDependency(name="root", version="*")},
+            platform="linux-64",
+            channels=[Channel.from_string(channel.as_uri())],
+            mapping_url="unused",
+            locked=locked,
+            update=update,
+        )
+
+    locked = solve({}, [])
+    updated = solve(locked, ["root"])
+    assert locked == updated
+    assert set(updated) == {"root"}
+
+
+@pytest.mark.parametrize("solver", SOLVERS)
+def test_conda_falls_back_from_current_to_full_repodata(tmp_path, monkeypatch, solver):
+    if not Path(solver).name.startswith("conda"):
+        pytest.skip("Conda-specific current_repodata fallback")
+    channel = tmp_path / "channel"
+    make_channel(channel)
+    path = channel / "linux-64" / "current_repodata.json"
+    data = json.loads(path.read_text())
+    del data["packages"]["root-main-1.0-0.tar.bz2"]
+    path.write_text(json.dumps(data))
+    condarc = tmp_path / "condarc"
+    condarc.write_text("channels: []\n")
+    monkeypatch.setenv("CONDARC", str(condarc))
+    monkeypatch.setenv("CONDA_FLAGS", "--repodata-fn current_repodata.json")
+    monkeypatch.setattr(invoke_conda, "CONDA_PKGS_DIRS", str(tmp_path / "cache"))
+    result = conda_solver.solve_conda(
+        conda=solver,
+        specs={"root-main": VersionedDependency(name="root-main", version="==1.0")},
+        locked={},
+        update=[],
+        platform="linux-64",
+        channels=[Channel.from_string(channel.as_uri())],
+        mapping_url="unused",
+    )
+    assert result["root-main"].version == "1.0"
+    assert set(result) == {"root-main", "shared"}
+
+
+@pytest.mark.parametrize("solver", SOLVERS)
 def test_create_ignores_configured_default_packages(tmp_path, monkeypatch, solver):
     channel = tmp_path / "channel"
     make_channel(channel, [(name, "1.0", [], "linux-64") for name in ("root", "extra")])
