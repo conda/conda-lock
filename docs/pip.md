@@ -7,11 +7,18 @@ environment file also requests the installer automatically. A package that
 actually depends on pip still brings it in as a dependency.
 
 Conda and Mamba normally add pip when you request Python. Conda-lock configures
-them to disable this automatic addition. Some solver versions ignore that
-setting; if the solver still selects pip, conda-lock retains it and its
+them to disable this automatic addition. Mamba and micromamba 2.9.0 have been
+observed to ignore both the environment-variable and rc-file settings, even when
+their configuration output reports injection as disabled. If the solver selects
+pip, conda-lock retains it and its
 dependencies. Declare pip if you need it, so its availability does not depend on
 the solver's injection behavior. Installing an existing lockfile keeps its
 packages unchanged.
+
+Compared with earlier conda-lock versions, a fresh lock can therefore include
+pip, setuptools, wheel and their dependencies that were previously omitted as
+unreachable packages. Updating an older lock does not necessarily add the same
+packages: the solver's fresh-create and update behavior can differ.
 
 If Mamba reports a Python/pip conflict even though you did not request pip, try
 the same command with `--conda conda --no-mamba --no-micromamba`. Conda-lock
