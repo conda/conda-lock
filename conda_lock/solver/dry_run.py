@@ -1,0 +1,234 @@
+"""Solver dryrun normalization.
+
+Conda's ``--dry-run --json`` output is the protocol that conda-lock
+consumes from conda/mamba/micromamba. This module owns translating
+that output into a uniform shape with one ``FETCH`` per planned
+package, regardless of whether the underlying solver returned
+rich-LINK actions (mamba 2.x / micromamba), sparse-LINK actions
+(conda, Python mamba 1.x), or already-complete FETCH actions.
+"""
+
+from collections.abc import Mapping, Sequence
+from typing import Any, cast
+
+from packaging.version import Version
+
+from conda_lock.errors import MetadataConsistencyError
+from conda_lock.invoke_conda import PathLike, get_pkgs_dirs, mamba_binary_version
+from conda_lock.models.channel import Channel
+from conda_lock.models.dry_run_install import DryRunInstall, FetchAction, LinkAction
+from conda_lock.solver.channel_metadata import (
+    record_with_channel_credentials,
+    verified_channel_records,
+)
+from conda_lock.solver.repodata_cache import (
+    get_repodata_record,
+    record_matches_link,
+    record_validation_error,
+)
+
+
+_FETCH_KEYS_FROM_LINK: tuple[str, ...] = (
+    "channel",
+    "depends",
+    "fn",
+    "md5",
+    "name",
+    "subdir",
+    "timestamp",
+    "url",
+    "version",
+)
+
+
+def link_action_as_fetch(link_action: Mapping[str, Any]) -> FetchAction | None:
+    """Reuse a LINK action's metadata as a FETCH action when complete.
+
+    Checked-in captures from Mamba 2.6.0 and micromamba 1.5.12 include
+    the fields needed downstream. Conda and Python Mamba 1.x instead emit
+    sparse LINKs. Reusing complete LINK metadata avoids reading a package
+    cache whose layout varies by solver version. It does not establish that
+    the metadata came from channel repodata: offline plans may use extracted
+    records.
+
+    Synthesis is rejected unless the LINK has every field that the
+    downstream code (``solve_conda``) reads from a FETCH. Critically we
+    require ``depends`` to be present *and* a list, otherwise an absent
+    or null value would silently erase a package's runtime dependencies.
+    """
+    for key in _FETCH_KEYS_FROM_LINK:
+        if key not in link_action or link_action[key] is None:
+            return None
+    if record_validation_error(link_action):
+        return None
+    fetch = cast(FetchAction, dict(link_action))
+    # ``sha256`` and ``constrains`` are deliberately NOT in
+    # ``_FETCH_KEYS_FROM_LINK``: both are optional in real repodata
+    # (older .tar.bz2-era packages lack ``sha256``; most packages
+    # declare no ``constrains``), so requiring them here would force
+    # the disk fallback for packages whose cached record lacks them
+    # just the same. ``sha256`` is copied through as-is because its
+    # consumer (``HashModel.sha256`` via ``solve_conda``) is Optional;
+    # ``constrains`` is normalized to ``[]`` for subsequent graph validation.
+    fetch["sha256"] = link_action.get("sha256")
+    constrains = link_action.get("constrains")
+    fetch["constrains"] = constrains if isinstance(constrains, list) else []
+    return fetch
+
+
+def _validate_live_actions(
+    conda: PathLike,
+    dry_run_install: DryRunInstall | dict[str, Any],
+    channels: Sequence[Channel],
+) -> None:
+    links = dry_run_install["actions"]["LINK"]
+    fetches = dry_run_install["actions"]["FETCH"]
+    # Older Mamba serializes empty live dependency arrays as null. This
+    # normalization must never be applied to records read from disk.
+    null_depends = [
+        p for p in [*links, *fetches] if "depends" in p and p["depends"] is None
+    ]
+    if null_depends:
+        version = mamba_binary_version(str(conda))
+        # Fixed by https://github.com/mamba-org/mamba/pull/4284 in 2.8.0.
+        if version is not None and Version("2.0") <= version < Version("2.8"):
+            for record in null_depends:
+                record["depends"] = []
+
+    link_actions = {p["name"]: p for p in dry_run_install["actions"]["LINK"]}
+    fetch_actions = {p["name"]: p for p in dry_run_install["actions"]["FETCH"]}
+    if len(link_actions) != len(links) or len(fetch_actions) != len(fetches):
+        raise MetadataConsistencyError(
+            "Duplicate package names in solver actions", report_bug=True
+        )
+    for name, fetch in fetch_actions.items():
+        reason = record_validation_error(fetch)
+        if reason:
+            raise MetadataConsistencyError(
+                f"Invalid FETCH metadata for {name}: {reason}", report_bug=True
+            )
+        link = link_actions.get(name)
+        if link is not None:
+            matched, reason = record_matches_link(
+                record_with_channel_credentials(fetch, channels),
+                record_with_channel_credentials(link, channels),
+            )
+            if not matched:
+                raise MetadataConsistencyError(
+                    f"FETCH/LINK identity mismatch for {name}: {reason}",
+                    report_bug=True,
+                )
+            if "depends" in link:
+                depends = link["depends"]
+                if (
+                    not isinstance(depends, list)
+                    or any(not isinstance(dep, str) for dep in depends)
+                    or sorted(fetch["depends"] or []) != sorted(depends)
+                ):
+                    raise MetadataConsistencyError(
+                        f"FETCH/LINK dependencies disagree for {name}", report_bug=True
+                    )
+
+
+def reconstruct_fetch_actions_in_place(
+    conda: PathLike,
+    platform: str,
+    dry_run_install: DryRunInstall | dict[str, Any],
+    *,
+    channels: Sequence[Channel],
+    verified_cache: dict[str, dict[str, Any]] | None = None,
+) -> None:
+    """Normalize a conda/mamba dryrun so every planned package has a FETCH.
+
+    Conda may choose to link a previously downloaded distribution from
+    ``pkgs_dirs`` rather than downloading a fresh one, in which case
+    its dryrun returns only a LINK action, which for conda and the
+    Python ``mamba`` 1.x CLI lacks the ``url`` / ``md5`` / ``sha256``
+    / ``depends`` fields the package plan needs.
+    For each LINK without a matching FETCH, this function either
+    synthesizes one from the LINK metadata (mamba-family fast path)
+    or verifies cached ``repodata_record.json`` against channel metadata.
+    An explicit skip fallback retains shape- and identity-checked cache records
+    without channel verification when the solver cannot batch queries.
+
+    Mutates ``actions["FETCH"]`` in place and creates missing LINK/FETCH lists.
+    Deep-copy the input first if the original plan must be preserved.
+    """
+    if "LINK" not in dry_run_install["actions"]:
+        dry_run_install["actions"]["LINK"] = []
+    if "FETCH" not in dry_run_install["actions"]:
+        dry_run_install["actions"]["FETCH"] = []
+
+    _validate_live_actions(conda, dry_run_install, channels)
+    link_actions = {p["name"]: p for p in dry_run_install["actions"]["LINK"]}
+    fetch_actions = {p["name"]: p for p in dry_run_install["actions"]["FETCH"]}
+    link_only_names = set(link_actions.keys()).difference(fetch_actions.keys())
+
+    # Mamba-family solvers often put complete metadata into LINK actions.
+    # It may originate in extracted records, especially when offline.
+    # Synthesize FETCH without reading those same records again, then
+    # and only run another subprocess to discover ``pkgs_dirs`` if
+    # anything is left over.
+    deferred: list[tuple[str, LinkAction]] = []
+    for link_pkg_name in link_only_names:
+        link_action = link_actions[link_pkg_name]
+        from_link = link_action_as_fetch(link_action)
+        if from_link is not None:
+            dry_run_install["actions"]["FETCH"].append(from_link)
+        else:
+            deferred.append((link_pkg_name, link_action))
+
+    if deferred:
+        pkgs_dirs = get_pkgs_dirs(conda=conda, platform=platform)
+    else:
+        pkgs_dirs = []
+
+    reconstructed = []
+    for _link_pkg_name, link_action in deferred:
+        if "dist_name" in link_action:
+            dist_name = link_action["dist_name"]
+        elif "fn" in link_action:
+            dist_name = str(link_action["fn"])
+            if dist_name.endswith(".tar.bz2"):
+                dist_name = dist_name[:-8]
+            elif dist_name.endswith(".conda"):
+                dist_name = dist_name[:-6]
+            else:
+                raise ValueError(f"Unknown filename format: {dist_name}")
+        else:
+            raise ValueError(f"Unable to extract the dist_name from {link_action}.")
+        repodata = get_repodata_record(
+            pkgs_dirs, dist_name, record_with_channel_credentials(link_action, channels)
+        )
+        if repodata is None:
+            raise MetadataConsistencyError(
+                f"No valid cache record matching distribution '{dist_name}' "
+                f"was found in pkgs_dirs {pkgs_dirs}",
+                recovery=(
+                    "Inspect package-cache settings with the selected solver: "
+                    "`mamba config list pkgs_dirs --sources` (use `micromamba` instead "
+                    "for micromamba), or `conda config --show-sources` and "
+                    "`conda config --show pkgs_dirs`. Temporarily point the reported "
+                    "pkgs_dirs settings at a new, empty directory, preserving channel "
+                    "and authentication settings, then rerun the command. Restore "
+                    "your settings afterwards; existing caches need not be deleted."
+                ),
+            )
+        reconstructed.append(repodata)
+    if reconstructed:
+        verified = verified_channel_records(
+            conda,
+            platform,
+            reconstructed,
+            channels=channels,
+            verified_cache=verified_cache,
+        )
+        if verified is None:
+            # Shape and artifact identity were checked by get_repodata_record;
+            # the explicit skip fallback does not establish dependency correctness.
+            recovered = reconstructed
+        else:
+            recovered = list(verified.values())
+        dry_run_install["actions"]["FETCH"].extend(
+            cast(FetchAction, record) for record in recovered
+        )

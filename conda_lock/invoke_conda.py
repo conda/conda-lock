@@ -1,3 +1,4 @@
+import json
 import logging
 import os
 import pathlib
@@ -7,10 +8,15 @@ import subprocess
 import threading
 
 from collections.abc import Iterator, Sequence
+from functools import lru_cache
 from logging import getLogger
-from typing import IO, TypeAlias
+from typing import IO, Any, Literal, TypeAlias
 
-from ensureconda.api import determine_micromamba_version, ensureconda
+from ensureconda.api import (
+    determine_mamba_version,
+    determine_micromamba_version,
+    ensureconda,
+)
 from packaging.version import Version
 
 from conda_lock.models.channel import Channel
@@ -274,6 +280,7 @@ def conda_env_override(platform: str) -> dict[str, str]:
             "CONDA_PKGS_DIRS": conda_pkgs_dir(),
             "CONDA_UNSATISFIABLE_HINTS_CHECK_DEPTH": "0",
             "CONDA_ADD_PIP_AS_PYTHON_DEPENDENCY": "False",
+            "MAMBA_ADD_PIP_AS_PYTHON_DEPENDENCY": "False",
         }
     )
     return env
@@ -284,6 +291,13 @@ def _get_conda_flags(channels: Sequence[Channel], platform: str) -> list[str]:
     conda_flags = os.environ.get("CONDA_FLAGS")
     if conda_flags:
         args.extend(shlex.split(conda_flags))
+    args.extend(_get_channel_flags(channels, platform))
+    return args
+
+
+def _get_channel_flags(channels: Sequence[Channel], platform: str) -> list[str]:
+    """Share channel credentials and platform aliases between solve and query."""
+    args = []
     if channels:
         args.append("--override-channels")
 
@@ -330,3 +344,87 @@ def is_micromamba(conda: PathLike) -> bool:
     return str(conda).endswith("micromamba") or str(conda).lower().endswith(
         "micromamba.exe"
     )
+
+
+def extract_json_object(proc_stdout: str) -> str:
+    """Trim subprocess stdout to the outermost ``{...}`` JSON object.
+
+    Conda/mamba dryrun output sometimes wraps the JSON in solver
+    chatter (TQDM progress, stray prints, banner lines). The JSON
+    document is always a single object spanning from the first ``{``
+    to the last ``}``; everything else is noise. Returns the input
+    unchanged if no braces are present.
+
+    >>> extract_json_object('0%|  | 0/1\\n{"actions": {}}\\ndone')
+    '{"actions": {}}'
+    >>> extract_json_object("no json here")
+    'no json here'
+    """
+    try:
+        return proc_stdout[proc_stdout.index("{") : proc_stdout.rindex("}") + 1]
+    except ValueError:
+        return proc_stdout
+
+
+def get_pkgs_dirs(
+    *,
+    conda: PathLike,
+    platform: str,
+    method: Literal["config", "info"] | None = None,
+) -> list[pathlib.Path]:
+    """Extract the package cache directories from the conda configuration.
+
+    This shells out to ``conda config`` (or ``conda info`` for
+    older mamba) and parses the JSON output. Lives here next to
+    the other ``invoke_conda`` helpers because it is fundamentally
+    a CLI probe of the conda installation -- not part of the
+    cache-record I/O abstraction in
+    ``conda_lock.solver.repodata_cache``.
+    """
+    if method is None:
+        method = "config" if is_micromamba(conda) else "info"
+    if method == "config":
+        # 'package cache' was added to 'micromamba info' in v1.4.6.
+        args = [str(conda), "config", "--json", "list", "pkgs_dirs"]
+    elif method == "info":
+        args = [str(conda), "info", "--json"]
+    env = conda_env_override(platform)
+    output = subprocess.check_output(args, env=env).decode()
+    json_object_str = extract_json_object(output)
+    json_object: dict[str, Any] = json.loads(json_object_str)
+    pkgs_dirs_list: list[str]
+    if "pkgs_dirs" in json_object:
+        pkgs_dirs_list = json_object["pkgs_dirs"]
+    elif "package cache" in json_object:
+        pkgs_dirs_list = json_object["package cache"]
+    else:
+        raise ValueError(
+            f"Unable to extract pkgs_dirs from {json_object}. "
+            "Please report this issue to the conda-lock developers."
+        )
+    pkgs_dirs = [pathlib.Path(d) for d in pkgs_dirs_list]
+    return pkgs_dirs
+
+
+@lru_cache(maxsize=32)
+def mamba_binary_version(conda: PathLike) -> Version | None:
+    """Best-effort version probe of a mamba/micromamba executable.
+
+    Returns ``None`` when the executable is not mamba-family (e.g.
+    conda) or when the probe fails for any reason. Callers use this
+    to select query commands and known protocol normalization. An unknown
+    version does not authorize normalization of malformed metadata;
+    probe failures themselves return ``None`` rather than raising.
+
+    Parsing is delegated to ensureconda's ``determine_mamba_version``
+    (available since the pinned minimum, ensureconda 1.4.7), which
+    handles mamba 1.x ("mamba 1.5.12\\nconda 24.11.3") and falls back
+    to micromamba-style parsing for mamba 2.x / micromamba ("2.5.0").
+    """
+    exe_name = pathlib.Path(str(conda)).name.lower()
+    if "mamba" not in exe_name:
+        return None
+    try:
+        return determine_mamba_version(str(conda))
+    except Exception:  # noqa: BLE001 -- leave unknown versions unnormalized
+        return None

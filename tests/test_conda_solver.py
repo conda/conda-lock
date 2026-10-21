@@ -34,6 +34,11 @@ def test_solve_conda_merges_duplicate_dependency_specs(monkeypatch) -> None:
 
         monkeypatch.setattr(conda_solver, "solve_specs_for_arch", solve_specs_for_arch)
 
+        monkeypatch.setattr(
+            conda_solver,
+            "verified_channel_records",
+            lambda conda, platform, records, **kwargs: {r["name"]: r for r in records},
+        )
         planned = conda_solver.solve_conda(
             conda="micromamba",
             specs={

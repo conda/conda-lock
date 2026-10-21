@@ -1,5 +1,29 @@
 # Options
 
+## CONDA_FLAGS
+
+`CONDA_FLAGS` supplies shell-quoted arguments to the selected Conda/Mamba solver.
+Prefer declaring channels in your source files so the lockfile records the configuration.
+For example, `CONDA_FLAGS='--channel https://example.org/channel'` adds a channel
+ahead of the source-file channels for both solving and metadata verification.
+
+Verification forwards the following settings when supported by the selected solver:
+
+- Channels: `-c`/`--channel`, `--override-channels`, `--channel-alias`.
+- TLS: `-k`/`--insecure`, `--ssl-verify`, `--ssl-no-revoke`.
+- Repodata: `--repodata-fn`, `--repodata-ttl`, `--repodata-use-zst`,
+  `--no-repodata-use-zst`, `-C`/`--use-index-cache`.
+- `--offline`, subject to the [offline limitations](#conda_lock_metadata_fallback).
+
+For Conda's batched verification, `--repodata-fn current_repodata.json` uses full
+`repodata.json`: solving can fall back to that index, and older retained builds
+may be absent from the reduced index. Custom repodata filenames remain unchanged.
+
+Solver selection, channel-priority, verbosity, JSON and confirmation options apply
+only to the solve. Other flags are rejected before solving with the option named
+in the error, rather than verifying against different settings. Configure other
+transport settings, such as proxies, in the selected solver's rc file.
+
 ## --conda
 
 If you wish to specify a particular conda/mamba executable to use to perform the solve this can be provided as follows
@@ -171,3 +195,75 @@ we recommend creating a `virtual-packages.yml` file to lock down the virtual pac
 
     Micromamba does not presently support some of the overrides to remove all discovered virtual packages, consequently the set of virtual packages
     available at solve time may be larger than those specified in your specification.
+
+## Environment variables
+
+### CONDA_LOCK_METADATA_FALLBACK
+
+When locking or updating, conda-lock verifies package requirements against channel
+metadata. If the selected solver cannot query multiple packages at once, this
+variable controls how to proceed:
+
+| Value | Behavior when batching is unavailable |
+| --- | --- |
+| `error` (default) | Stop with instructions for enabling batched queries. |
+| `unbatched` | Verify all required records using individual searches. This can take minutes or hours for large environments. |
+| `skip` | Warn and retain unverified lockfile/cache metadata. Missing dependencies or constraints can propagate undetected. |
+
+Prefer enabling batched queries. Expected support in the installation selected
+by [`--conda`](#-conda) is:
+
+| Solver version | Required plugin/libraries | Batched verification |
+| --- | --- | --- |
+| Mamba or Micromamba **2.0.0+** | Compatible **libmamba 2+**; Micromamba bundles it. Neither needs the Conda plugin or `libmambapy`. | Yes. |
+| Mamba or Micromamba **1.x** | The older libmamba 1.x stack; Python-based Mamba also uses `libmambapy`. | No; upgrade to 2.x or choose a fallback. |
+| Conda **25.1.0+** | A working, enabled **conda-libmamba-solver 24.11.0+**, with **libmambapy 2+** and compatible **libmamba 2+**. | Expected in a normal installation, subject to the capability check below. |
+| Conda **23.7.3–24.x** | An upgraded plugin and compatible libraries as above. The 24.11.0 plugin declares Conda 23.7.3 as its minimum; newer plugins may require newer Conda. | Yes if the installed combination provides the required command. |
+| Any Conda with an older, missing, disabled or unloadable plugin | No working multi-package `repoquery`. Updating only `libmamba` is insufficient. | No; fix the plugin installation or choose a fallback. |
+
+[Mamba/Micromamba 2.0's query interface](https://github.com/mamba-org/mamba/blob/micromamba-2.0.0/libmamba/include/mamba/api/repoquery.hpp)
+accepts multiple package names. For Conda, `repoquery` first appeared in plugin
+[23.9.0](https://github.com/conda/conda-libmamba-solver/blob/23.9.0/CHANGELOG.md),
+but [multi-package search arrived in 24.11.0](https://github.com/conda/conda-libmamba-solver/blob/24.11.0/conda_libmamba_solver/repoquery.py),
+along with the [libmambapy 2 requirement](https://github.com/conda/conda-libmamba-solver/blob/24.11.0/pyproject.toml).
+[Conda 25.1.0](https://github.com/conda/conda/blob/25.1.0/CHANGELOG.md#2510-2025-01-17)
+raised its plugin dependency to 24.11.0. A Conda version number alone does not
+prove the plugin is available, including in a bundled `conda-standalone` executable.
+
+Mamba 1.5.12 also requires channels to be listed explicitly: it can fail to find
+a package when the channel appears only in a qualified requirement such as
+`source::package`. List that channel in your source's `channels` section, or use
+a current Mamba/micromamba or Conda. This solver limitation also affects locking
+without metadata verification.
+
+To check the selected Conda installation without querying channels, run:
+
+```shell
+conda repoquery search --help
+```
+
+Replace `conda` with the executable passed to `--conda`. Its help must include
+both `specs [specs ...]` and `--no-installed`; conda-lock checks these capabilities
+rather than requiring a particular Conda version. Selecting Conda's `classic`
+solver does not itself disable the repoquery plugin. Let the package manager
+install compatible library dependencies rather than upgrading `libmamba` alone.
+
+To retain verification when upgrading the solver is not possible, use a
+one-command override in a POSIX shell:
+
+```shell
+CONDA_LOCK_METADATA_FALLBACK=unbatched conda-lock lock --update pytest
+```
+
+In PowerShell, set `$env:CONDA_LOCK_METADATA_FALLBACK = 'unbatched'` before
+running the command.
+
+Use `skip` only if you accept unverified requirements. It also disables
+conda-lock's removal of obsolete packages during updates; the solver's own removals
+and the identity/graph checks remain active. An update can therefore still fail
+on inconsistent metadata or leftover packages.
+
+These choices apply only when batching is unavailable. A capable solver always
+verifies, and neither override bypasses query failures, identity mismatches or
+unsupported offline verification. An empty value means `error`; other values
+are rejected. Installing an existing lockfile is unaffected.
