@@ -58,7 +58,12 @@ def metadata_query_configuration(
     }
     for token in tokens:
         option, equals, value = token.partition("=")
-        if token.startswith("-c") and not token.startswith("--") and token != "-c":
+        if (
+            token.startswith("-c")
+            and not token.startswith("--")
+            and token != "-c"
+            and not equals
+        ):
             option, equals, value = "-c", "=", token[2:]
         if option in {
             "-c",
@@ -89,6 +94,7 @@ def metadata_query_configuration(
         } or (token.startswith("-v") and set(token[1:]) == {"v"}):
             continue  # Output and solver selection/priority do not change record lookup.
         else:
+            option = option if option.startswith("-") else "(positional argument)"
             raise CondaLockError(
                 f"CONDA_FLAGS option {option} cannot be honored during metadata verification. "
                 "Remove it or configure the selected solver through its rc file. "

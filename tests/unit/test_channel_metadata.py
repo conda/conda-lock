@@ -110,6 +110,7 @@ def test_verification_forwards_transport_and_repodata_flags(
     [
         "-c https://example.org/extra",
         "--channel=https://example.org/extra",
+        "-c=https://example.org/extra",
         "-chttps://example.org/extra",
     ],
 )
@@ -143,6 +144,14 @@ def test_unsupported_metadata_flags_fail_before_solving(monkeypatch, flags):
             channels=[],
             mapping_url="unused",
         )
+
+
+def test_invalid_positional_flags_do_not_echo_credentials(monkeypatch):
+    monkeypatch.setenv("CONDA_FLAGS", "https://user:secret@example.org/private")
+    with pytest.raises(CondaLockError) as error:
+        channel_metadata.metadata_query_configuration([])
+    assert "positional argument" in str(error.value)
+    assert "secret" not in str(error.value)
 
 
 @pytest.mark.parametrize(
