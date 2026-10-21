@@ -128,8 +128,9 @@ def test_create_ignores_configured_default_packages(tmp_path, monkeypatch, solve
 
 
 @pytest.mark.parametrize("solver", SOLVERS)
+@pytest.mark.parametrize("source_kind", ["qualified", "flags"])
 def test_channel_qualified_source_is_verified_on_fresh_lock_and_update(
-    tmp_path, monkeypatch, solver
+    tmp_path, monkeypatch, solver, source_kind
 ):
     source = tmp_path / "source"
     make_channel(source)
@@ -146,8 +147,12 @@ def test_channel_qualified_source_is_verified_on_fresh_lock_and_update(
     monkeypatch.setenv("MAMBARC", str(condarc))
     channels = [Channel.from_string(other.as_uri())]
     root_spec = VersionedDependency(
-        name="root-main", version="1.0", conda_channel="source"
+        name="root-main",
+        version="1.0",
+        conda_channel="source" if source_kind == "qualified" else None,
     )
+    if source_kind == "flags":
+        monkeypatch.setenv("CONDA_FLAGS", f"--channel {source.as_uri()}")
     specs: dict[str, Dependency] = {"root-main": root_spec}
 
     def solve(locked, update):

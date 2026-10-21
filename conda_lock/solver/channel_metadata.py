@@ -30,6 +30,75 @@ from conda_lock.solver.repodata_cache import (
 )
 
 
+def metadata_query_configuration(
+    channels: Sequence[Channel],
+) -> tuple[list[Channel], list[str]]:
+    """Honor channel/transport flags without passing solve-only options to search."""
+    tokens = iter(shlex.split(os.environ.get("CONDA_FLAGS", "")))
+    extra_channels = []
+    flags = []
+    value_options = {
+        "--channel-alias",
+        "--ssl-verify",
+        "--repodata-fn",
+        "--repodata-ttl",
+    }
+    switches = {
+        "--override-channels",
+        "-k",
+        "--insecure",
+        "--ssl-no-revoke",
+        "--offline",
+        "-C",
+        "--use-index-cache",
+        "--repodata-use-zst",
+        "--no-repodata-use-zst",
+    }
+    for token in tokens:
+        option, equals, value = token.partition("=")
+        if token.startswith("-c") and not token.startswith("--") and token != "-c":
+            option, equals, value = "-c", "=", token[2:]
+        if option in {
+            "-c",
+            "--channel",
+            *value_options,
+            "--channel-priority",
+            "--solver",
+        }:
+            if not equals:
+                value = next(tokens, "")
+            if not value or value.startswith("-"):
+                raise CondaLockError(f"CONDA_FLAGS option {option} requires a value")
+            if option in {"-c", "--channel"}:
+                extra_channels.append(Channel.from_string(value))
+            elif option in value_options:
+                flags.extend([option, value])
+        elif option in switches and not equals:
+            flags.append(option)
+        elif token in {
+            "-q",
+            "--quiet",
+            "--verbose",
+            "--json",
+            "-y",
+            "--yes",
+            "--strict-channel-priority",
+            "--no-channel-priority",
+        } or (token.startswith("-v") and set(token[1:]) == {"v"}):
+            continue  # Output and solver selection/priority do not change record lookup.
+        else:
+            raise CondaLockError(
+                f"CONDA_FLAGS option {option} cannot be honored during metadata verification. "
+                "Remove it or configure the selected solver through its rc file. "
+                "See https://conda.github.io/conda-lock/flags/#conda_flags"
+            )
+    result = []
+    for channel in [*extra_channels, *channels]:
+        if channel not in result:
+            result.append(channel)
+    return result, flags
+
+
 def record_with_channel_credentials(
     record: Mapping[str, Any], channels: Sequence[Channel]
 ) -> dict[str, Any]:
@@ -195,12 +264,17 @@ def query_channel_records(
     batching. Query failures never activate that fallback.
     """
     fallback = metadata_fallback()
+    channels, query_flags = metadata_query_configuration(channels)
     version = mamba_binary_version(conda)
     names = sorted({record["name"] for record in records})
     if not names:
         return []
-    flags = ["--json", *_get_channel_flags(channels, platform)]
-    offline = "--offline" in shlex.split(os.environ.get("CONDA_FLAGS", ""))
+    flags = [
+        "--json",
+        *(flag for flag in query_flags if flag != "--offline"),
+        *_get_channel_flags(channels, platform),
+    ]
+    offline = "--offline" in query_flags
     channel_urls = [channel.env_replaced_url() for channel in channels]
     env = {
         **conda_env_override(platform),
@@ -318,6 +392,7 @@ def verified_channel_records(
     """
     if not records:
         return {}
+    channels, _ = metadata_query_configuration(channels)
     # create, repoquery and stored lockfiles can spell the same credential as
     # different masks or environment placeholders. Use configured channel
     # identities on both sides, including cache hits, without weakening hashes.

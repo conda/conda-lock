@@ -1,5 +1,25 @@
 # Options
 
+## CONDA_FLAGS
+
+`CONDA_FLAGS` supplies shell-quoted arguments to the selected Conda/Mamba solver.
+Prefer declaring channels in your source files so the lockfile records the configuration.
+For example, `CONDA_FLAGS='--channel https://example.org/channel'` adds a channel
+ahead of the source-file channels for both solving and metadata verification.
+
+Verification forwards the following settings when supported by the selected solver:
+
+- Channels: `-c`/`--channel`, `--override-channels`, `--channel-alias`.
+- TLS: `-k`/`--insecure`, `--ssl-verify`, `--ssl-no-revoke`.
+- Repodata: `--repodata-fn`, `--repodata-ttl`, `--repodata-use-zst`,
+  `--no-repodata-use-zst`, `-C`/`--use-index-cache`.
+- `--offline`, subject to the [offline limitations](#conda_lock_metadata_fallback).
+
+Solver selection, channel-priority, verbosity, JSON and confirmation options apply
+only to the solve. Other flags are rejected before solving with the option named
+in the error, rather than verifying against different settings. Configure other
+transport settings, such as proxies, in the selected solver's rc file.
+
 ## --conda
 
 If you wish to specify a particular conda/mamba executable to use to perform the solve this can be provided as follows

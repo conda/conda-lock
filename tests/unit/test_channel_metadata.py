@@ -21,6 +21,81 @@ MULTI_NAME_HELP = "usage: conda repoquery search [--no-installed] specs [specs .
 
 
 @pytest.mark.parametrize(
+    "flags,expected",
+    [
+        (
+            "-k --repodata-fn=current_repodata.json",
+            ["-k", "--repodata-fn", "current_repodata.json"],
+        ),
+        (
+            '--ssl-verify "/tmp/company certificate.pem" --repodata-ttl 0',
+            ["--ssl-verify", "/tmp/company certificate.pem", "--repodata-ttl", "0"],
+        ),
+        ("--solver classic --strict-channel-priority -vv", []),
+    ],
+)
+def test_verification_forwards_transport_and_repodata_flags(
+    monkeypatch, flags, expected
+):
+    monkeypatch.setenv("CONDA_FLAGS", flags)
+    monkeypatch.setattr(channel_metadata, "mamba_binary_version", lambda _: None)
+    monkeypatch.setattr(
+        channel_metadata, "_supports_conda_repoquery", lambda *args: True
+    )
+    commands = []
+
+    def run(command, **kwargs):
+        commands.append(command)
+        return subprocess.CompletedProcess(command, 0, '{"result": {"pkgs": []}}')
+
+    monkeypatch.setattr(channel_metadata.subprocess, "run", run)
+    channel_metadata.query_channel_records(
+        "conda", "linux-64", [MAMBA_26_LINK_ACTION], channels=[]
+    )
+    assert commands[0][commands[0].index("--json") + 1 :] == expected
+
+
+@pytest.mark.parametrize(
+    "flag",
+    [
+        "-c https://example.org/extra",
+        "--channel=https://example.org/extra",
+        "-chttps://example.org/extra",
+    ],
+)
+def test_extra_channels_keep_solve_priority_and_credentials(monkeypatch, flag):
+    monkeypatch.setenv("CONDA_FLAGS", flag)
+    extra = Channel.from_string("https://example.org/extra")
+    channels, flags = channel_metadata.metadata_query_configuration([*CHANNELS, extra])
+    assert channels == [extra, *CHANNELS]
+    assert flags == []
+
+
+@pytest.mark.parametrize(
+    "flags", ["--unknown-option", "--prefix /tmp/different", "--channel"]
+)
+def test_unsupported_metadata_flags_fail_before_solving(monkeypatch, flags):
+    from conda_lock import conda_solver
+
+    monkeypatch.setenv("CONDA_FLAGS", flags)
+    monkeypatch.setattr(
+        conda_solver,
+        "solve_specs_for_arch",
+        lambda **kw: pytest.fail("must fail before solve"),
+    )
+    with pytest.raises(CondaLockError, match="CONDA_FLAGS option"):
+        conda_solver.solve_conda(
+            conda="conda",
+            specs={},
+            locked={},
+            update=[],
+            platform="linux-64",
+            channels=[],
+            mapping_url="unused",
+        )
+
+
+@pytest.mark.parametrize(
     "expected_token, queried_token",
     [
         ("**********", "*****"),  # create vs repoquery on Mamba 2

@@ -41,6 +41,7 @@ from conda_lock.models.dry_run_install import DryRunInstall, FetchAction, LinkAc
 from conda_lock.models.lock_spec import Dependency, VersionedDependency
 from conda_lock.solver.channel_metadata import (
     metadata_fallback,
+    metadata_query_configuration,
     verified_channel_records,
 )
 from conda_lock.solver.dry_run import reconstruct_fetch_actions_in_place
@@ -108,7 +109,7 @@ def _metadata_channels(
     # A source request such as comet_ml::comet_ml names a channel without adding
     # it to the general channel list. Include it for verification only: adding
     # it to the solve's --channel flags could change package selection/priority.
-    result = list(channels)
+    result, _ = metadata_query_configuration(channels)
     for spec in specs:
         if "::" in spec:
             channel = Channel.from_string(spec.rsplit("::", 1)[0])
