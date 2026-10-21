@@ -242,6 +242,33 @@ def solve_conda(
     return planned
 
 
+def _solver_error_message(proc: subprocess.CompletedProcess[str]) -> str:
+    """Preserve diagnostics from both JSON and plain-text solver failures."""
+    try:
+        data = json.loads(extract_json_object(proc.stdout))
+    except (ValueError, TypeError):
+        data = {}
+    messages = []
+    if isinstance(data, dict):
+        if isinstance(data.get("message"), str) and data["message"]:
+            messages.append(data["message"])
+        history = data.get("log_history")
+        if isinstance(history, list):
+            messages.extend(
+                entry["message"]
+                for entry in history
+                if isinstance(entry, dict)
+                and entry.get("level") in {"error", "critical"}
+                and isinstance(entry.get("message"), str)
+            )
+    return (
+        "\n".join(messages)
+        or proc.stdout.strip()
+        or (proc.stderr or "").strip()
+        or f"solver exited with status {proc.returncode}"
+    )
+
+
 def solve_specs_for_arch(
     conda: PathLike,
     channels: Sequence[Channel],
@@ -302,22 +329,10 @@ def solve_specs_for_arch(
     try:
         proc.check_returncode()
     except subprocess.CalledProcessError:
-        try:
-            err_json = json.loads(proc.stdout)
-            try:
-                message = err_json["message"]
-            except KeyError:
-                print("Message key not found in json! returning the full json text")
-                message = err_json
-        except json.JSONDecodeError as e:
-            print(f"Failed to parse json, {e}", file=sys.stderr)
-            message = proc.stdout
-
         print(
             f"Could not lock the environment for platform {platform}", file=sys.stderr
         )
-        if message:
-            print(message, file=sys.stderr)
+        print(_solver_error_message(proc), file=sys.stderr)
         print_proc(proc)
 
         raise
@@ -648,10 +663,7 @@ def update_specs_for_arch(
             try:
                 proc.check_returncode()
             except subprocess.CalledProcessError as exc:
-                err_json = json.loads(proc.stdout)
-                message = err_json.get("message") or (
-                    f"solver exited with status {proc.returncode}"
-                )
+                message = _solver_error_message(proc)
                 removal_context = (
                     f". Previously locked artifacts are no longer listed for "
                     f"{sorted(unavailable)}. Replacements must satisfy the current "
