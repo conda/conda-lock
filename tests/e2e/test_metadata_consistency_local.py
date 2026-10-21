@@ -95,12 +95,36 @@ def make_channel(root, definitions=None):
             "sha256": hashlib.sha256(content).hexdigest(),
         }
     for subdir, packages in records.items():
+        (root / subdir).mkdir(parents=True, exist_ok=True)
         data = json.dumps(
             dict(info=dict(subdir=subdir), packages=packages, **{"packages.conda": {}})
         )
         (root / subdir / "repodata.json").write_text(data)
         (root / subdir / "current_repodata.json").write_text(data)
     return records
+
+
+@pytest.mark.parametrize("solver", SOLVERS)
+def test_create_ignores_configured_default_packages(tmp_path, monkeypatch, solver):
+    channel = tmp_path / "channel"
+    make_channel(channel, [(name, "1.0", [], "linux-64") for name in ("root", "extra")])
+    condarc = tmp_path / "condarc"
+    condarc.write_text("channels: []\ncreate_default_packages: [extra]\n")
+    monkeypatch.setenv("CONDARC", str(condarc))
+    monkeypatch.setenv("MAMBARC", str(condarc))
+    monkeypatch.setenv("MAMBA_ROOT_PREFIX", str(tmp_path / "root"))
+    monkeypatch.setenv("CONDA_FLAGS", "")
+    monkeypatch.setattr(invoke_conda, "CONDA_PKGS_DIRS", str(tmp_path / "cache"))
+    result = conda_solver.solve_conda(
+        conda=solver,
+        specs={"root": VersionedDependency(name="root", version="*")},
+        locked={},
+        update=[],
+        platform="linux-64",
+        channels=[Channel.from_string(channel.as_uri())],
+        mapping_url="unused",
+    )
+    assert set(result) == {"root"}
 
 
 @pytest.mark.parametrize("solver", SOLVERS)

@@ -55,6 +55,11 @@ def check_categories_assigned(planned: Mapping[str, LockedDependency]) -> None:
     if orphans:
         raise MetadataConsistencyError(
             f"Planned packages have no category and would be omitted from the lockfile: {orphans}",
+            recovery=(
+                "Packages outside the source specification may have been added by "
+                "solver configuration, such as create_default_packages. Check the "
+                "selected solver's configuration and remove unintended additions."
+            ),
             report_bug=True,
         )
 

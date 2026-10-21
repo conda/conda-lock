@@ -21,6 +21,8 @@ from textwrap import dedent
 from typing import Any, cast
 from urllib.parse import unquote, urlsplit, urlunsplit
 
+from packaging.version import Version
+
 from conda_lock.errors import MetadataConsistencyError
 from conda_lock.interfaces.vendored_conda import MatchSpec
 from conda_lock.invoke_conda import (
@@ -30,6 +32,7 @@ from conda_lock.invoke_conda import (
     conda_pkgs_dir,
     extract_json_object,
     is_micromamba,
+    mamba_binary_version,
 )
 from conda_lock.lockfile import apply_categories
 from conda_lock.lockfile.v2prelim.models import HashModel, LockedDependency
@@ -270,6 +273,13 @@ def solve_specs_for_arch(
         "--dry-run",
         "--json",
     ]
+    version = mamba_binary_version(conda)
+    if "mamba" not in pathlib.Path(conda).name.lower() or (
+        not is_micromamba(conda) and version is not None and version < Version("2")
+    ):
+        # Conda and Python-based Mamba honor create_default_packages. The C++
+        # Mamba executables ignore that setting and reject this option.
+        args.append("--no-default-packages")
     args.extend(_get_conda_flags(channels=channels, platform=platform))
     args.extend(specs)
     logger.info("%s using specs %s", platform, specs)
