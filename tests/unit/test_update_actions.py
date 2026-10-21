@@ -14,6 +14,46 @@ from conda_lock.models.dry_run_install import FetchAction
 from conda_lock.models.lock_spec import VersionedDependency
 
 
+def test_repair_does_not_reinstall_a_removed_update_target(monkeypatch):
+    from tests.unit.test_metadata_fallback import make_locked
+
+    locked = make_locked({"root": {"leaf": ""}, "leaf": {}, "removed": {}})
+    records = {name: dep.to_fetch_action() for name, dep in locked.items()}
+    records["root"]["depends"] = ["leaf >=2"]
+    replacement = {
+        **records["leaf"],
+        "version": "2.0",
+        "fn": "leaf-2.0-0.conda",
+        "url": "https://example.org/c/linux-64/leaf-2.0-0.conda",
+    }
+    monkeypatch.setattr(
+        "conda_lock.solver.channel_metadata.query_channel_records",
+        lambda *args, **kwargs: [*records.values(), replacement],
+    )
+    monkeypatch.setattr(conda_solver, "_get_installed_conda_packages", lambda *args: {})
+
+    def run(command, **kwargs):
+        assert command[1] == "install"
+        assert "removed" not in command
+        plan = [records["root"], replacement]
+        return subprocess.CompletedProcess(
+            command, 0, json.dumps({"actions": {"LINK": plan, "FETCH": plan}})
+        )
+
+    monkeypatch.setattr(conda_solver.subprocess, "run", run)
+    result = conda_solver.solve_conda(
+        conda="micromamba",
+        specs={"root": VersionedDependency(name="root", version="*")},
+        locked=locked,
+        update=["removed"],
+        platform="linux-64",
+        channels=[],
+        mapping_url="unused",
+    )
+    assert set(result) == {"root", "leaf"}
+    assert result["leaf"].version == "2.0"
+
+
 @pytest.mark.parametrize(
     "failure", ["query", "resurrected-artifact", "verification-skipped"]
 )

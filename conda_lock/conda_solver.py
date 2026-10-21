@@ -473,13 +473,15 @@ def _write_update_pins(
     pin_installed: bool,
 ) -> None:
     # Conda may relax historical requests, so replacement solves also express
-    # source requirements as hard pins. Mamba's existing selective-update policy
-    # additionally pins retained packages; unavailable artifacts never enter here.
-    pins = list(source_specs)
+    # source requirements as hard pins. Mamba receives all source specs on the
+    # command line instead: Mamba 1 rejects pins conflicting with the installed
+    # version before solving. Only its retained non-root packages need pins.
+    pins = [] if pin_installed else list(source_specs)
     if pin_installed:
+        source_names = {MatchSpec(spec).name for spec in source_specs}
         pins.extend(
             f"{name} =={installed[name]['version']}"
-            for name in sorted(set(installed).difference(update))
+            for name in sorted(set(installed).difference(update, source_names))
         )
     if pins:
         filename = pathlib.Path(prefix) / "conda-meta" / "pinned"
@@ -608,7 +610,11 @@ def update_specs_for_arch(
                 to_update = [
                     spec for spec in specs if MatchSpec(spec).name not in installed
                 ]
-            to_update += [name for name in update if name not in requested]
+            to_update += [
+                name
+                for name in update
+                if name not in requested and name in current_records
+            ]
         dryrun_install: DryRunInstall
         if to_update:
             _write_update_pins(

@@ -183,6 +183,7 @@ def test_channel_qualified_source_is_verified_on_fresh_lock_and_update(
         "all",
         "source-pin",
         "retained-source-pin",
+        "changed-retained-source-pin",
         "no-replacement",
         "removed-source",
     ],
@@ -234,6 +235,7 @@ def test_update_replaces_unavailable_artifacts(
         "all": {name for name, _, _, _ in definitions},
         "source-pin": {"analysis-tool"},
         "retained-source-pin": {"analysis-tool"},
+        "changed-retained-source-pin": {"analysis-tool"},
         "no-replacement": {"analysis-tool"},
         "removed-source": {"analysis-tool"},
     }[removed]
@@ -255,6 +257,8 @@ def test_update_replaces_unavailable_artifacts(
         )
     if removed == "retained-source-pin":
         specs["unrelated"] = VersionedDependency(name="unrelated", version="==3.0")
+    if removed == "changed-retained-source-pin":
+        specs["unrelated"] = VersionedDependency(name="unrelated", version="==2.0")
     if removed == "removed-source":
         del specs["analysis-tool"]
     if removed in {"source-pin", "retained-source-pin", "no-replacement"}:
@@ -282,7 +286,9 @@ def test_update_replaces_unavailable_artifacts(
         assert (
             result["runtime"].categories == result["unrelated"].categories == {"main"}
         )
-        if "unrelated" not in removed_names:
+        if removed == "changed-retained-source-pin":
+            assert result["unrelated"].version == "2.0"
+        elif "unrelated" not in removed_names:
             assert result["unrelated"] == locked["unrelated"]
         for name in removed_names:
             replacement = (
