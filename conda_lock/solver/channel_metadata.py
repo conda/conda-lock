@@ -321,6 +321,12 @@ def query_channel_records(
         # Batch names so Conda loads channel metadata once. Explicitly exclude
         # the active prefix: installed records cannot verify channel metadata.
         commands = [[str(conda), "repoquery", "search", "--no-installed", *names]]
+        # Conda solving can fall back from the reduced current index to the
+        # full index, but repoquery does not retry. Verify against the full
+        # index so older selected or retained builds do not look delisted.
+        for index, flag in enumerate(flags[:-1]):
+            if flag == "--repodata-fn" and flags[index + 1] == "current_repodata.json":
+                flags[index + 1] = "repodata.json"
     else:
         if not _use_unbatched_fallback(fallback, platform, len(names), conda):
             return None

@@ -75,7 +75,11 @@ def test_unavailable_batching_identifies_the_selected_solver(solver, advice):
     [
         (
             "-k --repodata-fn=current_repodata.json",
-            ["-k", "--repodata-fn", "current_repodata.json"],
+            ["-k", "--repodata-fn", "repodata.json"],
+        ),
+        (
+            "--repodata-fn=custom_repodata.json",
+            ["--repodata-fn", "custom_repodata.json"],
         ),
         (
             '--ssl-verify "/tmp/company certificate.pem" --repodata-ttl 0',

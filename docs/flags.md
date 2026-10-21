@@ -15,6 +15,10 @@ Verification forwards the following settings when supported by the selected solv
   `--no-repodata-use-zst`, `-C`/`--use-index-cache`.
 - `--offline`, subject to the [offline limitations](#conda_lock_metadata_fallback).
 
+For Conda's batched verification, `--repodata-fn current_repodata.json` uses full
+`repodata.json`: solving can fall back to that index, and older retained builds
+may be absent from the reduced index. Custom repodata filenames remain unchanged.
+
 Solver selection, channel-priority, verbosity, JSON and confirmation options apply
 only to the solve. Other flags are rejected before solving with the option named
 in the error, rather than verifying against different settings. Configure other

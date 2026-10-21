@@ -142,7 +142,9 @@ def test_malformed_optional_constraint_survives_fresh_lock_and_update(
 
 
 @pytest.mark.parametrize("solver", SOLVERS)
-def test_conda_falls_back_from_current_to_full_repodata(tmp_path, monkeypatch, solver):
+def test_conda_classic_falls_back_from_current_to_full_repodata(
+    tmp_path, monkeypatch, solver
+):
     if not Path(solver).name.startswith("conda"):
         pytest.skip("Conda-specific current_repodata fallback")
     channel = tmp_path / "channel"
@@ -154,6 +156,9 @@ def test_conda_falls_back_from_current_to_full_repodata(tmp_path, monkeypatch, s
     condarc = tmp_path / "condarc"
     condarc.write_text("channels: []\n")
     monkeypatch.setenv("CONDARC", str(condarc))
+    # Classic retries full repodata when the reduced index cannot satisfy a
+    # spec. Some libmamba versions instead return PackagesNotFoundError.
+    monkeypatch.setenv("CONDA_SOLVER", "classic")
     monkeypatch.setenv("CONDA_FLAGS", "--repodata-fn current_repodata.json")
     monkeypatch.setattr(invoke_conda, "CONDA_PKGS_DIRS", str(tmp_path / "cache"))
     result = conda_solver.solve_conda(
