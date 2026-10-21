@@ -143,7 +143,8 @@ def _use_unbatched_fallback(
     if fallback == "error":
         solver = Path(conda).name
         upgrade = (
-            "Upgrade to Mamba 2 or select a current micromamba with --micromamba. "
+            "Upgrade to Mamba 2 or select a current micromamba with "
+            "--conda /path/to/micromamba. "
             if "mamba" in solver.lower()
             else "Enable conda-libmamba-solver >=24.11.0 in the selected Conda installation. "
         )
