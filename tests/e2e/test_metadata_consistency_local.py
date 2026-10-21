@@ -838,7 +838,9 @@ def test_update_without_repoquery(tmp_path, monkeypatch, caplog, solver, fallbac
     condarc.write_text("channels: []\n")
     monkeypatch.setenv("CONDARC", str(condarc))
     monkeypatch.setattr(invoke_conda, "CONDA_PKGS_DIRS", str(tmp_path / "cache"))
-    monkeypatch.delenv("CONDA_LOCK_METADATA_FALLBACK", raising=False)
+    # Older Conda installations may already lack multi-name repoquery support.
+    # Bootstrap verified input with individual searches before testing fallback.
+    monkeypatch.setenv("CONDA_LOCK_METADATA_FALLBACK", "unbatched")
     specs: dict[str, Dependency] = {
         name: VersionedDependency(name=name, version="==1.0", category=category)
         for name, category in [
@@ -861,6 +863,7 @@ def test_update_without_repoquery(tmp_path, monkeypatch, caplog, solver, fallbac
 
     locked = solve({}, [])
     assert locked["shared"].categories == {"main"}
+    monkeypatch.delenv("CONDA_LOCK_METADATA_FALLBACK", raising=False)
     monkeypatch.setenv("CONDA_NO_PLUGINS", "true")
     monkeypatch.setenv("CONDA_SOLVER", "classic")
     # Erasing this list hides an edge without creating an orphan: root-tool

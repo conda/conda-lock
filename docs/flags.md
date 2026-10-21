@@ -226,6 +226,12 @@ along with the [libmambapy 2 requirement](https://github.com/conda/conda-libmamb
 raised its plugin dependency to 24.11.0. A Conda version number alone does not
 prove the plugin is available, including in a bundled `conda-standalone` executable.
 
+Mamba 1.5.12 also requires channels to be listed explicitly: it can fail to find
+a package when the channel appears only in a qualified requirement such as
+`source::package`. List that channel in your source's `channels` section, or use
+a current Mamba/micromamba or Conda. This solver limitation also affects locking
+without metadata verification.
+
 To check the selected Conda installation without querying channels, run:
 
 ```shell
