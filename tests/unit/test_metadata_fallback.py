@@ -144,6 +144,34 @@ def test_skip_keeps_integrity_guards(
         )
 
 
+def test_skip_update_checks_bracket_build_numbers(skip_verification, monkeypatch):
+    locked = make_locked({"root": {"leaf": "*[build_number='>=3']"}, "leaf": {}})
+    locked["leaf"].url = "https://example.org/c/linux-64/leaf-1.0-habc_3.conda"
+    monkeypatch.setattr(
+        conda_solver,
+        "_get_installed_conda_packages",
+        lambda *args: {name: dep.to_fetch_action() for name, dep in locked.items()},
+    )
+    monkeypatch.setattr(
+        conda_solver.subprocess,
+        "run",
+        lambda command, **kwargs: subprocess.CompletedProcess(
+            command, 0, '{"actions": {}}'
+        ),
+    )
+    result = conda_solver.solve_conda(
+        conda="conda",
+        specs={"root": VersionedDependency(name="root", version="*")},
+        locked=locked,
+        update=["root"],
+        platform="linux-64",
+        channels=[],
+        mapping_url="unused",
+    )
+    assert set(result) == {"root", "leaf"}
+    assert locked["leaf"].to_fetch_action()["build_number"] == 3
+
+
 @pytest.mark.parametrize("damage", ["erased-deps", "wrong-hash", "null-deps"])
 def test_skip_sparse_cache_reconstruction_keeps_identity_checks_and_warns(
     skip_verification, monkeypatch, tmp_path, caplog, damage

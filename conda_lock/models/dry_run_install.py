@@ -9,6 +9,7 @@ class FetchAction(TypedDict):
     repodata.json
     """
 
+    build_number: NotRequired[int]
     channel: str
     constrains: list[str] | None
     depends: list[str] | None

@@ -136,6 +136,15 @@ class BaseLockedDependency(StrictModel):
 
         channel_url = f"{base_url}/{parsed_platform}"  # e.g. "https://user:pass@conda.anaconda.org/conda-forge/noarch"
 
+        build = (
+            filename_with_extension.removesuffix(".tar.bz2")
+            .removesuffix(".conda")
+            .rsplit("-", 1)[-1]
+        )
+        try:
+            build_number = int(build.rsplit("_", 1)[-1])
+        except ValueError:
+            build_number = 0
         fetch_action = FetchAction(
             name=self.name,
             version=self.version,
@@ -148,6 +157,7 @@ class BaseLockedDependency(StrictModel):
             constrains=[],
             subdir=parsed_platform,
             timestamp=0,
+            build_number=build_number,
         )
         return fetch_action
 
