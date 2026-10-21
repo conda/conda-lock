@@ -8,6 +8,7 @@ import subprocess
 
 from collections.abc import Mapping, Sequence
 from copy import deepcopy
+from pathlib import Path
 from posixpath import expandvars
 from typing import Any, Literal, cast
 from urllib.parse import quote, urlsplit, urlunsplit
@@ -128,16 +129,23 @@ def metadata_fallback() -> Literal["error", "unbatched", "skip"]:
     return cast(Literal["error", "unbatched", "skip"], value)
 
 
-def _use_unbatched_fallback(fallback: str, platform: str, package_count: int) -> bool:
+def _use_unbatched_fallback(
+    fallback: str, platform: str, package_count: int, conda: PathLike
+) -> bool:
     """Return False only for an explicit skip; default to an actionable error."""
     if fallback == "error":
+        solver = Path(conda).name
+        upgrade = (
+            "Upgrade to Mamba 2 or select a current micromamba with --micromamba. "
+            if "mamba" in solver.lower()
+            else "Enable conda-libmamba-solver >=24.11.0 in the selected Conda installation. "
+        )
         raise MetadataConsistencyError(
-            f"The selected solver cannot batch metadata verification for "
+            f"The selected solver {solver} cannot batch metadata verification for "
             f"{package_count} package(s) on {platform}",
             recovery=(
-                "Use a solver with batched repoquery support. For Conda, enable "
-                "conda-libmamba-solver >=24.11.0 in the selected installation. "
-                "Alternatively set CONDA_LOCK_METADATA_FALLBACK=unbatched for "
+                upgrade
+                + "Alternatively set CONDA_LOCK_METADATA_FALLBACK=unbatched for "
                 "slow full verification, or =skip to retain unverified metadata "
                 "without automatic pruning. See "
                 "https://conda.github.io/conda-lock/flags/#conda_lock_metadata_fallback"
@@ -208,6 +216,16 @@ def _query_result_records(
     proc: subprocess.CompletedProcess[str],
 ) -> list[dict[str, Any]]:
     try:
+        if proc.returncode == 1:
+            try:
+                error = json.loads(extract_json_object(proc.stdout))
+            except (ValueError, TypeError):
+                error = None
+            if (
+                isinstance(error, dict)
+                and error.get("exception_name") == "PackagesNotFoundError"
+            ):
+                return []  # Legacy search reports a successful empty search as exit 1.
         proc.check_returncode()
         data = json.loads(extract_json_object(proc.stdout))
         if isinstance(data.get("result"), dict):
@@ -287,7 +305,7 @@ def query_channel_records(
         # the active prefix: installed records cannot verify channel metadata.
         commands = [[str(conda), "repoquery", "search", "--no-installed", *names]]
     else:
-        if not _use_unbatched_fallback(fallback, platform, len(names)):
+        if not _use_unbatched_fallback(fallback, platform, len(names), conda):
             return None
         # Legacy Mamba and Conda without repoquery accept one MatchSpec per
         # search. Recent Conda rejects regex names (conda/conda#16096).
@@ -457,7 +475,9 @@ def verified_channel_records(
                         "The channel record does not establish the selected artifact's "
                         "identity and hash. Check the configured channels and mirrors "
                         "with their administrator before retrying; do not edit the "
-                        "lockfile's hashes to bypass this check."
+                        "lockfile's hashes to bypass this check. If an artifact was "
+                        "replaced at the same URL, create a fresh lockfile from the "
+                        "source files without --update and review the package changes."
                     ),
                 )
             if any(

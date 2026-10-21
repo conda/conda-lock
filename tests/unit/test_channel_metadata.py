@@ -21,6 +21,31 @@ MULTI_NAME_HELP = "usage: conda repoquery search [--no-installed] specs [specs .
 
 
 @pytest.mark.parametrize(
+    "exception,empty", [("PackagesNotFoundError", True), ("CondaHTTPError", False)]
+)
+def test_legacy_search_distinguishes_absence_from_query_failure(exception, empty):
+    proc = subprocess.CompletedProcess(
+        ["conda", "search"], 1, json.dumps({"exception_name": exception})
+    )
+    if empty:
+        assert channel_metadata._query_result_records(proc) == []
+    else:
+        with pytest.raises(MetadataConsistencyError, match="query exited"):
+            channel_metadata._query_result_records(proc)
+
+
+@pytest.mark.parametrize(
+    "solver,advice",
+    [("/bin/mamba", "Upgrade to Mamba 2"), ("/bin/conda", "conda-libmamba-solver")],
+)
+def test_unavailable_batching_identifies_the_selected_solver(solver, advice):
+    with pytest.raises(MetadataConsistencyError) as error:
+        channel_metadata._use_unbatched_fallback("error", "linux-64", 1, solver)
+    assert Path(solver).name in str(error.value)
+    assert advice in str(error.value)
+
+
+@pytest.mark.parametrize(
     "flags,expected",
     [
         (
