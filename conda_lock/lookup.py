@@ -14,7 +14,7 @@ from conda_lock.lookup_cache import cached_download_file
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_MAPPING_URL = "https://raw.githubusercontent.com/regro/cf-graph-countyfair/master/mappings/pypi/grayskull_pypi_mapping.json"
+DEFAULT_MAPPING_URL = "https://raw.githubusercontent.com/conda-forge/conda-forge-bot-data/main/mappings/pypi/grayskull_pypi_mapping.json"
 
 
 class MappingEntry(TypedDict):
