@@ -3,6 +3,7 @@ from unittest.mock import patch
 
 import pytest
 
+from packaging.utils import canonicalize_name
 from typing_extensions import override
 
 from conda_lock import pypi_solver
@@ -15,6 +16,7 @@ from conda_lock._vendor.poetry.repositories.repository_pool import RepositoryPoo
 from conda_lock.lockfile.v2prelim.models import LockedDependency
 from conda_lock.models.lock_spec import Dependency as LockDependency
 from conda_lock.models.lock_spec import URLDependency, VersionedDependency
+from conda_lock.src_parser.pyproject_toml import parse_pyproject_toml
 
 
 WHEEL_URL = "https://example.invalid/idna-3.10-py3-none-any.whl"
@@ -95,3 +97,70 @@ def test_relock_preserves_url_version_and_dependents(
         assert result["idna"].url == WHEEL_URL
         assert result["idna"].hash.sha256 == SHA256
     assert relocked["idna"].source == first["idna"].source
+
+
+@pytest.mark.parametrize("style", ["poetry", "pep621"])
+@pytest.mark.parametrize("requested_extra", [False, True])
+def test_git_extras_reach_solver(
+    tmp_path: Path, mapping_url: str, style: str, requested_extra: bool
+) -> None:
+    git_url = "https://example.invalid/fixture-vcs.git"
+    revision = "a" * 40
+    if style == "poetry":
+        extras = ', extras = ["excel"]' if requested_extra else ""
+        content = (
+            '[build-system]\nbuild-backend = "poetry.core.masonry.api"\n'
+            "[tool.poetry.dependencies]\n"
+            f'fixture-vcs = {{git = "{git_url}", rev = "v1"{extras}}}\n'
+        )
+    else:
+        extras = "[excel]" if requested_extra else ""
+        content = (
+            '[project]\nname = "example"\n'
+            f'dependencies = ["fixture-vcs{extras} @ git+{git_url}@v1"]\n'
+            '[tool.conda-lock]\ndefault-non-conda-source = "pip"\n'
+        )
+    source = tmp_path / "pyproject.toml"
+    source.write_text(content)
+    spec = parse_pyproject_toml(source, platforms=["linux-64"], mapping_url=mapping_url)
+    vcs = next(
+        dep for dep in spec.dependencies["linux-64"] if dep.name == "fixture-vcs"
+    )
+
+    package = Package(
+        "fixture-vcs",
+        "1.0",
+        source_type="git",
+        source_url=git_url,
+        source_reference="v1",
+        source_resolved_reference=revision,
+    )
+    excel = Dependency("fixture-excel", ">=1", optional=True)
+    package.add_dependency(excel)
+    package.extras = {canonicalize_name("excel"): [excel]}
+    pool = RepositoryPool(
+        [FixtureRepository("PyPI", [Package("fixture-excel", "1.0")])]
+    )
+    with (
+        patch.object(pypi_solver, "_prepare_repositories_pool", return_value=pool),
+        patch.object(DirectOrigin, "get_package_from_vcs", return_value=package),
+        patch(
+            "requests.sessions.Session.request",
+            side_effect=AssertionError("Unexpected network access"),
+        ),
+    ):
+        result = pypi_solver.solve_pypi(
+            pip_specs={vcs.name: vcs},
+            use_latest=[],
+            pip_locked={},
+            conda_locked={},
+            python_version="3.12.0",
+            platform="linux-64",
+            mapping_url=mapping_url,
+        )
+
+    assert set(result) == (
+        {"fixture-vcs", "fixture-excel"} if requested_extra else {"fixture-vcs"}
+    )
+    assert result["fixture-vcs"].url == f"git+{git_url}@{revision}"
+    assert result["fixture-vcs"].hash.sha256 == revision
