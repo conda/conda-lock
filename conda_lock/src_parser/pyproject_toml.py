@@ -294,6 +294,7 @@ def parse_poetry_pyproject_toml(
                 dependencies.append(
                     VCSDependency(
                         name=name,
+                        extras=extras,
                         markers=markers,
                         source=url,
                         manager=manager,
@@ -578,6 +579,7 @@ def parse_python_requirement(
             source=url,
             manager=manager,
             category=category,
+            extras=extras,
             vcs="git",
             rev=rev,
             markers=markers,

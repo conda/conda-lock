@@ -331,6 +331,7 @@ def get_dependency(dep: lock_spec.Dependency) -> PoetryDependency:
             vcs=dep.vcs,
             source=dep.source,
             rev=dep.rev,
+            extras=dep.extras,
         )
     elif isinstance(dep, lock_spec.PathDependency):
         if dep.is_directory:
