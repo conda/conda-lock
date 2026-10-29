@@ -497,6 +497,6 @@ COPY --from=conda /opt/env /opt/env
 
 [conda]: https://docs.conda.io/projects/conda
 [metayaml]: https://docs.conda.io/projects/conda-build/en/latest/resources/define-metadata.html
-[mapping]: https://github.com/regro/cf-graph-countyfair/blob/master/mappings/pypi/grayskull_pypi_mapping.yaml
+[mapping]: https://github.com/conda-forge/conda-forge-bot-data/blob/main/mappings/pypi/grayskull_pypi_mapping.json
 [envyaml]: https://docs.conda.io/projects/conda/en/latest/user-guide/tasks/manage-environments.html#create-env-file-manually
 [poetry]: https://python-poetry.org
