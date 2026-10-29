@@ -1,0 +1,54 @@
+{
+  "query": {
+    "query": "root-main root-dev",
+    "type": "search"
+  },
+  "result": {
+    "msg": "",
+    "pkgs": [
+      {
+        "build": "0",
+        "build_number": 0,
+        "build_string": "0",
+        "channel": "",
+        "constrains": [],
+        "depends": [
+          "shared"
+        ],
+        "fn": "root-dev-1.0-0.tar.bz2",
+        "license": "MIT",
+        "md5": "a62c972de1c025042d3a1b1885227781",
+        "name": "root-dev",
+        "sha256": "97befee2e2ef7370fbb613c01b4cd7ffcb08d3821f281295b78c071dd8400eff",
+        "size": 306,
+        "subdir": "linux-64",
+        "timestamp": 1577854800,
+        "track_features": "",
+        "url": "file:///example-channel/linux-64/root-dev-1.0-0.tar.bz2",
+        "version": "1.0"
+      },
+      {
+        "build": "0",
+        "build_number": 0,
+        "build_string": "0",
+        "channel": "",
+        "constrains": [],
+        "depends": [
+          "shared"
+        ],
+        "fn": "root-main-1.0-0.tar.bz2",
+        "license": "MIT",
+        "md5": "382b448058f67260194751207557c40b",
+        "name": "root-main",
+        "sha256": "ecdca3eaed72740a766052207e3953a288ed3599adb165b29fbf64858674eaf9",
+        "size": 305,
+        "subdir": "linux-64",
+        "timestamp": 1577854800,
+        "track_features": "",
+        "url": "file:///example-channel/linux-64/root-main-1.0-0.tar.bz2",
+        "version": "1.0"
+      }
+    ],
+    "status": "OK"
+  }
+}

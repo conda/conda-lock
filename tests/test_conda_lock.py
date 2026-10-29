@@ -56,8 +56,6 @@ from conda_lock.conda_lock import (
 )
 from conda_lock.conda_solver import (
     _get_installed_conda_packages,
-    _get_pkgs_dirs,
-    extract_json_object,
     fake_conda_environment,
 )
 from conda_lock.content_hash import (
@@ -75,7 +73,12 @@ from conda_lock.errors import (
     PlatformValidationError,
 )
 from conda_lock.interfaces.vendored_conda import MatchSpec
-from conda_lock.invoke_conda import is_micromamba, reset_conda_pkgs_dir
+from conda_lock.invoke_conda import (
+    extract_json_object,
+    get_pkgs_dirs,
+    is_micromamba,
+    reset_conda_pkgs_dir,
+)
 from conda_lock.lockfile import parse_conda_lock_file
 from conda_lock.lockfile.v2prelim.models import (
     DependencySource,
@@ -3082,6 +3085,7 @@ def test_private_lock(
     tmp_path: Path,
     monkeypatch: "pytest.MonkeyPatch",
     capsys: "pytest.CaptureFixture[str]",
+    caplog: "pytest.LogCaptureFixture",
     conda_exe: str,
     placeholder,
     install_lock,
@@ -3116,6 +3120,27 @@ def test_private_lock(
             env=dict(os.environ, QUETZ_API_KEY=quetz_server.api_key),
         )
         assert result.exit_code == 0
+
+    before_update = parse_conda_lock_file(tmp_path / "conda-lock.yml")
+    caplog.clear()
+    with capsys.disabled():
+        result = runner.invoke(
+            main,
+            ["lock", "--conda", conda_exe, "--update", "zlib"],
+            catch_exceptions=False,
+            env=dict(os.environ, QUETZ_API_KEY=quetz_server.api_key),
+        )
+        assert result.exit_code == 0
+    after_update = parse_conda_lock_file(tmp_path / "conda-lock.yml")
+    # Changing token masks between create and repoquery must not make retained
+    # artifacts appear delisted, even if re-solving would pick the same versions.
+    assert "no longer lists the locked artifacts" not in caplog.text
+    assert "Artifact replacement" not in caplog.text
+    assert after_update.package == before_update.package
+    lock_text = (tmp_path / "conda-lock.yml").read_text()
+    assert "${QUETZ_API_KEY}" in lock_text
+    assert quetz_server.api_key not in lock_text
+    assert "*****" not in lock_text
 
     def run_install(with_env: bool) -> CliResult:
         with capsys.disabled():
@@ -3239,7 +3264,7 @@ def test_extract_json_object():
 
 def test_get_pkgs_dirs(conda_exe):
     # If it runs without raising an exception, then it found the package directories.
-    _get_pkgs_dirs(conda=conda_exe, platform="linux-64")
+    get_pkgs_dirs(conda=conda_exe, platform="linux-64")
 
 
 @pytest.mark.parametrize(
@@ -3259,7 +3284,7 @@ def test_get_pkgs_dirs(conda_exe):
     ],
 )
 def test_get_pkgs_dirs_mocked_output(info_file: str, expected: list[Path] | None):
-    """Test _get_pkgs_dirs with mocked subprocess.check_output."""
+    """Test get_pkgs_dirs with mocked subprocess.check_output."""
     info_path = TESTS_DIR / "test-get-pkgs-dirs" / info_file
     command_output = info_path.read_bytes()
     conda = info_path.stem.split("-")[0]
@@ -3276,7 +3301,7 @@ def test_get_pkgs_dirs_mocked_output(info_file: str, expected: list[Path] | None
         with (
             pytest.raises(ValueError) if expected is None else contextlib.nullcontext()
         ):
-            result = _get_pkgs_dirs(conda=conda, platform="linux-64", method=method)
+            result = get_pkgs_dirs(conda=conda, platform="linux-64", method=method)
             assert result == expected
 
 
