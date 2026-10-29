@@ -18,7 +18,7 @@ from conda_lock.solver.repodata_cache import (
 from tests.support.fixtures import MAMBA_26_LINK_ACTION
 
 
-def _matched(record: dict, link: dict) -> bool:
+def _matched(record: dict[str, Any], link: dict[str, Any]) -> bool:
     matched, _reason = record_matches_link(record, link)
     return matched
 

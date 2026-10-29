@@ -8,13 +8,14 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from types import MappingProxyType
+from typing import Any
 
 
 # Fields exactly as a real ``mamba 2.6.0`` dryrun emits them in
 # ``LINK``. Captured by running ``mamba create --dry-run --json
 # libzlib`` against a populated ``CONDA_PKGS_DIRS``.
 #
-MAMBA_26_LINK_ACTION: Mapping = MappingProxyType(
+MAMBA_26_LINK_ACTION: Mapping[str, Any] = MappingProxyType(
     {
         "build": "h25fd6f3_2",
         "build_number": 2,
@@ -43,7 +44,7 @@ MAMBA_26_LINK_ACTION: Mapping = MappingProxyType(
 # channel name. Kept as an independent literal (rather than a spread
 # of the 2.6 fixture) so a schema drift in either capture fails a test
 # instead of being silently masked.
-MICROMAMBA_1_5_LINK_ACTION: Mapping = MappingProxyType(
+MICROMAMBA_1_5_LINK_ACTION: Mapping[str, Any] = MappingProxyType(
     {
         "build": "h25fd6f3_2",
         "build_number": 2,
@@ -73,7 +74,7 @@ MICROMAMBA_1_5_LINK_ACTION: Mapping = MappingProxyType(
 # key set, since it renders its plan through conda's JSON printer.
 # These solvers are why the ``repodata_record.json`` disk-fallback
 # path exists.
-CONDA_LINK_ACTION: Mapping = MappingProxyType(
+CONDA_LINK_ACTION: Mapping[str, Any] = MappingProxyType(
     {
         "base_url": "https://conda.anaconda.org/conda-forge",
         "build_number": 2,
