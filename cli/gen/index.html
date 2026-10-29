@@ -17,7 +17,7 @@
       
       
       <link rel="icon" href="../../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.8.0">
     
     
       
@@ -25,7 +25,7 @@
       
     
     
-      <link rel="stylesheet" href="../../assets/stylesheets/main.ec1eaa64.min.css">
+      <link rel="stylesheet" href="../../assets/stylesheets/main.57a0d79d.min.css">
       
       
 
@@ -998,13 +998,13 @@ and its various subcommands.</p>
 <td><code>--version</code></td>
 <td>boolean</td>
 <td>Show the version and exit.</td>
-<td><code>False</code></td>
+<td><code>Sentinel.UNSET</code></td>
 </tr>
 <tr>
 <td><code>--help</code></td>
 <td>boolean</td>
 <td>Show this message and exit.</td>
-<td><code>False</code></td>
+<td><code>Sentinel.UNSET</code></td>
 </tr>
 </tbody>
 </table>
@@ -1051,13 +1051,13 @@ and its various subcommands.</p>
 <td><code>-p</code>, <code>--prefix</code></td>
 <td>text</td>
 <td>Full path to environment location (i.e. prefix).</td>
-<td>None</td>
+<td><code>Sentinel.UNSET</code></td>
 </tr>
 <tr>
 <td><code>-n</code>, <code>--name</code></td>
 <td>text</td>
 <td>Name of environment.</td>
-<td>None</td>
+<td><code>Sentinel.UNSET</code></td>
 </tr>
 <tr>
 <td><code>--auth</code></td>
@@ -1099,7 +1099,7 @@ and its various subcommands.</p>
 <td><code>--force-platform</code></td>
 <td>text</td>
 <td>Force using the given platform when installing from the lockfile, instead of the native platform.</td>
-<td><code>&lt;function platform_subdir at 0x7fecf2d97480&gt;</code></td>
+<td><code>&lt;function platform_subdir at 0x7fd4c1f99e80&gt;</code></td>
 </tr>
 <tr>
 <td><code>--preserve-temp-dirs</code></td>
@@ -1108,10 +1108,10 @@ and its various subcommands.</p>
 <td><code>False</code></td>
 </tr>
 <tr>
-<td><code>-h</code>, <code>--help</code></td>
+<td><code>--help</code>, <code>-h</code></td>
 <td>boolean</td>
 <td>Show this message and exit.</td>
-<td><code>False</code></td>
+<td><code>Sentinel.UNSET</code></td>
 </tr>
 </tbody>
 </table>
@@ -1163,13 +1163,13 @@ timestamp: The approximate timestamp of the output file in ISO8601 basic format.
 <td><code>-p</code>, <code>--platform</code></td>
 <td>text</td>
 <td>generate lock files for the following platforms</td>
-<td>None</td>
+<td><code>Sentinel.UNSET</code></td>
 </tr>
 <tr>
 <td><code>-c</code>, <code>--channel</code></td>
 <td>text</td>
 <td>Override the channels to use when solving the environment. These will replace the channels as listed in the various source files.</td>
-<td>None</td>
+<td><code>Sentinel.UNSET</code></td>
 </tr>
 <tr>
 <td><code>--dev-dependencies</code> / <code>--no-dev-dependencies</code></td>
@@ -1181,7 +1181,7 @@ timestamp: The approximate timestamp of the output file in ISO8601 basic format.
 <td><code>-f</code>, <code>--file</code></td>
 <td>path</td>
 <td>path to a conda environment specification(s)</td>
-<td>None</td>
+<td><code>Sentinel.UNSET</code></td>
 </tr>
 <tr>
 <td><code>-k</code>, <code>--kind</code></td>
@@ -1235,25 +1235,25 @@ timestamp: The approximate timestamp of the output file in ISO8601 basic format.
 <td><code>--pdb</code></td>
 <td>boolean</td>
 <td>Drop into a postmortem debugger if conda-lock crashes</td>
-<td><code>False</code></td>
+<td><code>Sentinel.UNSET</code></td>
 </tr>
 <tr>
 <td><code>--virtual-package-spec</code></td>
 <td>path</td>
 <td>Specify a set of virtual packages to use.</td>
-<td>None</td>
+<td><code>Sentinel.UNSET</code></td>
 </tr>
 <tr>
 <td><code>--update</code></td>
 <td>text</td>
 <td>Packages to update to their latest versions. If empty, update all.</td>
-<td>None</td>
+<td><code>Sentinel.UNSET</code></td>
 </tr>
 <tr>
 <td><code>--pypi_to_conda_lookup_file</code></td>
 <td>text</td>
 <td>Location of the lookup file containing Pypi package names to conda names.</td>
-<td>None</td>
+<td><code>Sentinel.UNSET</code></td>
 </tr>
 <tr>
 <td><code>--md</code>, <code>--metadata</code></td>
@@ -1286,10 +1286,10 @@ timestamp: The approximate timestamp of the output file in ISO8601 basic format.
 <td><code>False</code></td>
 </tr>
 <tr>
-<td><code>-h</code>, <code>--help</code></td>
+<td><code>--help</code>, <code>-h</code></td>
 <td>boolean</td>
 <td>Show this message and exit.</td>
-<td><code>False</code></td>
+<td><code>Sentinel.UNSET</code></td>
 </tr>
 </tbody>
 </table>
@@ -1343,19 +1343,19 @@ timestamp: The approximate timestamp of the output file in ISO8601 basic format.
 <td><code>--pdb</code></td>
 <td>boolean</td>
 <td>Drop into a postmortem debugger if conda-lock crashes</td>
-<td><code>False</code></td>
+<td><code>Sentinel.UNSET</code></td>
 </tr>
 <tr>
 <td><code>-p</code>, <code>--platform</code></td>
 <td>text</td>
 <td>render lock files for the following platforms</td>
-<td>None</td>
+<td><code>Sentinel.UNSET</code></td>
 </tr>
 <tr>
-<td><code>-h</code>, <code>--help</code></td>
+<td><code>--help</code>, <code>-h</code></td>
 <td>boolean</td>
 <td>Show this message and exit.</td>
-<td><code>False</code></td>
+<td><code>Sentinel.UNSET</code></td>
 </tr>
 </tbody>
 </table>
@@ -1379,13 +1379,13 @@ timestamp: The approximate timestamp of the output file in ISO8601 basic format.
 <td><code>-p</code>, <code>--platform</code></td>
 <td>text</td>
 <td>render lock files for the following platforms</td>
-<td>None</td>
+<td><code>Sentinel.UNSET</code></td>
 </tr>
 <tr>
 <td><code>-c</code>, <code>--channel</code></td>
 <td>text</td>
 <td>Override the channels to use when solving the environment. These will replace the channels as listed in the various source files.</td>
-<td>None</td>
+<td><code>Sentinel.UNSET</code></td>
 </tr>
 <tr>
 <td><code>--dev-dependencies</code> / <code>--no-dev-dependencies</code></td>
@@ -1397,13 +1397,13 @@ timestamp: The approximate timestamp of the output file in ISO8601 basic format.
 <td><code>-f</code>, <code>--file</code></td>
 <td>path</td>
 <td>path to a dependency specification, can be repeated</td>
-<td>None</td>
+<td><code>Sentinel.UNSET</code></td>
 </tr>
 <tr>
 <td><code>-k</code>, <code>--kind</code></td>
 <td>choice (<code>pixi.toml</code> &#x7C; <code>raw</code>)</td>
 <td>Kind of lock specification to generate. Must be 'pixi.toml' or 'raw'.</td>
-<td>None</td>
+<td><code>Sentinel.UNSET</code></td>
 </tr>
 <tr>
 <td><code>--lockfile</code></td>
@@ -1427,7 +1427,7 @@ timestamp: The approximate timestamp of the output file in ISO8601 basic format.
 <td><code>--stdout</code></td>
 <td>boolean</td>
 <td>Print the lock specification to stdout.</td>
-<td><code>False</code></td>
+<td><code>Sentinel.UNSET</code></td>
 </tr>
 <tr>
 <td><code>--log-level</code></td>
@@ -1439,13 +1439,13 @@ timestamp: The approximate timestamp of the output file in ISO8601 basic format.
 <td><code>--pdb</code></td>
 <td>boolean</td>
 <td>Drop into a postmortem debugger if conda-lock crashes</td>
-<td><code>False</code></td>
+<td><code>Sentinel.UNSET</code></td>
 </tr>
 <tr>
 <td><code>--pypi_to_conda_lookup_file</code></td>
 <td>text</td>
 <td>Location of the lookup file containing Pypi package names to conda names.</td>
-<td>None</td>
+<td><code>Sentinel.UNSET</code></td>
 </tr>
 <tr>
 <td><code>--with-cuda</code></td>
@@ -1463,13 +1463,13 @@ timestamp: The approximate timestamp of the output file in ISO8601 basic format.
 <td><code>--editable</code></td>
 <td>text</td>
 <td>Add an editable pip dependency as name=path, e.g. --editable mypkg=./src/mypkg</td>
-<td>None</td>
+<td><code>Sentinel.UNSET</code></td>
 </tr>
 <tr>
-<td><code>-h</code>, <code>--help</code></td>
+<td><code>--help</code>, <code>-h</code></td>
 <td>boolean</td>
 <td>Show this message and exit.</td>
-<td><code>False</code></td>
+<td><code>Sentinel.UNSET</code></td>
 </tr>
 </tbody>
 </table>
@@ -1540,10 +1540,10 @@ timestamp: The approximate timestamp of the output file in ISO8601 basic format.
     
       
       
-      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["content.tabs.link", "header.autohide", "navigation.indexes", "navigation.instant", "navigation.expand"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["content.tabs.link", "header.autohide", "navigation.indexes", "navigation.instant", "navigation.expand"], "search": "../../assets/javascripts/workers/search.a7633da7.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
     
     
-      <script src="../../assets/javascripts/bundle.d7400e89.min.js"></script>
+      <script src="../../assets/javascripts/bundle.c21346df.min.js"></script>
       
     
   </body>
