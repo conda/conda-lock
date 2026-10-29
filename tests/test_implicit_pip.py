@@ -2,6 +2,7 @@
 
 from itertools import product
 from pathlib import Path
+from typing import Any
 from unittest.mock import patch
 
 import pytest
@@ -41,8 +42,8 @@ def _conda_pip(spec: LockSpecification, platform: str) -> list[VersionedDependen
     ]
 
 
-def _fake_solve(*args: object, **kwargs: object) -> dict:
-    def fetch(name: str, version: str, depends: list[str]) -> dict:
+def _fake_solve(*args: object, **kwargs: object) -> dict[str, Any]:
+    def fetch(name: str, version: str, depends: list[str]) -> dict[str, Any]:
         return {
             "name": name,
             "version": version,
