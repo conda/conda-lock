@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from itertools import pairwise
 from typing import TYPE_CHECKING
 
 from conda_lock._vendor.poetry.core.constraints.version.version_range import VersionRange
@@ -41,7 +42,7 @@ def constraint_regions(constraints: list[VersionConstraint]) -> list[VersionRang
         VersionRange(None, start[0], include_max=start[1]),
     ]
 
-    for low, high in zip(edges, edges[1:]):
+    for low, high in pairwise(edges):
         version_range = VersionRange(
             low[0],
             high[0],

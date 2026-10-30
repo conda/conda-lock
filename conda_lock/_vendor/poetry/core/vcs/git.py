@@ -271,9 +271,9 @@ class Git:
             ]
 
         args += ["ls-files", "--others", "-i", "--exclude-standard"]
-        output = self.run(*args)
+        output = self.run(*args).strip()
 
-        return output.strip().split("\n")
+        return output.split("\n") if output else []
 
     def run(self, *args: Any, **kwargs: Any) -> str:
         folder = kwargs.pop("folder", None)

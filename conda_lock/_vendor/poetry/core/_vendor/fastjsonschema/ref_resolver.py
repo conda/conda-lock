@@ -1,3 +1,5 @@
+# pylint: disable=import-outside-toplevel
+
 """
 JSON Schema URI resolution scopes and dereferencing
 
@@ -9,10 +11,13 @@ Code adapted from https://github.com/Julian/jsonschema
 import contextlib
 import json
 import re
+import sys
 from urllib import parse as urlparse
 from urllib.parse import unquote
 
 from .exceptions import JsonSchemaDefinitionException
+
+MAX_SCHEMA_WALK_DEPTH = min(500, sys.getrecursionlimit() // 2)
 
 
 def get_id(schema):
@@ -60,14 +65,12 @@ def resolve_remote(uri, handlers):
     else:
         from urllib.request import urlopen
 
-        req = urlopen(uri)
-        encoding = req.info().get_content_charset() or 'utf-8'
-        try:
-            result = json.loads(req.read().decode(encoding),)
-        except ValueError as exc:
-            raise JsonSchemaDefinitionException('{} failed to decode: {}'.format(uri, exc))
-        finally:
-            req.close()
+        with urlopen(uri) as response:
+            encoding = response.info().get_content_charset() or 'utf-8'
+            try:
+                result = json.loads(response.read().decode(encoding),)
+            except ValueError as exc:
+                raise JsonSchemaDefinitionException('{} failed to decode'.format(uri)) from exc
     return result
 
 
@@ -93,7 +96,9 @@ class RefResolver:
         self.store = store
         self.cache = cache
         self.handlers = handlers
+        self._walked_uris = set()
         self.walk(schema)
+        self._walked_uris.add(normalize(base_uri) if base_uri else '')
 
     @classmethod
     def from_schema(cls, schema, handlers={}, **kwargs):
@@ -128,6 +133,8 @@ class RefResolver:
         new_uri = urlparse.urljoin(self.resolution_scope, ref)
         uri, fragment = urlparse.urldefrag(new_uri)
 
+        document_uri = uri or self.base_uri
+
         if uri and normalize(uri) in self.store:
             schema = self.store[normalize(uri)]
         elif not uri or uri == self.base_uri:
@@ -138,12 +145,26 @@ class RefResolver:
                 self.store[normalize(uri)] = schema
 
         old_base_uri, old_schema = self.base_uri, self.schema
-        self.base_uri, self.schema = uri, schema
+        self.base_uri, self.schema = document_uri, schema
         try:
-            with self.in_scope(uri):
+            with self.in_scope(document_uri):
+                self._ensure_walked(document_uri, schema)
+                if fragment and not fragment.startswith('/'):
+                    plain_name = normalize(urlparse.urljoin(document_uri, '#' + fragment))
+                    if plain_name in self.store:
+                        yield self.store[plain_name]
+                        return
+                    raise JsonSchemaDefinitionException('Unresolvable ref: {}'.format(fragment))
                 yield resolve_path(schema, fragment)
         finally:
             self.base_uri, self.schema = old_base_uri, old_schema
+
+    def _ensure_walked(self, uri, schema):
+        normalized = normalize(uri) if uri else ''
+        if normalized in self._walked_uris:
+            return
+        self.walk(schema)
+        self._walked_uris.add(normalized)
 
     def get_uri(self):
         return normalize(self.resolution_scope)
@@ -157,10 +178,15 @@ class RefResolver:
         name = name.lower().rstrip('_')
         return name
 
-    def walk(self, node: dict):
+    def walk(self, node: dict, depth=0):
         """
         Walk thru schema and dereferencing ``id`` and ``$ref`` instances
         """
+        if depth >= MAX_SCHEMA_WALK_DEPTH:
+            raise JsonSchemaDefinitionException(
+                'Schema is too deeply nested (maximum depth is {})'.format(MAX_SCHEMA_WALK_DEPTH)
+            )
+
         if isinstance(node, bool):
             pass
         elif '$ref' in node and isinstance(node['$ref'], str):
@@ -171,8 +197,8 @@ class RefResolver:
                 self.store[normalize(self.resolution_scope)] = node
                 for _, item in node.items():
                     if isinstance(item, dict):
-                        self.walk(item)
+                        self.walk(item, depth + 1)
         else:
             for _, item in node.items():
                 if isinstance(item, dict):
-                    self.walk(item)
+                    self.walk(item, depth + 1)

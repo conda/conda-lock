@@ -4,6 +4,7 @@ import csv
 import hashlib
 import json
 import os
+import shutil
 
 from base64 import urlsafe_b64encode
 from pathlib import Path
@@ -153,8 +154,10 @@ class EditableBuilder(Builder):
             )
             return []
 
-        scripts = entry_points.get("console_scripts", [])
-        for script in scripts:
+        scripts = [
+            (script, False) for script in entry_points.get("console_scripts", [])
+        ] + [(script, True) for script in entry_points.get("gui_scripts", [])]
+        for script, is_gui in scripts:
             name, script_with_extras = script.split(" = ")
             script_without_extras = script_with_extras.split("[")[0]
             try:
@@ -200,7 +203,12 @@ class EditableBuilder(Builder):
 
             if WINDOWS:
                 cmd_script = script_file.with_suffix(".cmd")
-                cmd = WINDOWS_CMD_TEMPLATE.format(python=self._env.python, script=name)
+                python = (
+                    self._env.python.with_name("pythonw.exe")
+                    if is_gui
+                    else self._env.python
+                )
+                cmd = WINDOWS_CMD_TEMPLATE.format(python=python, script=name)
                 self._debug(
                     f"  - Adding the <c2>{cmd_script.name}</c2> script wrapper to"
                     f" <b>{scripts_path}</b>"
@@ -211,12 +219,45 @@ class EditableBuilder(Builder):
 
                 added.append(cmd_script)
 
+        # Handle file scripts (type = "file" in [tool.poetry.scripts])
+        for name, specification in self._poetry.local_config.get("scripts", {}).items():
+            if isinstance(specification, dict) and specification.get("type") == "file":
+                source = specification.get("reference")
+                if not source:
+                    self._io.write_error_line(
+                        f"  - File script <c2>{name}</c2> is missing"
+                        ' a "reference" field'
+                    )
+                    continue
+                source_path = self._path / source
+
+                if not source_path.exists():
+                    self._io.write_error_line(
+                        f"  - File script <c2>{name}</c2> references"
+                        f" <b>{source}</b> which does not exist"
+                    )
+                    continue
+
+                if not source_path.is_file():
+                    self._io.write_error_line(
+                        f"  - File script <c2>{name}</c2> references"
+                        f" <b>{source}</b> which is not a file"
+                    )
+                    continue
+
+                target = scripts_path.joinpath(name)
+                self._debug(
+                    f"  - Adding the <c2>{name}</c2> file script"
+                    f" to <b>{scripts_path}</b>"
+                )
+                shutil.copy2(source_path, target)
+                target.chmod(0o755)
+                added.append(target)
+
         return added
 
     def _add_dist_info(self, added_files: list[Path]) -> None:
         from conda_lock._vendor.poetry.core.masonry.builders.wheel import WheelBuilder
-
-        added_files = added_files[:]
 
         builder = WheelBuilder(self._poetry)
         dist_info = self._env.site_packages.mkdir(Path(builder.dist_info))
@@ -226,23 +267,13 @@ class EditableBuilder(Builder):
             f" <b>{dist_info.parent}</b>"
         )
 
-        with dist_info.joinpath("METADATA").open("w", encoding="utf-8") as f:
-            builder._write_metadata_file(f)
-
-        added_files.append(dist_info.joinpath("METADATA"))
+        builder.prepare_metadata(dist_info.parent)
+        added_files.extend(sorted(f for f in dist_info.rglob("*") if f.is_file()))
 
         with dist_info.joinpath("INSTALLER").open("w", encoding="utf-8") as f:
             f.write("poetry")
 
         added_files.append(dist_info.joinpath("INSTALLER"))
-
-        if self.convert_entry_points():
-            with dist_info.joinpath("entry_points.txt").open(
-                "w", encoding="utf-8"
-            ) as f:
-                builder._write_entry_points(f)
-
-            added_files.append(dist_info.joinpath("entry_points.txt"))
 
         # write PEP 610 metadata
         direct_url_json = dist_info.joinpath("direct_url.json")

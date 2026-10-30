@@ -20,6 +20,41 @@ if TYPE_CHECKING:
     from conda_lock._vendor.poetry.core.constraints.version.version_constraint import VersionConstraint
 
 
+def _is_canonical_strict_max(version: Version) -> bool:
+    """True if ``version`` is the dev0 of a stable release — i.e., the
+    canonical exclusive upper bound that the parser produces for a
+    user-typed ``<V`` (with V stable).  See ``parser._canonical_strict_max``.
+    """
+    if version.dev is None or version.dev.number != 0:
+        return False
+    return not version.without_devrelease().is_unstable()
+
+
+def _display_max_text(max_: Version, include_max: bool) -> str:
+    """Render an exclusive ``<V.dev0`` (canonical-strict-max) back as ``<V``
+    so user-facing strings match what the user typed."""
+    if not include_max and _is_canonical_strict_max(max_):
+        return max_.without_devrelease().text
+    return max_.text
+
+
+def _range_or_empty(
+    min: Version | None = None,
+    max: Version | None = None,
+    include_min: bool = False,
+    include_max: bool = False,
+) -> VersionConstraint:
+    """Construct a ``VersionRange``, returning ``EmptyConstraint`` if the
+    constructed range is empty.  ``VersionRange.__init__`` cannot return a
+    different type, so a tail-side normalisation is required for arithmetic
+    operations whose result may be empty (e.g.
+    ``VersionRange(V, V, True, False)`` is empty)."""
+    range_ = VersionRange(min, max, include_min, include_max)
+    if range_.is_empty():
+        return EmptyConstraint()
+    return range_
+
+
 class VersionRange(VersionRangeConstraint):
     def __init__(
         self,
@@ -50,7 +85,16 @@ class VersionRange(VersionRangeConstraint):
         return self._include_max
 
     def is_empty(self) -> bool:
-        return False
+        # A bounded range is non-empty only when its min is strictly below
+        # its max, or when both bounds coincide and are inclusive (the
+        # single-point range ``[V, V]``).  Coincident-bound non-inclusive
+        # ranges and inverted ranges (min > max) are empty.  Previously
+        # this unconditionally returned False.
+        if self._min is None or self._max is None:
+            return False
+        if self._min == self._max:
+            return not (self._include_min and self._include_max)
+        return self._min > self._max
 
     def is_any(self) -> bool:
         return self._min is None and self._max is None
@@ -64,7 +108,11 @@ class VersionRange(VersionRangeConstraint):
 
             assert _this is not None
 
-            if not _this.is_postrelease() and _other.is_postrelease():
+            if (
+                not self._include_min
+                and not _this.is_postrelease()
+                and _other.is_postrelease()
+            ):
                 # The exclusive ordered comparison >V MUST NOT allow a post-release
                 # of the given version unless V itself is a post release.
                 # https://peps.python.org/pep-0440/#exclusive-ordered-comparison
@@ -76,7 +124,7 @@ class VersionRange(VersionRangeConstraint):
                 # a local version of the specified version.
                 # https://peps.python.org/pep-0440/#exclusive-ordered-comparison
                 # e.g. "2.0+local.version" does not match ">2"
-                _other = other.without_local()
+                _other = _other.without_local()
 
             if _other < _this:
                 return False
@@ -85,7 +133,7 @@ class VersionRange(VersionRangeConstraint):
                 return False
 
         if self.max is not None:
-            _this, _other = self.allowed_max, other
+            _this, _other = self.max, other
 
             assert _this is not None
 
@@ -108,7 +156,26 @@ class VersionRange(VersionRangeConstraint):
             return True
 
         if isinstance(other, Version):
-            return self.allows(other)
+            if not self.allows(other):
+                return False
+
+            if other.is_local():
+                # `==1.2.3+local` allows nothing but that very version.
+                return True
+
+            # A public version constraint also allows every local variant of
+            # the version, so allowing `1.2.3` is not enough: `1.2.3+local`
+            # has to be allowed, too. A bound that is itself a local variant
+            # of `other` splits that band and leaves some of them out.
+            #
+            # Only the upper bound can be one: a local variant sorts above the
+            # version it belongs to, so a range with such a lower bound does
+            # not allow `other` in the first place and has returned already.
+            return not (
+                self._max is not None
+                and self._max.is_local()
+                and self._max.without_local() == other
+            )
 
         if isinstance(other, VersionUnion):
             return all(self.allows_all(constraint) for constraint in other.ranges)
@@ -146,7 +213,7 @@ class VersionRange(VersionRangeConstraint):
         from conda_lock._vendor.poetry.core.constraints.version.version import Version
 
         if other.is_empty():
-            return other
+            return EmptyConstraint()
 
         if isinstance(other, VersionUnion):
             return other.intersect(self)
@@ -157,9 +224,21 @@ class VersionRange(VersionRangeConstraint):
                 return other
 
             # `>=1.2.3+local` intersects `1.2.3` to return `>=1.2.3+local,<1.2.4`.
-            if self.min is not None and self.min.is_local() and other.allows(self.min):
+            # Skip when ``other`` is itself a local version: for an exclusive
+            # lower bound like ``>1.2.3+local`` intersected with the excluded
+            # point ``1.2.3+local``, broadening would wrongly return a
+            # non-empty range instead of the correct empty constraint.
+            if (
+                self.min is not None
+                and self.min.is_local()
+                and not other.is_local()
+                and other.allows(self.min)
+            ):
+                # Strictly speaking, next_patch() is not quite correct
+                # because you cannot specify the upper bound. It only
+                # works for versions with a precision of three or less.
                 upper = other.stable.next_patch()
-                return VersionRange(
+                return _range_or_empty(
                     min=self.min,
                     max=upper,
                     include_min=self.include_min,
@@ -169,7 +248,7 @@ class VersionRange(VersionRangeConstraint):
             return EmptyConstraint()
 
         if not isinstance(other, VersionRangeConstraint):
-            raise ValueError(f"Unknown VersionConstraint type {other}.")
+            raise TypeError(f"Unknown VersionConstraint type {other}.")
 
         if self.allows_lower(other):
             if self.is_strictly_lower(other):
@@ -204,7 +283,7 @@ class VersionRange(VersionRangeConstraint):
             return intersect_min
 
         # If we got here, there is an actual range.
-        return VersionRange(
+        return _range_or_empty(
             intersect_min, intersect_max, intersect_include_min, intersect_include_max
         )
 
@@ -212,6 +291,42 @@ class VersionRange(VersionRangeConstraint):
         from conda_lock._vendor.poetry.core.constraints.version.version import Version
 
         if isinstance(other, Version):
+            # If ``other`` is a public version that covers any local-tagged
+            # variants at our bounds (by PEP 440 release-equality), the
+            # union absorbs those local variants and we can broaden the
+            # bound(s).  Handle both bounds at once so e.g. a range that is
+            # bracketed by two local variants of ``other`` collapses to a
+            # single release-spanning range.
+            new_min: Version | None = self._min
+            new_include_min = self._include_min
+            new_max: Version | None = self._max
+            new_include_max = self._include_max
+            broadened = False
+            if not other.is_local():
+                if (
+                    self._min is not None
+                    and self._min.is_local()
+                    and other.allows(self._min)
+                ):
+                    new_min = other
+                    new_include_min = True
+                    broadened = True
+                if (
+                    self._max is not None
+                    and self._max.is_local()
+                    and other.allows(self._max)
+                ):
+                    # Strictly speaking, next_patch() is not quite correct
+                    # because you cannot specify the upper bound. It only
+                    # works for versions with a precision of three or less.
+                    new_max = other.stable.next_patch()
+                    new_include_max = False
+                    broadened = True
+            if broadened:
+                return _range_or_empty(
+                    new_min, new_max, new_include_min, new_include_max
+                )
+
             if self.allows(other):
                 return self
 
@@ -274,17 +389,17 @@ class VersionRange(VersionRangeConstraint):
                 if not self.include_min:
                     return self
 
-                return VersionRange(self.min, self.max, False, self.include_max)
+                return _range_or_empty(self.min, self.max, False, self.include_max)
 
             if other == self.max:
                 if not self.include_max:
                     return self
 
-                return VersionRange(self.min, self.max, self.include_min, False)
+                return _range_or_empty(self.min, self.max, self.include_min, False)
 
             return VersionUnion.of(
-                VersionRange(self.min, other, self.include_min, False),
-                VersionRange(other, self.max, False, self.include_max),
+                _range_or_empty(self.min, other, self.include_min, False),
+                _range_or_empty(other, self.max, False, self.include_max),
             )
         elif isinstance(other, VersionRangeConstraint):
             if not self.allows_any(other):
@@ -296,7 +411,7 @@ class VersionRange(VersionRangeConstraint):
             elif self.min == other.min:
                 before = self.min
             else:
-                before = VersionRange(
+                before = _range_or_empty(
                     self.min, other.min, self.include_min, not other.include_min
                 )
 
@@ -306,7 +421,7 @@ class VersionRange(VersionRangeConstraint):
             elif self.max == other.max:
                 after = self.max
             else:
-                after = VersionRange(
+                after = _range_or_empty(
                     other.max, self.max, not other.include_max, self.include_max
                 )
 
@@ -437,6 +552,27 @@ class VersionRange(VersionRangeConstraint):
 
         return 0
 
+    def __repr__(self) -> str:
+        text = ""
+
+        if self.min is not None:
+            text += ">=" if self.include_min else ">"
+            text += self.min.text
+
+        if self.max is not None:
+            if self.min is not None:
+                text += ","
+
+            op = "<=" if self.include_max else "<"
+            # In contrast to __str__, we want to display the actual max so that
+            # we can distinguish between `< 1` and `< 1.dev0` in test output.
+            text += f"{op}{self.max}"
+
+        if self.min is None and self.max is None:
+            return "*"
+
+        return f"<{self.__class__.__name__} {text}>"
+
     def __str__(self) -> str:
         with suppress(ValueError):
             return self._single_wildcard_range_string
@@ -452,7 +588,7 @@ class VersionRange(VersionRangeConstraint):
                 text += ","
 
             op = "<=" if self.include_max else "<"
-            text += f"{op}{self.max.text}"
+            text += f"{op}{_display_max_text(self.max, self.include_max)}"
 
         if self.min is None and self.max is None:
             return "*"

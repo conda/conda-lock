@@ -225,7 +225,8 @@ jobs:
         run: |
           conda install conda pip setuptools editables hatchling hatch-vcs conda-lock --yes
           conda uninstall conda-lock --force --yes
-          pip install --no-deps --no-build-isolation -e .
+          pip install --no-build-isolation -e .
+          pip check
       - name: run-test
         shell: bash -leo pipefail {0}
         run: |

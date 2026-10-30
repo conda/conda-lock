@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from abc import abstractmethod
-from functools import cached_property
 from typing import TYPE_CHECKING
 
 from conda_lock._vendor.poetry.core.constraints.version.version_constraint import VersionConstraint
@@ -45,22 +44,8 @@ class VersionRangeConstraint(VersionConstraint):
         # the callers of allowed_min.
         return self.min
 
-    @cached_property
-    def allowed_max(self) -> Version | None:
-        if self.max is None:
-            return None
-
-        if self.include_max or self.max.is_unstable():
-            return self.max
-
-        if self.min == self.max and (self.include_min or self.include_max):
-            # this is an equality range
-            return self.max
-
-        # The exclusive ordered comparison <V MUST NOT allow a pre-release
-        # of the specified version unless the specified version is itself a pre-release.
-        # https://peps.python.org/pep-0440/#exclusive-ordered-comparison
-        return self.max.first_devrelease()
+    def has_upper_bound(self) -> bool:
+        return self.max is not None
 
     def allows_lower(self, other: VersionRangeConstraint) -> bool:
         _this, _other = self.allowed_min, other.allowed_min
@@ -80,7 +65,7 @@ class VersionRangeConstraint(VersionConstraint):
         return self.include_min and not other.include_min
 
     def allows_higher(self, other: VersionRangeConstraint) -> bool:
-        _this, _other = self.allowed_max, other.allowed_max
+        _this, _other = self.max, other.max
 
         if _this is None:
             return _other is not None
@@ -97,7 +82,7 @@ class VersionRangeConstraint(VersionConstraint):
         return self.include_max and not other.include_max
 
     def is_strictly_lower(self, other: VersionRangeConstraint) -> bool:
-        _this, _other = self.allowed_max, other.allowed_min
+        _this, _other = self.max, other.allowed_min
 
         if _this is None or _other is None:
             return False

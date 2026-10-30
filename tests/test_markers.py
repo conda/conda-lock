@@ -2,7 +2,9 @@ from pathlib import Path
 
 import pytest
 
+from conda_lock._vendor.poetry.core.version.markers import parse_marker
 from conda_lock.lookup import DEFAULT_MAPPING_URL
+from conda_lock.pypi_solver import PlatformEnv
 from conda_lock.src_parser import make_lock_spec
 
 
@@ -91,3 +93,14 @@ def test_sys_platform_marker(cowsay_src_file):
         "osx-arm64": True,
         "linux-64": False,
     }
+
+
+def test_target_markers_do_not_inherit_host_values() -> None:
+    env = PlatformEnv(platform="win-64", python_version="3.10.20").marker_env
+    assert parse_marker('sys_platform == "win32" and python_version < "3.11"').validate(
+        env
+    )
+    assert not parse_marker('sys_platform == "linux"').validate(env)
+    # Unknown target properties must not exclude dependencies based on the host.
+    assert parse_marker('platform_machine == "x86_64"').validate(env)
+    assert parse_marker('platform_machine == "AMD64"').validate(env)

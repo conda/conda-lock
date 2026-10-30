@@ -53,42 +53,56 @@ dependencies = [
     "filelock",
     "gitpython >=3.1.30",
     "jinja2",
-    # constraint on version comes from poetry and conda
-    "packaging >=24.0",
-    # constraint on version comes from poetry and conda
-    "platformdirs >=3.10.0,<5.0.0",
+    "packaging",
+    "platformdirs",
     "pydantic >=2",
-    "pyyaml >= 5.1",
-    # constraint on version comes from poetry
-    "requests >=2.26,<3.0",
+    "pyyaml >=5.1",
+    "requests",
     "ruamel.yaml",
     "semver >=3,<4",
     "setuptools",
-    # constraint on version comes from poetry
-    'tomli >=2.0.1,<3.0.0 ; python_version <"3.11"',
-    # constraint on version comes from poetry
-    "tomlkit >=0.11.4,<1.0.0",
+    'tomli ; python_version < "3.11"',
+    "tomlkit",
     "typing-extensions >=4.6.1",
-    # conda dependencies
+    # Constraints retained for the utilities used from vendored Conda 24.7.1.
     "boltons >=23.0.0",
     "charset-normalizer",
+    "packaging >=23.0",
+    "platformdirs >=3.10.0",
     "zstandard >=0.15",
-    # The following dependencies were added in the process of vendoring Poetry 2.0.1.
+    # Poetry 2.5.1: copy upstream constraints; keep overlaps for provenance.
+    # Cleo and poetry-core are vendored separately in vendor.txt.
+    # https://github.com/python-poetry/poetry/blob/2.5.1/pyproject.toml
     "build >=1.2.1,<2.0.0",
     "cachecontrol[filecache] >=0.14.0,<0.15.0",
-    "crashtest >=0.4.1,<0.5.0",
-    "dulwich >=0.22.6,<0.25",
+    "dulwich >=0.25.0,<2",
     "fastjsonschema >=2.18.0,<3.0.0",
-    'importlib-metadata >= 4.4 ;  python_version <"3.10"',
-    'installer >=1.0.1,<2.0.0',
+    "findpython >=0.6.2,<0.9.0",
+    "installer >=0.7.0,<2.0.0",
     "keyring >=25.1.0,<26.0.0",
+    "packaging >=24.2",
+    "pbs-installer[download,install] >=2025.6.10",
     "pkginfo >=1.12,<2.0",
+    "platformdirs >=3.0.0,<5",
     "pyproject-hooks >=1.0.0,<2.0.0",
+    "requests >=2.26,<3.0",
     "requests-toolbelt >=1.0.0,<2.0.0",
     "shellingham >=1.5,<2.0",
-    "trove-classifiers >= 2022.5.19",
-    "virtualenv >=20.26.6,<21.0.0",
+    'tomli >=2.0.1,<3.0.0 ; python_version < "3.11"',
+    "tomlkit >=0.11.4,<1.0.0",
+    "trove-classifiers >=2022.5.19",
+    "virtualenv >=20.26.6",
     'xattr >=1.0.0,<2.0.0 ; sys_platform == "darwin"',
+    # Cleo 2.1.0 (Rapidfuzz is unused and removed during vendoring).
+    # https://github.com/python-poetry/cleo/blob/2.1.0/pyproject.toml
+    "crashtest >=0.4.1,<0.5.0",
+    # conda-lock overrides, kept separate from upstream requirements.
+    # Repeat the full intersections: lock-spec aggregation keeps the last entry.
+    # 1.2.9 fixes security issues; 1.2.10 also fixes its loose-object regression.
+    "dulwich >=1.2.10,<2",
+    "installer >=1.0.1,<2.0.0",
+    "platformdirs >=3.10.0,<5.0.0",
+    "virtualenv >=20.26.6,<21.0.0",
 ]
 
 [project.scripts]
@@ -153,11 +167,12 @@ destination = "conda_lock/_vendor"
 namespace = "conda_lock._vendor"
 requirements = "conda_lock/_vendor/vendor.txt"
 protected-files = ["__init__.py", "README.md", "LICENSES.md", "vendor.txt"]
-patches-dir = "conda_lock/scripts/vendor_poetry/patches"
 
 [tool.vendoring.transformations]
 drop = [
     "bin",
+    "*.dist-info",
+    "*.egg-info",
     "conda_env",
     "poetry/publishing",
     "poetry/utils/shell.py",
@@ -169,7 +184,7 @@ drop = [
     # - __init__.py
     # - strategy/__init__.py
     # - strategy/parse_poetry_version.py
-    '^grayskull\/(?!__init__\.py$|strategy\/parse_poetry_version\.py$|strategy\/__init__\.py$)',
+    '^grayskull\/(?!__init__\.py$|strategy$|strategy\/parse_poetry_version\.py$|strategy\/__init__\.py$)',
 ]
 substitute = [
     # simple substitution patch to fix conda.exports
@@ -182,7 +197,9 @@ substitute = [
     # for CLI apps. We don't need this functionality in conda-lock, and removing
     # this import allows us to drop it as a dependency.
     { match = 'from rapidfuzz.distance import Levenshtein', replace = ''},
-    { match = '__version__ = metadata\.version\("poetry"\)', replace = '__version__ = "2.0.1"' },
+    { match = '__version__ = metadata\.version\("poetry"\)', replace = '__version__ = "2.5.1"' },
+    # Resource lookups use module-name strings, which vendoring cannot rewrite.
+    { match = 'files\("poetry\.core"\)', replace = 'files("conda_lock._vendor.poetry.core")' },
 ]
 
 [tool.conda-lock]

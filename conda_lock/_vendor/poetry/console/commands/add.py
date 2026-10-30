@@ -5,13 +5,13 @@ import contextlib
 from typing import TYPE_CHECKING
 from typing import Any
 from typing import ClassVar
+from typing import Literal
 
 from conda_lock._vendor.cleo.helpers import argument
 from conda_lock._vendor.cleo.helpers import option
 from packaging.utils import canonicalize_name
 from conda_lock._vendor.poetry.core.packages.dependency import Dependency
 from conda_lock._vendor.poetry.core.packages.dependency_group import MAIN_GROUP
-from tomlkit.toml_document import TOMLDocument
 
 from conda_lock._vendor.poetry.console.commands.init import InitCommand
 from conda_lock._vendor.poetry.console.commands.installer_command import InstallerCommand
@@ -104,9 +104,9 @@ You can specify a package in the following forms:
  (<b>git+https://github.com/python-poetry/poetry.git#develop</b>)
   - A subdirectory of a git repository\
  (<b>git+https://github.com/python-poetry/poetry.git#subdirectory=tests/fixtures/sample_project</b>)
-  - A git SSH url (<b>git+ssh://github.com/python-poetry/poetry.git</b>)
+  - A git SSH url (<b>git+ssh://git@github.com/python-poetry/poetry.git</b>)
   - A git SSH url with a revision\
- (<b>git+ssh://github.com/python-poetry/poetry.git#develop</b>)
+ (<b>git+ssh://git@github.com/python-poetry/poetry.git#develop</b>)
   - A file path (<b>../my-package/my-package.whl</b>)
   - A directory (<b>../my-package/</b>)
   - A url (<b>https://example.com/packages/my-package-0.1.0.tar.gz</b>)
@@ -147,11 +147,10 @@ The add command adds required packages to your <comment>pyproject.toml</> and in
         if optional and group != MAIN_GROUP:
             raise ValueError("You can only add optional dependencies to the main group")
 
-        # tomlkit types are awkward to work with, treat content as a mostly untyped
-        # dictionary.
-        content: dict[str, Any] = self.poetry.file.read()
+        content = self.poetry.file.read()
         project_content = content.get("project", table())
         poetry_content = content.get("tool", {}).get("poetry", table())
+        groups_content = content.get("dependency-groups", {})
         project_name = (
             canonicalize_name(name)
             if (name := project_content.get("name", poetry_content.get("name")))
@@ -159,7 +158,10 @@ The add command adds required packages to your <comment>pyproject.toml</> and in
         )
 
         use_project_section = False
-        project_dependency_names = []
+        use_groups_section = False
+        project_dependency_names: list[NormalizedName | Literal["<include-group>"]] = []
+
+        # Run-Time Deps incl. extras
         if group == MAIN_GROUP:
             if (
                 "dependencies" in project_content
@@ -179,22 +181,31 @@ The add command adds required packages to your <comment>pyproject.toml</> and in
                 project_section = array()
 
             poetry_section = poetry_content.get("dependencies", table())
+
+        # Dependency Groups
         else:
-            if "group" not in poetry_content:
-                poetry_content["group"] = table(is_super_table=True)
+            if groups_content or "group" not in poetry_content:
+                use_groups_section = True
+                if not groups_content:
+                    groups_content = table(is_super_table=True)
+                if group not in groups_content:
+                    groups_content[group] = array("[\n]")
 
-            groups = poetry_content["group"]
+                project_dependency_names = [
+                    Dependency.create_from_pep_508(dep).name
+                    if isinstance(dep, str)
+                    # We have to add an entry for "include-group" items because
+                    # later the index of the dependency is used to replace it.
+                    # We just choose a name that cannot be a package's name.
+                    else "<include-group>"
+                    for dep in groups_content[group]
+                ]
 
-            if group not in groups:
-                groups[group] = table()
-                groups.add(nl())
-
-            this_group = groups[group]
-
-            if "dependencies" not in this_group:
-                this_group["dependencies"] = table()
-
-            poetry_section = this_group["dependencies"]
+            poetry_section = (
+                poetry_content.get("group", {})
+                .get(group, {})
+                .get("dependencies", table())
+            )
             project_section = []
 
         existing_packages = self.get_existing_packages_from_input(
@@ -230,7 +241,7 @@ The add command adds required packages to your <comment>pyproject.toml</> and in
                 assert isinstance(version, str)
                 parse_constraint(version)
 
-            constraint: dict[str, Any] = inline_table()
+            constraint = inline_table()
             for key, value in _constraint.items():
                 if key == "name":
                     continue
@@ -263,17 +274,17 @@ The add command adds required packages to your <comment>pyproject.toml</> and in
                     self.line_error("\nNo changes were applied.")
                     return 1
 
-            if self.option("python"):
-                constraint["python"] = self.option("python")
+            if python := self.option("python"):
+                constraint["python"] = python
 
-            if self.option("platform"):
-                constraint["platform"] = self.option("platform")
+            if platform := self.option("platform"):
+                constraint["platform"] = platform
 
-            if self.option("markers"):
-                constraint["markers"] = self.option("markers")
+            if markers := self.option("markers"):
+                constraint["markers"] = markers
 
-            if self.option("source"):
-                constraint["source"] = self.option("source")
+            if source := self.option("source"):
+                constraint["source"] = source
 
             if len(constraint) == 1 and "version" in constraint:
                 constraint = constraint["version"]
@@ -304,17 +315,20 @@ The add command adds required packages to your <comment>pyproject.toml</> and in
             )
             self.poetry.package.add_dependency(dependency)
 
-            if use_project_section:
+            if use_project_section or use_groups_section:
+                pep_section = (
+                    project_section if use_project_section else groups_content[group]
+                )
                 try:
                     index = project_dependency_names.index(canonical_constraint_name)
                 except ValueError:
-                    project_section.append(dependency.to_pep_508())
+                    pep_section.append(dependency.to_pep_508())
                 else:
-                    project_section[index] = dependency.to_pep_508()
+                    pep_section[index] = dependency.to_pep_508()
 
                 # create a second constraint for tool.poetry.dependencies with keys
                 # that cannot be stored in the project section
-                poetry_constraint: dict[str, Any] = inline_table()
+                poetry_constraint = inline_table()
                 if not isinstance(constraint, str):
                     for key in ["allow-prereleases", "develop", "source"]:
                         if value := constraint.get(key):
@@ -335,6 +349,13 @@ The add command adds required packages to your <comment>pyproject.toml</> and in
                 else:
                     poetry_section[constraint_name] = poetry_constraint
 
+            if optional:
+                extra_name = canonicalize_name(optional)
+                # _in_extras must be set after converting the dependency to PEP 508
+                # and adding it to the project section to avoid a redundant extra marker
+                dependency._in_extras = [extra_name]
+                self._add_dependency_to_extras(dependency, extra_name)
+
         # Refresh the locker
         if project_section:
             assert group == MAIN_GROUP
@@ -345,13 +366,33 @@ The add command adds required packages to your <comment>pyproject.toml</> and in
                     project_content["optional-dependencies"][optional] = project_section
             elif "dependencies" not in project_content:
                 project_content["dependencies"] = project_section
+
         if poetry_section:
             if "tool" not in content:
                 content["tool"] = table()
             if "poetry" not in content["tool"]:
                 content["tool"]["poetry"] = poetry_content
-            if group == MAIN_GROUP and "dependencies" not in poetry_content:
-                poetry_content["dependencies"] = poetry_section
+            if group == MAIN_GROUP:
+                if "dependencies" not in poetry_content:
+                    poetry_content["dependencies"] = poetry_section
+            else:
+                if "group" not in poetry_content:
+                    poetry_content["group"] = table(is_super_table=True)
+
+                groups = poetry_content["group"]
+
+                if group not in groups:
+                    groups[group] = table()
+                    groups.add(nl())
+
+                if "dependencies" not in groups[group]:
+                    groups[group]["dependencies"] = poetry_section
+
+        if groups_content and group != MAIN_GROUP:
+            if "dependency-groups" not in content:
+                content["dependency-groups"] = table()
+            content["dependency-groups"][group] = groups_content[group]
+
         self.poetry.locker.set_pyproject_data(content)
         self.installer.set_locker(self.poetry.locker)
 
@@ -369,7 +410,6 @@ The add command adds required packages to your <comment>pyproject.toml</> and in
         status = self.installer.run()
 
         if status == 0 and not self.option("dry-run"):
-            assert isinstance(content, TOMLDocument)
             self.poetry.file.write(content)
 
         return status
@@ -378,7 +418,7 @@ The add command adds required packages to your <comment>pyproject.toml</> and in
         self,
         packages: list[str],
         section: dict[str, Any],
-        project_dependencies: Collection[NormalizedName],
+        project_dependencies: Collection[NormalizedName | Literal["<include-group>"]],
     ) -> list[str]:
         existing_packages = []
 
@@ -403,9 +443,26 @@ The add command adds required packages to your <comment>pyproject.toml</> and in
 
     def notify_about_existing_packages(self, existing_packages: list[str]) -> None:
         self.line(
-            "The following packages are already present in the pyproject.toml and will"
-            " be skipped:\n"
+            f"The following packages are already present in the pyproject.toml"
+            f" (<c2>{self.poetry.file.path}</c2>) and will be skipped:\n"
         )
         for name in existing_packages:
             self.line(f"  - <c1>{name}</c1>")
         self.line(self._hint_update_packages)
+
+    def _add_dependency_to_extras(
+        self, dependency: Dependency, extra_name: NormalizedName
+    ) -> None:
+        extras = dict(self.poetry.package.extras)
+        extra_deps = []
+        replaced = False
+        for dep in extras.get(extra_name, ()):
+            if dep.name == dependency.name:
+                extra_deps.append(dependency)
+                replaced = True
+            else:
+                extra_deps.append(dep)
+        if not replaced:
+            extra_deps.append(dependency)
+        extras[extra_name] = extra_deps
+        self.poetry.package.extras = extras

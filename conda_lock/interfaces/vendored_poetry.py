@@ -32,6 +32,7 @@ from conda_lock._vendor.poetry.repositories.repository_pool import (
     RepositoryPool as Pool,
 )
 from conda_lock._vendor.poetry.utils.env import Env, VirtualEnv
+from conda_lock._vendor.poetry.utils.env.base_env import MarkerEnv
 
 
 __all__ = [
@@ -40,6 +41,7 @@ __all__ = [
     "Env",
     "Factory",
     "Link",
+    "MarkerEnv",
     "Operation",
     "PoetryDependency",
     "PoetryDirectoryDependency",

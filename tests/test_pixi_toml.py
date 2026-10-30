@@ -37,10 +37,10 @@ def test_generate_pixi_toml() -> None:
     assert result.stdout == expected
     # There are currently python_version environment markers in pyproject.toml
     # that we drop with a warning since they can't be converted.
-    warning1 = """Marker 'python_version < "3.10"' contains environment markers: {'python_version'}."""
-    warning2 = """Marker 'python_version < "3.11"' contains environment markers: {'python_version'}."""
+    warning1 = """Marker 'python_version < "3.11"' contains environment markers: {'python_version'}."""
     # Pip deps with extras can't be converted to Conda deps.
-    warning3 = """Extras not supported in Conda dep name='cachecontrol' manager='conda' category='main' extras=['filecache'] markers=None version='<0.15.0,>=0.14.0'"""
+    warning2 = """Extras not supported in Conda dep name='cachecontrol' manager='conda' category='main' extras=['filecache'] markers=None version='<0.15.0,>=0.14.0'"""
+    warning3 = """Extras not supported in Conda dep name='pbs-installer' manager='conda' category='main' extras=['download', 'install'] markers=None version='>=2025.6.10'"""
     for warning in [warning1, warning2, warning3]:
         assert any(warning in str(r.message) for r in record)
     assert len(set(str(r.message) for r in record)) == 3

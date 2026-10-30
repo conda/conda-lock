@@ -22,7 +22,7 @@ if TYPE_CHECKING:
 
 
 class CachedRepository(Repository, ABC):
-    CACHE_VERSION = parse_constraint("2.0.0")
+    CACHE_VERSION = parse_constraint("2.1.0")
 
     def __init__(
         self, name: str, *, disable_cache: bool = False, config: Config | None = None
@@ -66,12 +66,10 @@ class CachedRepository(Repository, ABC):
 
         return PackageInfo.load(cached)
 
-    def package(
-        self,
-        name: str,
-        version: Version,
-        extras: list[str] | None = None,
-    ) -> Package:
+    def package(self, name: str, version: Version) -> Package:
         return self.get_release_info(canonicalize_name(name), version).to_package(
-            name=name, extras=extras
+            name=name
         )
+
+    def forget(self, name: str, version: Version) -> None:
+        self._release_cache.forget(f"{canonicalize_name(name)}:{version}")

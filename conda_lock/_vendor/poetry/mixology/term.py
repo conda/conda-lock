@@ -8,6 +8,8 @@ from conda_lock._vendor.poetry.mixology.set_relation import SetRelation
 
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from conda_lock._vendor.poetry.core.constraints.version import VersionConstraint
     from conda_lock._vendor.poetry.core.packages.dependency import Dependency
 
@@ -23,8 +25,15 @@ class Term:
     def __init__(self, dependency: Dependency, is_positive: bool) -> None:
         self._dependency = dependency
         self._positive = is_positive
-        self.relation = functools.lru_cache(maxsize=None)(self._relation)
-        self.intersect = functools.lru_cache(maxsize=None)(self._intersect)
+
+    # The caches are created lazily because most terms never need them.
+    @functools.cached_property
+    def relation(self) -> Callable[[Term], str]:
+        return functools.lru_cache(maxsize=None)(self._relation)
+
+    @functools.cached_property
+    def intersect(self) -> Callable[[Term], Term | None]:
+        return functools.lru_cache(maxsize=None)(self._intersect)
 
     @property
     def inverse(self) -> Term:
@@ -95,7 +104,13 @@ class Term:
                     return SetRelation.SUBSET
 
                 # foo ^1.5.0 is disjoint with not foo ^1.0.0
-                if other_constraint.allows_all(self.constraint):
+                if (
+                    other_constraint.allows_all(self.constraint)
+                    # if transitive markers are not equal we have to handle it
+                    # as overlapping so that markers are merged later
+                    and self.dependency.transitive_marker
+                    == other.dependency.transitive_marker
+                ):
                     return SetRelation.DISJOINT
 
                 # foo ^1.0.0 overlaps not foo ^1.5.0
@@ -177,7 +192,12 @@ class Term:
             and other.dependency.is_direct_origin()
             else self.dependency
         )
-        return Term(dependency.with_constraint(constraint), is_positive)
+        new_dep = dependency.with_constraint(constraint)
+        if is_positive and other.is_positive():
+            new_dep.transitive_marker = self.dependency.transitive_marker.union(
+                other.dependency.transitive_marker
+            )
+        return Term(new_dep, is_positive)
 
     def __str__(self) -> str:
         prefix = "not " if not self.is_positive() else ""

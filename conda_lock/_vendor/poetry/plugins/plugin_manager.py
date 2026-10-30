@@ -7,7 +7,9 @@ import shutil
 import sys
 
 from functools import cached_property
+from importlib import metadata
 from pathlib import Path
+from site import addsitedir
 from typing import TYPE_CHECKING
 
 import tomlkit
@@ -21,7 +23,6 @@ from conda_lock._vendor.poetry.plugins.application_plugin import ApplicationPlug
 from conda_lock._vendor.poetry.plugins.plugin import Plugin
 from conda_lock._vendor.poetry.repositories.installed_repository import InstalledRepository
 from conda_lock._vendor.poetry.toml import TOMLFile
-from conda_lock._vendor.poetry.utils._compat import metadata
 from conda_lock._vendor.poetry.utils._compat import tomllib
 from conda_lock._vendor.poetry.utils.env import Env
 from conda_lock._vendor.poetry.utils.env import EnvManager
@@ -62,7 +63,10 @@ class PluginManager:
 
         plugin_path = pyproject_toml.parent / ProjectPluginCache.PATH
         if plugin_path.exists():
+            # insert at the beginning to allow overriding dependencies
             EnvManager.get_system_env(naive=True).sys_path.insert(0, str(plugin_path))
+            # process .pth files (among other things)
+            addsitedir(str(plugin_path))
 
     @classmethod
     def ensure_project_plugins(cls, poetry: Poetry, io: IO) -> None:
@@ -83,7 +87,7 @@ class PluginManager:
 
     def _add_plugin(self, plugin: Plugin) -> None:
         if not isinstance(plugin, (Plugin, ApplicationPlugin)):
-            raise ValueError(
+            raise TypeError(
                 "The Poetry plugin must be an instance of Plugin or ApplicationPlugin"
             )
 
@@ -95,7 +99,7 @@ class PluginManager:
         plugin = ep.load()
 
         if not issubclass(plugin, (Plugin, ApplicationPlugin)):
-            raise ValueError(
+            raise TypeError(
                 "The Poetry plugin must be an instance of Plugin or ApplicationPlugin"
             )
 
@@ -261,20 +265,19 @@ class ProjectPluginCache:
         self,
         plugins: Sequence[Dependency],
         poetry_env: Env,
-        locked_packages: Sequence[Package],
+        installed_packages: Sequence[Package],
     ) -> None:
         project = ProjectPackage(name="poetry-project-instance", version="0")
         project.python_versions = ".".join(str(v) for v in poetry_env.version_info[:3])
         # consider all packages in Poetry's environment pinned
-        for package in locked_packages:
+        for package in installed_packages:
             project.add_dependency(package.to_dependency())
         # add missing plugin dependencies
         for dependency in plugins:
             project.add_dependency(dependency)
 
         # force new package to be installed in the project cache instead of Poetry's env
-        poetry_env.paths["platlib"] = str(self._path)
-        poetry_env.paths["purelib"] = str(self._path)
+        poetry_env.set_paths(purelib=self._path, platlib=self._path)
 
         self._ensure_cache_directory()
 
@@ -285,9 +288,7 @@ class ProjectPluginCache:
             Locker(self._path / "poetry.lock", {}),
             self._poetry.pool,
             self._poetry.config,
-            # Build installed repository from locked packages so that plugins
-            # that may be overwritten are not included.
-            InstalledRepository(locked_packages),
+            InstalledRepository(installed_packages),
         )
         installer.update(True)
 

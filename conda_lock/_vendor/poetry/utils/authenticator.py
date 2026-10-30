@@ -6,7 +6,6 @@ import logging
 import time
 import urllib.parse
 
-from os.path import commonprefix
 from pathlib import Path
 from typing import TYPE_CHECKING
 from typing import Any
@@ -17,11 +16,13 @@ import requests.auth
 import requests.exceptions
 
 from cachecontrol import CacheControlAdapter
-from cachecontrol.caches import FileCache
+from cachecontrol.caches import SeparateBodyFileCache
 from requests_toolbelt import user_agent
 
 from conda_lock._vendor.poetry.__version__ import __version__
 from conda_lock._vendor.poetry.config.config import Config
+from conda_lock._vendor.poetry.console.exceptions import ConsoleMessage
+from conda_lock._vendor.poetry.console.exceptions import PoetryRuntimeError
 from conda_lock._vendor.poetry.exceptions import PoetryError
 from conda_lock._vendor.poetry.utils.constants import REQUESTS_TIMEOUT
 from conda_lock._vendor.poetry.utils.constants import RETRY_AFTER_HEADER
@@ -50,10 +51,10 @@ class RepositoryCertificateConfig:
         config = config if config else Config.create()
 
         verify: str | bool = config.get(
-            f"certificates.{repository}.verify",
-            config.get(f"certificates.{repository}.cert", True),
+            ["certificates", repository, "verify"],
+            config.get(["certificates", repository, "cert"], True),
         )
-        client_cert: str = config.get(f"certificates.{repository}.client-cert")
+        client_cert: str = config.get(["certificates", repository, "client-cert"])
 
         return cls(
             cert=Path(verify) if isinstance(verify, str) else None,
@@ -66,13 +67,35 @@ class RepositoryCertificateConfig:
 class AuthenticatorRepositoryConfig:
     name: str
     url: str
+    scheme: str = dataclasses.field(init=False)
     netloc: str = dataclasses.field(init=False)
     path: str = dataclasses.field(init=False)
+    _path_segments: list[str] = dataclasses.field(init=False, repr=False, compare=False)
 
     def __post_init__(self) -> None:
         parsed_url = urllib.parse.urlsplit(self.url)
+        self.scheme = parsed_url.scheme
         self.netloc = parsed_url.netloc
         self.path = parsed_url.path
+        self._path_segments = _path_segments(self.path)
+
+    def path_match_key(self, path: str) -> tuple[int, bool]:
+        """
+        Rank how well a request path matches this repository's path.
+
+        The key is the number of leading segments shared with the request
+        and whether the request lies within the repository path
+        (i.e. all repository segments are shared).
+        Higher keys are better matches.
+        """
+        segments = _path_segments(path)
+        shared = 0
+        for own, other in zip(self._path_segments, segments):
+            if own != other:
+                break
+            shared += 1
+
+        return shared, shared == len(self._path_segments)
 
     def certs(self, config: Config) -> RepositoryCertificateConfig:
         return RepositoryCertificateConfig.create(self.name, config)
@@ -113,15 +136,20 @@ class Authenticator:
             dict[str, AuthenticatorRepositoryConfig] | None
         ) = None
         self._password_manager = PasswordManager(self._config)
+
+        # Poetry < 2.4: FileCache -> directory "_http"
+        # Poetry >= 2.4: SeparateBodyCache -> directory "_http_"
+        # See https://github.com/python-poetry/poetry/pull/10816 for details.
         self._cache_control = (
-            FileCache(
+            SeparateBodyFileCache(
                 self._config.repository_cache_directory
                 / (cache_id or "_default_cache")
-                / "_http"
+                / "_http_"
             )
             if not disable_cache
             else None
         )
+
         self.get_repository_config_for_url = functools.lru_cache(maxsize=None)(
             self._get_repository_config_for_url
         )
@@ -187,13 +215,15 @@ class Authenticator:
         self, method: str, url: str, raise_for_status: bool = True, **kwargs: Any
     ) -> requests.Response:
         headers = kwargs.get("headers")
-        request = requests.Request(method, url, headers=headers)
         credential = self.get_credentials_for_url(url)
 
+        auth = None
         if credential.username is not None or credential.password is not None:
-            request = requests.auth.HTTPBasicAuth(
+            auth = requests.auth.HTTPBasicAuth(
                 credential.username or "", credential.password or ""
-            )(request)
+            )
+
+        request = requests.Request(method, url, headers=headers, auth=auth)
 
         session = self.get_session(url=url)
         prepared_request = session.prepare_request(request)
@@ -202,7 +232,9 @@ class Authenticator:
         stream: bool | None = kwargs.get("stream")
 
         certs = self.get_certs_for_url(url)
-        verify: bool | str | Path = kwargs.get("verify") or certs.cert or certs.verify
+        verify: bool | str | Path | None = kwargs.get("verify")
+        if verify is None:
+            verify = certs.cert or certs.verify
         cert: str | Path | None = kwargs.get("cert") or certs.client_cert
 
         if cert is not None:
@@ -230,7 +262,28 @@ class Authenticator:
                 resp = session.send(prepared_request, **send_kwargs)
             except (requests.exceptions.ConnectionError, OSError) as e:
                 if is_last_attempt:
-                    raise e
+                    parsed_url = urllib.parse.urlsplit(url)
+                    exc = PoetryRuntimeError.create(
+                        reason=f"<error>All attempts to connect to <c1>{parsed_url.netloc}</> failed.</>",
+                        exception=e,
+                    )
+                    exc.append(
+                        ConsoleMessage(
+                            "the server is not responding to requests at the moment\n"
+                            "the hostname cannot be resolved by your DNS\n"
+                            "your network is not connected to the internet\n"
+                        )
+                        .indent("    - ")
+                        .make_section("Probable Causes")
+                        .wrap("warning")
+                    )
+                    exc.append(
+                        ConsoleMessage(
+                            f"<b>Note:</> The path requested was <c1>{parsed_url.path}</>.",
+                            debug=True,
+                        )
+                    )
+                    raise exc
             else:
                 if resp.status_code not in STATUS_FORCELIST or is_last_attempt:
                     if raise_for_status:
@@ -245,7 +298,7 @@ class Authenticator:
                 continue
 
         # this should never really be hit under any sane circumstance
-        raise PoetryError("Failed HTTP {} request", method.upper())
+        raise PoetryError(f"Failed HTTP request: {method.upper()} {url}")
 
     def _get_backoff(self, response: requests.Response | None, attempt: int) -> float:
         if response is not None:
@@ -284,24 +337,22 @@ class Authenticator:
     ) -> HTTPAuthCredential:
         repository = self.get_repository_config_for_url(url, exact_match)
 
-        credential = (
-            self._get_credentials_for_repository(repository=repository)
-            if repository is not None
-            else HTTPAuthCredential()
+        if repository is not None:
+            # _get_credentials_for_repository() already consults the password manager
+            # - by repository name, and (as a keyring fallback) by the repository url
+            # and netloc. Asking the password manager again here would only add
+            # a keyring lookup for the full request url, which is never a meaningful
+            # service name, while repeating the netloc lookup that was just performed.
+            return self._get_credentials_for_repository(repository=repository)
+
+        # No configured repository matches: fall back to a keyring lookup by
+        # the request url and netloc.
+        parsed_url = urllib.parse.urlsplit(url)
+        credential = self._password_manager.get_credential(url, parsed_url.netloc)
+
+        return HTTPAuthCredential(
+            username=credential.username, password=credential.password
         )
-
-        if credential.password is None:
-            parsed_url = urllib.parse.urlsplit(url)
-            netloc = parsed_url.netloc
-            credential = self._password_manager.get_credential(
-                url, netloc, username=credential.username
-            )
-
-            return HTTPAuthCredential(
-                username=credential.username, password=credential.password
-            )
-
-        return credential
 
     def get_credentials_for_git_url(self, url: str) -> HTTPAuthCredential:
         parsed_url = urllib.parse.urlsplit(url)
@@ -366,7 +417,7 @@ class Authenticator:
         if self._configured_repositories is None:
             self._configured_repositories = {}
             for repository_name in self._config.get("repositories", []):
-                url = self._config.get(f"repositories.{repository_name}.url")
+                url = self._config.get(["repositories", repository_name, "url"])
                 self._configured_repositories[repository_name] = (
                     AuthenticatorRepositoryConfig(repository_name, url)
                 )
@@ -390,28 +441,28 @@ class Authenticator:
         self, url: str, exact_match: bool = False
     ) -> AuthenticatorRepositoryConfig | None:
         parsed_url = urllib.parse.urlsplit(url)
-        candidates_netloc_only = []
-        candidates_path_match = []
+        candidates = []
 
         for repository in self.configured_repositories.values():
+            if repository.scheme == "https" and parsed_url.scheme != "https":
+                # never send credentials configured for https in the clear
+                continue
+
             if exact_match:
-                if parsed_url.path == repository.path:
+                if (
+                    parsed_url.netloc == repository.netloc
+                    and parsed_url.path == repository.path
+                ):
                     return repository
                 continue
 
+            # Credentials are scoped to the host: PEP 503 places no constraints on
+            # where an index hosts its files, so every repository on the same
+            # netloc is a candidate.
             if repository.netloc == parsed_url.netloc:
-                if parsed_url.path.startswith(repository.path) or commonprefix(
-                    (parsed_url.path, repository.path)
-                ):
-                    candidates_path_match.append(repository)
-                    continue
-                candidates_netloc_only.append(repository)
+                candidates.append(repository)
 
-        if candidates_path_match:
-            candidates = candidates_path_match
-        elif candidates_netloc_only:
-            candidates = candidates_netloc_only
-        else:
+        if not candidates:
             return None
 
         if len(candidates) > 1:
@@ -420,9 +471,11 @@ class Authenticator:
                 parsed_url.netloc,
                 ", ".join(c.name for c in candidates),
             )
-            # prefer the more specific path
+            # Prefer the repository sharing the most whole path segments with the
+            # request; among equals, one whose path contains the request. The sort
+            # is stable, so remaining ties keep the configuration order.
             candidates.sort(
-                key=lambda c: len(commonprefix([parsed_url.path, c.path])), reverse=True
+                key=lambda c: c.path_match_key(parsed_url.path), reverse=True
             )
 
         return candidates[0]
@@ -432,6 +485,10 @@ class Authenticator:
         if selected:
             return selected.certs(config=self._config)
         return RepositoryCertificateConfig()
+
+
+def _path_segments(path: str) -> list[str]:
+    return [segment for segment in path.split("/") if segment]
 
 
 _authenticator: Authenticator | None = None

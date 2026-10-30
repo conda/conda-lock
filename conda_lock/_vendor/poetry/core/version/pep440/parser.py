@@ -76,7 +76,6 @@ class PEP440Parser:
             post=cls._get_postrelease(match),
             dev=cls._get_devrelease(match),
             local=cls._get_local(match),
-            text=value,
         )
 
 

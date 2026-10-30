@@ -3,8 +3,6 @@ from __future__ import annotations
 import dataclasses
 
 from typing import TYPE_CHECKING
-from typing import Optional
-from typing import Union
 
 
 if TYPE_CHECKING:
@@ -162,4 +160,4 @@ class ReleaseTag:
         return self.__class__(phase=_phase, number=0)
 
 
-LocalSegmentType = Optional[Union[str, int, tuple[Union[str, int], ...]]]
+LocalSegmentType = str | int | tuple[str | int, ...] | None

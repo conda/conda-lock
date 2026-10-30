@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import itertools
+
 from typing import TYPE_CHECKING
 
 from conda_lock._vendor.poetry.core.constraints.generic import AnyConstraint
@@ -13,8 +15,10 @@ if TYPE_CHECKING:
 
 
 class MultiConstraint(BaseConstraint):
+    OPERATORS: tuple[str, ...] = ("!=", "in", "not in")
+
     def __init__(self, *constraints: Constraint) -> None:
-        if any(c.operator == "==" for c in constraints):
+        if any(c.operator not in self.OPERATORS for c in constraints):
             raise ValueError(
                 "A multi-constraint can only be comprised of negative constraints"
             )
@@ -62,7 +66,7 @@ class MultiConstraint(BaseConstraint):
             union = list(self.constraints) + [
                 c for c in other.constraints if c not in ours
             ]
-            return MultiConstraint(*union)
+            return self.__class__(*union)
 
         if not isinstance(other, Constraint):
             return other.intersect(self)
@@ -74,16 +78,21 @@ class MultiConstraint(BaseConstraint):
             # same value but different operator, e.g. '== "linux"' and '!= "linux"'
             return EmptyConstraint()
 
-        if other.operator == "==":
+        if other.operator == "==" and "==" not in self.OPERATORS:
             return other
 
-        return MultiConstraint(*self._constraints, other)
+        return self.__class__(*self._constraints, other)
 
     def union(self, other: BaseConstraint) -> BaseConstraint:
         if isinstance(other, MultiConstraint):
             theirs = set(other.constraints)
             common = [c for c in self.constraints if c in theirs]
-            return MultiConstraint(*common)
+            if not common:
+                return AnyConstraint()
+            if len(common) == 1:
+                return common[0]
+
+            return self.__class__(*common)
 
         if not isinstance(other, Constraint):
             return other.union(self)
@@ -102,10 +111,10 @@ class MultiConstraint(BaseConstraint):
         if len(constraints) == 1:
             return constraints[0]
 
-        return MultiConstraint(*constraints)
+        return self.__class__(*constraints)
 
     def __eq__(self, other: object) -> bool:
-        if not isinstance(other, MultiConstraint):
+        if not isinstance(other, self.__class__):
             return False
 
         return self._constraints == other._constraints
@@ -116,3 +125,54 @@ class MultiConstraint(BaseConstraint):
     def __str__(self) -> str:
         constraints = [str(constraint) for constraint in self._constraints]
         return ", ".join(constraints)
+
+
+class ExtraMultiConstraint(MultiConstraint):
+    # Since the extra marker can have multiple values at the same time,
+    # "==extra1, ==extra2" is not empty!
+    OPERATORS = ("==", "!=")
+
+    def intersect(self, other: BaseConstraint) -> BaseConstraint:
+        if isinstance(other, MultiConstraint):
+            op_values = {}
+            for op in self.OPERATORS:
+                op_values[op] = {
+                    c.value
+                    for c in itertools.chain(self._constraints, other.constraints)
+                    if c.operator == op
+                }
+            if op_values["=="] & op_values["!="]:
+                return EmptyConstraint()
+
+        return super().intersect(other)
+
+    def union(self, other: BaseConstraint) -> BaseConstraint:
+        from conda_lock._vendor.poetry.core.constraints.generic import UnionConstraint
+
+        if isinstance(other, MultiConstraint):
+            our_constraints = set(self._constraints)
+            their_constraints = set(other.constraints)
+            if our_constraints.issubset(their_constraints):
+                return self
+            if their_constraints.issubset(our_constraints):
+                return other
+            return UnionConstraint(self, other)
+
+        if isinstance(other, Constraint):
+            if other in self._constraints:
+                return other
+
+            if len(self._constraints) == 2 and other.value in (
+                c.value for c in self._constraints
+            ):
+                # same value but different operator
+                constraints: list[BaseConstraint] = [
+                    *(c for c in self._constraints if c.value != other.value),
+                    other,
+                ]
+            else:
+                constraints = [self, other]
+
+            return UnionConstraint(*constraints)
+
+        return super().union(other)

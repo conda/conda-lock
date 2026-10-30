@@ -171,13 +171,34 @@
         "^[a-zA-Z-_.0-9]+$": {
           "type": "object",
           "description": "This represents a single dependency group",
-          "required": [
-            "dependencies"
+          "anyOf": [
+            {
+              "required": [
+                "dependencies"
+              ]
+            },
+            {
+              "required": [
+                "include-groups"
+              ]
+            },
+            {
+              "required": [
+                "optional"
+              ]
+            }
           ],
           "properties": {
             "optional": {
               "type": "boolean",
               "description": "Whether the dependency group is optional or not"
+            },
+            "include-groups": {
+              "type": "array",
+              "description": "List of dependency group names included in this group.",
+              "items": {
+                "type": "string"
+              }
             },
             "dependencies": {
               "type": "object",

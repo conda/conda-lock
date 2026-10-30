@@ -12,14 +12,14 @@ from conda_lock._vendor.poetry.core.packages.package import Package
 from conda_lock._vendor.poetry.inspection.info import PackageInfo
 from conda_lock._vendor.poetry.repositories.exceptions import PackageNotFoundError
 from conda_lock._vendor.poetry.repositories.http_repository import HTTPRepository
-from conda_lock._vendor.poetry.repositories.link_sources.html import HTMLPage
-from conda_lock._vendor.poetry.repositories.link_sources.html import SimpleRepositoryRootPage
+from conda_lock._vendor.poetry.repositories.link_sources.base import SimpleRepositoryRootPage
+from conda_lock._vendor.poetry.repositories.link_sources.html import SimpleRepositoryHTMLRootPage
+from conda_lock._vendor.poetry.repositories.link_sources.json import SimpleRepositoryJsonRootPage
 
 
 if TYPE_CHECKING:
     from packaging.utils import NormalizedName
     from conda_lock._vendor.poetry.core.constraints.version import Version
-    from conda_lock._vendor.poetry.core.constraints.version import VersionConstraint
     from conda_lock._vendor.poetry.core.packages.utils.link import Link
 
     from conda_lock._vendor.poetry.config.config import Config
@@ -46,9 +46,7 @@ class LegacyRepository(HTTPRepository):
             pool_size=pool_size,
         )
 
-    def package(
-        self, name: str, version: Version, extras: list[str] | None = None
-    ) -> Package:
+    def package(self, name: str, version: Version) -> Package:
         """
         Retrieve the release information.
 
@@ -65,7 +63,7 @@ class LegacyRepository(HTTPRepository):
 
             return self._packages[index]
         except ValueError:
-            package = super().package(name, version, extras)
+            package = super().package(name, version)
             package._source_type = "legacy"
             package._source_url = self._url
             package._source_reference = self.name
@@ -80,35 +78,17 @@ class LegacyRepository(HTTPRepository):
 
         return list(page.links_for_version(package.name, package.version))
 
-    def _find_packages(
-        self, name: NormalizedName, constraint: VersionConstraint
-    ) -> list[Package]:
-        """
-        Find packages on the remote server.
-        """
-        try:
-            page = self.get_page(name)
-        except PackageNotFoundError:
-            self._log(f"No packages found for {name}", level="debug")
-            return []
-
-        versions = [
-            (version, page.yanked(name, version))
-            for version in page.versions(name)
-            if constraint.allows(version)
-        ]
-
-        return [
-            Package(
-                name,
-                version,
-                source_type="legacy",
-                source_reference=self.name,
-                source_url=self._url,
-                yanked=yanked,
-            )
-            for version, yanked in versions
-        ]
+    def _package(
+        self, name: NormalizedName, version: Version, yanked: str | bool
+    ) -> Package:
+        return Package(
+            name,
+            version,
+            source_type="legacy",
+            source_reference=self.name,
+            source_url=self._url,
+            yanked=yanked,
+        )
 
     def _get_release_info(
         self, name: NormalizedName, version: Version
@@ -132,21 +112,21 @@ class LegacyRepository(HTTPRepository):
             ),
         )
 
-    def _get_page(self, name: NormalizedName) -> HTMLPage:
-        if not (response := self._get_response(f"/{name}/")):
-            raise PackageNotFoundError(f"Package [{name}] not found.")
-        return HTMLPage(response.url, response.text)
-
     @cached_property
     def root_page(self) -> SimpleRepositoryRootPage:
-        if not (response := self._get_response("/")):
+        if not (
+            response := self._get_response("/", headers=self._get_prefer_json_header())
+        ):
             self._log(
                 f"Unable to retrieve package listing from package source {self.name}",
                 level="error",
             )
             return SimpleRepositoryRootPage()
 
-        return SimpleRepositoryRootPage(response.text)
+        if self._is_json_response(response):
+            return SimpleRepositoryJsonRootPage(response.json())
+
+        return SimpleRepositoryHTMLRootPage(response.text)
 
     def search(self, query: str | list[str]) -> list[Package]:
         results: list[Package] = []
@@ -154,8 +134,6 @@ class LegacyRepository(HTTPRepository):
         for candidate in self.root_page.search(query):
             with suppress(PackageNotFoundError):
                 page = self.get_page(candidate)
-
-                for package in page.packages:
-                    results.append(package)
+                results.extend(page.packages)
 
         return results

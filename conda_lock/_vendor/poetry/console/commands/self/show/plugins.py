@@ -8,9 +8,9 @@ from conda_lock._vendor.poetry.console.commands.self.self_command import SelfCom
 
 
 if TYPE_CHECKING:
-    from conda_lock._vendor.poetry.core.packages.package import Package
+    from importlib import metadata
 
-    from conda_lock._vendor.poetry.utils._compat import metadata
+    from conda_lock._vendor.poetry.core.packages.package import Package
 
 
 @dataclasses.dataclass
