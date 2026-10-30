@@ -56,6 +56,8 @@ from conda_lock.models.pip_repository import PipRepository
 if TYPE_CHECKING:
     from packaging.tags import Tag
 
+    from conda_lock.interfaces.vendored_poetry import MarkerEnv
+
 # NB: in principle these depend on the glibc on the machine creating the conda env.
 # We use tags supported by manylinux Docker images, which are likely the most common
 # in practice, see https://github.com/pypa/manylinux/blob/main/README.rst#docker-images.
@@ -151,7 +153,7 @@ class PlatformEnv(VirtualEnv):
         )
 
     @override
-    def get_marker_env(self) -> dict[str, str]:
+    def get_marker_env(self) -> "MarkerEnv":
         """Return the subset of info needed to match common markers"""
         result: dict[str, str] = {
             "sys_platform": self._sys_platform,
@@ -165,7 +167,9 @@ class PlatformEnv(VirtualEnv):
             result["python_version"] = ".".join(
                 [str(c) for c in self._python_version[:2]]
             )
-        return result
+        # Poetry types this as a complete environment. For cross-platform solves,
+        # leave unknown markers unconstrained instead of borrowing host values.
+        return cast("MarkerEnv", result)
 
 
 def _extract_glibc_version_from_virtual_packages(
