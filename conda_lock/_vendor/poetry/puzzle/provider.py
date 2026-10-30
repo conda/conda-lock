@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import functools
 import itertools
 import logging
 import re
@@ -16,6 +17,8 @@ from conda_lock._vendor.cleo.ui.progress_indicator import ProgressIndicator
 from conda_lock._vendor.poetry.core.constraints.version import EmptyConstraint
 from conda_lock._vendor.poetry.core.constraints.version import Version
 from conda_lock._vendor.poetry.core.constraints.version import VersionRange
+from conda_lock._vendor.poetry.core.packages.dependency import Dependency
+from conda_lock._vendor.poetry.core.packages.package import Package
 from conda_lock._vendor.poetry.core.packages.utils.utils import get_python_constraint_from_marker
 from conda_lock._vendor.poetry.core.version.markers import AnyMarker
 from conda_lock._vendor.poetry.core.version.markers import parse_marker
@@ -29,7 +32,7 @@ from conda_lock._vendor.poetry.packages import DependencyPackage
 from conda_lock._vendor.poetry.packages.direct_origin import DirectOrigin
 from conda_lock._vendor.poetry.packages.package_collection import PackageCollection
 from conda_lock._vendor.poetry.puzzle.exceptions import OverrideNeededError
-from conda_lock._vendor.poetry.utils.helpers import get_file_hash
+from conda_lock._vendor.poetry.repositories.repository_pool import Priority
 
 
 if TYPE_CHECKING:
@@ -37,15 +40,15 @@ if TYPE_CHECKING:
     from collections.abc import Collection
     from collections.abc import Iterable
     from collections.abc import Iterator
+    from collections.abc import Sequence
     from pathlib import Path
 
     from conda_lock._vendor.cleo.io.io import IO
     from packaging.utils import NormalizedName
     from conda_lock._vendor.poetry.core.constraints.version import VersionConstraint
-    from conda_lock._vendor.poetry.core.packages.dependency import Dependency
     from conda_lock._vendor.poetry.core.packages.directory_dependency import DirectoryDependency
     from conda_lock._vendor.poetry.core.packages.file_dependency import FileDependency
-    from conda_lock._vendor.poetry.core.packages.package import Package
+    from conda_lock._vendor.poetry.core.packages.package import PackageFile
     from conda_lock._vendor.poetry.core.packages.url_dependency import URLDependency
     from conda_lock._vendor.poetry.core.packages.vcs_dependency import VCSDependency
     from conda_lock._vendor.poetry.core.version.markers import BaseMarker
@@ -55,6 +58,21 @@ if TYPE_CHECKING:
 
 
 logger = logging.getLogger(__name__)
+
+
+# A package is sometimes required at conflicting versions under markers that are
+# mutually exclusive (e.g. one requirement applies only on Windows and the other
+# only on Linux). These requirements do not really conflict, but the resolver
+# cannot tell. To resolve such a case we re-run resolution twice, each run
+# restricted to one side of the markers, so that only one requirement applies.
+#
+# A run's restriction is passed as an override carrying a marker. Overrides are
+# keyed by package, but this restriction belongs to no real package, so we key it
+# by this stand-in. Its name is not a valid package name and so cannot clash with
+# a real package. Only the override's marker is ever read; the stand-in itself is
+# never resolved or installed.
+MARKER_SPLIT = "|marker-split|"
+_MARKER_SPLIT_PACKAGE = Package(MARKER_SPLIT, "0")
 
 
 class IncompatibleConstraintsError(Exception):
@@ -90,9 +108,10 @@ class Indicator(ProgressIndicator):
         def _set_context(context: str | None) -> None:
             Indicator.CONTEXT = context
 
-        yield _set_context
-
-        _set_context(None)
+        try:
+            yield _set_context
+        finally:
+            _set_context(None)
 
     def _formatter_context(self) -> str:
         if Indicator.CONTEXT is None:
@@ -124,7 +143,7 @@ class Provider:
         self._direct_origin = DirectOrigin(self._pool.artifact_cache)
         self._io = io
         self._env: Env | None = None
-        self._python_constraint = package.python_constraint
+        self._package_python_constraint = package.python_constraint
         self._is_debugging: bool = self._io.is_debug() or self._io.is_very_verbose()
         self._overrides: dict[Package, dict[str, Dependency]] = {}
         self._deferred_cache: dict[Dependency, Package] = {}
@@ -138,15 +157,18 @@ class Provider:
         )
 
         self._explicit_sources: dict[str, str] = {}
-        for package in locked or []:
-            self._locked[package.name].append(
-                DependencyPackage(package.to_dependency(), package)
+        for locked_package in locked or []:
+            self._locked[locked_package.name].append(
+                DependencyPackage(locked_package.to_dependency(), locked_package)
             )
         for dependency_packages in self._locked.values():
             dependency_packages.sort(
                 key=lambda p: p.package.version,
                 reverse=True,
             )
+
+        self.get_package_from_pool = functools.cache(self._pool.package)
+        self._refreshed: set[tuple[str, Version, str | None]] = set()
 
     @property
     def pool(self) -> RepositoryPool:
@@ -156,11 +178,55 @@ class Provider:
     def use_latest(self) -> Collection[NormalizedName]:
         return self._use_latest
 
+    @functools.cached_property
+    def _overrides_marker_intersection(self) -> BaseMarker:
+        overrides_marker_intersection: BaseMarker = AnyMarker()
+        for dep_overrides in self._overrides.values():
+            for dep in dep_overrides.values():
+                overrides_marker_intersection = overrides_marker_intersection.intersect(
+                    dep.marker
+                )
+        return overrides_marker_intersection
+
+    def marker_split_overrides(
+        self, marker: BaseMarker
+    ) -> tuple[dict[Package, dict[str, Dependency]], ...]:
+        """
+        Build the overrides for two resolution runs, one restricted to ``marker``
+        and one restricted to its complement (see MARKER_SPLIT).
+
+        The restriction is carried by a stand-in dependency under the stand-in
+        package. When already inside such a split, narrow the existing restriction
+        rather than adding another, so there is always exactly one.
+        """
+        overrides = []
+        for side in (marker, marker.invert()):
+            new_overrides = {
+                package: dict(package_overrides)
+                for package, package_overrides in self._overrides.items()
+            }
+            current = new_overrides.get(_MARKER_SPLIT_PACKAGE, {}).get(MARKER_SPLIT)
+            if current is not None:
+                side = current.marker.intersect(side)
+            stand_in = Dependency(MARKER_SPLIT, "*")
+            stand_in.marker = side
+            new_overrides[_MARKER_SPLIT_PACKAGE] = {MARKER_SPLIT: stand_in}
+            overrides.append(new_overrides)
+        return tuple(overrides)
+
+    @functools.cached_property
+    def _python_constraint(self) -> VersionConstraint:
+        return self._package_python_constraint.intersect(
+            get_python_constraint_from_marker(self._overrides_marker_intersection)
+        )
+
     def is_debugging(self) -> bool:
         return self._is_debugging
 
     def set_overrides(self, overrides: dict[Package, dict[str, Dependency]]) -> None:
         self._overrides = overrides
+        self.__dict__.pop("_python_constraint", None)
+        self.__dict__.pop("_overrides_marker_intersection", None)
 
     def load_deferred(self, load_deferred: bool) -> None:
         self._load_deferred = load_deferred
@@ -177,16 +243,21 @@ class Provider:
 
     @contextmanager
     def use_environment(self, env: Env) -> Iterator[Provider]:
-        original_python_constraint = self._python_constraint
+        original_python_constraint = self._package_python_constraint
 
         self._env = env
-        self._python_constraint = Version.parse(env.marker_env["python_full_version"])
+        # We use the stable version here to improve support of environments of Python pre-release
+        # versions, e.g. Python 3.14rc2. Without using the stable version here, a dependency with
+        # a marker like `python_version >= "3.14"` would not be installed.
+        self._package_python_constraint = Version.parse(
+            env.marker_env["python_full_version"]
+        ).stable
 
         try:
             yield self
         finally:
             self._env = None
-            self._python_constraint = original_python_constraint
+            self._package_python_constraint = original_python_constraint
 
     @contextmanager
     def use_latest_for(self, names: Collection[NormalizedName]) -> Iterator[Provider]:
@@ -316,13 +387,6 @@ class Provider:
         if dependency.base is not None:
             package.root_dir = dependency.base
 
-        package.files = [
-            {
-                "file": dependency.path.name,
-                "hash": "sha256:" + get_file_hash(dependency.full_path),
-            }
-        ]
-
         return package
 
     def _search_for_directory(self, dependency: DirectoryDependency) -> Package:
@@ -343,7 +407,7 @@ class Provider:
 
         self.validate_package_for_dependency(dependency=dependency, package=package)
 
-        for extra in dependency.extras:
+        for extra in sorted(dependency.extras):
             if extra in package.extras:
                 for dep in package.extras[extra]:
                     dep.activate()
@@ -430,50 +494,104 @@ class Provider:
             for dep in self._get_dependencies_with_overrides(dependencies, package)
         ]
 
+    @staticmethod
+    def _files_list_for_cmp(files: Sequence[PackageFile]) -> list[str]:
+        """
+        :return: A list of strings representing the files and their hashes, for
+            the purpose of comparing the file list to another one.
+            We only use file+hash, because that's what uniquely identifies the file,
+            the other properties (like URL) are not relevant.
+        """
+        return sorted(f["file"] + f["hash"] for f in files)
+
     def complete_package(
         self, dependency_package: DependencyPackage
     ) -> DependencyPackage:
         package = dependency_package.package
         dependency = dependency_package.dependency
+        is_direct_origin = package.is_direct_origin()
 
         if package.is_root():
             dependency_package = dependency_package.clone()
             package = dependency_package.package
             dependency = dependency_package.dependency
             requires = package.all_requires
-        elif package.is_direct_origin():
+        elif is_direct_origin:
             requires = package.requires
         else:
-            dependency_package = DependencyPackage(
-                dependency,
-                self._pool.package(
+            if (
+                package.pretty_name,
+                package.version,
+                dependency.source_name,
+            ) in self._refreshed:
+                # circumvent lru_cache to avoid unnecessary refresh
+                pool_package = self.pool.package(
                     package.pretty_name,
                     package.version,
-                    extras=list(dependency.extras),
                     repository_name=dependency.source_name,
-                ),
-            )
+                )
+            else:
+                pool_package = self.get_package_from_pool(
+                    package.pretty_name,
+                    package.version,
+                    repository_name=dependency.source_name,
+                )
+            if package.files and self._files_list_for_cmp(
+                package.files
+            ) != self._files_list_for_cmp(pool_package.files):
+                # This happens if additional artifacts are uploaded later. Either our own cache
+                # is outdated or the lockfile has been created with an outdated cache.
+                # Refresh to cover the first case. (It does not hurt much in the second case.)
+                pool_package = self.pool.refresh(pool_package)
+                self._refreshed.add(
+                    (package.pretty_name, package.version, dependency.source_name)
+                )
+            dependency_package = DependencyPackage(dependency, pool_package)
 
             package = dependency_package.package
             dependency = dependency_package.dependency
             requires = package.requires
 
-        optional_dependencies = []
+        found_extras = set()
+        optional_dependencies = set()
         _dependencies = []
 
-        # If some extras/features were required, we need to
-        # add a special dependency representing the base package
-        # to the current package
         if dependency.extras:
-            for extra in dependency.extras:
-                if extra not in package.extras:
+            # Find all the optional dependencies that are wanted - taking care to allow
+            # for self-referential extras.
+            stack = sorted(dependency.extras)
+
+            # For direct origin dependencies from the lock file,
+            # only used extra dependencies are found in `requires`.
+            # If the package locked for a direct origin dependency is reused,
+            # its `requires` have been pruned down to whatever extras were active
+            # in an earlier resolution. This is an issue in subsequent resolutions
+            # if an additional extra is requested via changes in the pyproject.toml.
+            # (Dependencies from repositories are looked up again
+            # so that this is not issue for them.)
+            if is_direct_origin:
+                requires = requires.copy()
+                requires_extras = {extra for dep in requires for extra in dep.in_extras}
+
+            while stack:
+                extra = stack.pop()
+                if extra in found_extras:
                     continue
+                found_extras.add(extra)
 
-                optional_dependencies += [d.name for d in package.extras[extra]]
+                extra_dependencies = package.extras.get(extra, [])
+                for extra_dependency in extra_dependencies:
+                    if extra_dependency.name == dependency.name:
+                        stack += sorted(extra_dependency.extras)
+                    else:
+                        optional_dependencies.add(extra_dependency.name)
+                        if is_direct_origin and extra not in requires_extras:
+                            requires.append(extra_dependency)
 
-            dependency_package = dependency_package.with_features(
-                list(dependency.extras)
-            )
+            # If some extras/features were required, we need to add a special dependency
+            # representing the base package to the current package.
+
+            dependency_package = dependency_package.with_features(dependency.extras)
             package = dependency_package.package
             dependency = dependency_package.dependency
             new_dependency = package.without_features().to_dependency()
@@ -494,6 +612,13 @@ class Provider:
             if dep.name in self.UNSAFE_PACKAGES:
                 continue
 
+            # When this run is restricted to a set of markers (see MARKER_SPLIT),
+            # skip any dependency that cannot apply within that set; otherwise its
+            # requirements would leak into a run where it never applies (see
+            # #5506).
+            if self._overrides_marker_intersection.intersect(dep.marker).is_empty():
+                continue
+
             if self._env:
                 marker_values = (
                     self._marker_values(self._active_root_extras)
@@ -505,10 +630,7 @@ class Provider:
 
             if not package.is_root() and (
                 (dep.is_optional() and dep.name not in optional_dependencies)
-                or (
-                    dep.in_extras
-                    and not set(dep.in_extras).intersection(dependency.extras)
-                )
+                or (dep.in_extras and not set(dep.in_extras).intersection(found_extras))
             ):
                 continue
 
@@ -585,15 +707,26 @@ class Provider:
 
             if len(duplicates_by_extras) == 1:
                 active_extras = (
-                    self._active_root_extras if package.is_root() else dependency.extras
+                    self._active_root_extras if package.is_root() else found_extras
                 )
-                deps = self._resolve_overlapping_markers(package, deps, active_extras)
+                deps = self._resolve_overlapping_markers(
+                    package,
+                    deps,
+                    active_extras,
+                    cover_leftover_marker_space=True,
+                )
             else:
-                # There are duplicates with different extras.
+                # Resolve overlaps within each subgroup of duplicates that share
+                # the same extras. The leftover marker space (where no dep in a
+                # subgroup is required) is covered by the sibling subgroups, so
+                # _resolve_overlapping_markers must not synthesise an
+                # empty-constraint dep for it (see #10447).
                 for complete_dep_name, deps_by_extra in duplicates_by_extras.items():
                     if len(deps_by_extra) > 1:
                         duplicates_by_extras[complete_dep_name] = (
-                            self._resolve_overlapping_markers(package, deps, None)
+                            self._resolve_overlapping_markers(
+                                package, deps_by_extra, None
+                            )
                         )
                 if all(len(d) == 1 for d in duplicates_by_extras.values()) and all(
                     d1[0].marker.intersect(d2[0].marker).is_empty()
@@ -614,6 +747,23 @@ class Provider:
             if len(deps) == 1:
                 self.debug(f"<debug>Merging requirements for {dep_name}</debug>")
                 dependencies.append(deps[0])
+                continue
+
+            # Sort out irrelevant requirements
+            deps = [
+                dep
+                for dep in deps
+                if not self._overrides_marker_intersection.intersect(
+                    dep.marker
+                ).is_empty()
+            ]
+            if len(deps) < 2:
+                if not deps or (len(deps) == 1 and deps[0].constraint.is_empty()):
+                    msg = f"<debug>No relevant requirements for {dep_name}</debug>"
+                else:
+                    msg = f"<debug>Only one relevant requirement for {dep_name}</debug>"
+                    dependencies.append(deps[0])
+                self.debug(msg)
                 continue
 
             # At this point, we raise an exception that will
@@ -642,22 +792,14 @@ class Provider:
             )
 
             overrides = []
-            overrides_marker_intersection: BaseMarker = AnyMarker()
-            for dep_overrides in self._overrides.values():
-                for dep in dep_overrides.values():
-                    overrides_marker_intersection = (
-                        overrides_marker_intersection.intersect(dep.marker)
-                    )
             for dep in deps:
-                if not overrides_marker_intersection.intersect(dep.marker).is_empty():
-                    current_overrides = self._overrides.copy()
-                    package_overrides = current_overrides.get(package, {}).copy()
-                    package_overrides.update({dep.name: dep})
-                    current_overrides.update({package: package_overrides})
-                    overrides.append(current_overrides)
+                current_overrides = self._overrides.copy()
+                package_overrides = current_overrides.get(package, {}).copy()
+                package_overrides.update({dep.name: dep})
+                current_overrides.update({package: package_overrides})
+                overrides.append(current_overrides)
 
-            if overrides:
-                raise OverrideNeededError(*overrides)
+            raise OverrideNeededError(*overrides)
 
         # Modifying dependencies as needed
         clean_dependencies = []
@@ -714,6 +856,14 @@ class Provider:
             if package.satisfies(dependency):
                 if explicit_source := self._explicit_sources.get(dependency.name):
                     dependency.source_name = explicit_source
+                elif (
+                    not dependency.source_name
+                    and package.source_type == "legacy"
+                    and package.source_reference
+                    and self._pool.get_priority(package.source_reference)
+                    == Priority.EXPLICIT
+                ):
+                    continue
                 return DependencyPackage(dependency, package)
         return None
 
@@ -875,6 +1025,8 @@ class Provider:
         package: Package,
         dependencies: list[Dependency],
         active_extras: Collection[NormalizedName] | None,
+        *,
+        cover_leftover_marker_space: bool = False,
     ) -> list[Dependency]:
         """
         Convert duplicate dependencies with potentially overlapping markers
@@ -932,6 +1084,10 @@ class Provider:
                 raise IncompatibleConstraintsError(package, *used_dependencies)
 
             if not any(uses):
+                if not cover_leftover_marker_space:
+                    # Caller is responsible for the leftover marker space.
+                    continue
+
                 # This is an edge case where the dependency is not required
                 # for the resulting marker. However, we have to consider it anyway
                 #  in order to not miss other dependencies later, for instance:
@@ -969,10 +1125,10 @@ class Provider:
 
         :param extras: the values to add to the 'extra' marker value
         """
-        result = self._env.marker_env.copy() if self._env is not None else {}
+        result = dict(self._env.marker_env) if self._env is not None else {}
         if extras is not None:
-            assert (
-                "extra" not in result
-            ), "'extra' marker key is already present in environment"
+            assert "extra" not in result, (
+                "'extra' marker key is already present in environment"
+            )
             result["extra"] = set(extras)
         return result

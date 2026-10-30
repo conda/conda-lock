@@ -20,18 +20,19 @@ X_CONSTRAINT = re.compile(
     r"^(?P<op>!=|==)?\s*v?(?P<version>(\d+)(?:\.(\d+))?(?:\.(\d+))?)(?:\.\*)+$"
 )
 
-# note that we also allow technically incorrect version patterns with astrix (eg: 3.5.*)
+# note that we also allow technically incorrect version patterns with asterisk (eg: 3.5.*)
 # as this is supported by pip and appears in metadata within python packages
 BASIC_CONSTRAINT = re.compile(
     rf"^(?P<op><>|!=|>=?|<=?|==?)?\s*(?P<version>{VERSION_PATTERN}|dev)(?P<wildcard>\.\*)?$",
     re.VERBOSE | re.IGNORECASE,
 )
 
+# pattern for non Python versions such as OS versions in `platform_release`
 RELEASE_PATTERN = r"""
 (?P<release>[0-9]+(?:\.[0-9]+)*)
-(?:(\+|-)(?P<build>
-    [0-9a-zA-Z-]+
-    (?:\.[0-9a-zA-Z-]+)*
+(?:(\+|-)?(?P<build>
+    [0-9a-zA-Z+-]+
+    (?:\.[0-9a-zA-Z+-]+)*
 ))?
 """
 

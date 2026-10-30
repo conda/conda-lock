@@ -7,6 +7,7 @@ import textwrap
 from functools import cached_property
 from pathlib import Path
 from typing import TYPE_CHECKING
+from typing import Any
 
 
 if TYPE_CHECKING:
@@ -15,7 +16,7 @@ if TYPE_CHECKING:
 
 
 METADATA_BASE = """\
-Metadata-Version: 2.3
+Metadata-Version: {metadata_version}
 Name: {name}
 Version: {version}
 Summary: {summary}
@@ -27,7 +28,12 @@ logger = logging.getLogger(__name__)
 class Builder:
     format: str | None = None
 
-    def __init__(self, poetry: Poetry, executable: Path | None = None) -> None:
+    def __init__(
+        self,
+        poetry: Poetry,
+        executable: Path | None = None,
+        config_settings: dict[str, Any] | None = None,
+    ) -> None:
         from conda_lock._vendor.poetry.core.masonry.metadata import Metadata
 
         if not poetry.is_package_mode:
@@ -35,7 +41,11 @@ class Builder:
                 "Building a package is not possible in non-package mode."
             )
 
+        self._config_settings = config_settings or {}
+
         self._poetry = poetry
+        self._apply_local_version_label()
+
         self._package = poetry.package
         self._path: Path = poetry.pyproject_path.parent
         self._excluded_files: set[str] | None = None
@@ -72,6 +82,13 @@ class Builder:
     def default_target_dir(self) -> Path:
         return self._path / "dist"
 
+    def _apply_local_version_label(self) -> None:
+        """Apply local version label from config settings to the poetry package version if present."""
+        if local_version_label := self._config_settings.get("local-version"):
+            self._poetry.package.version = self._poetry.package.version.replace(
+                local=local_version_label
+            )
+
     def build(self, target_dir: Path | None) -> Path:
         raise NotImplementedError
 
@@ -83,20 +100,26 @@ class Builder:
             vcs = get_vcs(self._path)
             vcs_ignored_files = set(vcs.get_ignored_files()) if vcs else set()
 
-            explicitly_excluded = set()
+            def add_all_files(path: Path, target: set[str]) -> None:
+                all_files = (
+                    [f for f in path.glob("**/*") if f.is_file()]
+                    if path.is_dir()
+                    else [path]
+                )
+                target.update(f.relative_to(self._path).as_posix() for f in all_files)
+
+            explicitly_excluded: set[str] = set()
             for excluded_glob in self._package.exclude:
                 for excluded in self._path.glob(str(excluded_glob)):
-                    explicitly_excluded.add(
-                        Path(excluded).relative_to(self._path).as_posix()
-                    )
+                    add_all_files(excluded, explicitly_excluded)
 
-            explicitly_included = set()
+            explicitly_included: set[str] = set()
             for inc in self._module.explicit_includes:
                 if fmt and fmt not in inc.formats:
                     continue
 
                 for included in inc.elements:
-                    explicitly_included.add(included.relative_to(self._path).as_posix())
+                    add_all_files(included, explicitly_included)
 
             ignored = (vcs_ignored_files | explicitly_excluded) - explicitly_included
             for ignored_file in ignored:
@@ -108,6 +131,9 @@ class Builder:
 
     def is_excluded(self, filepath: str | Path) -> bool:
         exclude_path = Path(filepath)
+
+        if "__pycache__" in exclude_path.parts or exclude_path.suffix == ".pyc":
+            return True
 
         while True:
             if exclude_path.as_posix() in self.find_excluded_files(fmt=self.format):
@@ -133,7 +159,8 @@ class Builder:
             formats = include.formats
 
             for file in include.elements:
-                if "__pycache__" in str(file):
+                if "__pycache__" in file.parts:
+                    # This is just a shortcut. It will be ignored later anyway.
                     continue
 
                 if (
@@ -185,9 +212,6 @@ class Builder:
                 ) and isinstance(include, PackageInclude):
                     continue
 
-                if file.suffix == ".pyc":
-                    continue
-
                 logger.debug(f"Adding: {file}")
                 to_add.add(include_file)
 
@@ -205,12 +229,14 @@ class Builder:
 
     def get_metadata_content(self) -> str:
         content = METADATA_BASE.format(
+            metadata_version=self._meta.metadata_version,
             name=self._meta.name,
             version=self._meta.version,
             summary=str(self._meta.summary),
         )
 
         if self._meta.license:
+            assert self._meta.license_expression is None
             license_field = "License: "
             # Indentation is not only for readability, but required
             # so that the line break is not treated as end of field.
@@ -220,6 +246,11 @@ class Builder:
                 self._meta.license, " " * len(license_field), lambda line: True
             ).strip()
             content += f"{license_field}{escaped_license}\n"
+        elif self._meta.license_expression:
+            content += f"License-Expression: {self._meta.license_expression}\n"
+
+        for license_file in self._meta.license_files:
+            content += f"License-File: {license_file}\n"
 
         if self._meta.keywords:
             content += f"Keywords: {self._meta.keywords}\n"
@@ -306,14 +337,7 @@ class Builder:
         return script_files
 
     def _get_legal_files(self) -> set[Path]:
-        include_files_patterns = {"COPYING*", "LICEN[SC]E*", "AUTHORS*", "NOTICE*"}
-        files: set[Path] = set()
-
-        for pattern in include_files_patterns:
-            files.update(self._path.glob(pattern))
-
-        files.update(self._path.joinpath("LICENSES").glob("**/*"))
-        return files
+        return {self._path / f for f in self._meta.license_files}
 
 
 class BuildIncludeFile:

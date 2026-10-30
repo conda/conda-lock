@@ -1,12 +1,13 @@
 from __future__ import annotations
 
+import re
+
 from collections.abc import Mapping
 from contextlib import suppress
 from pathlib import Path
 from typing import TYPE_CHECKING
 from typing import Any
 from typing import ClassVar
-from typing import Union
 
 from conda_lock._vendor.cleo.helpers import option
 from packaging.utils import canonicalize_name
@@ -15,7 +16,7 @@ from tomlkit import inline_table
 from conda_lock._vendor.poetry.console.commands.command import Command
 from conda_lock._vendor.poetry.console.commands.env_command import EnvCommand
 from conda_lock._vendor.poetry.utils.dependency_specification import RequirementsParser
-from conda_lock._vendor.poetry.utils.env.python_manager import Python
+from conda_lock._vendor.poetry.utils.env.python import Python
 
 
 if TYPE_CHECKING:
@@ -26,7 +27,7 @@ if TYPE_CHECKING:
 
     from conda_lock._vendor.poetry.repositories import RepositoryPool
 
-Requirements = dict[str, Union[str, Mapping[str, Any]]]
+Requirements = dict[str, str | Mapping[str, Any]]
 
 
 class InitCommand(Command):
@@ -88,6 +89,7 @@ The <c1>init</c1> command creates a basic <comment>pyproject.toml</> file in the
         allow_interactive: bool = True,
         layout_name: str = "standard",
         readme_format: str = "md",
+        allow_layout_creation_on_empty: bool = False,
     ) -> int:
         from conda_lock._vendor.poetry.core.vcs.git import GitConfig
 
@@ -126,7 +128,7 @@ The <c1>init</c1> command creates a basic <comment>pyproject.toml</> file in the
 
         name = self.option("name")
         if not name:
-            name = project_path.name.lower()
+            name = self._sanitize_package_name(project_path.name)
 
             if is_interactive:
                 question = self.create_question(
@@ -243,12 +245,14 @@ The <c1>init</c1> command creates a basic <comment>pyproject.toml</> file in the
             dev_dependencies=dev_requirements,
         )
 
-        create_layout = not project_path.exists()
+        create_layout = not project_path.exists() or (
+            allow_layout_creation_on_empty and not any(project_path.iterdir())
+        )
 
         if create_layout:
             layout_.create(project_path, with_pyproject=False)
 
-        content = layout_.generate_project_content()
+        content = layout_.generate_project_content(project_path)
         for section, item in content.items():
             pyproject.data.append(section, item)
 
@@ -378,7 +382,7 @@ The <c1>init</c1> command creates a basic <comment>pyproject.toml</> file in the
                         "(or leave blank to use the latest version):"
                     )
                     question.set_max_attempts(3)
-                    question.set_validator(lambda x: (x or "").strip() or None)
+                    question.set_validator(self._validate_version_constraint)
 
                     package_constraint = self.ask(question)
 
@@ -470,7 +474,10 @@ The <c1>init</c1> command creates a basic <comment>pyproject.toml</> file in the
             env=self.env if isinstance(self, EnvCommand) else None,
             cwd=cwd,
         )
-        return [parser.parse(requirement) for requirement in requirements]
+        return [
+            parser.parse(re.sub(r"@\s*latest$", "", requirement, flags=re.IGNORECASE))
+            for requirement in requirements
+        ]
 
     def _format_requirements(self, requirements: list[dict[str, str]]) -> Requirements:
         requires: Requirements = {}
@@ -487,6 +494,28 @@ The <c1>init</c1> command creates a basic <comment>pyproject.toml</> file in the
             requires[name] = constraint
 
         return requires
+
+    @staticmethod
+    def _sanitize_package_name(name: str) -> str:
+        """Turn an arbitrary string (e.g. a directory name) into a name that
+        conforms to the PyPA name format.
+        https://packaging.python.org/en/latest/specifications/name-normalization/#name-format
+
+        Characters outside the format are replaced with a hyphen and the result
+        is canonicalized, so ``My_Package.Name`` gives ``my-package-name``.
+        A canonical name is the least error-prone default; it can still be
+        edited in pyproject.toml.
+
+        A directory name that holds no ASCII alphanumerics at all (say a
+        non-Latin script) sanitizes to an empty string, which is not a usable
+        default. Fall back to the lowercased directory name in that case, which
+        is what this used to do for every directory: a name in a non-Latin
+        script is kept rather than replaced with a placeholder.
+        """
+        replaced = re.sub(r"[^A-Za-z0-9._-]+", "-", name)
+        sanitized = replaced.strip("-._")
+
+        return canonicalize_name(sanitized) if sanitized else name.lower()
 
     @staticmethod
     def _validate_author(author: str, default: str) -> str | None:
@@ -513,6 +542,21 @@ The <c1>init</c1> command creates a basic <comment>pyproject.toml</> file in the
             raise ValueError("Invalid package definition.")
 
         return package
+
+    @staticmethod
+    def _validate_version_constraint(constraint: str | None) -> str | None:
+        from conda_lock._vendor.poetry.core.constraints.version import parse_constraint
+
+        constraint = (constraint or "").strip()
+        if not constraint:
+            return None
+
+        try:
+            parse_constraint(constraint)
+        except ValueError as e:
+            raise ValueError(f"Invalid version constraint: {constraint}") from e
+
+        return constraint
 
     def _get_pool(self) -> RepositoryPool:
         from conda_lock._vendor.poetry.config.config import Config

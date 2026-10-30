@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import os
 import re
+import sysconfig
 
 from contextlib import contextmanager
 from copy import deepcopy
@@ -10,11 +11,12 @@ from functools import cached_property
 from pathlib import Path
 from typing import TYPE_CHECKING
 from typing import Any
+from typing import TypedDict
 
 from conda_lock._vendor.poetry.utils.env.base_env import Env
-from conda_lock._vendor.poetry.utils.env.script_strings import GET_BASE_PREFIX
-from conda_lock._vendor.poetry.utils.env.script_strings import GET_ENVIRONMENT_INFO
-from conda_lock._vendor.poetry.utils.env.script_strings import GET_PATHS
+from conda_lock._vendor.poetry.utils.env.base_env import MarkerEnv
+from conda_lock._vendor.poetry.utils.env.script_strings import GET_ENVIRONMENT_DATA
+from conda_lock._vendor.poetry.utils.env.script_strings import GET_PLATFORMS
 from conda_lock._vendor.poetry.utils.env.script_strings import GET_SYS_PATH
 
 
@@ -22,6 +24,14 @@ if TYPE_CHECKING:
     from collections.abc import Iterator
 
     from packaging.tags import Tag
+
+    from conda_lock._vendor.poetry.utils.env.base_env import EnvPaths
+
+
+class _EnvironmentData(TypedDict):
+    base_prefix: str
+    marker_env: MarkerEnv
+    paths: EnvPaths
 
 
 class VirtualEnv(Env):
@@ -32,13 +42,18 @@ class VirtualEnv(Env):
     def __init__(self, path: Path, base: Path | None = None) -> None:
         super().__init__(path, base)
 
-        # If base is None, it probably means this is
-        # a virtualenv created from VIRTUAL_ENV.
-        # In this case we need to get sys.base_prefix
-        # from inside the virtualenv.
-        if base is None:
-            output = self.run_python_script(GET_BASE_PREFIX)
-            self._base = Path(output.strip())
+    @property
+    def base(self) -> Path:
+        if self._base is None:
+            self._base = Path(self._environment_data["base_prefix"])
+
+        return self._base
+
+    @cached_property
+    def _environment_data(self) -> _EnvironmentData:
+        output = self.run_python_script(GET_ENVIRONMENT_DATA)
+        data: _EnvironmentData = json.loads(output)
+        return data
 
     @property
     def sys_path(self) -> list[str]:
@@ -54,29 +69,51 @@ class VirtualEnv(Env):
         python = self.version_info[:3]
         interpreter_name = self.marker_env["interpreter_name"]
         interpreter_version = self.marker_env["interpreter_version"]
+        sysconfig_platform = self.marker_env["sysconfig_platform"]
+        free_threading = self.marker_env["free_threading"]
 
+        abis: list[str] | None = None
         if interpreter_name == "pp":
             interpreter = "pp3"
         elif interpreter_name == "cp":
             interpreter = f"{interpreter_name}{interpreter_version}"
+            if free_threading:
+                abis = [f"{interpreter}t"]
         else:
             interpreter = None
 
+        # Why using sysconfig.get_platform() and not ...
+        # ... platform.machine()
+        #  This one is also different for x86_64 Linux and aarch64 Linux,
+        #  but it is the same for a 32 Bit and a 64 Bit Python on Windows!
+        # ... platform.architecture()
+        #  This one is also different for a 32 Bit and a 64 Bit Python on Windows,
+        #  but it is the same for x86_64 Linux and aarch64 Linux!
+        platforms = None
+        if sysconfig_platform != sysconfig.get_platform():
+            # Relevant for the following use cases, for example:
+            # - using a 32 Bit Python on a 64 Bit Windows
+            # - using an emulated aarch Python on an x86_64 Linux
+            output = self.run_python_script(GET_PLATFORMS)
+            platforms = json.loads(output)
+
         return [
-            *(cpython_tags(python) if interpreter_name == "cp" else generic_tags()),
-            *compatible_tags(python, interpreter=interpreter),
+            *(
+                cpython_tags(python, abis=abis, platforms=platforms)
+                if interpreter_name == "cp"
+                else generic_tags(platforms=platforms)
+            ),
+            *compatible_tags(python, interpreter=interpreter, platforms=platforms),
         ]
 
-    def get_marker_env(self) -> dict[str, Any]:
-        output = self.run_python_script(GET_ENVIRONMENT_INFO)
-
-        env: dict[str, Any] = json.loads(output)
+    def get_marker_env(self) -> MarkerEnv:
+        env = deepcopy(self._environment_data["marker_env"])
+        # Lists and tuples are the same in JSON and loaded as list.
+        env["version_info"] = tuple(env["version_info"])  # type: ignore[typeddict-item]
         return env
 
-    def get_paths(self) -> dict[str, str]:
-        output = self.run_python_script(GET_PATHS)
-        paths: dict[str, str] = json.loads(output)
-        return paths
+    def get_paths(self) -> EnvPaths:
+        return deepcopy(self._environment_data["paths"])
 
     def is_venv(self) -> bool:
         return True

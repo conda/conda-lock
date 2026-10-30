@@ -14,9 +14,9 @@ Conda lock vendors (and subvendors) several Python packages to reduce the number
 ## Poetry
 
 * cleo v2.1.0, licensed as [MIT](cleo.LICENSE), Copyright (c) 2013 Sébastien Eustace.
-* poetry v2.0.1, licensed as [MIT](poetry.LICENSE), Copyright (c) 2018-present Sébastien Eustace.
-* poetry-core v2.0.1, licensed as [MIT](poetry_core.LICENSE), Copyright (c) 2020 Sébastien Eustace.
-  * fastjsonschema v2.21.1, licensed as [BSD 3-Clause](poetry/core/_vendor/fastjsonschema/LICENSE), Copyright (c) 2018, Michal Horejsek.
-  * lark v1.2.2, licensed as [MIT](poetry/core/_vendor/lark/LICENSE), Copyright (c) 2017 Erez Shinan.
-  * packaging v24.2, licensed as [one](poetry/core/_vendor/packaging/LICENSE) of [Apache-2.0](poetry/core/_vendor/packaging/LICENSE.APACHE) or [BSD-2-Clause](poetry/core/_vendor/packaging/LICENSE.BSD), Copyright (c) Donald Stufft and individual contributors.
-  * tomli v2.2.1, licensed as [MIT](poetry/core/_vendor/tomli/LICENSE), Copyright (c) 2021 Taneli Hukkinen
+* poetry v2.5.1, licensed as [MIT](poetry.LICENSE), Copyright (c) 2018-present Sébastien Eustace.
+* poetry-core v2.5.0, licensed as [MIT](poetry_core.LICENSE), Copyright (c) 2020 Sébastien Eustace.
+  * fastjsonschema v2.22.2, licensed as [BSD 3-Clause](poetry/core/_vendor/fastjsonschema/LICENSE), Copyright (c) 2018, Michal Horejsek.
+  * lark v1.3.1, licensed as [MIT](poetry/core/_vendor/lark/LICENSE), Copyright (c) 2017 Erez Shinan.
+  * packaging v26.3, licensed as [one](poetry/core/_vendor/packaging/LICENSE) of [Apache-2.0](poetry/core/_vendor/packaging/LICENSE.APACHE) or [BSD-2-Clause](poetry/core/_vendor/packaging/LICENSE.BSD), Copyright (c) Donald Stufft and individual contributors.
+  * tomli v2.4.1, licensed as [MIT](poetry/core/_vendor/tomli/LICENSE), Copyright (c) 2021 Taneli Hukkinen

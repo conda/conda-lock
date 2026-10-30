@@ -10,7 +10,12 @@ from conda_lock._vendor.poetry.core.spdx.license import License
 
 
 if TYPE_CHECKING:
-    from importlib.abc import Traversable
+    import sys
+
+    if sys.version_info < (3, 11):
+        from importlib.abc import Traversable
+    else:
+        from importlib.resources.abc import Traversable
 
 
 def _get_license_file() -> Traversable:

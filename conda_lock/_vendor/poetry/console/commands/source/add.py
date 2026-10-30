@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
-from typing import Any
 from typing import ClassVar
 
 from conda_lock._vendor.cleo.helpers import argument
@@ -43,7 +42,8 @@ class SourceAddCommand(Command):
             "p",
             "Set the priority of this source. One of:"
             f" {', '.join(p.name.lower() for p in Priority)}. Defaults to"
-            f" {Priority.PRIMARY.name.lower()}.",
+            f" {Priority.PRIMARY.name.lower()}, but will switch to "
+            f"{Priority.SUPPLEMENTAL.name.lower()} in a later release.",
             flag=False,
         ),
     ]
@@ -70,6 +70,10 @@ class SourceAddCommand(Command):
             return 1
 
         if priority_str is None:
+            self.io.write_error_line(
+                f"<warning>The default priority will change to <b>{Priority.SUPPLEMENTAL.name.lower()}</> "
+                f"in a future release.</>"
+            )
             priority = Priority.PRIMARY
         else:
             priority = Priority[priority_str.upper()]
@@ -101,9 +105,7 @@ class SourceAddCommand(Command):
             )
             return 1
 
-        # tomlkit types are awkward to work with, treat content as a mostly untyped
-        # dictionary.
-        content: dict[str, Any] = self.poetry.pyproject.data
+        content = self.poetry.pyproject.data
         if "tool" not in content:
             content["tool"] = table()
         if "poetry" not in content["tool"]:

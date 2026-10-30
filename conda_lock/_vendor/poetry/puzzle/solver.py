@@ -9,6 +9,8 @@ from typing import TYPE_CHECKING
 
 from conda_lock._vendor.poetry.core.version.markers import AnyMarker
 from conda_lock._vendor.poetry.core.version.markers import EmptyMarker
+from conda_lock._vendor.poetry.core.version.markers import MultiMarker
+from conda_lock._vendor.poetry.core.version.markers import SingleMarker
 from conda_lock._vendor.poetry.core.version.markers import parse_marker
 
 from conda_lock._vendor.poetry.mixology import resolve_version
@@ -38,7 +40,11 @@ if TYPE_CHECKING:
     from conda_lock._vendor.poetry.repositories import RepositoryPool
     from conda_lock._vendor.poetry.utils.env import Env
 
-    MarkerOriginDict = defaultdict[Package, defaultdict[Package, BaseMarker]]
+    # markers[child_package][parent_package][groups] -> BaseMarker
+    MarkerOriginDict = defaultdict[
+        Package,
+        defaultdict[Package, defaultdict[frozenset[NormalizedName], BaseMarker]],
+    ]
 
 
 class Solver:
@@ -80,28 +86,34 @@ class Solver:
     ) -> Transaction:
         from conda_lock._vendor.poetry.puzzle.transaction import Transaction
 
-        with self._progress(), self._provider.use_latest_for(use_latest or []):
-            start = time.time()
-            packages = self._solve()
-            # simplify markers by removing redundant information
-            for transitive_info in packages.values():
-                for group, marker in transitive_info.markers.items():
-                    transitive_info.markers[group] = simplify_marker(
-                        marker, self._package.python_constraint
-                    )
-            end = time.time()
+        try:
+            with self._progress(), self._provider.use_latest_for(use_latest or []):
+                start = time.time()
+                packages = self._solve()
+                # simplify markers by removing redundant information
+                for transitive_info in packages.values():
+                    for group, marker in transitive_info.markers.items():
+                        transitive_info.markers[group] = simplify_marker(
+                            marker, self._package.python_constraint
+                        )
+                end = time.time()
 
-            if len(self._overrides) > 1:
-                self._provider.debug(
-                    # ignore the warning as provider does not do interpolation
-                    f"Complete version solving took {end - start:.3f}"
-                    f" seconds with {len(self._overrides)} overrides"
-                )
-                self._provider.debug(
-                    # ignore the warning as provider does not do interpolation
-                    "Resolved with overrides:"
-                    f" {', '.join(f'({b})' for b in self._overrides)}"
-                )
+                if len(self._overrides) > 1:
+                    self._provider.debug(
+                        # ignore the warning as provider does not do interpolation
+                        f"Complete version solving took {end - start:.3f}"
+                        f" seconds with {len(self._overrides)} overrides"
+                    )
+                    self._provider.debug(
+                        # ignore the warning as provider does not do interpolation
+                        "Resolved with overrides:"
+                        f" {', '.join(f'({b})' for b in self._overrides)}"
+                    )
+        except SolverProblemError:
+            self._pool.log_age_filtered_versions(level="warning", reset=True)
+            raise
+
+        self._pool.log_age_filtered_versions(level="info", reset=True)
 
         for p in packages:
             if p.yanked:
@@ -156,7 +168,9 @@ class Solver:
             new_packages = self._solve()
             override_packages.append((override, new_packages))
 
-        return merge_override_packages(override_packages)
+        return merge_override_packages(
+            override_packages, self._package.python_constraint
+        )
 
     def _solve(self) -> dict[Package, TransitivePackageInfo]:
         if self._provider._overrides:
@@ -205,8 +219,28 @@ class Solver:
                                 continue
 
                             _package.add_dependency(dep)
+            elif info := results.get(package):
+                solved_packages[package] = info
             else:
-                solved_packages[package] = results[package]
+                # The solver decided this package, but the depth-first search
+                # above did not reach it from the project's dependencies, so
+                # nothing in the solution requires it.
+                #
+                # This happens when two builds share a base version and differ
+                # only by a local segment, e.g. `torch 2.12.1`, which requires
+                # `triton`, and a `torch 2.12.1+cpu` build, which does not.
+                # While backtracking, the solver records the incompatibilities
+                # of the `2.12.1` build and then settles on `2.12.1+cpu`. Since
+                # a local segment is ignored by `==`, `2.12.1+cpu` satisfies the
+                # term `torch (==2.12.1)`, so the discarded build's
+                # incompatibilities keep deriving its transitive dependencies,
+                # which are left behind as orphan decisions. They must not be
+                # carried into the solution.
+                self._provider.debug(
+                    f"<warning>Discarding orphan package {package.complete_name}"
+                    f" ({package.full_pretty_version}): not reachable from the"
+                    f" project's dependencies.</warning>"
+                )
 
         return solved_packages
 
@@ -234,7 +268,9 @@ def depth_first_search(
     source: PackageNode,
 ) -> tuple[list[list[PackageNode]], MarkerOriginDict]:
     back_edges: dict[DFSNodeID, list[PackageNode]] = defaultdict(list)
-    markers: MarkerOriginDict = defaultdict(lambda: defaultdict(EmptyMarker))
+    markers: MarkerOriginDict = defaultdict(
+        lambda: defaultdict(lambda: defaultdict(EmptyMarker))
+    )
     visited: set[DFSNodeID] = set()
     topo_sorted_nodes: list[PackageNode] = []
 
@@ -268,11 +304,15 @@ def dfs_visit(
 
     for out_neighbor in node.reachable():
         back_edges[out_neighbor.id].append(node)
-        marker = markers[out_neighbor.package][node.package]
-        markers[out_neighbor.package][node.package] = marker.union(
+        groups = out_neighbor.groups
+        prev_marker = markers[out_neighbor.package][node.package][groups]
+        new_marker = (
             out_neighbor.marker
             if node.package.is_root()
             else out_neighbor.marker.without_extras()
+        )
+        markers[out_neighbor.package][node.package][groups] = prev_marker.union(
+            new_marker
         )
         dfs_visit(out_neighbor, back_edges, visited, sorted_nodes, markers)
     sorted_nodes.insert(0, node)
@@ -295,7 +335,7 @@ class PackageNode(DFSNode):
         self.depth = -1
 
         if not previous:
-            self.groups: frozenset[str] = frozenset()
+            self.groups: frozenset[NormalizedName] = frozenset()
             self.optional = True
         elif dep:
             self.groups = dep.groups
@@ -357,7 +397,7 @@ def aggregate_package_nodes(
 ) -> tuple[Package, TransitivePackageInfo]:
     package = nodes[0].package
     depth = max(node.depth for node in nodes)
-    groups: set[str] = set()
+    groups: set[NormalizedName] = set()
     for node in nodes:
         groups.update(node.groups)
 
@@ -391,23 +431,39 @@ def calculate_markers(
         for depth in range(max_depth + 1):
             for package in packages_by_depth[depth]:
                 transitive_info = packages[package]
-                transitive_marker: dict[str, BaseMarker] = {
+                transitive_marker: dict[NormalizedName, BaseMarker] = {
                     group: EmptyMarker() for group in transitive_info.groups
                 }
-                for parent, m in markers[package].items():
+                for parent, group_markers in markers[package].items():
                     parent_info = packages[parent]
                     if parent_info.groups:
+                        # If parent has groups, we need to intersect its per-group
+                        # markers with each edge marker and union into child's groups.
                         if parent_info.groups != set(parent_info.markers):
                             # there is a cycle -> we need one more iteration
                             has_incomplete_markers = True
                             continue
                         for group in parent_info.groups:
-                            transitive_marker[group] = transitive_marker[group].union(
-                                parent_info.markers[group].intersect(m)
-                            )
+                            for edge_marker in group_markers.values():
+                                transitive_marker[group] = transitive_marker[
+                                    group
+                                ].union(
+                                    parent_info.markers[group].intersect(edge_marker)
+                                )
                     else:
-                        for group in transitive_info.groups:
-                            transitive_marker[group] = transitive_marker[group].union(m)
+                        # Parent is the root (no groups). Edge markers specify which
+                        # dependency groups the edge belongs to. We should only add
+                        # the edge marker to the corresponding child groups.
+                        for groups, edge_marker in group_markers.items():
+                            assert groups, (
+                                f"Package {package.name} at depth {depth} has no groups."
+                                f" All dependencies except for the root package at depth -1 must have groups"
+                            )
+                            for group in transitive_info.groups:
+                                if group in groups:
+                                    transitive_marker[group] = transitive_marker[
+                                        group
+                                    ].union(edge_marker)
                 transitive_info.markers = transitive_marker
 
 
@@ -417,6 +473,7 @@ def merge_override_packages(
             dict[Package, dict[str, Dependency]], dict[Package, TransitivePackageInfo]
         ]
     ],
+    python_constraint: VersionConstraint,
 ) -> dict[Package, TransitivePackageInfo]:
     result: dict[Package, TransitivePackageInfo] = {}
     all_packages: dict[
@@ -427,12 +484,22 @@ def merge_override_packages(
         for deps in override.values():
             for dep in deps.values():
                 override_marker = override_marker.intersect(dep.marker.without_extras())
+        override_marker = simplify_marker(override_marker, python_constraint)
         for package, info in o_packages.items():
+            for group, marker in info.markers.items():
+                # `override_marker` is often a SingleMarker or a MultiMarker,
+                # `marker` often is a MultiMarker that contains `override_marker`.
+                # We can "remove" `override_marker` from `marker`
+                # because we will do an intersection later anyway.
+                # By removing it now, it is more likely that we hit
+                # the performance shortcut instead of the fallback algorithm.
+                info.markers[group] = remove_other_from_marker(marker, override_marker)
             all_packages.setdefault(package, []).append(
                 (package, info, override_marker)
             )
     for package_duplicates in all_packages.values():
         base = package_duplicates[0]
+        remaining = package_duplicates[1:]
         package = base[0]
         package_info = base[1]
         first_override_marker = base[2]
@@ -441,9 +508,7 @@ def merge_override_packages(
         package_info.groups = {
             g for _, info, _ in package_duplicates for g in info.groups
         }
-        if all(
-            info.markers == package_info.markers for _, info, _ in package_duplicates
-        ):
+        if all(info.markers == package_info.markers for _, info, _ in remaining):
             # performance shortcut:
             # if markers are the same for all overrides,
             # we can use less expensive marker operations
@@ -458,16 +523,28 @@ def merge_override_packages(
             # fallback / general algorithm with performance issues
             for group, marker in package_info.markers.items():
                 package_info.markers[group] = first_override_marker.intersect(marker)
-            for _, info, override_marker in package_duplicates[1:]:
+            for _, info, override_marker in remaining:
                 for group, marker in info.markers.items():
                     package_info.markers[group] = package_info.markers.get(
                         group, EmptyMarker()
                     ).union(override_marker.intersect(marker))
-        for duplicate_package, _, _ in package_duplicates[1:]:
+        for duplicate_package, _, _ in remaining:
             for dep in duplicate_package.requires:
                 if dep not in package.requires:
                     package.add_dependency(dep)
     return result
+
+
+def remove_other_from_marker(marker: BaseMarker, other: BaseMarker) -> BaseMarker:
+    if isinstance(other, SingleMarker):
+        other_markers: set[BaseMarker] = {other}
+    elif isinstance(other, MultiMarker):
+        other_markers = set(other.markers)
+    else:
+        return marker
+    if isinstance(marker, MultiMarker) and other_markers.issubset(marker.markers):
+        return MultiMarker.of(*(m for m in marker.markers if m not in other_markers))
+    return marker
 
 
 @functools.cache

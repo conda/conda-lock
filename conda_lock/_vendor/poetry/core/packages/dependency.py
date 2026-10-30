@@ -12,6 +12,7 @@ from packaging.utils import canonicalize_name
 
 from conda_lock._vendor.poetry.core.constraints.generic import parse_constraint as parse_generic_constraint
 from conda_lock._vendor.poetry.core.constraints.version import parse_constraint
+from conda_lock._vendor.poetry.core.constraints.version import parse_marker_version_constraint
 from conda_lock._vendor.poetry.core.packages.dependency_group import MAIN_GROUP
 from conda_lock._vendor.poetry.core.packages.specification import PackageSpecification
 from conda_lock._vendor.poetry.core.packages.utils.utils import contains_group_without_marker
@@ -66,20 +67,20 @@ class Dependency(PackageSpecification):
 
         self._constraint: VersionConstraint
         self._pretty_constraint: str
-        self.constraint = constraint  # type: ignore[assignment]
+        self.constraint = constraint
 
         self._optional = optional
 
         if not groups:
             groups = [MAIN_GROUP]
 
-        self._groups = frozenset(groups)
+        self.groups = frozenset(canonicalize_name(g) for g in groups)
         self._allows_prereleases = allows_prereleases
         # "_develop" is only required for enriching [project] dependencies
         self._develop = False
 
         self._python_versions = "*"
-        self._python_constraint = parse_constraint("*")
+        self._python_constraint = parse_marker_version_constraint("*")
         self._transitive_marker: BaseMarker | None = None
 
         self._in_extras: Sequence[NormalizedName] = []
@@ -116,17 +117,13 @@ class Dependency(PackageSpecification):
         return self._pretty_name
 
     @property
-    def groups(self) -> frozenset[str]:
-        return self._groups
-
-    @property
     def python_versions(self) -> str:
         return self._python_versions
 
     @python_versions.setter
     def python_versions(self, value: str) -> None:
         self._python_versions = value
-        self._python_constraint = parse_constraint(value)
+        self._python_constraint = parse_marker_version_constraint(value)
         if not self._python_constraint.is_any():
             self._marker = self._marker.intersect(
                 parse_marker(
@@ -140,7 +137,7 @@ class Dependency(PackageSpecification):
 
     @marker.setter
     def marker(self, marker: str | BaseMarker) -> None:
-        from conda_lock._vendor.poetry.core.constraints.version import parse_constraint
+        from conda_lock._vendor.poetry.core.constraints.version import parse_marker_version_constraint
         from conda_lock._vendor.poetry.core.packages.utils.utils import convert_markers
         from conda_lock._vendor.poetry.core.version.markers import BaseMarker
         from conda_lock._vendor.poetry.core.version.markers import parse_marker
@@ -161,10 +158,16 @@ class Dependency(PackageSpecification):
                 for op, extra in or_:
                     if op == "==":
                         new_in_extras.append(canonicalize_name(extra))
-                    elif op == "" and "||" in extra:
-                        for _extra in extra.split(" || "):
-                            new_in_extras.append(canonicalize_name(_extra))
-            self._in_extras = [*self._in_extras, *new_in_extras]
+                    elif op == "" and ("||" in extra or "," in extra):
+                        sep = "||" if "||" in extra else ","
+                        extra_values = [e.strip() for e in extra.split(sep)]
+                        for _extra in extra_values:
+                            if not _extra.startswith("!="):
+                                new_in_extras.append(canonicalize_name(_extra))
+            self._in_extras = [
+                *self._in_extras,
+                *(e for e in new_in_extras if e not in self._in_extras),
+            ]
 
         # Recalculate python versions.
         self._python_versions = "*"
@@ -174,7 +177,7 @@ class Dependency(PackageSpecification):
                 python_version_markers
             )
 
-        self._python_constraint = parse_constraint(self._python_versions)
+        self._python_constraint = parse_marker_version_constraint(self._python_versions)
 
     @property
     def transitive_marker(self) -> BaseMarker:
@@ -323,12 +326,20 @@ class Dependency(PackageSpecification):
 
     def with_constraint(self: T, constraint: str | VersionConstraint) -> T:
         dependency = self.clone()
-        dependency.constraint = constraint  # type: ignore[assignment]
+        dependency.constraint = constraint
+        return dependency
+
+    def with_groups(self, groups: Iterable[str]) -> Dependency:
+        dependency = self.clone()
+        dependency.groups = frozenset(canonicalize_name(g) for g in groups)
         return dependency
 
     @classmethod
     def create_from_pep_508(
-        cls, name: str, relative_to: Path | None = None
+        cls,
+        name: str,
+        relative_to: Path | None = None,
+        groups: Iterable[str] | None = None,
     ) -> Dependency:
         """
         Resolve a PEP-508 requirement string to a `Dependency` instance. If a
@@ -347,7 +358,7 @@ class Dependency(PackageSpecification):
         from conda_lock._vendor.poetry.core.packages.vcs_dependency import VCSDependency
         from conda_lock._vendor.poetry.core.utils.patterns import wheel_file_re
         from conda_lock._vendor.poetry.core.vcs.git import ParsedUrl
-        from conda_lock._vendor.poetry.core.version.requirements import Requirement
+        from conda_lock._vendor.poetry.core.version.requirements import parse_requirement
 
         # Removing comments
         parts = name.split(" #", 1)
@@ -357,7 +368,7 @@ class Dependency(PackageSpecification):
             if " ;" in rest:
                 name += " ;" + rest.split(" ;", 1)[1]
 
-        req = Requirement(name)
+        req = parse_requirement(name)
 
         name = req.name
         link = None
@@ -368,7 +379,7 @@ class Dependency(PackageSpecification):
             link = Link(req.url)
         else:
             path_str = os.path.normpath(os.path.abspath(name))  # noqa: PTH100
-            p, extras = strip_extras(path_str)
+            p, _extras = strip_extras(path_str)
             if cached_is_dir(p) and (os.path.sep in name or name.startswith(".")):
                 if not is_python_project(Path(name)):
                     raise ValueError(
@@ -410,10 +421,15 @@ class Dependency(PackageSpecification):
                     rev=url.rev,
                     directory=url.subdirectory,
                     extras=req.extras,
+                    groups=groups,
                 )
             elif link.scheme == "git":
                 dep = VCSDependency(
-                    name, "git", link.url_without_fragment, extras=req.extras
+                    name,
+                    "git",
+                    link.url_without_fragment,
+                    extras=req.extras,
+                    groups=groups,
                 )
             elif link.scheme in ("http", "https"):
                 dep = URLDependency(
@@ -421,6 +437,7 @@ class Dependency(PackageSpecification):
                     link.url_without_fragment,
                     directory=link.subdirectory_fragment,
                     extras=req.extras,
+                    groups=groups,
                 )
             elif is_file_uri:
                 # handle RFC 8089 references
@@ -431,6 +448,7 @@ class Dependency(PackageSpecification):
                     base=relative_to,
                     subdirectory=link.subdirectory_fragment,
                     extras=req.extras,
+                    groups=groups,
                 )
             else:
                 with suppress(ValueError):
@@ -440,17 +458,18 @@ class Dependency(PackageSpecification):
                         path=Path(req.url),
                         base=relative_to,
                         extras=req.extras,
+                        groups=groups,
                     )
 
             if dep is None:
-                dep = Dependency(name, version or "*", extras=req.extras)
+                dep = Dependency(name, version or "*", extras=req.extras, groups=groups)
 
             if version:
                 dep._constraint = parse_constraint(version)
         else:
             constraint: VersionConstraint | str
             constraint = req.constraint if req.pretty_constraint else "*"
-            dep = Dependency(name, constraint, extras=req.extras)
+            dep = Dependency(name, constraint, extras=req.extras, groups=groups)
 
         if req.marker:
             dep.marker = req.marker
@@ -492,27 +511,36 @@ def _make_file_or_dir_dep(
     path: Path,
     base: Path | None = None,
     subdirectory: str | None = None,
-    extras: list[str] | None = None,
+    extras: Iterable[str] | None = None,
+    groups: Iterable[str] | None = None,
 ) -> FileDependency | DirectoryDependency | None:
     """
     Helper function to create a file or directoru dependency with the given arguments.
-    If path is not a file or directory that exists, `None` is returned.
+
+    If path is not a file or directory that exists, a guess is made based on the suffix
+    of the given path. This is done to prevent dependencies from being parsed as normal
+    dependencies. This allows for downstream error handling.
+
+    See also: poetry#10068
     """
     from conda_lock._vendor.poetry.core.packages.directory_dependency import DirectoryDependency
     from conda_lock._vendor.poetry.core.packages.file_dependency import FileDependency
 
     _path = path
+
     if not path.is_absolute() and base:
         # a base path was specified, so we should respect that
         _path = Path(base) / path
 
-    if _path.is_file():
-        return FileDependency(
-            name, path, base=base, directory=subdirectory, extras=extras
-        )
-    elif _path.is_dir():
-        if subdirectory:
-            path = path / subdirectory
-        return DirectoryDependency(name, path, base=base, extras=extras)
+    # we check if it is a file (if it exists) or rely on suffix to guess
+    is_file = _path.is_file() if _path.exists() else path.suffix != ""
 
-    return None
+    if is_file:
+        return FileDependency(
+            name, path, base=base, directory=subdirectory, extras=extras, groups=groups
+        )
+
+    if subdirectory:
+        path = path / subdirectory
+
+    return DirectoryDependency(name, path, base=base, extras=extras, groups=groups)

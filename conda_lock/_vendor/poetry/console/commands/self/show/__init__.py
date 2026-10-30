@@ -11,13 +11,18 @@ from conda_lock._vendor.poetry.console.commands.show import ShowCommand
 
 if TYPE_CHECKING:
     from conda_lock._vendor.cleo.io.inputs.option import Option
+    from packaging.utils import NormalizedName
 
 
 class SelfShowCommand(SelfCommand, ShowCommand):
     name = "self show"
     options: ClassVar[list[Option]] = [
         option("addons", None, "List only add-on packages installed."),
-        *[o for o in ShowCommand.options if o.name in {"tree", "latest", "outdated"}],
+        *[
+            o
+            for o in ShowCommand.options
+            if o.name in {"tree", "latest", "outdated", "format"}
+        ],
     ]
     description = "Show packages from Poetry's runtime environment."
     help = f"""\
@@ -33,9 +38,8 @@ file.
 """
 
     @property
-    def activated_groups(self) -> set[str]:
+    def activated_groups(self) -> set[NormalizedName]:
         if self.option("addons", False):
             return {SelfCommand.ADDITIONAL_PACKAGE_GROUP}
 
-        groups: set[str] = super(ShowCommand, self).activated_groups
-        return groups
+        return super(ShowCommand, self).activated_groups

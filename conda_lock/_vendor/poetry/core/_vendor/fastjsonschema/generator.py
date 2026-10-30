@@ -1,10 +1,15 @@
 from collections import OrderedDict
+from contextlib import contextmanager
 from decimal import Decimal
 import re
 
-from .exceptions import JsonSchemaValueException, JsonSchemaDefinitionException
+from .exceptions import JsonSchemaValueException, JsonSchemaValuesException, JsonSchemaDefinitionException
 from .indent import indent
 from .ref_resolver import RefResolver
+
+# Both mean "this subschema did not match": a subschema behind a $ref becomes its own
+# function, which reports through JsonSchemaValuesException while errors are collected.
+VALIDATION_EXCEPTIONS = '(JsonSchemaValueException, JsonSchemaValuesException)'
 
 
 def enforce_list(variable):
@@ -29,11 +34,12 @@ class CodeGenerator:
 
     INDENT = 4  # spaces
 
-    def __init__(self, definition, resolver=None, detailed_exceptions=True):
+    def __init__(self, definition, resolver=None, detailed_exceptions=True, fast_fail=True):
         self._code = []
         self._compile_regexps = {}
         self._custom_formats = {}
         self._detailed_exceptions = detailed_exceptions
+        self._fast_fail = fast_fail
 
         # Any extra library should be here to be imported only once.
         # Lines are imports to be printed in the file and objects
@@ -45,7 +51,10 @@ class CodeGenerator:
             "Decimal": Decimal,
         }
 
-        self._variables = set()
+        self._variables = {}
+        self._scope_stack = []
+        self._scope_counter = 0
+        self._last_closed_scope = None
         self._indent = 0
         self._indent_last_line = None
         self._variable = None
@@ -91,6 +100,7 @@ class CodeGenerator:
             REGEX_PATTERNS=self._compile_regexps,
             re=re,
             JsonSchemaValueException=JsonSchemaValueException,
+            JsonSchemaValuesException=JsonSchemaValuesException,
         )
 
     @property
@@ -103,13 +113,13 @@ class CodeGenerator:
 
         if not self._compile_regexps:
             return '\n'.join(self._extra_imports_lines + [
-                'from fastjsonschema import JsonSchemaValueException',
+                'from fastjsonschema import JsonSchemaValueException, JsonSchemaValuesException',
                 '',
                 '',
             ])
         return '\n'.join(self._extra_imports_lines + [
             'import re',
-            'from fastjsonschema import JsonSchemaValueException',
+            'from fastjsonschema import JsonSchemaValueException, JsonSchemaValuesException',
             '',
             '',
             'REGEX_PATTERNS = ' + serialize_regexes(self._compile_regexps),
@@ -143,7 +153,11 @@ class CodeGenerator:
         self.l('')
         with self._resolver.resolving(uri) as definition:
             with self.l('def {}(data, custom_formats={{}}, name_prefix=None):', name):
+                if not self._fast_fail:
+                    self.l('errors = []')
                 self.generate_func_code_block(definition, 'data', 'data', clear_variables=True)
+                if not self._fast_fail:
+                    self.l('if errors: raise JsonSchemaValuesException(errors)')
                 self.l('return data')
 
     def generate_func_code_block(self, definition, variable, variable_name, clear_variables=False):
@@ -156,7 +170,7 @@ class CodeGenerator:
         self._definition, self._variable, self._variable_name = definition, variable, variable_name
         if clear_variables:
             backup_variables = self._variables
-            self._variables = set()
+            self._variables = {}
 
         count = self._generate_func_code_block(definition)
 
@@ -166,14 +180,26 @@ class CodeGenerator:
 
         return count
 
+    @contextmanager
+    def trial_validation(self):
+        """
+        Subschemas of anyOf, oneOf, not, if, contains and propertyNames are only tried out.
+        Their failure is control flow for the surrounding ``try``, not an error to report,
+        so they have to raise even when ``fast_fail`` is off.
+        """
+        fast_fail, self._fast_fail = self._fast_fail, True
+        try:
+            yield
+        finally:
+            self._fast_fail = fast_fail
+
     def _generate_func_code_block(self, definition):
         if not isinstance(definition, dict):
             raise JsonSchemaDefinitionException("definition must be an object")
         if '$ref' in definition:
             # needed because ref overrides any sibling keywords
             return self.generate_ref()
-        else:
-            return self.run_generate_functions(definition)
+        return self.run_generate_functions(definition)
 
     def run_generate_functions(self, definition):
         """Returns the number of generate functions that were executed."""
@@ -209,7 +235,15 @@ class CodeGenerator:
             name_arg = '(name_prefix or "data") + "{}"'.format(path)
             if '{' in name_arg:
                 name_arg = name_arg + '.format(**locals())'
-            self.l('{}({variable}, custom_formats, {name_arg})', name, name_arg=name_arg)
+            if self._fast_fail:
+                self.l('{}({variable}, custom_formats, {name_arg})', name, name_arg=name_arg)
+            else:
+                # The referenced function collects into its own list, so merge it into ours
+                # instead of letting it abort the validation of the rest of the document.
+                with self.l('try:', optimize=False):
+                    self.l('{}({variable}, custom_formats, {name_arg})', name, name_arg=name_arg)
+                with self.l('except JsonSchemaValuesException as e:'):
+                    self.l('errors.extend(e.errors)')
 
 
     # pylint: disable=invalid-name
@@ -261,6 +295,8 @@ class CodeGenerator:
 
             self.l('raise JsonSchemaValueException("Variable: {}")', self.e(variable))
         """
+        if isinstance(string, str):
+            return string.encode('unicode_escape').decode('ascii').replace('"', '\\"')
         return str(string).replace('"', '\\"')
 
     def exc(self, msg, *args, append_to_msg=None, rule=None):
@@ -268,16 +304,24 @@ class CodeGenerator:
         Short-cut for creating raising exception in the code.
         """
         if not self._detailed_exceptions:
-            self.l('raise JsonSchemaValueException("'+msg+'")', *args)
+            if self._fast_fail:
+                self.l('raise JsonSchemaValueException("'+msg+'")', *args)
+            else:
+                self.l('errors.append(JsonSchemaValueException("'+msg+'"))', *args)
             return
 
         arg = '"'+msg+'"'
         if append_to_msg:
             arg += ' + (' + append_to_msg + ')'
-        msg = 'raise JsonSchemaValueException('+arg+', value={variable}, name="{name}", definition={definition}, rule={rule})'
+        # pylint: disable=line-too-long
+        msg = (
+            'raise JsonSchemaValueException('+arg+', value={variable}, name="{name}", definition={definition}, rule={rule})'
+            if self._fast_fail else
+            'errors.append(JsonSchemaValueException('+arg+', value={variable}, name="{name}", definition={definition}, rule={rule}))'
+        )
         definition = self._expand_refs(self._definition)
         definition_rule = self.e(definition.get(rule) if isinstance(definition, dict) else None)
-        self.l(msg, *args, definition=repr(definition), rule=repr(rule), definition_rule=definition_rule)
+        self.l(msg, *args, definition=repr_default(definition), rule=repr(rule), definition_rule=definition_rule)
 
     def _expand_refs(self, definition):
         if isinstance(definition, list):
@@ -289,6 +333,17 @@ class CodeGenerator:
                 return schema
         return {k: self._expand_refs(v) for k, v in definition.items()}
 
+    def _is_variable_in_scope(self, variable_name):
+        """
+        Whether ``variable_name`` was already defined in a block enclosing the
+        current one, and is therefore still bound here. A variable defined in a
+        sibling block is not, because that block may not have been entered.
+        """
+        scope = self._variables.get(variable_name)
+        if scope is None:
+            return False
+        return tuple(self._scope_stack[:len(scope)]) == scope
+
     def create_variable_with_length(self):
         """
         Append code for creating variable with length of that variable
@@ -297,9 +352,9 @@ class CodeGenerator:
         still does not exists.
         """
         variable_name = '{}_len'.format(self._variable)
-        if variable_name in self._variables:
+        if self._is_variable_in_scope(variable_name):
             return
-        self._variables.add(variable_name)
+        self._variables[variable_name] = tuple(self._scope_stack)
         self.l('{variable}_len = len({variable})')
 
     def create_variable_keys(self):
@@ -308,9 +363,9 @@ class CodeGenerator:
         with a name ``{variable}_keys``. Similar to `create_variable_with_length`.
         """
         variable_name = '{}_keys'.format(self._variable)
-        if variable_name in self._variables:
+        if self._is_variable_in_scope(variable_name):
             return
-        self._variables.add(variable_name)
+        self._variables[variable_name] = tuple(self._scope_stack)
         self.l('{variable}_keys = set({variable}.keys())')
 
     def create_variable_is_list(self):
@@ -319,9 +374,9 @@ class CodeGenerator:
         with a name ``{variable}_is_list``. Similar to `create_variable_with_length`.
         """
         variable_name = '{}_is_list'.format(self._variable)
-        if variable_name in self._variables:
+        if self._is_variable_in_scope(variable_name):
             return
-        self._variables.add(variable_name)
+        self._variables[variable_name] = tuple(self._scope_stack)
         self.l('{variable}_is_list = isinstance({variable}, (list, tuple))')
 
     def create_variable_is_dict(self):
@@ -330,9 +385,9 @@ class CodeGenerator:
         with a name ``{variable}_is_dict``. Similar to `create_variable_with_length`.
         """
         variable_name = '{}_is_dict'.format(self._variable)
-        if variable_name in self._variables:
+        if self._is_variable_in_scope(variable_name):
             return
-        self._variables.add(variable_name)
+        self._variables[variable_name] = tuple(self._scope_stack)
         self.l('{variable}_is_dict = isinstance({variable}, dict)')
 
 
@@ -344,6 +399,27 @@ def serialize_regexes(patterns_dict):
         for k, v in patterns_dict.items()
     )
     return '{\n    ' + ",\n    ".join(regex_patterns) + "\n}"
+
+
+def repr_default(value):
+    """
+    Like ``repr``, but renders non-finite floats as valid Python source.
+
+    ``repr(float('nan'))`` is ``'nan'``, which is not a name available in the
+    generated code, so a schema default of NaN or infinity has to be written
+    out as a ``float(...)`` call instead.
+    """
+    if isinstance(value, float) and (value != value or value in (float('inf'), float('-inf'))):
+        return "float({!r})".format(str(value))
+    if isinstance(value, list):
+        return '[' + ', '.join(repr_default(item) for item in value) + ']'
+    if isinstance(value, tuple):
+        return '(' + ''.join(repr_default(item) + ', ' for item in value) + ')'
+    if isinstance(value, dict):
+        return '{' + ', '.join(
+            '{}: {}'.format(repr_default(k), repr_default(v)) for k, v in value.items()
+        ) + '}'
+    return repr(value)
 
 
 def repr_regex(regex):

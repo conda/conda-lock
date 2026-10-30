@@ -2,16 +2,18 @@ from __future__ import annotations
 
 import collections
 import functools
+import itertools
 import time
 
+from enum import IntEnum
 from typing import TYPE_CHECKING
-from typing import Optional
 
 from conda_lock._vendor.poetry.core.packages.dependency import Dependency
 
 from conda_lock._vendor.poetry.mixology.failure import SolveFailureError
 from conda_lock._vendor.poetry.mixology.incompatibility import Incompatibility
 from conda_lock._vendor.poetry.mixology.incompatibility_cause import ConflictCauseError
+from conda_lock._vendor.poetry.mixology.incompatibility_cause import DependencyCauseError
 from conda_lock._vendor.poetry.mixology.incompatibility_cause import NoVersionsCauseError
 from conda_lock._vendor.poetry.mixology.incompatibility_cause import RootCauseError
 from conda_lock._vendor.poetry.mixology.partial_solution import PartialSolution
@@ -22,7 +24,9 @@ from conda_lock._vendor.poetry.packages import PackageCollection
 
 
 if TYPE_CHECKING:
+    from conda_lock._vendor.poetry.core.packages.package import Package
     from conda_lock._vendor.poetry.core.packages.project_package import ProjectPackage
+    from conda_lock._vendor.poetry.core.version.markers import BaseMarker
 
     from conda_lock._vendor.poetry.packages import DependencyPackage
     from conda_lock._vendor.poetry.puzzle.provider import Provider
@@ -31,9 +35,34 @@ if TYPE_CHECKING:
 _conflict = object()
 
 
-DependencyCacheKey = tuple[
-    str, Optional[str], Optional[str], Optional[str], Optional[str]
-]
+def _effective_marker(dependency: Dependency) -> BaseMarker:
+    """
+    The marker describing when a dependency actually applies: its own marker
+    intersected with the marker of the package that required it (a dependency is
+    only reached when its requiring package applies).
+    """
+    return dependency.transitive_marker.without_extras().intersect(
+        dependency.marker.without_extras()
+    )
+
+
+class Preference(IntEnum):
+    """
+    Preference is one of the criteria for choosing which dependency to solve
+    first. A higher value means that there are "more options" to satisfy
+    a dependency. A lower value takes precedence.
+    """
+
+    DIRECT_ORIGIN = 0
+    NO_CHOICE = 1
+    USE_LATEST = 2
+    LOCKED = 3
+    DEFAULT = 4
+
+
+CompKey = tuple[Preference, int, bool, int]
+
+DependencyCacheKey = tuple[str, str | None, str | None, str | None, str | None]
 
 
 class DependencyCache:
@@ -149,6 +178,7 @@ class VersionSolver:
             int, set[Incompatibility]
         ] = collections.defaultdict(set)
         self._solution = PartialSolution()
+        self._get_comp_key_cached = functools.cache(self._get_comp_key)
 
     @property
     def solution(self) -> PartialSolution:
@@ -174,8 +204,6 @@ class VersionSolver:
                 next = self._choose_package_version()
 
             return self._result()
-        except Exception:
-            raise
         finally:
             self._log(
                 f"Version solving took {time.time() - start:.3f} seconds.\n"
@@ -215,10 +243,16 @@ class VersionSolver:
                     # decision level, so we clear [changed] and refill it with the
                     # newly-propagated assignment.
                     changed.clear()
-                    changed.add(str(self._propagate_incompatibility(root_cause)))
+                    result = self._propagate_incompatibility(root_cause)
+                    assert result is not None
+                    assert result != _conflict
+                    assert isinstance(result, str)
+                    changed.add(result)
                     break
-                elif result is not None:
-                    changed.add(str(result))
+
+                if result is not None:
+                    assert isinstance(result, str)
+                    changed.add(result)
 
     def _propagate_incompatibility(
         self, incompatibility: Incompatibility
@@ -424,7 +458,187 @@ class VersionSolver:
             self._log(f'! which is caused by "{most_recent_satisfier.cause}"')
             self._log(f"! thus: {incompatibility}")
 
+        overrides = self._recover_from_marker_conflict(incompatibility)
+        if overrides is not None:
+            # Local import to avoid a circular import with poetry.puzzle.
+            from conda_lock._vendor.poetry.puzzle.exceptions import OverrideNeededError
+
+            raise OverrideNeededError(*overrides)
+
         raise SolveFailureError(incompatibility)
+
+    def _recover_from_marker_conflict(
+        self, incompatibility: Incompatibility
+    ) -> tuple[dict[Package, dict[str, Dependency]], ...] | None:
+        """
+        Inspect a resolution failure and attempt to recover from it.
+
+        The resolver may fail because a package is required at two incompatible
+        versions even though the two requirements apply under mutually exclusive
+        markers (e.g. one only on Windows, the other only on Linux). Such
+        requirements never actually conflict, but the resolver ignores markers
+        when comparing versions and so reports a conflict (see #5506).
+
+        This typically arises when the requirements come from different packages:
+        the provider only reconciles conflicting requirements that originate from
+        the *same* package, so this case is missed.
+
+        On finding such a pair, return overrides for two further resolution runs,
+        each restricted to one side of the markers so that only one of the
+        requirements applies per run. Otherwise return ``None``.
+
+        This runs only after a resolution has already failed, so it adds no
+        overhead to a resolution that succeeds.
+        """
+        # Collect the requirements behind the failure. Each is recorded as a pair
+        # of terms ``[Term(depending package, True), Term(required package,
+        # False)]``; the negative term is the requirement, and its marker says
+        # when it applies.
+        requirements: dict[str, list[Dependency]] = collections.defaultdict(list)
+        for incompat in incompatibility.external_incompatibilities:
+            if not isinstance(incompat.cause, DependencyCauseError):
+                continue
+            for term in incompat.terms:
+                if not term.is_positive():
+                    requirements[term.dependency.name].append(term.dependency)
+
+        # The markers of the current run: any marker at the top level, or one side
+        # of an earlier split when nested.
+        current_markers = self._provider._overrides_marker_intersection
+        for deps in requirements.values():
+            for dep1, dep2 in itertools.combinations(deps, 2):
+                # Compatible versions are not a real conflict.
+                if not dep1.constraint.intersect(dep2.constraint).is_empty():
+                    continue
+
+                # Where each requirement applies within the current run.
+                world1 = _effective_marker(dep1).intersect(current_markers)
+                world2 = _effective_marker(dep2).intersect(current_markers)
+
+                # Act only if both requirements apply somewhere in this run but
+                # never together. Splitting on ``world1`` then separates them. Both
+                # worlds are non-empty and disjoint, so each run is a strict subset
+                # of the current one: resolution makes progress and terminates.
+                if world1.is_empty() or world2.is_empty():
+                    continue
+                if not world1.intersect(world2).is_empty():
+                    continue
+
+                return self._provider.marker_split_overrides(world1)
+
+        return None
+
+    def _get_comp_key(self, dependency: Dependency) -> CompKey:
+        """
+        Returns a tuple of
+        - preference
+        - num_deps_upper_bound
+        - has_deps
+        - num_packages
+        that serves as priority for choosing the next package to resolve.
+        (A lower value takes precedence.)
+
+        In order to provide results that are as deterministic as possible
+        and consistent between `poetry lock` and `poetry update`, the return value
+        of two different dependencies should not be equal if possible.
+
+        ## preference
+
+        See Preference class.
+
+        ## num_deps_upper_bound
+
+        A dependency with an upper bound is more likely to cause conflicts. Therefore,
+        a package with more dependencies with upper bounds should be chosen first.
+
+        ## has_deps
+
+        A package with dependencies should be chosen first
+        because a package without dependencies is less likely to cause conflicts.
+
+        ## num_packages
+
+        The original algorithm proposes to prefer packages with as few remaining
+        versions as possible, so that if a conflict is necessary it's forced quickly.
+        https://github.com/dart-lang/pub/blob/master/doc/solver.md#decision-making
+        However, this leads to the famous boto3 vs. urllib3 issue, so we prefer
+        packages with more remaining versions (see
+        https://github.com/python-poetry/poetry/pull/8255#issuecomment-1657198242
+        for more details).
+        """
+        preference = Preference.DEFAULT
+
+        # Direct origin dependencies must be handled first: we don't want to resolve
+        # a regular dependency for some package only to find later that we had a
+        # direct-origin dependency.
+        if dependency.is_direct_origin():
+            preference = Preference.DIRECT_ORIGIN
+
+        packages: list[DependencyPackage] = []
+        use_latest = dependency.name in self._provider.use_latest
+        if not use_latest:
+            locked = self._provider.get_locked(dependency)
+            if locked:
+                if preference == Preference.DEFAULT:
+                    preference = Preference.LOCKED
+                packages = [locked]
+
+        if not packages:
+            packages = self._dependency_cache.search_for(
+                dependency, self._solution.decision_level
+            )
+        num_packages = len(packages)
+        if packages:
+            package = packages[0].package
+            if package.is_root():
+                relevant_dependencies = package.all_requires
+            else:
+                if preference != Preference.LOCKED and not package.is_direct_origin():
+                    # We have to get the package from the pool,
+                    # otherwise `requires` will be empty.
+                    #
+                    # We might need `package.source_reference` as fallback
+                    # for transitive dependencies without a source
+                    # if there is a top-level dependency
+                    # for the same package with an explicit source.
+                    for repo in (dependency.source_name, package.source_reference):
+                        try:
+                            package = self._provider.get_package_from_pool(
+                                package.pretty_name,
+                                package.version,
+                                repository_name=repo,
+                            )
+                        except Exception:  # noqa: BLE001, S110
+                            pass
+                        else:
+                            break
+
+                relevant_dependencies = [
+                    r
+                    for r in package.requires
+                    if not r.in_extras
+                    or any(extra in dependency.extras for extra in r.in_extras)
+                ]
+            has_deps = bool(relevant_dependencies)
+            num_deps_upper_bound = sum(
+                1 for d in relevant_dependencies if d.constraint.has_upper_bound()
+            )
+        else:
+            has_deps = False
+            num_deps_upper_bound = 0
+
+        if preference == Preference.DEFAULT:
+            if num_packages < 2:
+                preference = Preference.NO_CHOICE
+            elif use_latest:
+                preference = Preference.USE_LATEST
+        return preference, -num_deps_upper_bound, not has_deps, -num_packages
+
+    def _choose_next(self, unsatisfied: list[Dependency]) -> Dependency:
+        """
+        Chooses the next package to resolve.
+        """
+        return min(unsatisfied, key=self._get_comp_key_cached)
 
     def _choose_package_version(self) -> str | None:
         """
@@ -438,59 +652,7 @@ class VersionSolver:
         if not unsatisfied:
             return None
 
-        class Preference:
-            """
-            Preference is one of the criteria for choosing which dependency to solve
-            first. A higher value means that there are "more options" to satisfy
-            a dependency. A lower value takes precedence.
-            """
-
-            DIRECT_ORIGIN = 0
-            NO_CHOICE = 1
-            USE_LATEST = 2
-            LOCKED = 3
-            DEFAULT = 4
-
-        # The original algorithm proposes to prefer packages with as few remaining
-        # versions as possible, so that if a conflict is necessary it's forced quickly.
-        # https://github.com/dart-lang/pub/blob/master/doc/solver.md#decision-making
-        # However, this leads to the famous boto3 vs. urllib3 issue, so we prefer
-        # packages with more remaining versions (see
-        # https://github.com/python-poetry/poetry/pull/8255#issuecomment-1657198242
-        # for more details).
-        # In order to provide results that are as deterministic as possible
-        # and consistent between `poetry lock` and `poetry update`, the return value
-        # of two different dependencies should not be equal if possible.
-        def _get_min(dependency: Dependency) -> tuple[bool, int, int]:
-            # Direct origin dependencies must be handled first: we don't want to resolve
-            # a regular dependency for some package only to find later that we had a
-            # direct-origin dependency.
-            if dependency.is_direct_origin():
-                return False, Preference.DIRECT_ORIGIN, -1
-
-            is_specific_marker = not dependency.marker.is_any()
-
-            use_latest = dependency.name in self._provider.use_latest
-            if not use_latest:
-                locked = self._provider.get_locked(dependency)
-                if locked:
-                    return is_specific_marker, Preference.LOCKED, -1
-
-            num_packages = len(
-                self._dependency_cache.search_for(
-                    dependency, self._solution.decision_level
-                )
-            )
-
-            if num_packages < 2:
-                preference = Preference.NO_CHOICE
-            elif use_latest:
-                preference = Preference.USE_LATEST
-            else:
-                preference = Preference.DEFAULT
-            return is_specific_marker, preference, -num_packages
-
-        dependency = min(unsatisfied, key=_get_min)
+        dependency = self._choose_next(unsatisfied)
 
         locked = self._provider.get_locked(dependency)
         if locked is None:
@@ -508,6 +670,8 @@ class VersionSolver:
 
                 complete_name = dependency.complete_name
                 return complete_name
+
+            package.dependency.transitive_marker = dependency.transitive_marker
         else:
             package = locked
 

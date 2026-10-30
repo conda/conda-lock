@@ -1,27 +1,34 @@
 from __future__ import annotations
 
 import dataclasses
+import json
 import logging
 import os
 import re
 
 from copy import deepcopy
+from json import JSONDecodeError
 from pathlib import Path
 from typing import TYPE_CHECKING
 from typing import Any
 from typing import ClassVar
 
+from packaging.utils import NormalizedName
 from packaging.utils import canonicalize_name
 
+from conda_lock._vendor.poetry.config.config_source import split_key
 from conda_lock._vendor.poetry.config.dict_config_source import DictConfigSource
 from conda_lock._vendor.poetry.config.file_config_source import FileConfigSource
 from conda_lock._vendor.poetry.locations import CONFIG_DIR
 from conda_lock._vendor.poetry.locations import DEFAULT_CACHE_DIR
+from conda_lock._vendor.poetry.locations import data_dir
 from conda_lock._vendor.poetry.toml import TOMLFile
 
 
 if TYPE_CHECKING:
     from collections.abc import Callable
+    from collections.abc import Mapping
+    from collections.abc import Sequence
 
     from conda_lock._vendor.poetry.config.config_source import ConfigSource
 
@@ -31,24 +38,59 @@ def boolean_validator(val: str) -> bool:
 
 
 def boolean_normalizer(val: str) -> bool:
-    return val in ["true", "1"]
+    return val.lower() in ["true", "1"]
 
 
 def int_normalizer(val: str) -> int:
     return int(val)
 
 
+def str_list_normalizer(val: str) -> list[str]:
+    return [vs for v in val.split(",") if (vs := v.strip())]
+
+
+def build_config_setting_validator(val: str) -> bool:
+    try:
+        value = build_config_setting_normalizer(val)
+    except JSONDecodeError:
+        return False
+
+    if not isinstance(value, dict):
+        return False
+
+    for key, item in value.items():
+        # keys should be string
+        if not isinstance(key, str):
+            return False
+
+        # items are allowed to be a string
+        if isinstance(item, str):
+            continue
+
+        # list items should only contain strings
+        is_valid_list = isinstance(item, list) and all(isinstance(i, str) for i in item)
+        if not is_valid_list:
+            return False
+
+    return True
+
+
+def build_config_setting_normalizer(val: str) -> Mapping[str, str | Sequence[str]]:
+    value: Mapping[str, str | Sequence[str]] = json.loads(val)
+    return value
+
+
 @dataclasses.dataclass
 class PackageFilterPolicy:
     policy: dataclasses.InitVar[str | list[str] | None]
-    packages: list[str] = dataclasses.field(init=False)
+    packages: frozenset[str] = dataclasses.field(init=False)
 
     def __post_init__(self, policy: str | list[str] | None) -> None:
         if not policy:
             policy = []
         elif isinstance(policy, str):
             policy = self.normalize(policy)
-        self.packages = policy
+        self.packages = frozenset(policy)
 
     def allows(self, package_name: str) -> bool:
         if ":all:" in self.packages:
@@ -59,6 +101,9 @@ class PackageFilterPolicy:
             or ":none:" in self.packages
             or canonicalize_name(package_name) not in self.packages
         )
+
+    def has_exact_package(self, package_name: str) -> bool:
+        return canonicalize_name(package_name) in self.packages
 
     @classmethod
     def is_reserved(cls, name: str) -> bool:
@@ -74,9 +119,8 @@ class PackageFilterPolicy:
 
         return list(
             {
-                name.strip() if cls.is_reserved(name) else canonicalize_name(name)
-                for name in policy.strip().split(",")
-                if name
+                name if cls.is_reserved(name) else canonicalize_name(name)
+                for name in str_list_normalizer(policy)
             }
         )
 
@@ -107,6 +151,7 @@ _default_config: Config | None = None
 class Config:
     default_config: ClassVar[dict[str, Any]] = {
         "cache-dir": str(DEFAULT_CACHE_DIR),
+        "data-dir": str(data_dir()),
         "virtualenvs": {
             "create": True,
             "in-project": None,
@@ -123,14 +168,20 @@ class Config:
             "max-retries": 0,
         },
         "installer": {
-            "re-resolve": True,
+            "re-resolve": False,
             "parallel": True,
             "max-workers": None,
             "no-binary": None,
             "only-binary": None,
+            "build-config-settings": {},
+            "builtin-uninstall": False,
         },
+        "python": {"installation-dir": os.path.join("{data-dir}", "python")},
         "solver": {
             "lazy-wheel": True,
+            "min-release-age": 0,
+            "min-release-age-exclude": None,
+            "min-release-age-exclude-source": None,
         },
         "system-git-client": False,
         "keyring": {
@@ -175,7 +226,7 @@ class Config:
         def _all(config: dict[str, Any], parent_key: str = "") -> dict[str, Any]:
             all_ = {}
 
-            for key in config:
+            for key in config:  # noqa: PLC0206
                 value = self.get(parent_key + key)
                 if isinstance(value, dict):
                     if parent_key != "":
@@ -208,6 +259,26 @@ class Config:
 
         return repositories
 
+    @staticmethod
+    def _get_environment_build_config_settings() -> Mapping[
+        NormalizedName, Mapping[str, str | Sequence[str]]
+    ]:
+        build_config_settings = {}
+        pattern = re.compile(r"POETRY_INSTALLER_BUILD_CONFIG_SETTINGS_(?P<name>[^.]+)")
+
+        for env_key in os.environ:
+            if match := pattern.match(env_key):
+                if not build_config_setting_validator(os.environ[env_key]):
+                    logger.debug(
+                        "Invalid value set for environment variable %s", env_key
+                    )
+                    continue
+                build_config_settings[canonicalize_name(match.group("name"))] = (
+                    build_config_setting_normalizer(os.environ[env_key])
+                )
+
+        return build_config_settings
+
     @property
     def repository_cache_directory(self) -> Path:
         return Path(self.get("cache-dir")).expanduser() / "cache" / "repositories"
@@ -221,6 +292,13 @@ class Config:
         path = self.get("virtualenvs.path")
         if path is None:
             path = Path(self.get("cache-dir")) / "virtualenvs"
+        return Path(path).expanduser()
+
+    @property
+    def python_installation_dir(self) -> Path:
+        path = self.get("python.installation-dir")
+        if path is None:
+            path = Path(self.get("data-dir")) / "python"
         return Path(path).expanduser()
 
     @property
@@ -239,27 +317,44 @@ class Config:
             return default_max_workers
         return min(default_max_workers, int(desired_max_workers))
 
-    def get(self, setting_name: str, default: Any = None) -> Any:
+    def get(self, setting_name: str | Sequence[str], default: Any = None) -> Any:
         """
         Retrieve a setting value.
+
+        The setting_name can be a dotted string (e.g. "virtualenvs.create")
+        or a list of key segments (e.g. ["http-basic", "my.repo", "username"])
+        when any segment may contain periods.
         """
-        keys = setting_name.split(".")
+        keys = split_key(setting_name)
+        build_config_settings: Mapping[
+            NormalizedName, Mapping[str, str | Sequence[str]]
+        ] = {}
 
         # Looking in the environment if the setting
         # is set via a POETRY_* environment variable
         if self._use_environment:
-            if setting_name == "repositories":
+            if keys == ["repositories"]:
                 # repositories setting is special for now
                 repositories = self._get_environment_repositories()
                 if repositories:
                     return repositories
 
-            env = "POETRY_" + "_".join(k.upper().replace("-", "_") for k in keys)
-            env_value = os.getenv(env)
-            if env_value is not None:
-                return self.process(self._get_normalizer(setting_name)(env_value))
+            if keys[:2] == ["installer", "build-config-settings"]:
+                build_config_settings = self._get_environment_build_config_settings()
+            else:
+                env = "POETRY_" + "_".join(k.upper().replace("-", "_") for k in keys)
+                env_value = os.getenv(env)
+                if env_value is not None:
+                    return self.process(self._get_normalizer(keys)(env_value))
 
         value = self._config
+
+        # merge installer build config settings from the environment
+        for package_name in build_config_settings:
+            value["installer"]["build-config-settings"][package_name] = (
+                build_config_settings[package_name]
+            )
+
         for key in keys:
             if key not in value:
                 return self.process(default)
@@ -269,7 +364,7 @@ class Config:
         if self._use_environment and isinstance(value, dict):
             # this is a configuration table, it is likely that we missed env vars
             # in order to capture them recurse, eg: virtualenvs.options
-            return {k: self.get(f"{setting_name}.{k}") for k in value}
+            return {k: self.get([*keys, k]) for k in value}
 
         return self.process(value)
 
@@ -277,11 +372,11 @@ class Config:
         if not isinstance(value, str):
             return value
 
-        def resolve_from_config(match: re.Match[str]) -> Any:
+        def resolve_from_config(match: re.Match[str]) -> str:
             key = match.group(1)
             config_value = self.get(key)
-            if config_value:
-                return config_value
+            if config_value is not None:
+                return str(config_value)
 
             # The key doesn't exist in the config but might be resolved later,
             # so we keep it as a format variable.
@@ -290,7 +385,9 @@ class Config:
         return re.sub(r"{(.+?)}", resolve_from_config, value)
 
     @staticmethod
-    def _get_normalizer(name: str) -> Callable[[str], Any]:
+    def _get_normalizer(name: str | Sequence[str]) -> Callable[[str], Any]:
+        if not isinstance(name, str):
+            name = ".".join(name)
         if name in {
             "virtualenvs.create",
             "virtualenvs.in-project",
@@ -300,6 +397,7 @@ class Config:
             "virtualenvs.use-poetry-python",
             "installer.re-resolve",
             "installer.parallel",
+            "installer.builtin-uninstall",
             "solver.lazy-wheel",
             "system-git-client",
             "keyring.enabled",
@@ -312,11 +410,22 @@ class Config:
         if name in {
             "installer.max-workers",
             "requests.max-retries",
+            "solver.min-release-age",
         }:
             return int_normalizer
 
-        if name in ["installer.no-binary", "installer.only-binary"]:
+        if name in {
+            "installer.no-binary",
+            "installer.only-binary",
+            "solver.min-release-age-exclude",
+        }:
             return PackageFilterPolicy.normalize
+
+        if name == "solver.min-release-age-exclude-source":
+            return str_list_normalizer
+
+        if name.startswith("installer.build-config-settings."):
+            return build_config_setting_normalizer
 
         return lambda val: val
 

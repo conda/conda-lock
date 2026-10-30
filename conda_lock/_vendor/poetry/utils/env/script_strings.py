@@ -1,7 +1,32 @@
 from __future__ import annotations
 
+import packaging.tags
 
-GET_ENVIRONMENT_INFO = """\
+
+GET_PLATFORMS = f"""
+import importlib.util
+import json
+import sys
+
+from pathlib import Path
+
+spec = importlib.util.spec_from_file_location(
+    "packaging", Path(r"{packaging.__file__}")
+)
+packaging = importlib.util.module_from_spec(spec)
+sys.modules[spec.name] = packaging
+
+spec = importlib.util.spec_from_file_location(
+    "packaging.tags", Path(r"{packaging.tags.__file__}")
+)
+packaging_tags = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(packaging_tags)
+
+print(json.dumps(list(packaging_tags.platform_tags())))
+"""
+
+# Shared bodies keep standalone and combined discovery scripts in sync.
+_ENVIRONMENT_INFO_SCRIPT = """\
 import json
 import os
 import platform
@@ -61,10 +86,18 @@ env = {
         implementation_name, implementation_name
     ),
     "interpreter_version": interpreter_version(),
+    "sysconfig_platform": sysconfig.get_platform(),
+    "free_threading": bool(sysconfig.get_config_var("Py_GIL_DISABLED")),
 }
+"""
 
+
+GET_ENVIRONMENT_INFO = (
+    _ENVIRONMENT_INFO_SCRIPT
+    + """\
 print(json.dumps(env))
 """
+)
 
 GET_BASE_PREFIX = """\
 import sys
@@ -90,7 +123,7 @@ import sys
 print(json.dumps(sys.path))
 """
 
-GET_PATHS = """\
+_PATHS_SCRIPT = """\
 import json
 import site
 import sysconfig
@@ -104,7 +137,30 @@ paths["fallbacks"] = [
 
 if site.check_enableusersite():
     paths["usersite"] = site.getusersitepackages()
-    paths["userbase"] = site.getuserbase()
 
+paths["userbase"] = site.getuserbase()
+"""
+
+
+GET_PATHS = (
+    _PATHS_SCRIPT
+    + """\
 print(json.dumps(paths))
 """
+)
+
+
+GET_ENVIRONMENT_DATA = (
+    _ENVIRONMENT_INFO_SCRIPT
+    + _PATHS_SCRIPT
+    + """\
+base_prefix = getattr(sys, "base_prefix", sys.prefix)
+base_prefix = getattr(sys, "real_prefix", base_prefix)
+
+print(json.dumps({
+    "base_prefix": base_prefix,
+    "marker_env": env,
+    "paths": paths,
+}))
+"""
+)

@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import dataclasses
-import functools
 import warnings
 
 from typing import TYPE_CHECKING
@@ -21,32 +20,22 @@ if TYPE_CHECKING:
     from conda_lock._vendor.poetry.core.version.pep440.segments import LocalSegmentType
 
 
-@functools.total_ordering
-class AlwaysSmaller:
-    def __lt__(self, other: object) -> bool:
-        return True
-
-
-@functools.total_ordering
-class AlwaysGreater:
-    def __gt__(self, other: object) -> bool:
-        return True
-
-
-class Infinity(AlwaysGreater, int):
-    pass
-
-
-class NegativeInfinity(AlwaysSmaller, int):
-    pass
-
-
 T = TypeVar("T", bound="PEP440Version")
 
+# The compare key only contains built-in types (ints, floats, strings and
+# tuples thereof), so that comparing and hashing versions stays entirely in
+# C code. Infinity sentinels are expressed as floats; phases as strings that
+# sort correctly against the real phase identifiers:
 # we use the phase "z" to ensure we always sort this after other phases
-_INF_TAG = ReleaseTag("z", Infinity())
+_INF_TAG = ("z", float("inf"))
 # we use the phase "" to ensure we always sort this before other phases
-_NEG_INF_TAG = ReleaseTag("", NegativeInfinity())
+_NEG_INF_TAG = ("", float("-inf"))
+
+_CompareTag = tuple[str, int | float]
+_CompareLocal = tuple[tuple[int | float, str], ...]
+_CompareKey = tuple[
+    int, tuple[int, ...], _CompareTag, _CompareTag, _CompareTag, _CompareLocal
+]
 
 
 @dataclasses.dataclass(frozen=True, eq=True, order=True)
@@ -57,10 +46,8 @@ class PEP440Version:
     post: ReleaseTag | None = dataclasses.field(default=None, compare=False)
     dev: ReleaseTag | None = dataclasses.field(default=None, compare=False)
     local: LocalSegmentType = dataclasses.field(default=None, compare=False)
-    text: str = dataclasses.field(default="", compare=False)
-    _compare_key: tuple[
-        int, Release, ReleaseTag, ReleaseTag, ReleaseTag, tuple[int | str, ...]
-    ] = dataclasses.field(init=False, compare=True)
+    text: str = dataclasses.field(init=False, compare=False)
+    _compare_key: _CompareKey = dataclasses.field(init=False, compare=True)
 
     def __post_init__(self) -> None:
         if self.local is not None and not isinstance(self.local, tuple):
@@ -69,23 +56,11 @@ class PEP440Version:
         if isinstance(self.release, tuple):
             object.__setattr__(self, "release", Release(*self.release))
 
-        # we do this here to handle both None and tomlkit string values
-        object.__setattr__(
-            self, "text", self.to_string() if not self.text else str(self.text)
-        )
+        object.__setattr__(self, "text", self.to_string())
 
         object.__setattr__(self, "_compare_key", self._make_compare_key())
 
-    def _make_compare_key(
-        self,
-    ) -> tuple[
-        int,
-        Release,
-        ReleaseTag,
-        ReleaseTag,
-        ReleaseTag,
-        tuple[tuple[int, int | str], ...],
-    ]:
+    def _make_compare_key(self) -> _CompareKey:
         """
         This code is based on the implementation of packaging.version._cmpkey(..)
         """
@@ -100,18 +75,20 @@ class PEP440Version:
         elif self.pre is None:
             _pre = _INF_TAG
         else:
-            _pre = self.pre
+            _pre = (self.pre.phase, self.pre.number)
 
         # Versions without a post segment should sort before those with one.
-        _post = _NEG_INF_TAG if self.post is None else self.post
+        _post = (
+            _NEG_INF_TAG if self.post is None else (self.post.phase, self.post.number)
+        )
 
         # Versions without a development segment should sort after those with one.
-        _dev = _INF_TAG if self.dev is None else self.dev
+        _dev = _INF_TAG if self.dev is None else (self.dev.phase, self.dev.number)
 
-        _local: tuple[tuple[int, int | str], ...]
+        _local: _CompareLocal
         if self.local is None:
             # Versions without a local segment should sort before those with one.
-            _local = ((NegativeInfinity(), ""),)
+            _local = ((float("-inf"), ""),)
         else:
             # Versions with a local segment need that segment parsed to implement
             # the sorting rules in PEP440.
@@ -123,10 +100,10 @@ class PEP440Version:
             assert isinstance(self.local, tuple)
             # We convert strings that are integers so that they can be compared
             _local = tuple(
-                (int(i), "") if str(i).isnumeric() else (NegativeInfinity(), i)
+                (int(i), "") if (s_i := str(i)).isnumeric() else (float("-inf"), s_i)
                 for i in self.local
             )
-        return self.epoch, self.release, _pre, _post, _dev, _local
+        return self.epoch, self.release._compare_key, _pre, _post, _dev, _local
 
     @property
     def major(self) -> int:

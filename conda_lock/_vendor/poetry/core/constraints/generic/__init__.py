@@ -6,6 +6,7 @@ from conda_lock._vendor.poetry.core.constraints.generic.constraint import Constr
 from conda_lock._vendor.poetry.core.constraints.generic.empty_constraint import EmptyConstraint
 from conda_lock._vendor.poetry.core.constraints.generic.multi_constraint import MultiConstraint
 from conda_lock._vendor.poetry.core.constraints.generic.parser import parse_constraint
+from conda_lock._vendor.poetry.core.constraints.generic.parser import parse_extra_constraint
 from conda_lock._vendor.poetry.core.constraints.generic.union_constraint import UnionConstraint
 
 
@@ -17,4 +18,5 @@ __all__ = (
     "MultiConstraint",
     "UnionConstraint",
     "parse_constraint",
+    "parse_extra_constraint",
 )

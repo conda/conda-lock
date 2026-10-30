@@ -19,16 +19,17 @@ import virtualenv
 from conda_lock._vendor.cleo.io.null_io import NullIO
 from conda_lock._vendor.poetry.core.constraints.version import Version
 
+from conda_lock._vendor.poetry.console.exceptions import PoetryConsoleError
 from conda_lock._vendor.poetry.toml.file import TOMLFile
 from conda_lock._vendor.poetry.utils._compat import WINDOWS
 from conda_lock._vendor.poetry.utils._compat import encode
 from conda_lock._vendor.poetry.utils.env.exceptions import EnvCommandError
 from conda_lock._vendor.poetry.utils.env.exceptions import IncorrectEnvError
-from conda_lock._vendor.poetry.utils.env.exceptions import InvalidCurrentPythonVersionError
-from conda_lock._vendor.poetry.utils.env.exceptions import NoCompatiblePythonVersionFoundError
-from conda_lock._vendor.poetry.utils.env.exceptions import PythonVersionNotFoundError
 from conda_lock._vendor.poetry.utils.env.generic_env import GenericEnv
-from conda_lock._vendor.poetry.utils.env.python_manager import Python
+from conda_lock._vendor.poetry.utils.env.python import Python
+from conda_lock._vendor.poetry.utils.env.python.exceptions import InvalidCurrentPythonVersionError
+from conda_lock._vendor.poetry.utils.env.python.exceptions import NoCompatiblePythonVersionFoundError
+from conda_lock._vendor.poetry.utils.env.python.exceptions import PythonVersionNotFoundError
 from conda_lock._vendor.poetry.utils.env.script_strings import GET_ENV_PATH_ONELINER
 from conda_lock._vendor.poetry.utils.env.script_strings import GET_PYTHON_VERSION_ONELINER
 from conda_lock._vendor.poetry.utils.env.system_env import SystemEnv
@@ -91,7 +92,7 @@ class EnvManager:
 
     ENVS_FILE = "envs.toml"
 
-    def __init__(self, poetry: Poetry, io: None | IO = None) -> None:
+    def __init__(self, poetry: Poetry, io: IO | None = None) -> None:
         self._poetry = poetry
         self._io = io or NullIO()
 
@@ -114,17 +115,8 @@ class EnvManager:
     def activate(self, python: str) -> Env:
         venv_path = self._poetry.config.virtualenvs_path
 
-        try:
-            python_version = Version.parse(python)
-            python = f"python{python_version.major}"
-            if python_version.precision > 1:
-                python += f".{python_version.minor}"
-        except ValueError:
-            # Executable in PATH or full executable path
-            pass
-
-        python_ = Python.get_by_name(python)
-        if python_ is None:
+        python_instance = Python.get_by_name(python)
+        if python_instance is None:
             raise PythonVersionNotFoundError(python)
 
         create = False
@@ -133,15 +125,15 @@ class EnvManager:
         if self.use_in_project_venv():
             create = False
             venv = self.in_project_venv
-            if venv.exists():
+            if venv.is_dir():
                 # We need to check if the patch version is correct
                 _venv = VirtualEnv(venv)
                 current_patch = ".".join(str(v) for v in _venv.version_info[:3])
 
-                if python_.patch_version.to_string() != current_patch:
+                if python_instance.patch_version.to_string() != current_patch:
                     create = True
 
-            self.create_venv(executable=python_.executable, force=create)
+            self.create_venv(python=python_instance, force=create)
 
             return self.get(reload=True)
 
@@ -154,18 +146,20 @@ class EnvManager:
                 current_patch = current_env["patch"]
 
                 if (
-                    current_minor == python_.minor_version.to_string()
-                    and current_patch != python_.patch_version.to_string()
+                    current_minor == python_instance.minor_version.to_string()
+                    and current_patch != python_instance.patch_version.to_string()
                 ):
                     # We need to recreate
                     create = True
 
-        name = f"{self.base_env_name}-py{python_.minor_version.to_string()}"
-        venv = venv_path / name
+        venv = (
+            venv_path
+            / f"{self.base_env_name}-py{python_instance.minor_version.to_string()}"
+        )
 
         # Create if needed
         if not venv.exists() or create:
-            in_venv = os.environ.get("VIRTUAL_ENV") is not None
+            in_venv = bool(os.environ.get("VIRTUAL_ENV"))
             if in_venv or not venv.exists():
                 create = True
 
@@ -174,15 +168,15 @@ class EnvManager:
                 _venv = VirtualEnv(venv)
                 current_patch = ".".join(str(v) for v in _venv.version_info[:3])
 
-                if python_.patch_version.to_string() != current_patch:
+                if python_instance.patch_version.to_string() != current_patch:
                     create = True
 
-            self.create_venv(executable=python_.executable, force=create)
+            self.create_venv(python=python_instance, force=create)
 
         # Activate
         envs[self.base_env_name] = {
-            "minor": python_.minor_version.to_string(),
-            "patch": python_.patch_version.to_string(),
+            "minor": python_instance.minor_version.to_string(),
+            "patch": python_instance.patch_version.to_string(),
         }
         self.envs_file.write(envs)
 
@@ -203,8 +197,7 @@ class EnvManager:
         if self._env is not None and not reload:
             return self._env
 
-        python = Python.get_preferred_python(config=self._poetry.config, io=self._io)
-        python_minor = python.minor_version.to_string()
+        python_minor: str | None = None
 
         env = None
         envs = None
@@ -221,7 +214,9 @@ class EnvManager:
         conda_env_name = os.environ.get("CONDA_DEFAULT_ENV")
         # It's probably not a good idea to pollute Conda's global "base" env, since
         # most users have it activated all the time.
-        in_venv = env_prefix is not None and conda_env_name != "base"
+        # Treat an empty env_prefix as if no virtualenv is active, since conda
+        # can leave CONDA_PREFIX set to an empty string after deactivation.
+        in_venv = bool(env_prefix) and conda_env_name != "base"
 
         if not in_venv or env is not None:
             # Checking if a local virtualenv exists
@@ -237,6 +232,13 @@ class EnvManager:
 
             venv_path = self._poetry.config.virtualenvs_path
 
+            if python_minor is None:
+                # we only need to discover python version in this case
+                python = Python.get_preferred_python(
+                    config=self._poetry.config, io=self._io
+                )
+                python_minor = python.minor_version.to_string()
+
             name = f"{self.base_env_name}-py{python_minor.strip()}"
 
             venv = venv_path / name
@@ -249,14 +251,8 @@ class EnvManager:
 
             return VirtualEnv(venv)
 
-        if env_prefix is not None:
-            prefix = Path(env_prefix)
-            base_prefix = None
-        else:
-            prefix = Path(sys.prefix)
-            base_prefix = self.get_base_prefix()
-
-        return VirtualEnv(prefix, base_prefix)
+        assert env_prefix
+        return VirtualEnv(Path(env_prefix))
 
     def list(self, name: str | None = None) -> list[VirtualEnv]:
         if name is None:
@@ -285,9 +281,8 @@ class EnvManager:
         if python_path.is_file():
             # Validate env name if provided env is a full path to python
             try:
-                encoding = "locale" if sys.version_info >= (3, 10) else None
                 env_dir = subprocess.check_output(
-                    [python, "-c", GET_ENV_PATH_ONELINER], text=True, encoding=encoding
+                    [python, "-c", GET_ENV_PATH_ONELINER], text=True, encoding="locale"
                 ).strip("\n")
                 env_name = Path(env_dir).name
                 if not self.check_env_is_for_current_project(
@@ -330,11 +325,10 @@ class EnvManager:
             pass
 
         try:
-            encoding = "locale" if sys.version_info >= (3, 10) else None
             python_version_string = subprocess.check_output(
                 [python, "-c", GET_PYTHON_VERSION_ONELINER],
                 text=True,
-                encoding=encoding,
+                encoding="locale",
             )
         except CalledProcessError as e:
             raise EnvCommandError(e)
@@ -372,7 +366,7 @@ class EnvManager:
     def create_venv(
         self,
         name: str | None = None,
-        executable: Path | None = None,
+        python: Python | None = None,
         force: bool = False,
     ) -> Env:
         if self._env is not None and not force:
@@ -384,27 +378,35 @@ class EnvManager:
         if not env.is_sane():
             force = True
 
-        if env.is_venv() and not force:
+        supported_python = self._poetry.package.python_constraint
+        create_venv = self._poetry.config.get("virtualenvs.create")
+
+        if (env.is_venv() and not force) or not create_venv:
             # Already inside a virtualenv.
             current_python = Version.parse(
                 ".".join(str(c) for c in env.version_info[:3])
             )
-            if not self._poetry.package.python_constraint.allows(current_python):
+            if not supported_python.allows(current_python):
                 raise InvalidCurrentPythonVersionError(
-                    self._poetry.package.python_versions, str(current_python)
+                    self._poetry.package.python_versions,
+                    str(current_python),
+                    note=(
+                        'Please change python executable via the "env use" command.'
+                        if create_venv
+                        else "Poetry cannot switch to a compatible Python version because"
+                        " virtualenv creation is disabled."
+                    ),
                 )
             return env
 
-        create_venv = self._poetry.config.get("virtualenvs.create")
         in_project_venv = self.use_in_project_venv()
-        use_poetry_python = self._poetry.config.get("virtualenvs.use-poetry-python")
         venv_prompt = self._poetry.config.get("virtualenvs.prompt")
 
-        python = (
-            Python(executable)
-            if executable
-            else Python.get_preferred_python(config=self._poetry.config, io=self._io)
-        )
+        specific_python_requested = python is not None
+        if not python:
+            python = Python.get_preferred_python(
+                config=self._poetry.config, io=self._io
+            )
 
         venv_path = (
             self.in_project_venv
@@ -414,7 +416,6 @@ class EnvManager:
         if not name:
             name = self._poetry.package.name
 
-        supported_python = self._poetry.package.python_constraint
         if not supported_python.allows(python.patch_version):
             # The currently activated or chosen Python version
             # is not compatible with the Python constraint specified
@@ -422,7 +423,7 @@ class EnvManager:
             # If an executable has been specified, we stop there
             # and notify the user of the incompatibility.
             # Otherwise, we try to find a compatible Python version.
-            if executable and use_poetry_python:
+            if specific_python_requested:
                 raise NoCompatiblePythonVersionFoundError(
                     self._poetry.package.python_versions,
                     python.patch_version.to_string(),
@@ -444,12 +445,22 @@ class EnvManager:
             venv = venv_path / name
 
         if venv_prompt is not None:
-            venv_prompt = venv_prompt.format(
-                project_name=self._poetry.package.name or "virtualenv",
-                python_version=python.minor_version.to_string(),
-            )
+            try:
+                venv_prompt = venv_prompt.format(
+                    project_name=self._poetry.package.name or "virtualenv",
+                    python_version=python.minor_version.to_string(),
+                )
+            except KeyError as e:
+                raise PoetryConsoleError(
+                    f"Invalid template variable '{e.args[0]}' in 'virtualenvs.prompt' setting.\n"
+                    f"Valid variables are: {{project_name}}, {{python_version}}"
+                ) from e
+            except ValueError as e:
+                raise PoetryConsoleError(
+                    f"Invalid template string in 'virtualenvs.prompt' setting: {e}"
+                ) from e
 
-        if not venv.exists():
+        if not venv.is_dir():
             if create_venv is False:
                 self._io.write_error_line(
                     "<fg=black;bg=yellow>"
@@ -459,6 +470,12 @@ class EnvManager:
                 )
 
                 return self.get_system_env()
+
+            if venv.is_file():
+                self._io.write_error_line(
+                    f"<warning>{venv} is not a virtual environment but a file. Removing it.</warning>"
+                )
+                venv.unlink()
 
             self._io.write_error_line(
                 f"Creating virtualenv <c1>{name}</> in"
@@ -533,7 +550,7 @@ class EnvManager:
         args = [
             "--no-download",
             "--no-periodic-update",
-            "--try-first-with",
+            "--python",
             executable_str or sys.executable,
         ]
 
@@ -551,7 +568,7 @@ class EnvManager:
 
         cli_result = virtualenv.cli_run(args, setup_logging=False)
 
-        # Exclude the venv folder from from macOS Time Machine backups
+        # Exclude the venv folder from macOS Time Machine backups
         # TODO: Add backup-ignore markers for other platforms too
         if sys.platform == "darwin":
             import xattr
@@ -573,7 +590,7 @@ class EnvManager:
         except OSError as e:
             # Continue only if e.errno == 16
             if e.errno != 16:  # ERRNO 16: Device or resource busy
-                raise e
+                raise
 
         # Delete all files and folders but the toplevel one. This is because sometimes
         # the venv folder is mounted by the OS, such as in a docker volume. In such

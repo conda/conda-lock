@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
+from conda_lock._vendor.poetry.core.packages.dependency_group import MAIN_GROUP
 from conda_lock._vendor.poetry.core.version.markers import BaseMarker
 from conda_lock._vendor.poetry.core.version.markers import EmptyMarker
 
@@ -10,16 +11,22 @@ from conda_lock._vendor.poetry.core.version.markers import EmptyMarker
 if TYPE_CHECKING:
     from collections.abc import Iterable
 
+    from packaging.utils import NormalizedName
+
+
+def group_sort_key(group: NormalizedName) -> tuple[bool, NormalizedName]:
+    return group != MAIN_GROUP, group
+
 
 @dataclass
 class TransitivePackageInfo:
     depth: int  # max depth in the dependency tree
-    groups: set[str]
-    markers: dict[str, BaseMarker]  # group -> marker
+    groups: set[NormalizedName]
+    markers: dict[NormalizedName, BaseMarker]  # group -> marker
 
-    def get_marker(self, groups: Iterable[str]) -> BaseMarker:
+    def get_marker(self, groups: Iterable[NormalizedName]) -> BaseMarker:
         marker: BaseMarker = EmptyMarker()
-        for group in groups:
+        for group in sorted(groups, key=group_sort_key):
             if group_marker := self.markers.get(group):
                 marker = marker.union(group_marker)
         return marker

@@ -14,22 +14,59 @@ from pathlib import Path
 from subprocess import CalledProcessError
 from typing import TYPE_CHECKING
 from typing import Any
+from typing import TypedDict
 
+from installer.utils import SCHEME_NAMES
 from virtualenv.seed.wheels.embed import get_embed_wheel
 
 from conda_lock._vendor.poetry.utils.env.exceptions import EnvCommandError
 from conda_lock._vendor.poetry.utils.env.site_packages import SitePackages
 from conda_lock._vendor.poetry.utils.helpers import get_real_windows_path
+from conda_lock._vendor.poetry.utils.helpers import is_dir_writable
 
 
 if TYPE_CHECKING:
     from packaging.tags import Tag
     from conda_lock._vendor.poetry.core.version.markers import BaseMarker
-    from virtualenv.seed.wheels.util import Wheel
 
     from conda_lock._vendor.poetry.utils.env.generic_env import GenericEnv
 
     PythonVersion = tuple[int, int, int, str, int]
+
+
+class MarkerEnv(TypedDict):
+    implementation_name: str
+    implementation_version: str
+    os_name: str
+    platform_machine: str
+    platform_release: str
+    platform_system: str
+    platform_version: str
+    python_full_version: str
+    platform_python_implementation: str
+    python_version: str
+    sys_platform: str
+    version_info: PythonVersion
+    interpreter_name: str
+    interpreter_version: str
+    sysconfig_platform: str
+    free_threading: bool
+
+
+class EnvPaths(TypedDict, total=False):
+    # sysconfig paths
+    stdlib: str
+    platstdlib: str
+    purelib: str
+    platlib: str
+    include: str
+    platinclude: str
+    scripts: str
+    data: str
+    # additional paths
+    fallbacks: list[str]
+    usersite: str
+    userbase: str
 
 
 class Env(ABC):
@@ -55,10 +92,12 @@ class Env(ABC):
 
         self.find_executables()
 
-        self._base = base or path
+        # Preserve an unspecified base so VirtualEnv can discover it lazily.
+        self._base = base
 
         self._site_packages: SitePackages | None = None
         self._supported_tags: list[Tag] | None = None
+        self._supported_tags_set: set[Tag] | None = None
         self._purelib: Path | None = None
         self._platlib: Path | None = None
         self._script_dirs: list[Path] | None = None
@@ -75,7 +114,7 @@ class Env(ABC):
 
     @property
     def base(self) -> Path:
-        return self._base
+        return self._base or self._path
 
     @property
     def version_info(self) -> PythonVersion:
@@ -95,7 +134,7 @@ class Env(ABC):
         return Path(self._bin(self._executable))
 
     @cached_property
-    def marker_env(self) -> dict[str, Any]:
+    def marker_env(self) -> MarkerEnv:
         return self.get_marker_env()
 
     @property
@@ -116,11 +155,7 @@ class Env(ABC):
             if re.match(r"python(?:\d+(?:\.\d+)?)?(?:\.exe)?$", p.name)
         )
         if python_executables:
-            executable = python_executables[0]
-            if executable.endswith(".exe"):
-                executable = executable[:-4]
-
-            self._executable = executable
+            self._executable = python_executables[0].removesuffix(".exe")
 
     def _find_pip_executable(self) -> None:
         pip_executables = sorted(
@@ -129,22 +164,19 @@ class Env(ABC):
             if re.match(r"pip(?:\d+(?:\.\d+)?)?(?:\.exe)?$", p.name)
         )
         if pip_executables:
-            pip_executable = pip_executables[0]
-            if pip_executable.endswith(".exe"):
-                pip_executable = pip_executable[:-4]
-
-            self._pip_executable = pip_executable
+            self._pip_executable = pip_executables[0].removesuffix(".exe")
 
     def find_executables(self) -> None:
         self._find_python_executable()
         self._find_pip_executable()
 
     def get_embedded_wheel(self, distribution: str) -> Path:
-        wheel: Wheel = get_embed_wheel(
+        wheel = get_embed_wheel(
             distribution, f"{self.version_info[0]}.{self.version_info[1]}"
         )
-        path: Path = wheel.path
-        return path
+        if wheel is None:
+            raise RuntimeError(f"embedded {distribution} wheel not found")
+        return wheel.path
 
     @property
     def pip_embedded(self) -> Path:
@@ -217,6 +249,91 @@ class Env(ABC):
         paths += [self.usersite] if self.usersite else []
         return paths
 
+    def set_paths(
+        self,
+        purelib: str | Path | None = None,
+        platlib: str | Path | None = None,
+        userbase: str | Path | None = None,
+        usersite: str | Path | None = None,
+    ) -> None:
+        """
+        A cached property aware way to set environment paths during runtime.
+
+        In some cases, like in `PluginManager._install()` method, paths are modified during execution. Direct
+        modification of `self.paths` is not safe as caches relying on are not invalidated. This helper method
+        ensures that we clear the relevant caches why paths are modified.
+        """
+        if purelib:
+            self.paths["purelib"] = str(purelib)
+
+        if platlib:
+            self.paths["platlib"] = str(platlib)
+
+        if userbase:
+            self.paths["userbase"] = str(userbase)
+
+        if usersite:
+            self.paths["usersite"] = str(usersite)
+
+        # clear cached properties using the env paths
+        self.__dict__.pop("fallbacks", None)
+        self.__dict__.pop("scheme_dict", None)
+
+    @cached_property
+    def scheme_dict(self) -> dict[str, str]:
+        """
+        This property exists to allow cases where system environment paths are not writable and
+        user site is enabled. This enables us to ensure packages (wheels) are correctly installed
+        into directories where the current user can write to.
+
+        If all candidates in `self.paths` is writable, no modification is made. If at least one path is not writable
+        and all generated writable candidates are indeed writable, these are used instead. If any candidate is not
+        writable, the original paths are returned.
+
+        Alternative writable candidates are generated by replacing discovered prefix, with "userbase"
+        if available. The original prefix is computed as the common path prefix of "scripts" and "purelib".
+        For example, given `{ "purelib": "/usr/local/lib/python3.13/site-packages", "scripts": "/usr/local/bin",
+        "userbase": "/home/user/.local" }`; the candidate "purelib" path would be
+        `/home/user/.local/lib/python3.13/site-packages`.
+        """
+        paths = {
+            key: value for key, value in self.paths.items() if isinstance(value, str)
+        }
+
+        if (
+            not self.is_venv()
+            and (userbase := self.paths.get("userbase"))
+            and ("scripts" in paths and "purelib" in paths)
+        ):
+            overrides: dict[str, str] = {}
+
+            try:
+                base_path = os.path.commonpath([paths["scripts"], paths["purelib"]])
+            except ValueError:
+                return paths
+
+            scheme_names = [key for key in SCHEME_NAMES if key in paths]
+
+            for key in scheme_names:
+                if not is_dir_writable(path=Path(paths[key]), create=True):
+                    # there is at least one path that is not writable
+                    break
+            else:
+                # all paths are writable, return early
+                return paths
+
+            for key in scheme_names:
+                candidate = paths[key].replace(base_path, userbase)
+                if not is_dir_writable(path=Path(candidate), create=True):
+                    # at least one candidate is not writable, we cannot do much here
+                    return paths
+
+                overrides[key] = candidate
+
+            paths.update(overrides)
+
+        return paths
+
     def _get_lib_dirs(self) -> list[Path]:
         return [self.purelib, self.platlib, *self.fallbacks]
 
@@ -233,7 +350,7 @@ class Env(ABC):
     def sys_path(self) -> list[str]: ...
 
     @cached_property
-    def paths(self) -> dict[str, str]:
+    def paths(self) -> EnvPaths:
         paths = self.get_paths()
 
         if self.is_venv():
@@ -254,6 +371,13 @@ class Env(ABC):
 
         return self._supported_tags
 
+    @property
+    def supported_tags_set(self) -> set[Tag]:
+        if self._supported_tags_set is None:
+            self._supported_tags_set = set(self.supported_tags)
+
+        return self._supported_tags_set
+
     @classmethod
     def get_base_prefix(cls) -> Path:
         real_prefix = getattr(sys, "real_prefix", None)
@@ -267,7 +391,7 @@ class Env(ABC):
         return Path(sys.prefix)
 
     @abstractmethod
-    def get_marker_env(self) -> dict[str, Any]: ...
+    def get_marker_env(self) -> MarkerEnv: ...
 
     def get_pip_command(self, embedded: bool = False) -> list[str]:
         if embedded or not Path(self._bin(self._pip_executable)).exists():
@@ -279,7 +403,7 @@ class Env(ABC):
     def get_supported_tags(self) -> list[Tag]: ...
 
     @abstractmethod
-    def get_paths(self) -> dict[str, str]: ...
+    def get_paths(self) -> EnvPaths: ...
 
     def is_valid_for_marker(self, marker: BaseMarker) -> bool:
         valid: bool = marker.validate(self.marker_env)
@@ -309,6 +433,13 @@ class Env(ABC):
         return self._run(cmd, **kwargs)
 
     def run_python_script(self, content: str, **kwargs: Any) -> str:
+        # Options Used:
+        #     -I        : Run Python in isolated mode. (#6627)
+        #     -W ignore : Suppress warnings.
+        #
+        # TODO: Consider replacing (-I) with (-EP) once support for managing Python <3.11 environments dropped.
+        # This is useful to prevent user site being disabled over zealously.
+
         return self.run(
             self._executable,
             "-I",
@@ -334,9 +465,8 @@ class Env(ABC):
                 subprocess.check_call(cmd, stderr=stderr, env=env, **kwargs)
                 output = ""
             else:
-                encoding = "locale" if sys.version_info >= (3, 10) else None
                 output = subprocess.check_output(
-                    cmd, stderr=stderr, env=env, text=True, encoding=encoding, **kwargs
+                    cmd, stderr=stderr, env=env, text=True, encoding="locale", **kwargs
                 )
         except CalledProcessError as e:
             raise EnvCommandError(e)
