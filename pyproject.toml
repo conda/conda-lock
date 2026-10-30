@@ -153,11 +153,12 @@ destination = "conda_lock/_vendor"
 namespace = "conda_lock._vendor"
 requirements = "conda_lock/_vendor/vendor.txt"
 protected-files = ["__init__.py", "README.md", "LICENSES.md", "vendor.txt"]
-patches-dir = "conda_lock/scripts/vendor_poetry/patches"
 
 [tool.vendoring.transformations]
 drop = [
     "bin",
+    "*.dist-info",
+    "*.egg-info",
     "conda_env",
     "poetry/publishing",
     "poetry/utils/shell.py",
@@ -169,7 +170,7 @@ drop = [
     # - __init__.py
     # - strategy/__init__.py
     # - strategy/parse_poetry_version.py
-    '^grayskull\/(?!__init__\.py$|strategy\/parse_poetry_version\.py$|strategy\/__init__\.py$)',
+    '^grayskull\/(?!__init__\.py$|strategy$|strategy\/parse_poetry_version\.py$|strategy\/__init__\.py$)',
 ]
 substitute = [
     # simple substitution patch to fix conda.exports
@@ -182,7 +183,9 @@ substitute = [
     # for CLI apps. We don't need this functionality in conda-lock, and removing
     # this import allows us to drop it as a dependency.
     { match = 'from rapidfuzz.distance import Levenshtein', replace = ''},
-    { match = '__version__ = metadata\.version\("poetry"\)', replace = '__version__ = "2.0.1"' },
+    { match = '__version__ = metadata\.version\("poetry"\)', replace = '__version__ = "2.5.1"' },
+    # Resource lookups use module-name strings, which vendoring cannot rewrite.
+    { match = 'files\("poetry\.core"\)', replace = 'files("conda_lock._vendor.poetry.core")' },
 ]
 
 [tool.conda-lock]

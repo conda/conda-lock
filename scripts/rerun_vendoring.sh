@@ -14,11 +14,11 @@ fi
 
 if [ ! -f pyproject.toml ]; then
   echo "pyproject.toml not found in the current directory. Please run this script from the root of the project:"
-  echo "  conda_lock/scripts/vendor_poetry/rerun_vendoring.sh"
+  echo "  scripts/rerun_vendoring.sh"
   exit 1
 fi
 
-vendoring sync -vvv .
+vendoring sync -v
 
 echo Fixing CRLF line endings...
 dos2unix conda_lock/_vendor/poetry/core/_vendor/lark/grammars/*
@@ -30,9 +30,11 @@ sed -i '1s/^/from __future__ import annotations\n\n/' conda_lock/_vendor/graysku
 
 echo Downloading missing licenses...
 for package in poetry poetry-core cleo; do
-  curl -s "https://raw.githubusercontent.com/python-poetry/${package}/master/LICENSE" > "conda_lock/_vendor/${package}.LICENSE"
+  version=$(sed -n "s/^${package}==//p" conda_lock/_vendor/vendor.txt)
+  curl --fail --silent --show-error "https://raw.githubusercontent.com/python-poetry/${package}/${version}/LICENSE" > "conda_lock/_vendor/${package}.LICENSE"
 done
-curl -s "https://raw.githubusercontent.com/conda/conda/master/LICENSE" > "conda_lock/_vendor/conda.LICENSE"
+conda_version=$(sed -n 's|^git+https://github.com/conda/conda.git@||p' conda_lock/_vendor/vendor.txt)
+curl --fail --silent --show-error "https://raw.githubusercontent.com/conda/conda/${conda_version}/LICENSE" > "conda_lock/_vendor/conda.LICENSE"
 
 echo Removing duplicate licenses...
 diff conda_lock/_vendor/conda/LICENSE.txt conda_lock/_vendor/conda/_vendor/frozendict/LICENSE.txt
