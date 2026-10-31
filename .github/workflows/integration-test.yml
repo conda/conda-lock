@@ -219,7 +219,7 @@ jobs:
         uses: conda-incubator/setup-miniconda@fc2d68f6413eb2d87b895e92f8584b5b94a10167 # v3.3.0
         with:
           auto-activate-base: true
-          python-version: 3.14
+          python-version: 3.15
       - name: install conda-lock
         shell: bash -leo pipefail {0}
         run: |
