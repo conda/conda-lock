@@ -77,7 +77,8 @@ dependencies = [
     "build >=1.2.1,<2.0.0",
     "cachecontrol[filecache] >=0.14.0,<0.15.0",
     "crashtest >=0.4.1,<0.5.0",
-    "dulwich >=0.22.6,<0.25",
+    # 1.2.20 fixes Git/Dulwich disagreement on duplicate commit and tag headers.
+    "dulwich >=1.2.20,<2",
     "fastjsonschema >=2.18.0,<3.0.0",
     'importlib-metadata >= 4.4 ;  python_version <"3.10"',
     'installer >=1.0.1,<2.0.0',
@@ -192,6 +193,8 @@ channels = ["conda-forge", "nodefaults"]
 platforms = ["linux-64", "osx-64", "osx-arm64", "win-64", "linux-aarch64"]
 
 [tool.conda-lock.dependencies]
+# PyPI provides Dulwich 1.2.20 for Python 3.10; conda-forge starts at Python 3.11.
+dulwich = {source = "pypi"}
 # This is necessary to pull in the lockfile/filelock dependency
 # since we don't handle the optional dependency.
 cachecontrol-with-filecache = ">=0.12.9"

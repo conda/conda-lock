@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import contextlib
 import dataclasses
 import logging
 import re
@@ -18,7 +19,8 @@ from dulwich.config import ConfigFile
 from dulwich.config import parse_submodules
 from dulwich.errors import NotGitRepository
 from dulwich.index import IndexEntry
-from dulwich.refs import ANNOTATED_TAG_SUFFIX
+from dulwich.object_store import peel_sha
+from dulwich.protocol import PEELED_TAG_SUFFIX
 from dulwich.repo import Repo
 
 from conda_lock._vendor.poetry.console.exceptions import PoetryConsoleError
@@ -44,7 +46,7 @@ def is_revision_sha(revision: str | None) -> bool:
 def annotated_tag(ref: str | bytes) -> bytes:
     if isinstance(ref, str):
         ref = ref.encode("utf-8")
-    return ref + ANNOTATED_TAG_SUFFIX
+    return ref + PEELED_TAG_SUFFIX
 
 
 @dataclasses.dataclass
@@ -59,7 +61,7 @@ class GitRefSpec:
         Resolve the ref using the provided remote refs.
         """
         self._normalise(remote_refs=remote_refs, repo=repo)
-        self._set_head(remote_refs=remote_refs)
+        self._set_head(remote_refs=remote_refs, repo=repo)
 
     def _normalise(self, remote_refs: FetchPackResult, repo: Repo) -> None:
         """
@@ -96,7 +98,7 @@ class GitRefSpec:
             # revision is a short sha, resolve to full sha
             short_sha = self.revision.encode("utf-8")
             for sha in remote_refs.refs.values():
-                if sha.startswith(short_sha):
+                if sha is not None and sha.startswith(short_sha):
                     self.revision = sha.decode("utf-8")
                     return
 
@@ -105,7 +107,7 @@ class GitRefSpec:
                 self.revision = sha.decode("utf-8")
                 return
 
-    def _set_head(self, remote_refs: FetchPackResult) -> None:
+    def _set_head(self, remote_refs: FetchPackResult, repo: Repo) -> None:
         """
         Internal helper method to populate ref and set it's sha as the remote's head
         and default ref.
@@ -126,6 +128,10 @@ class GitRefSpec:
                     else f"refs/heads/{self.branch}".encode()
                 )
             head = remote_refs.refs[self.ref]
+            # Backport Poetry #10719: recursively resolve tags before setting HEAD.
+            if head is not None:
+                with contextlib.suppress(KeyError):
+                    head = peel_sha(repo.object_store, head)[1].id
 
         remote_refs.refs[self.ref] = remote_refs.refs[b"HEAD"] = head
 
@@ -282,7 +288,9 @@ class Git:
             )
 
         # ensure local HEAD matches remote
-        local.refs[b"HEAD"] = remote_refs.refs[b"HEAD"]
+        ref = remote_refs.refs[b"HEAD"]
+        if ref is not None:
+            local.refs[b"HEAD"] = ref
 
         if refspec.is_ref:
             # set ref to current HEAD
@@ -290,20 +298,22 @@ class Git:
 
         for base, prefix in {
             (b"refs/remotes/origin", b"refs/heads/"),
-            (b"refs/tags", b"refs/tags"),
+            (b"refs/tags", b"refs/tags/"),
         }:
             local.refs.import_refs(
                 base=base,
                 other={
                     n[len(prefix) :]: v
                     for (n, v) in remote_refs.refs.items()
-                    if n.startswith(prefix) and not n.endswith(ANNOTATED_TAG_SUFFIX)
+                    if n.startswith(prefix)
+                    and not n.endswith(PEELED_TAG_SUFFIX)
+                    and v is not None
                 },
             )
 
         try:
             with local:
-                local.reset_index()
+                local.get_worktree().reset_index()
         except (AssertionError, KeyError) as e:
             # this implies the ref we need does not exist or is invalid
             if isinstance(e, KeyError):
