@@ -1,31 +1,10 @@
 version: 7
 platforms:
 - name: linux-64
-  virtual-packages:
-  - __unix=0=0
-  - __linux=4.18
-  - __glibc=2.28
-  - __archspec=0=x86_64
 - name: linux-aarch64
-  virtual-packages:
-  - __unix=0=0
-  - __linux=4.18
-  - __glibc=2.28
-  - __archspec=0=aarch64
 - name: osx-64
-  virtual-packages:
-  - __unix=0=0
-  - __osx=13.0
-  - __archspec=0=x86_64
 - name: osx-arm64
-  virtual-packages:
-  - __unix=0=0
-  - __osx=13.0
-  - __archspec=0=m1
 - name: win-64
-  virtual-packages:
-  - __win=10.0
-  - __archspec=0=x86_64
 environments:
   default:
     channels:
@@ -48,7 +27,6 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/linux-64/cpp-expected-1.3.1-h171cf75_1.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/cryptography-50.0.2-py311hc91d8b8_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/dbus-1.16.2-he8c428d_2.conda
-      - conda: https://conda.anaconda.org/conda-forge/linux-64/dulwich-0.24.10-py312h0ccc70a_1.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/fmt-12.1.0-h76c4fd7_1.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/icu-78.3-py310h44b86e0_2.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/keyutils-1.6.3-h7cc23a3_1.conda
@@ -137,7 +115,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/noarch/docker-py-7.2.0-pyhcf101f3_1.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/doctr-1.9.0-pyhd8ed1ab_0.tar.bz2
       - conda: https://conda.anaconda.org/conda-forge/noarch/docutils-0.23-pyhcf101f3_0.conda
-      - conda: https://conda.anaconda.org/conda-forge/noarch/ensureconda-1.6.0-pyhcf101f3_0.conda
+      - conda: https://conda.anaconda.org/conda-forge/noarch/ensureconda-1.7.0-pyhc364b38_1.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/exceptiongroup-1.3.1-pyhd8ed1ab_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/execnet-2.1.2-pyhd8ed1ab_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/filelock-3.32.6-pyhd8ed1ab_0.conda
@@ -237,7 +215,8 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/noarch/websocket-client-1.9.2-pyh5ded981_1.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/wheel-0.48.0-pyhd8ed1ab_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/zipp-4.1.1-pyh5ded981_0.conda
-      - pypi: ./
+      - pypi: .
+      - pypi: https://files.pythonhosted.org/packages/77/30/28f195c80fef25a5160db928366421ff0c3be3ae166510b9b6cdf687f431/dulwich-1.2.20-cp312-cp312-manylinux_2_28_x86_64.whl
       linux-aarch64:
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/_openmp_mutex-4.5-20_gnu.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/ast-serialize-0.12.1-py311h8ca180e_0.conda
@@ -252,7 +231,6 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/cpp-expected-1.3.1-hdc560ac_1.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/cryptography-50.0.2-py311h9269228_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/dbus-1.16.2-h71d469a_2.conda
-      - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/dulwich-0.24.10-py312hf490ae4_1.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/fmt-12.1.0-h166da81_1.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/icu-78.3-py311h3512406_2.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/keyutils-1.6.3-h5bc82ec_1.conda
@@ -342,7 +320,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/noarch/docker-py-7.2.0-pyhcf101f3_1.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/doctr-1.9.0-pyhd8ed1ab_0.tar.bz2
       - conda: https://conda.anaconda.org/conda-forge/noarch/docutils-0.23-pyhcf101f3_0.conda
-      - conda: https://conda.anaconda.org/conda-forge/noarch/ensureconda-1.6.0-pyhcf101f3_0.conda
+      - conda: https://conda.anaconda.org/conda-forge/noarch/ensureconda-1.7.0-pyhc364b38_1.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/exceptiongroup-1.3.1-pyhd8ed1ab_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/execnet-2.1.2-pyhd8ed1ab_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/filelock-3.32.6-pyhd8ed1ab_0.conda
@@ -442,7 +420,8 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/noarch/websocket-client-1.9.2-pyh5ded981_1.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/wheel-0.48.0-pyhd8ed1ab_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/zipp-4.1.1-pyh5ded981_0.conda
-      - pypi: ./
+      - pypi: .
+      - pypi: https://files.pythonhosted.org/packages/7d/c5/0fbce61daca1e8756dcc7aecb5c6c99ec31e8fb44d81ad1d81d59180aba2/dulwich-1.2.20-cp312-cp312-manylinux_2_28_aarch64.whl
       osx-64:
       - conda: https://conda.anaconda.org/conda-forge/noarch/_python_abi3_support-1.0-hd8ed1ab_3.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/annotated-types-0.8.0-pyhd8ed1ab_0.conda
@@ -467,7 +446,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/noarch/docker-py-7.2.0-pyhcf101f3_1.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/doctr-1.9.0-pyhd8ed1ab_0.tar.bz2
       - conda: https://conda.anaconda.org/conda-forge/noarch/docutils-0.23-pyhcf101f3_0.conda
-      - conda: https://conda.anaconda.org/conda-forge/noarch/ensureconda-1.6.0-pyhcf101f3_0.conda
+      - conda: https://conda.anaconda.org/conda-forge/noarch/ensureconda-1.7.0-pyhc364b38_1.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/exceptiongroup-1.3.1-pyhd8ed1ab_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/execnet-2.1.2-pyhd8ed1ab_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/filelock-3.32.6-pyhd8ed1ab_0.conda
@@ -577,7 +556,6 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/osx-64/coverage-7.16.2-py312hbbaf924_0.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-64/cpp-expected-1.3.1-hebe015c_1.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-64/cryptography-50.0.2-py311hc027f23_0.conda
-      - conda: https://conda.anaconda.org/conda-forge/osx-64/dulwich-0.24.10-py312h1f62012_1.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-64/fmt-12.1.0-he6aba6a_1.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-64/icu-78.3-py313hbf1d544_2.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-64/krb5-1.22.2-h69064fd_2.conda
@@ -635,7 +613,8 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/osx-64/zizmor-1.30.1-he704061_0.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-64/zstandard-0.25.0-py312hdc27ec5_4.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-64/zstd-1.5.7-hbc1a06c_7.conda
-      - pypi: ./
+      - pypi: .
+      - pypi: https://files.pythonhosted.org/packages/58/6e/3734008fc0a82e13dc271c6ac9f8b2befe92e38fcdcddbf745f2ab931f42/dulwich-1.2.20-cp312-cp312-macosx_10_13_x86_64.whl
       osx-arm64:
       - conda: https://conda.anaconda.org/conda-forge/noarch/_python_abi3_support-1.0-hd8ed1ab_3.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/annotated-types-0.8.0-pyhd8ed1ab_0.conda
@@ -661,7 +640,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/noarch/docker-py-7.2.0-pyhcf101f3_1.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/doctr-1.9.0-pyhd8ed1ab_0.tar.bz2
       - conda: https://conda.anaconda.org/conda-forge/noarch/docutils-0.23-pyhcf101f3_0.conda
-      - conda: https://conda.anaconda.org/conda-forge/noarch/ensureconda-1.6.0-pyhcf101f3_0.conda
+      - conda: https://conda.anaconda.org/conda-forge/noarch/ensureconda-1.7.0-pyhc364b38_1.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/exceptiongroup-1.3.1-pyhd8ed1ab_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/execnet-2.1.2-pyhd8ed1ab_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/filelock-3.32.6-pyhd8ed1ab_0.conda
@@ -770,7 +749,6 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/coverage-7.16.2-py312hf1f8172_0.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/cpp-expected-1.3.1-h3feff0a_1.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/cryptography-50.0.2-py311hc28ac56_0.conda
-      - conda: https://conda.anaconda.org/conda-forge/osx-arm64/dulwich-0.24.10-py312h7a0e18e_1.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/fmt-12.1.0-h99e4e11_1.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/icu-78.3-py310h579977c_2.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/krb5-1.22.2-h34f8a20_2.conda
@@ -828,7 +806,8 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/zizmor-1.30.1-hc2d82ec_0.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/zstandard-0.25.0-py312hbd136b4_4.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/zstd-1.5.7-hf451053_7.conda
-      - pypi: ./
+      - pypi: .
+      - pypi: https://files.pythonhosted.org/packages/18/2e/4b2737b08cfa21f936bf9bbf1faee9b087d118511f9da7ea45b2e3e550cc/dulwich-1.2.20-cp312-cp312-macosx_11_0_arm64.whl
       win-64:
       - conda: https://conda.anaconda.org/conda-forge/noarch/_python_abi3_support-1.0-hd8ed1ab_3.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/annotated-types-0.8.0-pyhd8ed1ab_0.conda
@@ -853,7 +832,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/noarch/docker-py-7.2.0-pyhcf101f3_1.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/doctr-1.9.0-pyhd8ed1ab_0.tar.bz2
       - conda: https://conda.anaconda.org/conda-forge/noarch/docutils-0.23-pyhcf101f3_0.conda
-      - conda: https://conda.anaconda.org/conda-forge/noarch/ensureconda-1.6.0-pyhcf101f3_0.conda
+      - conda: https://conda.anaconda.org/conda-forge/noarch/ensureconda-1.7.0-pyhc364b38_1.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/exceptiongroup-1.3.1-pyhd8ed1ab_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/execnet-2.1.2-pyhd8ed1ab_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/filelock-3.32.6-pyhd8ed1ab_0.conda
@@ -963,7 +942,6 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/win-64/coverage-7.16.2-py312h6fa65f5_0.conda
       - conda: https://conda.anaconda.org/conda-forge/win-64/cpp-expected-1.3.1-h477610d_1.conda
       - conda: https://conda.anaconda.org/conda-forge/win-64/cryptography-50.0.2-py311h67a9792_0.conda
-      - conda: https://conda.anaconda.org/conda-forge/win-64/dulwich-0.24.10-py312hb0142fd_1.conda
       - conda: https://conda.anaconda.org/conda-forge/win-64/fmt-12.1.0-h1ced75a_1.conda
       - conda: https://conda.anaconda.org/conda-forge/win-64/icu-78.3-h5112557_2.conda
       - conda: https://conda.anaconda.org/conda-forge/win-64/krb5-1.22.2-h719d79b_2.conda
@@ -1019,7 +997,8 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/win-64/zizmor-1.30.1-h18a1a76_0.conda
       - conda: https://conda.anaconda.org/conda-forge/win-64/zstandard-0.25.0-py312he5662c2_4.conda
       - conda: https://conda.anaconda.org/conda-forge/win-64/zstd-1.5.7-h534d264_7.conda
-      - pypi: ./
+      - pypi: .
+      - pypi: https://files.pythonhosted.org/packages/62/04/75e08b364288781b47ab39153680f8bb64e366a7bd8f6828c5a20ccfc6cb/dulwich-1.2.20-cp312-cp312-win_amd64.whl
   dev:
     channels:
     - url: https://conda.anaconda.org/conda-forge/
@@ -1041,7 +1020,6 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/linux-64/cpp-expected-1.3.1-h171cf75_1.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/cryptography-50.0.2-py311hc91d8b8_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/dbus-1.16.2-he8c428d_2.conda
-      - conda: https://conda.anaconda.org/conda-forge/linux-64/dulwich-0.24.10-py312h0ccc70a_1.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/fmt-12.1.0-h76c4fd7_1.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/icu-78.3-py310h44b86e0_2.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/keyutils-1.6.3-h7cc23a3_1.conda
@@ -1130,7 +1108,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/noarch/docker-py-7.2.0-pyhcf101f3_1.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/doctr-1.9.0-pyhd8ed1ab_0.tar.bz2
       - conda: https://conda.anaconda.org/conda-forge/noarch/docutils-0.23-pyhcf101f3_0.conda
-      - conda: https://conda.anaconda.org/conda-forge/noarch/ensureconda-1.6.0-pyhcf101f3_0.conda
+      - conda: https://conda.anaconda.org/conda-forge/noarch/ensureconda-1.7.0-pyhc364b38_1.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/exceptiongroup-1.3.1-pyhd8ed1ab_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/execnet-2.1.2-pyhd8ed1ab_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/filelock-3.32.6-pyhd8ed1ab_0.conda
@@ -1230,7 +1208,8 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/noarch/websocket-client-1.9.2-pyh5ded981_1.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/wheel-0.48.0-pyhd8ed1ab_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/zipp-4.1.1-pyh5ded981_0.conda
-      - pypi: ./
+      - pypi: .
+      - pypi: https://files.pythonhosted.org/packages/77/30/28f195c80fef25a5160db928366421ff0c3be3ae166510b9b6cdf687f431/dulwich-1.2.20-cp312-cp312-manylinux_2_28_x86_64.whl
       linux-aarch64:
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/_openmp_mutex-4.5-20_gnu.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/ast-serialize-0.12.1-py311h8ca180e_0.conda
@@ -1245,7 +1224,6 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/cpp-expected-1.3.1-hdc560ac_1.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/cryptography-50.0.2-py311h9269228_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/dbus-1.16.2-h71d469a_2.conda
-      - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/dulwich-0.24.10-py312hf490ae4_1.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/fmt-12.1.0-h166da81_1.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/icu-78.3-py311h3512406_2.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/keyutils-1.6.3-h5bc82ec_1.conda
@@ -1335,7 +1313,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/noarch/docker-py-7.2.0-pyhcf101f3_1.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/doctr-1.9.0-pyhd8ed1ab_0.tar.bz2
       - conda: https://conda.anaconda.org/conda-forge/noarch/docutils-0.23-pyhcf101f3_0.conda
-      - conda: https://conda.anaconda.org/conda-forge/noarch/ensureconda-1.6.0-pyhcf101f3_0.conda
+      - conda: https://conda.anaconda.org/conda-forge/noarch/ensureconda-1.7.0-pyhc364b38_1.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/exceptiongroup-1.3.1-pyhd8ed1ab_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/execnet-2.1.2-pyhd8ed1ab_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/filelock-3.32.6-pyhd8ed1ab_0.conda
@@ -1435,7 +1413,8 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/noarch/websocket-client-1.9.2-pyh5ded981_1.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/wheel-0.48.0-pyhd8ed1ab_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/zipp-4.1.1-pyh5ded981_0.conda
-      - pypi: ./
+      - pypi: .
+      - pypi: https://files.pythonhosted.org/packages/7d/c5/0fbce61daca1e8756dcc7aecb5c6c99ec31e8fb44d81ad1d81d59180aba2/dulwich-1.2.20-cp312-cp312-manylinux_2_28_aarch64.whl
       osx-64:
       - conda: https://conda.anaconda.org/conda-forge/noarch/_python_abi3_support-1.0-hd8ed1ab_3.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/annotated-types-0.8.0-pyhd8ed1ab_0.conda
@@ -1460,7 +1439,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/noarch/docker-py-7.2.0-pyhcf101f3_1.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/doctr-1.9.0-pyhd8ed1ab_0.tar.bz2
       - conda: https://conda.anaconda.org/conda-forge/noarch/docutils-0.23-pyhcf101f3_0.conda
-      - conda: https://conda.anaconda.org/conda-forge/noarch/ensureconda-1.6.0-pyhcf101f3_0.conda
+      - conda: https://conda.anaconda.org/conda-forge/noarch/ensureconda-1.7.0-pyhc364b38_1.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/exceptiongroup-1.3.1-pyhd8ed1ab_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/execnet-2.1.2-pyhd8ed1ab_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/filelock-3.32.6-pyhd8ed1ab_0.conda
@@ -1570,7 +1549,6 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/osx-64/coverage-7.16.2-py312hbbaf924_0.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-64/cpp-expected-1.3.1-hebe015c_1.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-64/cryptography-50.0.2-py311hc027f23_0.conda
-      - conda: https://conda.anaconda.org/conda-forge/osx-64/dulwich-0.24.10-py312h1f62012_1.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-64/fmt-12.1.0-he6aba6a_1.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-64/icu-78.3-py313hbf1d544_2.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-64/krb5-1.22.2-h69064fd_2.conda
@@ -1628,7 +1606,8 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/osx-64/zizmor-1.30.1-he704061_0.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-64/zstandard-0.25.0-py312hdc27ec5_4.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-64/zstd-1.5.7-hbc1a06c_7.conda
-      - pypi: ./
+      - pypi: .
+      - pypi: https://files.pythonhosted.org/packages/58/6e/3734008fc0a82e13dc271c6ac9f8b2befe92e38fcdcddbf745f2ab931f42/dulwich-1.2.20-cp312-cp312-macosx_10_13_x86_64.whl
       osx-arm64:
       - conda: https://conda.anaconda.org/conda-forge/noarch/_python_abi3_support-1.0-hd8ed1ab_3.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/annotated-types-0.8.0-pyhd8ed1ab_0.conda
@@ -1654,7 +1633,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/noarch/docker-py-7.2.0-pyhcf101f3_1.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/doctr-1.9.0-pyhd8ed1ab_0.tar.bz2
       - conda: https://conda.anaconda.org/conda-forge/noarch/docutils-0.23-pyhcf101f3_0.conda
-      - conda: https://conda.anaconda.org/conda-forge/noarch/ensureconda-1.6.0-pyhcf101f3_0.conda
+      - conda: https://conda.anaconda.org/conda-forge/noarch/ensureconda-1.7.0-pyhc364b38_1.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/exceptiongroup-1.3.1-pyhd8ed1ab_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/execnet-2.1.2-pyhd8ed1ab_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/filelock-3.32.6-pyhd8ed1ab_0.conda
@@ -1763,7 +1742,6 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/coverage-7.16.2-py312hf1f8172_0.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/cpp-expected-1.3.1-h3feff0a_1.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/cryptography-50.0.2-py311hc28ac56_0.conda
-      - conda: https://conda.anaconda.org/conda-forge/osx-arm64/dulwich-0.24.10-py312h7a0e18e_1.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/fmt-12.1.0-h99e4e11_1.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/icu-78.3-py310h579977c_2.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/krb5-1.22.2-h34f8a20_2.conda
@@ -1821,7 +1799,8 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/zizmor-1.30.1-hc2d82ec_0.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/zstandard-0.25.0-py312hbd136b4_4.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/zstd-1.5.7-hf451053_7.conda
-      - pypi: ./
+      - pypi: .
+      - pypi: https://files.pythonhosted.org/packages/18/2e/4b2737b08cfa21f936bf9bbf1faee9b087d118511f9da7ea45b2e3e550cc/dulwich-1.2.20-cp312-cp312-macosx_11_0_arm64.whl
       win-64:
       - conda: https://conda.anaconda.org/conda-forge/noarch/_python_abi3_support-1.0-hd8ed1ab_3.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/annotated-types-0.8.0-pyhd8ed1ab_0.conda
@@ -1846,7 +1825,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/noarch/docker-py-7.2.0-pyhcf101f3_1.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/doctr-1.9.0-pyhd8ed1ab_0.tar.bz2
       - conda: https://conda.anaconda.org/conda-forge/noarch/docutils-0.23-pyhcf101f3_0.conda
-      - conda: https://conda.anaconda.org/conda-forge/noarch/ensureconda-1.6.0-pyhcf101f3_0.conda
+      - conda: https://conda.anaconda.org/conda-forge/noarch/ensureconda-1.7.0-pyhc364b38_1.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/exceptiongroup-1.3.1-pyhd8ed1ab_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/execnet-2.1.2-pyhd8ed1ab_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/filelock-3.32.6-pyhd8ed1ab_0.conda
@@ -1956,7 +1935,6 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/win-64/coverage-7.16.2-py312h6fa65f5_0.conda
       - conda: https://conda.anaconda.org/conda-forge/win-64/cpp-expected-1.3.1-h477610d_1.conda
       - conda: https://conda.anaconda.org/conda-forge/win-64/cryptography-50.0.2-py311h67a9792_0.conda
-      - conda: https://conda.anaconda.org/conda-forge/win-64/dulwich-0.24.10-py312hb0142fd_1.conda
       - conda: https://conda.anaconda.org/conda-forge/win-64/fmt-12.1.0-h1ced75a_1.conda
       - conda: https://conda.anaconda.org/conda-forge/win-64/icu-78.3-h5112557_2.conda
       - conda: https://conda.anaconda.org/conda-forge/win-64/krb5-1.22.2-h719d79b_2.conda
@@ -2012,7 +1990,8 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/win-64/zizmor-1.30.1-h18a1a76_0.conda
       - conda: https://conda.anaconda.org/conda-forge/win-64/zstandard-0.25.0-py312he5662c2_4.conda
       - conda: https://conda.anaconda.org/conda-forge/win-64/zstd-1.5.7-h534d264_7.conda
-      - pypi: ./
+      - pypi: .
+      - pypi: https://files.pythonhosted.org/packages/62/04/75e08b364288781b47ab39153680f8bb64e366a7bd8f6828c5a20ccfc6cb/dulwich-1.2.20-cp312-cp312-win_amd64.whl
   minimal:
     channels:
     - url: https://conda.anaconda.org/conda-forge/
@@ -2028,7 +2007,6 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/linux-64/charset-normalizer-3.5.2-h1114479_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/cryptography-50.0.2-py311hc91d8b8_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/dbus-1.16.2-he8c428d_2.conda
-      - conda: https://conda.anaconda.org/conda-forge/linux-64/dulwich-0.24.10-py313h5c7d99a_1.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/ld_impl_linux-64-2.46.1-default_hbd61a6d_102.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/libexpat-2.8.5-hd2095e1_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/libffi-3.7.0-h81df57d_1.conda
@@ -2074,7 +2052,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/noarch/cpython-3.13.16-py313hd8ed1ab_101.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/crashtest-0.4.1-pyhd8ed1ab_1.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/distlib-0.4.3-pyhcf101f3_0.conda
-      - conda: https://conda.anaconda.org/conda-forge/noarch/ensureconda-1.6.0-pyhcf101f3_0.conda
+      - conda: https://conda.anaconda.org/conda-forge/noarch/ensureconda-1.7.0-pyhc364b38_1.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/filelock-3.32.6-pyhd8ed1ab_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/gitdb-4.0.12-pyhd8ed1ab_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/gitpython-3.2.0-pyh5ded981_0.conda
@@ -2121,7 +2099,8 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/noarch/urllib3-2.8.0-pyhd8ed1ab_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/virtualenv-20.39.0-pyhcf101f3_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/zipp-4.1.1-pyh5ded981_0.conda
-      - pypi: ./
+      - pypi: .
+      - pypi: https://files.pythonhosted.org/packages/de/03/731c30afa8feec744e88c678598f796b9adeef162371eecedfbad143c4e4/dulwich-1.2.20-cp313-cp313-manylinux_2_28_x86_64.whl
       linux-aarch64:
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/_openmp_mutex-4.5-20_gnu.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/backports.zstd-1.7.0-py312h22d1088_1.conda
@@ -2130,7 +2109,6 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/cffi-2.1.1-py312h563f9cf_3.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/cryptography-50.0.2-py311h9269228_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/dbus-1.16.2-h71d469a_2.conda
-      - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/dulwich-0.24.10-py312hf490ae4_1.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/ld_impl_linux-aarch64-2.46.1-default_h1979696_102.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/libexpat-2.8.5-h4154aff_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/libffi-3.7.0-hdaad0be_1.conda
@@ -2178,7 +2156,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/noarch/cpython-3.12.15-py312hd8ed1ab_1.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/crashtest-0.4.1-pyhd8ed1ab_1.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/distlib-0.4.3-pyhcf101f3_0.conda
-      - conda: https://conda.anaconda.org/conda-forge/noarch/ensureconda-1.6.0-pyhcf101f3_0.conda
+      - conda: https://conda.anaconda.org/conda-forge/noarch/ensureconda-1.7.0-pyhc364b38_1.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/filelock-3.32.6-pyhd8ed1ab_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/gitdb-4.0.12-pyhd8ed1ab_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/gitpython-3.2.0-pyh5ded981_0.conda
@@ -2225,7 +2203,8 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/noarch/urllib3-2.8.0-pyhd8ed1ab_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/virtualenv-20.39.0-pyhcf101f3_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/zipp-4.1.1-pyh5ded981_0.conda
-      - pypi: ./
+      - pypi: .
+      - pypi: https://files.pythonhosted.org/packages/7d/c5/0fbce61daca1e8756dcc7aecb5c6c99ec31e8fb44d81ad1d81d59180aba2/dulwich-1.2.20-cp312-cp312-manylinux_2_28_aarch64.whl
       osx-64:
       - conda: https://conda.anaconda.org/conda-forge/noarch/_python_abi3_support-1.0-hd8ed1ab_3.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/annotated-types-0.8.0-pyhd8ed1ab_0.conda
@@ -2245,7 +2224,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/noarch/cpython-3.14.8-py314hd8ed1ab_101.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/crashtest-0.4.1-pyhd8ed1ab_1.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/distlib-0.4.3-pyhcf101f3_0.conda
-      - conda: https://conda.anaconda.org/conda-forge/noarch/ensureconda-1.6.0-pyhcf101f3_0.conda
+      - conda: https://conda.anaconda.org/conda-forge/noarch/ensureconda-1.7.0-pyhc364b38_1.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/filelock-3.32.6-pyhd8ed1ab_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/gitdb-4.0.12-pyhd8ed1ab_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/gitpython-3.2.0-pyh5ded981_0.conda
@@ -2294,7 +2273,6 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/osx-64/bzip2-1.0.8-h374f1ed_10.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-64/cffi-2.1.1-py314h0656537_3.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-64/charset-normalizer-3.5.2-hd77389f_0.conda
-      - conda: https://conda.anaconda.org/conda-forge/osx-64/dulwich-0.24.10-py314hc9c287a_1.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-64/libcxx-23.1.3-h19cb2f5_0.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-64/libexpat-2.8.5-h6e061ac_0.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-64/libffi-3.7.0-h6b3a05b_1.conda
@@ -2317,7 +2295,8 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/osx-64/yaml-0.2.5-had63097_3.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-64/zstandard-0.25.0-py314h17af80e_4.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-64/zstd-1.5.7-hbc1a06c_7.conda
-      - pypi: ./
+      - pypi: .
+      - pypi: https://files.pythonhosted.org/packages/a4/65/033a59758369bdf86db793373994366d8cc019652d29a96a52861b272687/dulwich-1.2.20-cp314-cp314-macosx_10_15_x86_64.whl
       osx-arm64:
       - conda: https://conda.anaconda.org/conda-forge/noarch/annotated-types-0.8.0-pyhd8ed1ab_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/appdirs-1.4.4-pyhd8ed1ab_1.conda
@@ -2336,7 +2315,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/noarch/conda-package-streaming-0.13.0-pyhd8ed1ab_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/crashtest-0.4.1-pyhd8ed1ab_1.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/distlib-0.4.3-pyhcf101f3_0.conda
-      - conda: https://conda.anaconda.org/conda-forge/noarch/ensureconda-1.6.0-pyhcf101f3_0.conda
+      - conda: https://conda.anaconda.org/conda-forge/noarch/ensureconda-1.7.0-pyhc364b38_1.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/filelock-3.32.6-pyhd8ed1ab_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/gitdb-4.0.12-pyhd8ed1ab_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/gitpython-3.2.0-pyh5ded981_0.conda
@@ -2383,7 +2362,6 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/brotli-python-1.2.0-py314hee34562_4.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/bzip2-1.0.8-h4e30115_10.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/cffi-2.1.1-py314h618e29d_3.conda
-      - conda: https://conda.anaconda.org/conda-forge/osx-arm64/dulwich-0.24.10-py314h8d4a433_1.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/libcxx-23.1.3-h55c6f16_0.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/libexpat-2.8.5-h6111c0a_0.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/libffi-3.7.0-h47dc5ef_1.conda
@@ -2406,7 +2384,8 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/yaml-0.2.5-h74c22ad_3.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/zstandard-0.25.0-py314hd98292b_4.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/zstd-1.5.7-hf451053_7.conda
-      - pypi: ./
+      - pypi: .
+      - pypi: https://files.pythonhosted.org/packages/6d/e1/f136f9171727a6d9b380dbefd1f673a426cf876ee35881e3ad041aeb7b25/dulwich-1.2.20-cp314-cp314-macosx_11_0_arm64.whl
       win-64:
       - conda: https://conda.anaconda.org/conda-forge/noarch/_python_abi3_support-1.0-hd8ed1ab_3.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/annotated-types-0.8.0-pyhd8ed1ab_0.conda
@@ -2426,7 +2405,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/noarch/cpython-3.14.8-py314hd8ed1ab_101.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/crashtest-0.4.1-pyhd8ed1ab_1.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/distlib-0.4.3-pyhcf101f3_0.conda
-      - conda: https://conda.anaconda.org/conda-forge/noarch/ensureconda-1.6.0-pyhcf101f3_0.conda
+      - conda: https://conda.anaconda.org/conda-forge/noarch/ensureconda-1.7.0-pyhc364b38_1.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/filelock-3.32.6-pyhd8ed1ab_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/gitdb-4.0.12-pyhd8ed1ab_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/gitpython-3.2.0-pyh5ded981_0.conda
@@ -2476,7 +2455,6 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/win-64/bzip2-1.0.8-h0ad9c76_10.conda
       - conda: https://conda.anaconda.org/conda-forge/win-64/cffi-2.1.1-py314h5a2d7ad_3.conda
       - conda: https://conda.anaconda.org/conda-forge/win-64/charset-normalizer-3.5.2-h308a848_0.conda
-      - conda: https://conda.anaconda.org/conda-forge/win-64/dulwich-0.24.10-py314h170c82c_1.conda
       - conda: https://conda.anaconda.org/conda-forge/win-64/libexpat-2.8.5-hac47afa_0.conda
       - conda: https://conda.anaconda.org/conda-forge/win-64/libffi-3.7.0-h3d046cb_1.conda
       - conda: https://conda.anaconda.org/conda-forge/win-64/liblzma-5.8.3-hfd05255_1.conda
@@ -2500,7 +2478,8 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/win-64/yaml-0.2.5-h6a83c73_3.conda
       - conda: https://conda.anaconda.org/conda-forge/win-64/zstandard-0.25.0-py314hc5dbbe4_4.conda
       - conda: https://conda.anaconda.org/conda-forge/win-64/zstd-1.5.7-h534d264_7.conda
-      - pypi: ./
+      - pypi: .
+      - pypi: https://files.pythonhosted.org/packages/24/da/0a6409210ccc3557d092a25d88995d924f94680a329a0552b476543efc21/dulwich-1.2.20-cp314-cp314-win_amd64.whl
 packages:
 - conda: https://conda.anaconda.org/conda-forge/linux-64/_openmp_mutex-4.5-20_gnu.conda
   build_number: 20
@@ -2778,44 +2757,6 @@ packages:
     - dbus >=1.16.2,<2.0a0
   size: 449564
   timestamp: 1788197922783
-- conda: https://conda.anaconda.org/conda-forge/linux-64/dulwich-0.24.10-py312h0ccc70a_1.conda
-  sha256: ec9e5935d6dc120cde22c266edf0471a26600ee333fe1adb411d95f3c13e019f
-  md5: 382d3d92694d52244034c6a8a51fa54b
-  depends:
-  - __glibc >=2.17,<3.0.a0
-  - libgcc >=14
-  - python >=3.12,<3.13.0a0
-  - python_abi 3.12.* *_cp312
-  - setuptools
-  - urllib3 >=2.2.2
-  constrains:
-  - __glibc >=2.17
-  license: Apache-2.0
-  license_family: Apache
-  purls:
-  - pkg:pypi/dulwich?source=hash-mapping
-  run_exports: {}
-  size: 1483390
-  timestamp: 1764184547599
-- conda: https://conda.anaconda.org/conda-forge/linux-64/dulwich-0.24.10-py313h5c7d99a_1.conda
-  sha256: 77679d5e1a074b67b0ff330d1b5370c1a99e4853e51ab53255eeb7884208384c
-  md5: cc5e8a99472c4c7fdb1337b4a294142a
-  depends:
-  - __glibc >=2.17,<3.0.a0
-  - libgcc >=14
-  - python >=3.13,<3.14.0a0
-  - python_abi 3.13.* *_cp313
-  - setuptools
-  - urllib3 >=2.2.2
-  constrains:
-  - __glibc >=2.17
-  license: Apache-2.0
-  license_family: Apache
-  purls:
-  - pkg:pypi/dulwich?source=hash-mapping
-  run_exports: {}
-  size: 1511153
-  timestamp: 1764184609365
 - conda: https://conda.anaconda.org/conda-forge/linux-64/fmt-12.1.0-h76c4fd7_1.conda
   sha256: 25d14a197601fdd616f2e501431b52887e69b31e7defbc1679381d718357ceb7
   md5: a70bb6d42ad121aef456e0007e92bed6
@@ -4246,25 +4187,6 @@ packages:
     - dbus >=1.16.2,<2.0a0
   size: 482209
   timestamp: 1788197942246
-- conda: https://conda.anaconda.org/conda-forge/linux-aarch64/dulwich-0.24.10-py312hf490ae4_1.conda
-  sha256: f63b90ee235c1cb8d1470d5071e11290cab384a4b798371d37820ab069de79ce
-  md5: 62b590abe123a6707e43b8abb2cb8829
-  depends:
-  - libgcc >=14
-  - python >=3.12,<3.13.0a0
-  - python >=3.12,<3.13.0a0 *_cpython
-  - python_abi 3.12.* *_cp312
-  - setuptools
-  - urllib3 >=2.2.2
-  constrains:
-  - __glibc >=2.17
-  license: Apache-2.0
-  license_family: Apache
-  purls:
-  - pkg:pypi/dulwich?source=hash-mapping
-  run_exports: {}
-  size: 1474617
-  timestamp: 1764184659168
 - conda: https://conda.anaconda.org/conda-forge/linux-aarch64/fmt-12.1.0-h166da81_1.conda
   sha256: 9576231133ef25127cf8855492a6e34a3189e3a8986cc69ebfef6516670d4822
   md5: 2ba56bd59c36644d783ef8a8086ec0e4
@@ -5345,7 +5267,8 @@ packages:
   depends:
   - python >=3.14
   license: BSD-3-Clause AND MIT AND EPL-2.0
-  purls: []
+  purls:
+  - pkg:pypi/backports-zstd?source=compressed-mapping
   run_exports: {}
   size: 7539
   timestamp: 1788491291925
@@ -5629,9 +5552,9 @@ packages:
   run_exports: {}
   size: 459540
   timestamp: 1779967837277
-- conda: https://conda.anaconda.org/conda-forge/noarch/ensureconda-1.6.0-pyhcf101f3_0.conda
-  sha256: e3c35c7cee4e6db53de4ad1ca6d35b7aced263d21a6ee2dcdffe401135646ab2
-  md5: fcc02785e4da41e5f19f740e017b6ffb
+- conda: https://conda.anaconda.org/conda-forge/noarch/ensureconda-1.7.0-pyhc364b38_1.conda
+  sha256: b33f31cde42210a6b25665fbd320c198d12ed0f6c1f8abeaa9391ac9b55cc948
+  md5: e1605cf7fe9b61bb4d2c25d8855d78c2
   depends:
   - python >=3.10
   - appdirs
@@ -5642,12 +5565,11 @@ packages:
   - conda-package-streaming
   - python
   license: MIT
-  license_family: MIT
   purls:
   - pkg:pypi/ensureconda?source=hash-mapping
   run_exports: {}
-  size: 19736
-  timestamp: 1759790124619
+  size: 21164
+  timestamp: 1793654335912
 - conda: https://conda.anaconda.org/conda-forge/noarch/exceptiongroup-1.3.1-pyhd8ed1ab_0.conda
   sha256: ee6cf346d017d954255bbcbdb424cddea4d14e4ed7e9813e429db1d795d01144
   md5: 8e662bd460bda79b1ea39194e3c4c9ab
@@ -7332,42 +7254,6 @@ packages:
   run_exports: {}
   size: 1819278
   timestamp: 1790790581781
-- conda: https://conda.anaconda.org/conda-forge/osx-64/dulwich-0.24.10-py312h1f62012_1.conda
-  sha256: 258694b444f232fbbff7845794fcd8f535d2a565518422bd416a0d77b1844925
-  md5: 49cef9918936344a4eecbb116835c25c
-  depends:
-  - __osx >=10.13
-  - python >=3.12,<3.13.0a0
-  - python_abi 3.12.* *_cp312
-  - setuptools
-  - urllib3 >=2.2.2
-  constrains:
-  - __osx >=10.13
-  license: Apache-2.0
-  license_family: Apache
-  purls:
-  - pkg:pypi/dulwich?source=hash-mapping
-  run_exports: {}
-  size: 1431039
-  timestamp: 1764184751581
-- conda: https://conda.anaconda.org/conda-forge/osx-64/dulwich-0.24.10-py314hc9c287a_1.conda
-  sha256: e21de40db3750765736b2ba3aa8fd816b1ed3411b7afde8e6eec19ec5639c755
-  md5: 32c0eb00874a3ca36949c832924223e8
-  depends:
-  - __osx >=10.13
-  - python >=3.14,<3.15.0a0
-  - python_abi 3.14.* *_cp314
-  - setuptools
-  - urllib3 >=2.2.2
-  constrains:
-  - __osx >=10.13
-  license: Apache-2.0
-  license_family: Apache
-  purls:
-  - pkg:pypi/dulwich?source=hash-mapping
-  run_exports: {}
-  size: 1515788
-  timestamp: 1764184882402
 - conda: https://conda.anaconda.org/conda-forge/osx-64/fmt-12.1.0-he6aba6a_1.conda
   sha256: 79eb99b8c58c208788ece6d62dbde094a29a831afcf73f89b842d11e9111ebd1
   md5: ec4e1142e56a0ff00b3e2864f134ac0b
@@ -8628,44 +8514,6 @@ packages:
   run_exports: {}
   size: 1770710
   timestamp: 1790790523277
-- conda: https://conda.anaconda.org/conda-forge/osx-arm64/dulwich-0.24.10-py312h7a0e18e_1.conda
-  sha256: 5653677a8229efe4742e21caa02a3c418d253326fc325e6934d878955841875d
-  md5: b82d6dbb9a4c1b28731929a1b7b0fc44
-  depends:
-  - __osx >=11.0
-  - python >=3.12,<3.13.0a0
-  - python >=3.12,<3.13.0a0 *_cpython
-  - python_abi 3.12.* *_cp312
-  - setuptools
-  - urllib3 >=2.2.2
-  constrains:
-  - __osx >=11.0
-  license: Apache-2.0
-  license_family: Apache
-  purls:
-  - pkg:pypi/dulwich?source=hash-mapping
-  run_exports: {}
-  size: 1427110
-  timestamp: 1764184811609
-- conda: https://conda.anaconda.org/conda-forge/osx-arm64/dulwich-0.24.10-py314h8d4a433_1.conda
-  sha256: a081fb4a849851e200865a68503d70218b42aae880d0ecd6254531cc40927668
-  md5: 11ba14da3c93529ce299394329cee02c
-  depends:
-  - __osx >=11.0
-  - python >=3.14,<3.15.0a0
-  - python >=3.14,<3.15.0a0 *_cp314
-  - python_abi 3.14.* *_cp314
-  - setuptools
-  - urllib3 >=2.2.2
-  constrains:
-  - __osx >=11.0
-  license: Apache-2.0
-  license_family: Apache
-  purls:
-  - pkg:pypi/dulwich?source=hash-mapping
-  run_exports: {}
-  size: 1514060
-  timestamp: 1764185000779
 - conda: https://conda.anaconda.org/conda-forge/osx-arm64/fmt-12.1.0-h99e4e11_1.conda
   sha256: ca42427b99ff92228e907bed5f10a1df868180997571d29c230faad2c38e35fd
   md5: 891b1202d7b835f215e26a4db685ec7c
@@ -9947,42 +9795,6 @@ packages:
   run_exports: {}
   size: 1786178
   timestamp: 1790790508927
-- conda: https://conda.anaconda.org/conda-forge/win-64/dulwich-0.24.10-py312hb0142fd_1.conda
-  sha256: 0b5d897bffd0a29fb345cd3966c27356ae07f68be036551bd4ef889b30cfefa2
-  md5: d260b54348f5f7c2088d5cb7f4234552
-  depends:
-  - python >=3.12,<3.13.0a0
-  - python_abi 3.12.* *_cp312
-  - setuptools
-  - ucrt >=10.0.20348.0
-  - urllib3 >=2.2.2
-  - vc >=14.3,<15
-  - vc14_runtime >=14.44.35208
-  license: Apache-2.0
-  license_family: Apache
-  purls:
-  - pkg:pypi/dulwich?source=hash-mapping
-  run_exports: {}
-  size: 1342297
-  timestamp: 1764184935963
-- conda: https://conda.anaconda.org/conda-forge/win-64/dulwich-0.24.10-py314h170c82c_1.conda
-  sha256: 56fa4bee510ede306d16437e9d864deeab2afa2a5a375e2d16e50906fe6525ef
-  md5: 206cf4e5f82cf3806c6b2c4764864053
-  depends:
-  - python >=3.14,<3.15.0a0
-  - python_abi 3.14.* *_cp314
-  - setuptools
-  - ucrt >=10.0.20348.0
-  - urllib3 >=2.2.2
-  - vc >=14.3,<15
-  - vc14_runtime >=14.44.35208
-  license: Apache-2.0
-  license_family: Apache
-  purls:
-  - pkg:pypi/dulwich?source=hash-mapping
-  run_exports: {}
-  size: 1426344
-  timestamp: 1764184776320
 - conda: https://conda.anaconda.org/conda-forge/win-64/fmt-12.1.0-h1ced75a_1.conda
   sha256: 1d6d6f1bf284e50cf617ce9a6250e0bf70bd0d30b068568364d6b1852aad9466
   md5: ca8fa0e01ed34bb161f4e8e86dfda22e
@@ -11069,7 +10881,7 @@ packages:
     - zstd >=1.5.7,<1.6.0a0
   size: 387535
   timestamp: 1786599623274
-- pypi: ./
+- pypi: .
   name: conda-lock
   requires_dist:
   - boltons>=23.0.0
@@ -11079,7 +10891,7 @@ packages:
   - click-default-group
   - click>=8.0
   - crashtest>=0.4.1,<0.5.0
-  - dulwich>=0.22.6,<0.25
+  - dulwich>=1.2.20,<2
   - ensureconda>=1.4.7
   - fastjsonschema>=2.18.0,<3.0.0
   - filelock
@@ -11107,4 +10919,220 @@ packages:
   - virtualenv>=20.26.6,<21.0.0
   - xattr>=1.0.0,<2.0.0 ; sys_platform == 'darwin'
   - zstandard>=0.15
+  requires_python: '>=3.10'
+- pypi: https://files.pythonhosted.org/packages/18/2e/4b2737b08cfa21f936bf9bbf1faee9b087d118511f9da7ea45b2e3e550cc/dulwich-1.2.20-cp312-cp312-macosx_11_0_arm64.whl
+  name: dulwich
+  version: 1.2.20
+  sha256: da4b7680adb8dbedbbeaf4ea353e4896e9280c107125abf1fa9d3ec12e7de5a8
+  requires_dist:
+  - urllib3>=2.2.2
+  - typing-extensions>=4.6.0 ; python_full_version < '3.12'
+  - fastimport ; extra == 'fastimport'
+  - urllib3>=2.2.2 ; extra == 'https'
+  - gpg ; extra == 'pgp'
+  - pysequoia ; extra == 'sequoia'
+  - paramiko ; extra == 'paramiko'
+  - rich ; extra == 'colordiff'
+  - ruff==0.16.9 ; extra == 'dev'
+  - mypy==2.3.1 ; extra == 'dev'
+  - dissolve>=0.1.1 ; extra == 'dev'
+  - codespell==2.4.3 ; extra == 'dev'
+  - hypothesis>=6 ; extra == 'hypothesis'
+  - merge3 ; extra == 'merge'
+  - atheris ; extra == 'fuzzing'
+  - patiencediff ; extra == 'patiencediff'
+  - munkres ; extra == 'range-diff'
+  - aiohttp ; extra == 'aiohttp'
+  requires_python: '>=3.10'
+- pypi: https://files.pythonhosted.org/packages/24/da/0a6409210ccc3557d092a25d88995d924f94680a329a0552b476543efc21/dulwich-1.2.20-cp314-cp314-win_amd64.whl
+  name: dulwich
+  version: 1.2.20
+  sha256: 51bc52582d5fd95315ffbd75667b12784b4e1845396a1919abe0cf84e496b5b0
+  requires_dist:
+  - urllib3>=2.2.2
+  - typing-extensions>=4.6.0 ; python_full_version < '3.12'
+  - fastimport ; extra == 'fastimport'
+  - urllib3>=2.2.2 ; extra == 'https'
+  - gpg ; extra == 'pgp'
+  - pysequoia ; extra == 'sequoia'
+  - paramiko ; extra == 'paramiko'
+  - rich ; extra == 'colordiff'
+  - ruff==0.16.9 ; extra == 'dev'
+  - mypy==2.3.1 ; extra == 'dev'
+  - dissolve>=0.1.1 ; extra == 'dev'
+  - codespell==2.4.3 ; extra == 'dev'
+  - hypothesis>=6 ; extra == 'hypothesis'
+  - merge3 ; extra == 'merge'
+  - atheris ; extra == 'fuzzing'
+  - patiencediff ; extra == 'patiencediff'
+  - munkres ; extra == 'range-diff'
+  - aiohttp ; extra == 'aiohttp'
+  requires_python: '>=3.10'
+- pypi: https://files.pythonhosted.org/packages/58/6e/3734008fc0a82e13dc271c6ac9f8b2befe92e38fcdcddbf745f2ab931f42/dulwich-1.2.20-cp312-cp312-macosx_10_13_x86_64.whl
+  name: dulwich
+  version: 1.2.20
+  sha256: 68ba3113b2dde2d5ed9860b515ee9f1c6d223e83863379d78bd50cd6d04bd651
+  requires_dist:
+  - urllib3>=2.2.2
+  - typing-extensions>=4.6.0 ; python_full_version < '3.12'
+  - fastimport ; extra == 'fastimport'
+  - urllib3>=2.2.2 ; extra == 'https'
+  - gpg ; extra == 'pgp'
+  - pysequoia ; extra == 'sequoia'
+  - paramiko ; extra == 'paramiko'
+  - rich ; extra == 'colordiff'
+  - ruff==0.16.9 ; extra == 'dev'
+  - mypy==2.3.1 ; extra == 'dev'
+  - dissolve>=0.1.1 ; extra == 'dev'
+  - codespell==2.4.3 ; extra == 'dev'
+  - hypothesis>=6 ; extra == 'hypothesis'
+  - merge3 ; extra == 'merge'
+  - atheris ; extra == 'fuzzing'
+  - patiencediff ; extra == 'patiencediff'
+  - munkres ; extra == 'range-diff'
+  - aiohttp ; extra == 'aiohttp'
+  requires_python: '>=3.10'
+- pypi: https://files.pythonhosted.org/packages/62/04/75e08b364288781b47ab39153680f8bb64e366a7bd8f6828c5a20ccfc6cb/dulwich-1.2.20-cp312-cp312-win_amd64.whl
+  name: dulwich
+  version: 1.2.20
+  sha256: d33cbe3e3576a78d4c1192a6aec5d95990c4219f85b791b3cfd89032c07a823c
+  requires_dist:
+  - urllib3>=2.2.2
+  - typing-extensions>=4.6.0 ; python_full_version < '3.12'
+  - fastimport ; extra == 'fastimport'
+  - urllib3>=2.2.2 ; extra == 'https'
+  - gpg ; extra == 'pgp'
+  - pysequoia ; extra == 'sequoia'
+  - paramiko ; extra == 'paramiko'
+  - rich ; extra == 'colordiff'
+  - ruff==0.16.9 ; extra == 'dev'
+  - mypy==2.3.1 ; extra == 'dev'
+  - dissolve>=0.1.1 ; extra == 'dev'
+  - codespell==2.4.3 ; extra == 'dev'
+  - hypothesis>=6 ; extra == 'hypothesis'
+  - merge3 ; extra == 'merge'
+  - atheris ; extra == 'fuzzing'
+  - patiencediff ; extra == 'patiencediff'
+  - munkres ; extra == 'range-diff'
+  - aiohttp ; extra == 'aiohttp'
+  requires_python: '>=3.10'
+- pypi: https://files.pythonhosted.org/packages/6d/e1/f136f9171727a6d9b380dbefd1f673a426cf876ee35881e3ad041aeb7b25/dulwich-1.2.20-cp314-cp314-macosx_11_0_arm64.whl
+  name: dulwich
+  version: 1.2.20
+  sha256: b281c75d6a7d2cde5206af349564e20124511895c2766a89c901a4addb4aea80
+  requires_dist:
+  - urllib3>=2.2.2
+  - typing-extensions>=4.6.0 ; python_full_version < '3.12'
+  - fastimport ; extra == 'fastimport'
+  - urllib3>=2.2.2 ; extra == 'https'
+  - gpg ; extra == 'pgp'
+  - pysequoia ; extra == 'sequoia'
+  - paramiko ; extra == 'paramiko'
+  - rich ; extra == 'colordiff'
+  - ruff==0.16.9 ; extra == 'dev'
+  - mypy==2.3.1 ; extra == 'dev'
+  - dissolve>=0.1.1 ; extra == 'dev'
+  - codespell==2.4.3 ; extra == 'dev'
+  - hypothesis>=6 ; extra == 'hypothesis'
+  - merge3 ; extra == 'merge'
+  - atheris ; extra == 'fuzzing'
+  - patiencediff ; extra == 'patiencediff'
+  - munkres ; extra == 'range-diff'
+  - aiohttp ; extra == 'aiohttp'
+  requires_python: '>=3.10'
+- pypi: https://files.pythonhosted.org/packages/77/30/28f195c80fef25a5160db928366421ff0c3be3ae166510b9b6cdf687f431/dulwich-1.2.20-cp312-cp312-manylinux_2_28_x86_64.whl
+  name: dulwich
+  version: 1.2.20
+  sha256: 2ffd41bca7ac53b8a719311209f29641c26dfcbd466bd73adc6e465221f3ed17
+  requires_dist:
+  - urllib3>=2.2.2
+  - typing-extensions>=4.6.0 ; python_full_version < '3.12'
+  - fastimport ; extra == 'fastimport'
+  - urllib3>=2.2.2 ; extra == 'https'
+  - gpg ; extra == 'pgp'
+  - pysequoia ; extra == 'sequoia'
+  - paramiko ; extra == 'paramiko'
+  - rich ; extra == 'colordiff'
+  - ruff==0.16.9 ; extra == 'dev'
+  - mypy==2.3.1 ; extra == 'dev'
+  - dissolve>=0.1.1 ; extra == 'dev'
+  - codespell==2.4.3 ; extra == 'dev'
+  - hypothesis>=6 ; extra == 'hypothesis'
+  - merge3 ; extra == 'merge'
+  - atheris ; extra == 'fuzzing'
+  - patiencediff ; extra == 'patiencediff'
+  - munkres ; extra == 'range-diff'
+  - aiohttp ; extra == 'aiohttp'
+  requires_python: '>=3.10'
+- pypi: https://files.pythonhosted.org/packages/7d/c5/0fbce61daca1e8756dcc7aecb5c6c99ec31e8fb44d81ad1d81d59180aba2/dulwich-1.2.20-cp312-cp312-manylinux_2_28_aarch64.whl
+  name: dulwich
+  version: 1.2.20
+  sha256: ea6ea35c8b4fd24d386694863e1366e309e317b0e4d3696bcdbfdf5d0c014732
+  requires_dist:
+  - urllib3>=2.2.2
+  - typing-extensions>=4.6.0 ; python_full_version < '3.12'
+  - fastimport ; extra == 'fastimport'
+  - urllib3>=2.2.2 ; extra == 'https'
+  - gpg ; extra == 'pgp'
+  - pysequoia ; extra == 'sequoia'
+  - paramiko ; extra == 'paramiko'
+  - rich ; extra == 'colordiff'
+  - ruff==0.16.9 ; extra == 'dev'
+  - mypy==2.3.1 ; extra == 'dev'
+  - dissolve>=0.1.1 ; extra == 'dev'
+  - codespell==2.4.3 ; extra == 'dev'
+  - hypothesis>=6 ; extra == 'hypothesis'
+  - merge3 ; extra == 'merge'
+  - atheris ; extra == 'fuzzing'
+  - patiencediff ; extra == 'patiencediff'
+  - munkres ; extra == 'range-diff'
+  - aiohttp ; extra == 'aiohttp'
+  requires_python: '>=3.10'
+- pypi: https://files.pythonhosted.org/packages/a4/65/033a59758369bdf86db793373994366d8cc019652d29a96a52861b272687/dulwich-1.2.20-cp314-cp314-macosx_10_15_x86_64.whl
+  name: dulwich
+  version: 1.2.20
+  sha256: c28de206253ab36de2cf64cb416a250e104f1a460476ebd6d838a112a2abc314
+  requires_dist:
+  - urllib3>=2.2.2
+  - typing-extensions>=4.6.0 ; python_full_version < '3.12'
+  - fastimport ; extra == 'fastimport'
+  - urllib3>=2.2.2 ; extra == 'https'
+  - gpg ; extra == 'pgp'
+  - pysequoia ; extra == 'sequoia'
+  - paramiko ; extra == 'paramiko'
+  - rich ; extra == 'colordiff'
+  - ruff==0.16.9 ; extra == 'dev'
+  - mypy==2.3.1 ; extra == 'dev'
+  - dissolve>=0.1.1 ; extra == 'dev'
+  - codespell==2.4.3 ; extra == 'dev'
+  - hypothesis>=6 ; extra == 'hypothesis'
+  - merge3 ; extra == 'merge'
+  - atheris ; extra == 'fuzzing'
+  - patiencediff ; extra == 'patiencediff'
+  - munkres ; extra == 'range-diff'
+  - aiohttp ; extra == 'aiohttp'
+  requires_python: '>=3.10'
+- pypi: https://files.pythonhosted.org/packages/de/03/731c30afa8feec744e88c678598f796b9adeef162371eecedfbad143c4e4/dulwich-1.2.20-cp313-cp313-manylinux_2_28_x86_64.whl
+  name: dulwich
+  version: 1.2.20
+  sha256: b32ff0020b0a4230380883173eff078f64af72ddaaf5b3abbba81170bf99f11a
+  requires_dist:
+  - urllib3>=2.2.2
+  - typing-extensions>=4.6.0 ; python_full_version < '3.12'
+  - fastimport ; extra == 'fastimport'
+  - urllib3>=2.2.2 ; extra == 'https'
+  - gpg ; extra == 'pgp'
+  - pysequoia ; extra == 'sequoia'
+  - paramiko ; extra == 'paramiko'
+  - rich ; extra == 'colordiff'
+  - ruff==0.16.9 ; extra == 'dev'
+  - mypy==2.3.1 ; extra == 'dev'
+  - dissolve>=0.1.1 ; extra == 'dev'
+  - codespell==2.4.3 ; extra == 'dev'
+  - hypothesis>=6 ; extra == 'hypothesis'
+  - merge3 ; extra == 'merge'
+  - atheris ; extra == 'fuzzing'
+  - patiencediff ; extra == 'patiencediff'
+  - munkres ; extra == 'range-diff'
+  - aiohttp ; extra == 'aiohttp'
   requires_python: '>=3.10'

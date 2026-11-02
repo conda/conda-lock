@@ -15,20 +15,20 @@
 version: 1
 metadata:
   content_hash:
-    linux-64: 22c7dbf4af1d73879fee01141002831e1ddaf663ddfcb5fc9144733d868cde77
-    osx-64: 12b35b0da59c1771482e8368308b8f231fe72c984a5ebeae9c5851ab8ea2f5b3
-    osx-arm64: 4b4d315090c0a1e4e758b9263c2626c454138cf265cf0cc61a87c3a2eee27138
-    win-64: 6633351708e7b41fb46b57b58dfc44678a6c2f1797e606286007ef282e7c5151
-    linux-aarch64: 1155c85c14801de83d9b2482a5e7f119dd27e05216a1b02aabb88cb7a7dd2557
+    linux-64: 7cf57e68fe92fecfcfbedbb87faf66b0cb1bf61ec7cce55d14be18e2bfdd58a3
+    osx-64: b963231a23d8dd4cb83a29ec48ea14b02b8699dd88e6f0a88c80b31c0b0de351
+    osx-arm64: a096e3a79e2467ae5960166cdac63d9bd8f149caf4095129a4e27a74f4d253ef
+    win-64: 617c49ee17c4b7b53a2d2a88c5e498f1e81183fc773bfe40f32bff5cd0e878a4
+    linux-aarch64: 016c18a9e5e974beee60e132fb39004b87eb402414ec5deb1b14bf7fc579215a
   channels:
   - url: conda-forge
     used_env_vars: []
   platforms:
   - linux-64
+  - linux-aarch64
   - osx-64
   - osx-arm64
   - win-64
-  - linux-aarch64
   sources:
   - dev-environment.yaml
   - python-3.10.yaml
@@ -913,63 +913,63 @@ package:
   category: dev
   optional: true
 - name: ca-certificates
-  version: 2026.7.22
+  version: 2026.10.23
   manager: conda
   platform: linux-64
   dependencies:
     __unix: ''
-  url: https://conda.anaconda.org/conda-forge/noarch/ca-certificates-2026.7.22-hbd8a1cb_0.conda
+  url: https://conda.anaconda.org/conda-forge/noarch/ca-certificates-2026.10.23-hbd8a1cb_0.conda
   hash:
-    md5: 0f51e2391ade309db462a55611263e9c
-    sha256: 0a0544cf95f64394fe4959286f5c71f5444ad58feb0602e53becb27448d24da6
+    md5: 3fd02989038a1e1cee627c14c2d73f29
+    sha256: 95619b9c1184be7175392eeb0ee7eeb5ccf25d280951f4225f2d62e725790be3
   category: main
   optional: false
 - name: ca-certificates
-  version: 2026.7.22
+  version: 2026.10.23
   manager: conda
   platform: linux-aarch64
   dependencies:
     __unix: ''
-  url: https://conda.anaconda.org/conda-forge/noarch/ca-certificates-2026.7.22-hbd8a1cb_0.conda
+  url: https://conda.anaconda.org/conda-forge/noarch/ca-certificates-2026.10.23-hbd8a1cb_0.conda
   hash:
-    md5: 0f51e2391ade309db462a55611263e9c
-    sha256: 0a0544cf95f64394fe4959286f5c71f5444ad58feb0602e53becb27448d24da6
+    md5: 3fd02989038a1e1cee627c14c2d73f29
+    sha256: 95619b9c1184be7175392eeb0ee7eeb5ccf25d280951f4225f2d62e725790be3
   category: main
   optional: false
 - name: ca-certificates
-  version: 2026.7.22
+  version: 2026.10.23
   manager: conda
   platform: osx-64
   dependencies:
     __unix: ''
-  url: https://conda.anaconda.org/conda-forge/noarch/ca-certificates-2026.7.22-hbd8a1cb_0.conda
+  url: https://conda.anaconda.org/conda-forge/noarch/ca-certificates-2026.10.23-hbd8a1cb_0.conda
   hash:
-    md5: 0f51e2391ade309db462a55611263e9c
-    sha256: 0a0544cf95f64394fe4959286f5c71f5444ad58feb0602e53becb27448d24da6
+    md5: 3fd02989038a1e1cee627c14c2d73f29
+    sha256: 95619b9c1184be7175392eeb0ee7eeb5ccf25d280951f4225f2d62e725790be3
   category: main
   optional: false
 - name: ca-certificates
-  version: 2026.7.22
+  version: 2026.10.23
   manager: conda
   platform: osx-arm64
   dependencies:
     __unix: ''
-  url: https://conda.anaconda.org/conda-forge/noarch/ca-certificates-2026.7.22-hbd8a1cb_0.conda
+  url: https://conda.anaconda.org/conda-forge/noarch/ca-certificates-2026.10.23-hbd8a1cb_0.conda
   hash:
-    md5: 0f51e2391ade309db462a55611263e9c
-    sha256: 0a0544cf95f64394fe4959286f5c71f5444ad58feb0602e53becb27448d24da6
+    md5: 3fd02989038a1e1cee627c14c2d73f29
+    sha256: 95619b9c1184be7175392eeb0ee7eeb5ccf25d280951f4225f2d62e725790be3
   category: main
   optional: false
 - name: ca-certificates
-  version: 2026.7.22
+  version: 2026.10.23
   manager: conda
   platform: win-64
   dependencies:
     __win: ''
-  url: https://conda.anaconda.org/conda-forge/noarch/ca-certificates-2026.7.22-h4c7d964_0.conda
+  url: https://conda.anaconda.org/conda-forge/noarch/ca-certificates-2026.10.23-h4c7d964_0.conda
   hash:
-    md5: e27d2ac27b096dc51fedfcf775a53f9b
-    sha256: 95e8e74062a5fe5f870ac8c90302b6e89945165fdaed7810606e84ddee6aac12
+    md5: ea9dc39dcd2815202749c1e5bc2a8973
+    sha256: f1d280d2618de987204102090e83733089c092dc2dd45686fd3dcbe809034f6a
   category: main
   optional: false
 - name: cachecontrol
@@ -2446,91 +2446,8 @@ package:
     sha256: def3b2566a1702fa083a8984753ac0b3e3f7381048f88714e03d55b7bd930b74
   category: dev
   optional: true
-- name: dulwich
-  version: 0.24.10
-  manager: conda
-  platform: linux-64
-  dependencies:
-    __glibc: '>=2.17,<3.0.a0'
-    libgcc: '>=14'
-    python: '>=3.10,<3.11.0a0'
-    python_abi: 3.10.*
-    typing_extensions: '>=4.6.0'
-    urllib3: '>=2.2.2'
-  url: https://conda.anaconda.org/conda-forge/linux-64/dulwich-0.24.10-py310hdfeec95_1.conda
-  hash:
-    md5: e4de41677a624249ed1be39a96b353a8
-    sha256: b951ed71d2ac5a8948c9414bb4d2246c72cd423249c9cb6c306a1cd9a53fa0e5
-  category: main
-  optional: false
-- name: dulwich
-  version: 0.24.10
-  manager: conda
-  platform: linux-aarch64
-  dependencies:
-    libgcc: '>=14'
-    python: '>=3.10,<3.11.0a0,>=3.10,<3.11.0a0'
-    python_abi: 3.10.*
-    typing_extensions: '>=4.6.0'
-    urllib3: '>=2.2.2'
-  url: https://conda.anaconda.org/conda-forge/linux-aarch64/dulwich-0.24.10-py310he2b3da2_1.conda
-  hash:
-    md5: ef3cb8d38db5a848c2684d3a7c2d4d44
-    sha256: c3a3e71b289f79b359ffed6293b958bd21a1118ea11f49a275273bb064bb07ae
-  category: main
-  optional: false
-- name: dulwich
-  version: 0.24.10
-  manager: conda
-  platform: osx-64
-  dependencies:
-    __osx: '>=10.13'
-    python: '>=3.10,<3.11.0a0'
-    python_abi: 3.10.*
-    typing_extensions: '>=4.6.0'
-    urllib3: '>=2.2.2'
-  url: https://conda.anaconda.org/conda-forge/osx-64/dulwich-0.24.10-py310hf24d99c_1.conda
-  hash:
-    md5: 21fda8a9d9c86c5bb247a5397a0abebd
-    sha256: a2bb8c7cd9b028bf68f7e3d0930a78ec37018b235c209f0fce08501b005fb8c5
-  category: main
-  optional: false
-- name: dulwich
-  version: 0.24.10
-  manager: conda
-  platform: osx-arm64
-  dependencies:
-    __osx: '>=11.0'
-    python: '>=3.10,<3.11.0a0,>=3.10,<3.11.0a0'
-    python_abi: 3.10.*
-    typing_extensions: '>=4.6.0'
-    urllib3: '>=2.2.2'
-  url: https://conda.anaconda.org/conda-forge/osx-arm64/dulwich-0.24.10-py310h53169e7_1.conda
-  hash:
-    md5: 91e621544a368b9e0f2451c259064e93
-    sha256: b1bfe6baf72ea8b91e547d055d3f257561b83d83a21f3b183f09359431aeb209
-  category: main
-  optional: false
-- name: dulwich
-  version: 0.24.10
-  manager: conda
-  platform: win-64
-  dependencies:
-    python: '>=3.10,<3.11.0a0'
-    python_abi: 3.10.*
-    typing_extensions: '>=4.6.0'
-    ucrt: '>=10.0.20348.0'
-    urllib3: '>=2.2.2'
-    vc: '>=14.3,<15'
-    vc14_runtime: '>=14.44.35208'
-  url: https://conda.anaconda.org/conda-forge/win-64/dulwich-0.24.10-py310hf13f778_1.conda
-  hash:
-    md5: c7f6025718363478f5d3bb350606b59b
-    sha256: c99651b5d6219c43c0c2d80a4be786cfd6f5300d47bbaebdd08e248625e6bdf4
-  category: main
-  optional: false
 - name: ensureconda
-  version: 1.6.0
+  version: 1.7.0
   manager: conda
   platform: linux-64
   dependencies:
@@ -2541,14 +2458,14 @@ package:
     packaging: ''
     python: '>=3.10'
     requests: '>=2'
-  url: https://conda.anaconda.org/conda-forge/noarch/ensureconda-1.6.0-pyhcf101f3_0.conda
+  url: https://conda.anaconda.org/conda-forge/noarch/ensureconda-1.7.0-pyhc364b38_1.conda
   hash:
-    md5: fcc02785e4da41e5f19f740e017b6ffb
-    sha256: e3c35c7cee4e6db53de4ad1ca6d35b7aced263d21a6ee2dcdffe401135646ab2
+    md5: e1605cf7fe9b61bb4d2c25d8855d78c2
+    sha256: b33f31cde42210a6b25665fbd320c198d12ed0f6c1f8abeaa9391ac9b55cc948
   category: main
   optional: false
 - name: ensureconda
-  version: 1.6.0
+  version: 1.7.0
   manager: conda
   platform: linux-aarch64
   dependencies:
@@ -2559,14 +2476,14 @@ package:
     packaging: ''
     python: '>=3.10'
     requests: '>=2'
-  url: https://conda.anaconda.org/conda-forge/noarch/ensureconda-1.6.0-pyhcf101f3_0.conda
+  url: https://conda.anaconda.org/conda-forge/noarch/ensureconda-1.7.0-pyhc364b38_1.conda
   hash:
-    md5: fcc02785e4da41e5f19f740e017b6ffb
-    sha256: e3c35c7cee4e6db53de4ad1ca6d35b7aced263d21a6ee2dcdffe401135646ab2
+    md5: e1605cf7fe9b61bb4d2c25d8855d78c2
+    sha256: b33f31cde42210a6b25665fbd320c198d12ed0f6c1f8abeaa9391ac9b55cc948
   category: main
   optional: false
 - name: ensureconda
-  version: 1.6.0
+  version: 1.7.0
   manager: conda
   platform: osx-64
   dependencies:
@@ -2577,14 +2494,14 @@ package:
     packaging: ''
     python: '>=3.10'
     requests: '>=2'
-  url: https://conda.anaconda.org/conda-forge/noarch/ensureconda-1.6.0-pyhcf101f3_0.conda
+  url: https://conda.anaconda.org/conda-forge/noarch/ensureconda-1.7.0-pyhc364b38_1.conda
   hash:
-    md5: fcc02785e4da41e5f19f740e017b6ffb
-    sha256: e3c35c7cee4e6db53de4ad1ca6d35b7aced263d21a6ee2dcdffe401135646ab2
+    md5: e1605cf7fe9b61bb4d2c25d8855d78c2
+    sha256: b33f31cde42210a6b25665fbd320c198d12ed0f6c1f8abeaa9391ac9b55cc948
   category: main
   optional: false
 - name: ensureconda
-  version: 1.6.0
+  version: 1.7.0
   manager: conda
   platform: osx-arm64
   dependencies:
@@ -2595,14 +2512,14 @@ package:
     packaging: ''
     python: '>=3.10'
     requests: '>=2'
-  url: https://conda.anaconda.org/conda-forge/noarch/ensureconda-1.6.0-pyhcf101f3_0.conda
+  url: https://conda.anaconda.org/conda-forge/noarch/ensureconda-1.7.0-pyhc364b38_1.conda
   hash:
-    md5: fcc02785e4da41e5f19f740e017b6ffb
-    sha256: e3c35c7cee4e6db53de4ad1ca6d35b7aced263d21a6ee2dcdffe401135646ab2
+    md5: e1605cf7fe9b61bb4d2c25d8855d78c2
+    sha256: b33f31cde42210a6b25665fbd320c198d12ed0f6c1f8abeaa9391ac9b55cc948
   category: main
   optional: false
 - name: ensureconda
-  version: 1.6.0
+  version: 1.7.0
   manager: conda
   platform: win-64
   dependencies:
@@ -2613,10 +2530,10 @@ package:
     packaging: ''
     python: '>=3.10'
     requests: '>=2'
-  url: https://conda.anaconda.org/conda-forge/noarch/ensureconda-1.6.0-pyhcf101f3_0.conda
+  url: https://conda.anaconda.org/conda-forge/noarch/ensureconda-1.7.0-pyhc364b38_1.conda
   hash:
-    md5: fcc02785e4da41e5f19f740e017b6ffb
-    sha256: e3c35c7cee4e6db53de4ad1ca6d35b7aced263d21a6ee2dcdffe401135646ab2
+    md5: e1605cf7fe9b61bb4d2c25d8855d78c2
+    sha256: b33f31cde42210a6b25665fbd320c198d12ed0f6c1f8abeaa9391ac9b55cc948
   category: main
   optional: false
 - name: exceptiongroup
@@ -13444,5 +13361,65 @@ package:
   hash:
     md5: e4ac308c39d6d0e131154976da67cf3b
     sha256: ca7daae4f218a11fab82cc2857f0ea518ec3f46acec60490485347a4c22c6b3e
+  category: main
+  optional: false
+- name: dulwich
+  version: 1.2.20
+  manager: pip
+  platform: linux-64
+  dependencies:
+    typing-extensions: '>=4.6.0'
+    urllib3: '>=2.2.2'
+  url: https://files.pythonhosted.org/packages/dd/ff/89328d022e77fd6d2d53545c8640a248e6124ec3cc2f4569f543f24471e7/dulwich-1.2.20-cp310-cp310-manylinux_2_28_x86_64.whl
+  hash:
+    sha256: 536437bea3a3a1f50aa6785622bb586cd90cd130cac971ff8d137d81918df572
+  category: main
+  optional: false
+- name: dulwich
+  version: 1.2.20
+  manager: pip
+  platform: linux-aarch64
+  dependencies:
+    typing-extensions: '>=4.6.0'
+    urllib3: '>=2.2.2'
+  url: https://files.pythonhosted.org/packages/ec/4a/6aed24b3c790ffad606da99eff8479a3e1b60591ce49e371bade25e5ff7d/dulwich-1.2.20-cp310-cp310-manylinux_2_28_aarch64.whl
+  hash:
+    sha256: 03293506243e43b3efb9f1bec753af067a1e4a999d3a92e134040931cf0172ec
+  category: main
+  optional: false
+- name: dulwich
+  version: 1.2.20
+  manager: pip
+  platform: osx-64
+  dependencies:
+    typing-extensions: '>=4.6.0'
+    urllib3: '>=2.2.2'
+  url: https://files.pythonhosted.org/packages/df/99/125a1c92c90812f3f0a9d217e6af4f4308d635385c0a97ce9346aa93eea3/dulwich-1.2.20-cp310-cp310-macosx_10_12_x86_64.whl
+  hash:
+    sha256: 9c5636ffb1cfbc33c71d80ceab04b7d5ba5c9f8c689bccf98ae97c2c55947539
+  category: main
+  optional: false
+- name: dulwich
+  version: 1.2.20
+  manager: pip
+  platform: osx-arm64
+  dependencies:
+    typing-extensions: '>=4.6.0'
+    urllib3: '>=2.2.2'
+  url: https://files.pythonhosted.org/packages/f1/18/30caf99e175a1167c6d570f5590ec7819a35211350ace09eeb6e416b5724/dulwich-1.2.20-cp310-cp310-macosx_11_0_arm64.whl
+  hash:
+    sha256: daa9e40e9996ff3c0b3ceb808dbc8d4f147b8aa2a7fd660850f63f024cc92a38
+  category: main
+  optional: false
+- name: dulwich
+  version: 1.2.20
+  manager: pip
+  platform: win-64
+  dependencies:
+    typing-extensions: '>=4.6.0'
+    urllib3: '>=2.2.2'
+  url: https://files.pythonhosted.org/packages/2c/5f/dcfbd613956541921e295f6f49013cac53f5ec0f3cf045cc01962ae281e5/dulwich-1.2.20-cp310-cp310-win_amd64.whl
+  hash:
+    sha256: a8d465418936e585b2bb8a42f5b1e8f1c4053ce781c74997bc02dd6c3b21504a
   category: main
   optional: false
