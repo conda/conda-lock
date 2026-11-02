@@ -9,4 +9,4 @@ See the `[tool.vendoring]` section of `pyproject.toml` for details.
 
 Use `vendoring==1.4.0` and `dos2unix`, then run `bash scripts/rerun_vendoring.sh`
 from the repository root. The script fetches the versions in
-`conda_lock/_vendor/vendor.txt`.
+`conda_lock/_vendor/vendor.txt`, including their matching licenses.
