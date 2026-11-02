@@ -153,7 +153,7 @@ destination = "conda_lock/_vendor"
 namespace = "conda_lock._vendor"
 requirements = "conda_lock/_vendor/vendor.txt"
 protected-files = ["__init__.py", "README.md", "LICENSES.md", "vendor.txt"]
-patches-dir = "conda_lock/scripts/vendor_poetry/patches"
+patches-dir = "scripts/vendor_patches"
 
 [tool.vendoring.transformations]
 drop = [
