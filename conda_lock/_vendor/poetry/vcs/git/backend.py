@@ -411,7 +411,8 @@ class Git:
     def get_default_source_root() -> Path:
         from conda_lock._vendor.poetry.config.config import Config
 
-        return Path(Config.create().get("cache-dir")) / "src"
+        # Avoid checkouts created before the Dulwich 1.2.20 parser fix.
+        return Path(Config.create().get("cache-dir")) / "src-v2"
 
     @classmethod
     def clone(
