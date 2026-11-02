@@ -3,7 +3,7 @@
 set -euo pipefail
 
 if ! command -v vendoring &> /dev/null; then
-  echo "vendoring not found on PATH. Please install vendoring with 'pip install vendoring'."
+  echo "vendoring not found on PATH. Please install vendoring with 'pip install vendoring==1.4.0'."
   exit 1
 fi
 
@@ -14,11 +14,11 @@ fi
 
 if [ ! -f pyproject.toml ]; then
   echo "pyproject.toml not found in the current directory. Please run this script from the root of the project:"
-  echo "  conda_lock/scripts/vendor_poetry/rerun_vendoring.sh"
+  echo "  scripts/rerun_vendoring.sh"
   exit 1
 fi
 
-vendoring sync -vvv .
+vendoring sync -v
 
 echo Fixing CRLF line endings...
 dos2unix conda_lock/_vendor/poetry/core/_vendor/lark/grammars/*
