@@ -101,7 +101,7 @@ def poetry_version_to_conda_version(version_string: str | None) -> str | None:
 
 
 def handle_mapping(
-    depattrs: collections.abc.Mapping,
+    depattrs: collections.abc.Mapping[str, Any],
     depname: str,
     path: pathlib.Path,
     category: str,
@@ -286,6 +286,7 @@ def parse_poetry_pyproject_toml(
                 dependencies.append(
                     VCSDependency(
                         name=name,
+                        extras=extras,
                         markers=markers,
                         source=url,
                         manager=manager,
@@ -570,6 +571,7 @@ def parse_python_requirement(
             source=url,
             manager=manager,
             category=category,
+            extras=extras,
             vcs="git",
             rev=rev,
             markers=markers,

@@ -61,7 +61,7 @@ class Package(StrictModel):
 class PoetryMappedDependencySpec(StrictModel):
     url: str | None = None
     manager: Literal["conda", "pip"]
-    extras: list
+    extras: list[str]
     markers: str | None = None
     poetry_version_spec: str | None = None
 

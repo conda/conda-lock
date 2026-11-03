@@ -78,6 +78,7 @@ from conda_lock.interfaces.vendored_conda import MatchSpec
 from conda_lock.invoke_conda import is_micromamba, reset_conda_pkgs_dir
 from conda_lock.lockfile import parse_conda_lock_file
 from conda_lock.lockfile.v2prelim.models import (
+    DependencySource,
     HashModel,
     LockedDependency,
     MetadataOption,
@@ -94,6 +95,7 @@ from conda_lock.pypi_solver import (
     MANYLINUX_TAGS,
     PlatformEnv,
     _strip_auth,
+    get_package,
     parse_pip_requirement,
     solve_pypi,
 )
@@ -1900,14 +1902,14 @@ def test_run_with_channel_inversion(
     lockfile = parse_conda_lock_file(channel_inversion.parent / DEFAULT_LOCKFILE_NAME)
     for package in lockfile.package:
         if package.name == "zlib":
-            ms = MatchSpec(package.url)  # pyright: ignore
+            ms = MatchSpec(package.url)
             assert ms.get("channel") == "conda-forge"
             break
     else:
         raise ValueError("zlib not found!")
     for package in lockfile.package:
         if package.name == "libgomp":
-            ms = MatchSpec(package.url)  # pyright: ignore
+            ms = MatchSpec(package.url)
             assert ms.get("channel") == "defaults"
             break
     else:
@@ -2396,7 +2398,7 @@ def test_install(
 
     prefix = root_prefix / "test_env"
 
-    context: contextlib.AbstractContextManager
+    context: contextlib.AbstractContextManager[object]
     if sys.platform.lower().startswith("linux"):
         context = contextlib.nullcontext()
     else:
@@ -2453,7 +2455,7 @@ def test_install_with_pip_deps(
     package = "requests"
     prefix = root_prefix / "test_env"
 
-    context: contextlib.AbstractContextManager
+    context: contextlib.AbstractContextManager[object]
     if sys.platform.lower().startswith("linux"):
         context = contextlib.nullcontext()
     else:
@@ -2495,7 +2497,7 @@ def test_install_multiple_subcategories(
     root_prefix.mkdir(exist_ok=True)
     prefix = root_prefix / "test_env"
 
-    context: contextlib.AbstractContextManager
+    context: contextlib.AbstractContextManager[object]
     if sys.platform.lower().startswith("linux"):
         context = contextlib.nullcontext()
     else:
@@ -3570,6 +3572,28 @@ def test_pip_full_whl_url(
     )
 
 
+def test_get_package_preserves_version_for_url_source():
+    """A URL-sourced locked dep must reconcile with its real version, not a 0.0.0 placeholder."""
+    url = "https://example.com/foo-1.2.3-py3-none-any.whl"
+    locked = LockedDependency(
+        name="foo",
+        version="1.2.3",
+        manager="pip",
+        platform="linux-64",
+        dependencies={},
+        url=url,
+        hash=HashModel(),
+        source=DependencySource(type="url", url=url),
+    )
+
+    package = get_package(locked)
+
+    assert str(package.version) == "1.2.3"
+    # The dependency stays URL-pinned.
+    assert package.source_type == "url"
+    assert package.source_url == url
+
+
 def test_when_merging_lockfiles_content_hashes_are_updated(
     conda_exe: str,
     monkeypatch: "pytest.MonkeyPatch",
@@ -3682,8 +3706,10 @@ dependencies:
   - pip:
     - simplejson
 """)
+    # One platform exercises prerelease parsing with pip dependencies.
     run_lock(
         [environment_yml],
         conda_exe=conda_exe,
+        platforms=["linux-64"],
         mapping_url=DEFAULT_MAPPING_URL,
     )

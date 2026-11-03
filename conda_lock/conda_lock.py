@@ -816,8 +816,7 @@ def _solve_for_arch(
             metadata_for_platform: SubdirMetadata | EmptyDict = (
                 virtual_package_repo.all_repodata.get(platform, {})
             )
-            # pyright infers the correct type here, but mypy does not.
-            platform_virtual_packages = metadata_for_platform.get("packages")  # type: ignore[assignment]
+            platform_virtual_packages = metadata_for_platform.get("packages")
 
         pip_deps = solve_pypi(
             pip_specs=requested_deps_by_name["pip"],

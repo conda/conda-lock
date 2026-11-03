@@ -298,7 +298,8 @@ class Provider:
             rev=dependency.rev,
             subdirectory=dependency.source_subdirectory,
             source_root=self._source_root
-            or (self._env.path.joinpath("src") if self._env else None),
+            # Avoid checkouts created before the Dulwich 1.2.20 parser fix.
+            or (self._env.path.joinpath("src-v2") if self._env else None),
         )
 
         self.validate_package_for_dependency(dependency=dependency, package=package)
