@@ -7,6 +7,7 @@ import signal
 import subprocess
 import sys
 import threading
+import time
 
 from collections.abc import Iterator, Sequence
 from logging import getLogger
@@ -173,20 +174,39 @@ def _stop_process_tree(p: "subprocess.Popen[str]") -> None:
     """Stop the child and everything it spawned.
 
     Interrupt the whole process group first so that conda can roll back as it
-    does on Ctrl-C, then kill the group if it does not exit in time. On Windows
-    only the child itself is killed.
+    does on Ctrl-C, then kill whatever is still running once the grace period
+    is over. Descendants that leave the process group are out of reach, and on
+    Windows only the child itself is killed.
     """
     if sys.platform == "win32":
         p.kill()
         return
-    try:
-        os.killpg(p.pid, signal.SIGINT)
-        p.wait(timeout=_TERMINATE_GRACE_SECONDS)
-    except ProcessLookupError:
-        # The whole group has already exited.
+    deadline = time.monotonic() + _TERMINATE_GRACE_SECONDS
+    if not _signal_process_group(p.pid, signal.SIGINT):
         return
+    try:
+        p.wait(timeout=_TERMINATE_GRACE_SECONDS)
     except subprocess.TimeoutExpired:
-        os.killpg(p.pid, signal.SIGKILL)
+        _signal_process_group(p.pid, signal.SIGKILL)
+        return
+    # The child has exited, but a grandchild (such as the pip that `conda run`
+    # starts) may still be running and keeping the output pipes open, which is
+    # what Popen.__exit__ would then block on. Give it the rest of the grace
+    # period before killing it.
+    while _signal_process_group(p.pid, 0):
+        if time.monotonic() >= deadline:
+            _signal_process_group(p.pid, signal.SIGKILL)
+            return
+        time.sleep(0.05)
+
+
+def _signal_process_group(pgid: int, sig: int) -> bool:
+    """Send ``sig`` to the process group; return False once it has no members."""
+    try:
+        os.killpg(pgid, sig)
+    except ProcessLookupError:
+        return False
+    return True
 
 
 def _process_stdout(stdout: IO[str]) -> Iterator[str]:
