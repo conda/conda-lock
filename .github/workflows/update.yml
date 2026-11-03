@@ -51,7 +51,7 @@ jobs:
           pattern: test-durations-*
           durations-dir: ${{ runner.temp }}/durations
 
-      - name: Install the refreshed durations if the download was complete
+      - name: Install the refreshed durations without losing live tests
         run: >
           python3 scripts/install_refreshed_durations.py
           --refreshed "${RUNNER_TEMP}/durations"

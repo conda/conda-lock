@@ -14,16 +14,18 @@ result. The same files are also aggregated in the "Aggregate test durations"
 job and available for download as the `aggregated-test-durations` artifact.
 
 The refresh deletes every file and every test entry that is absent from the
-downloaded artifacts, so it runs on a scratch copy of this directory, and
-`scripts/install_refreshed_durations.py` copies the result back only if every
-committed file is still present and none of them lost more than 5% of its
-entries. If the weekly workflow fails at that step, the download was probably
-incomplete; check the run before merging anything.
+downloaded artifacts. A missing shard can hide a single test, since
+pytest-split balances the shards by runtime, so the refresh runs on a scratch
+copy of this directory and `scripts/install_refreshed_durations.py` copies the
+result back while keeping every committed entry whose test still exists in the
+source tree. Only the entries of removed tests are dropped. If a whole file is
+missing after the refresh, that script fails the weekly workflow instead; check
+the run before merging anything.
 
 The filenames must match `<os>-py<version>.json` for every combination in the
 test matrix. When a combination is removed from the matrix, delete its file by
-hand, since the guard above stops the refresh from deleting it. A matrix entry
-without a file splits evenly by test count until the next refresh.
+hand, since the script above refuses to delete it. A matrix entry without a
+file splits evenly by test count until the next refresh.
 
 For more details, see the
 [pytest-split documentation](https://jerry-git.github.io/pytest-split/).
