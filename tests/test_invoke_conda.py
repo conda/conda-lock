@@ -9,9 +9,8 @@ from conda_lock import invoke_conda
 from conda_lock.invoke_conda import _invoke_conda
 
 
-# A stand-in for conda that spawns a grandchild sharing its output pipes, the
-# way `conda run pip` does. The environment chooses how each of them reacts to
-# SIGINT, and the grandchild reports on stderr once its handler is in place.
+# The grandchild holds the output pipes open. Wait for its SIGINT handler
+# to be installed before interrupting the process group.
 FAKE_CONDA = """\
 import os
 import signal
@@ -38,19 +37,14 @@ time.sleep(15)
 @pytest.mark.parametrize(
     ("child", "grandchild"),
     [
-        ("default", "default"),  # both die from the interrupt
-        ("ignore", "ignore"),  # the child must be killed after the grace period
-        ("exit", "ignore"),  # the child exits but its grandchild keeps the pipes open
+        ("default", "default"),
+        ("ignore", "ignore"),
+        ("exit", "ignore"),  # The parent exits before the pipes close.
     ],
 )
 def test_invoke_conda_stops_child_tree_on_exception(
     tmp_path, monkeypatch, child, grandchild
 ):
-    """An exception escaping _invoke_conda must not wait for a hung child tree.
-
-    Popen.__exit__ closes the output pipes, which blocks for as long as any
-    descendant of conda keeps them open, and then waits for conda itself.
-    """
     script = tmp_path / "fake_conda.py"
     script.write_text(FAKE_CONDA)
     fake_conda = tmp_path / "conda"

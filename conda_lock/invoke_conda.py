@@ -27,7 +27,6 @@ PathLike: TypeAlias = str | pathlib.Path
 CONDA_PKGS_DIRS: str | None = None
 MAMBA_ROOT_PREFIX: str | None = None
 
-# How long conda gets to roll back after SIGINT before it is killed outright.
 _TERMINATE_GRACE_SECONDS = 5.0
 
 
@@ -125,16 +124,12 @@ def _invoke_conda(
         bufsize=1,
         universal_newlines=True,
         encoding="utf-8",
-        # Give conda its own process group so that _stop_process_tree can also
-        # reach whatever it spawns (POSIX only; ignored on Windows).
+        # Keep descendants in a process group we can interrupt together (POSIX).
         start_new_session=True,
     ) as p:
         try:
             stdout = []
-            # Using a thread so that both stdout and stderr can be consumed concurrently.
-            # This avoids a potential deadlock when the child conda process is trying to
-            # write to stderr (blocked, because the I/O is line-buffered) and conda-lock
-            # is still trying to read from stdout.
+            # Drain both pipes concurrently so a full pipe cannot deadlock the child.
             stdout_thread = None
             if p.stdout:
 
@@ -153,9 +148,8 @@ def _invoke_conda(
                 stdout_thread.join()
 
         except BaseException:
-            # Popen.__exit__ waits for the child without a timeout and closes
-            # its pipes, which blocks while any descendant keeps them open. If
-            # conda is hung, that wait would never end.
+            # Include KeyboardInterrupt and pytest timeouts, then re-raise.
+            # Stop descendants before Popen.__exit__ blocks on the stdout reader.
             _stop_process_tree(p)
             raise
 
@@ -171,12 +165,10 @@ def _invoke_conda(
 
 
 def _stop_process_tree(p: "subprocess.Popen[str]") -> None:
-    """Stop the child and everything it spawned.
+    """Interrupt the process group, then kill survivors after the grace period.
 
-    Interrupt the whole process group first so that conda can roll back as it
-    does on Ctrl-C, then kill whatever is still running once the grace period
-    is over. Descendants that leave the process group are out of reach, and on
-    Windows only the child itself is killed.
+    SIGINT gives conda a chance to roll back. Descendants that leave the group
+    are out of reach; on Windows, only the child is killed.
     """
     if sys.platform == "win32":
         p.kill()
@@ -189,10 +181,7 @@ def _stop_process_tree(p: "subprocess.Popen[str]") -> None:
     except subprocess.TimeoutExpired:
         _signal_process_group(p.pid, signal.SIGKILL)
         return
-    # The child has exited, but a grandchild (such as the pip that `conda run`
-    # starts) may still be running and keeping the output pipes open, which is
-    # what Popen.__exit__ would then block on. Give it the rest of the grace
-    # period before killing it.
+    # The child may exit while descendants still hold the pipes open.
     while _signal_process_group(p.pid, 0):
         if time.monotonic() >= deadline:
             _signal_process_group(p.pid, signal.SIGKILL)
