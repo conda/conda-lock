@@ -36,6 +36,13 @@ jobs:
       - uses: conda/actions/combine-durations@8153f7f73472ac36d654d5111be19abaecc48cc6 # v26.10.0
         id: durations
         continue-on-error: true
+        with:
+          # The action defaults (workflow tests.yml, pattern *-all, directory
+          # durations) match none of this repo, so the refresh has never
+          # downloaded anything. See test.yml for the artifact names.
+          workflow: test.yml
+          pattern: test-durations-*
+          durations-dir: tests/durations
 
       - uses: conda/actions/template-files@8153f7f73472ac36d654d5111be19abaecc48cc6 # v26.10.0
         id: templates
