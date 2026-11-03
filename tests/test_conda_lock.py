@@ -3706,8 +3706,10 @@ dependencies:
   - pip:
     - simplejson
 """)
+    # One platform exercises prerelease parsing with pip dependencies.
     run_lock(
         [environment_yml],
         conda_exe=conda_exe,
+        platforms=["linux-64"],
         mapping_url=DEFAULT_MAPPING_URL,
     )

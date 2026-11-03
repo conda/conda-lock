@@ -3,8 +3,11 @@ import os
 import pathlib
 import shlex
 import shutil
+import signal
 import subprocess
+import sys
 import threading
+import time
 
 from collections.abc import Iterator, Sequence
 from logging import getLogger
@@ -23,6 +26,8 @@ PathLike: TypeAlias = str | pathlib.Path
 
 CONDA_PKGS_DIRS: str | None = None
 MAMBA_ROOT_PREFIX: str | None = None
+
+_TERMINATE_GRACE_SECONDS = 5.0
 
 
 def _ensureconda(
@@ -119,28 +124,34 @@ def _invoke_conda(
         bufsize=1,
         universal_newlines=True,
         encoding="utf-8",
+        # Keep descendants in a process group we can interrupt together (POSIX).
+        start_new_session=True,
     ) as p:
-        stdout = []
-        # Using a thread so that both stdout and stderr can be consumed concurrently.
-        # This avoids a potential deadlock when the child conda process is trying to
-        # write to stderr (blocked, because the I/O is line-buffered) and conda-lock
-        # is still trying to read from stdout.
-        stdout_thread = None
-        if p.stdout:
+        try:
+            stdout = []
+            # Drain both pipes concurrently so a full pipe cannot deadlock the child.
+            stdout_thread = None
+            if p.stdout:
 
-            def read_stdout() -> None:
-                assert p.stdout is not None
-                for line in _process_stdout(p.stdout):
-                    logging.info(line)
-                    stdout.append(line)
+                def read_stdout() -> None:
+                    assert p.stdout is not None
+                    for line in _process_stdout(p.stdout):
+                        logging.info(line)
+                        stdout.append(line)
 
-            stdout_thread = threading.Thread(target=read_stdout)
-            stdout_thread.start()
-        stderr: list[str] = []
-        if p.stderr:
-            stderr = _stderr_to_log(p.stderr)
-        if stdout_thread:
-            stdout_thread.join()
+                stdout_thread = threading.Thread(target=read_stdout)
+                stdout_thread.start()
+            stderr: list[str] = []
+            if p.stderr:
+                stderr = _stderr_to_log(p.stderr)
+            if stdout_thread:
+                stdout_thread.join()
+
+        except BaseException:
+            # Include KeyboardInterrupt and pytest timeouts, then re-raise.
+            # Stop descendants before Popen.__exit__ blocks on the stdout reader.
+            _stop_process_tree(p)
+            raise
 
     if check_call and p.returncode != 0:
         raise subprocess.CalledProcessError(
@@ -151,6 +162,57 @@ def _invoke_conda(
         )
 
     return p
+
+
+def _stop_process_tree(p: "subprocess.Popen[str]") -> None:
+    """Interrupt the process group, then kill survivors after the grace period.
+
+    SIGINT gives conda a chance to roll back. Descendants that leave the group
+    are out of reach; on Windows, only the child is killed.
+    """
+    if sys.platform == "win32":
+        p.kill()
+        return
+    deadline = time.monotonic() + _TERMINATE_GRACE_SECONDS
+    if not _signal_process_group(p.pid, signal.SIGINT):
+        return
+    try:
+        p.wait(timeout=_TERMINATE_GRACE_SECONDS)
+    except subprocess.TimeoutExpired:
+        _signal_process_group(p.pid, signal.SIGKILL)
+        return
+    # The child may exit while descendants still hold the pipes open.
+    while _signal_process_group(p.pid, 0):
+        if time.monotonic() >= deadline:
+            _signal_process_group(p.pid, signal.SIGKILL)
+            return
+        time.sleep(0.05)
+
+
+def _signal_process_group(pgid: int, sig: int) -> bool:
+    """Send ``sig`` to the group; return False if it has already exited."""
+    try:
+        os.killpg(pgid, sig)
+    except ProcessLookupError:
+        return False
+    except PermissionError:
+        if sys.platform != "darwin":
+            raise
+        # Darwin reports EPERM for groups containing only zombies.
+        status = subprocess.run(
+            ["/bin/ps", "-o", "stat=", "-g", str(pgid)],
+            capture_output=True,
+            text=True,
+            timeout=1,
+        )
+        if (
+            status.returncode not in (0, 1)
+            or status.stderr
+            or any(not state.startswith("Z") for state in status.stdout.split())
+        ):
+            raise
+        return False
+    return True
 
 
 def _process_stdout(stdout: IO[str]) -> Iterator[str]:

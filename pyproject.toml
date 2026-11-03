@@ -147,6 +147,8 @@ addopts = [
 ]
 log_level = "DEBUG"
 faulthandler_timeout = 600
+# Enforce a per-test timeout; faulthandler_timeout only dumps tracebacks.
+timeout = 600
 testpaths = ["tests", "conda_lock"]
 
 [tool.vendoring]
