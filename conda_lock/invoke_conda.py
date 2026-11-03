@@ -3,7 +3,9 @@ import os
 import pathlib
 import shlex
 import shutil
+import signal
 import subprocess
+import sys
 import threading
 
 from collections.abc import Iterator, Sequence
@@ -23,6 +25,9 @@ PathLike: TypeAlias = str | pathlib.Path
 
 CONDA_PKGS_DIRS: str | None = None
 MAMBA_ROOT_PREFIX: str | None = None
+
+# How long conda gets to roll back after SIGINT before it is killed outright.
+_TERMINATE_GRACE_SECONDS = 5.0
 
 
 def _ensureconda(
@@ -119,28 +124,39 @@ def _invoke_conda(
         bufsize=1,
         universal_newlines=True,
         encoding="utf-8",
+        # Give conda its own process group so that _stop_process_tree can also
+        # reach whatever it spawns (POSIX only; ignored on Windows).
+        start_new_session=True,
     ) as p:
-        stdout = []
-        # Using a thread so that both stdout and stderr can be consumed concurrently.
-        # This avoids a potential deadlock when the child conda process is trying to
-        # write to stderr (blocked, because the I/O is line-buffered) and conda-lock
-        # is still trying to read from stdout.
-        stdout_thread = None
-        if p.stdout:
+        try:
+            stdout = []
+            # Using a thread so that both stdout and stderr can be consumed concurrently.
+            # This avoids a potential deadlock when the child conda process is trying to
+            # write to stderr (blocked, because the I/O is line-buffered) and conda-lock
+            # is still trying to read from stdout.
+            stdout_thread = None
+            if p.stdout:
 
-            def read_stdout() -> None:
-                assert p.stdout is not None
-                for line in _process_stdout(p.stdout):
-                    logging.info(line)
-                    stdout.append(line)
+                def read_stdout() -> None:
+                    assert p.stdout is not None
+                    for line in _process_stdout(p.stdout):
+                        logging.info(line)
+                        stdout.append(line)
 
-            stdout_thread = threading.Thread(target=read_stdout)
-            stdout_thread.start()
-        stderr: list[str] = []
-        if p.stderr:
-            stderr = _stderr_to_log(p.stderr)
-        if stdout_thread:
-            stdout_thread.join()
+                stdout_thread = threading.Thread(target=read_stdout)
+                stdout_thread.start()
+            stderr: list[str] = []
+            if p.stderr:
+                stderr = _stderr_to_log(p.stderr)
+            if stdout_thread:
+                stdout_thread.join()
+
+        except BaseException:
+            # Popen.__exit__ waits for the child without a timeout and closes
+            # its pipes, which blocks while any descendant keeps them open. If
+            # conda is hung, that wait would never end.
+            _stop_process_tree(p)
+            raise
 
     if check_call and p.returncode != 0:
         raise subprocess.CalledProcessError(
@@ -151,6 +167,26 @@ def _invoke_conda(
         )
 
     return p
+
+
+def _stop_process_tree(p: "subprocess.Popen[str]") -> None:
+    """Stop the child and everything it spawned.
+
+    Interrupt the whole process group first so that conda can roll back as it
+    does on Ctrl-C, then kill the group if it does not exit in time. On Windows
+    only the child itself is killed.
+    """
+    if sys.platform == "win32":
+        p.kill()
+        return
+    try:
+        os.killpg(p.pid, signal.SIGINT)
+        p.wait(timeout=_TERMINATE_GRACE_SECONDS)
+    except ProcessLookupError:
+        # The whole group has already exited.
+        return
+    except subprocess.TimeoutExpired:
+        os.killpg(p.pid, signal.SIGKILL)
 
 
 def _process_stdout(stdout: IO[str]) -> Iterator[str]:
