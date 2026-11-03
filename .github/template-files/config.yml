@@ -5,7 +5,12 @@ conda/governance:
 conda/infrastructure:
   # [required] general workflows
   # - .github/workflows/cla.yml
-  - .github/workflows/update.yml
+  - src: templates/workflows/update.yml
+    dst: .github/workflows/update.yml
+    with:
+      durations_workflow: test.yml
+      durations_pattern: aggregated-test-durations
+      durations_directory: tests/durations
 
   # [optional] to include repo in https://github.com/orgs/conda/projects/2
   # - .github/workflows/issues.yml

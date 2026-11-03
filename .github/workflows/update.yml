@@ -1,3 +1,5 @@
+# edit this in https://github.com/conda/infrastructure
+
 name: Update Repository
 
 on:
@@ -20,6 +22,7 @@ jobs:
     name: Update repository files
     runs-on: ubuntu-slim
     permissions:
+      actions: read  # Required to download test duration artifacts.
       contents: write  # Required to commit synced template and workflow updates.
       pull-requests: write  # Required to open the generated update pull request.
       issues: write  # Required for generated update pull request metadata.
@@ -36,6 +39,13 @@ jobs:
       - uses: conda/actions/combine-durations@8153f7f73472ac36d654d5111be19abaecc48cc6 # v26.10.0
         id: durations
         continue-on-error: true
+        with:
+          workflow: >-
+            test.yml
+          pattern: >-
+            aggregated-test-durations
+          durations-dir: >-
+            tests/durations
 
       - uses: conda/actions/template-files@8153f7f73472ac36d654d5111be19abaecc48cc6 # v26.10.0
         id: templates

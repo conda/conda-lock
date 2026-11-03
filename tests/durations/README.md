@@ -1,13 +1,20 @@
 # pytest-split durations
 
-This directory contains test durations as they were computed by pytest-split
-running from GitHub Actions.
+These files contain timings measured by our GitHub Actions test runs.
+pytest-split uses them to balance the shards; tests without a timing use the
+average duration.
 
-They should occasionally be replaced so that the split remains optimal.
-(Tests that are missing from this list will be assigned the average duration.)
+After all shards pass, `test.yml` combines their timings into the
+`aggregated-test-durations` artifact. The weekly `update.yml` workflow uses
+`conda/actions/combine-durations` to average recent aggregates with the committed
+timings and propose an update PR. Incomplete runs do not supply an aggregate.
 
-The JSON files are generated during the pytest runs on GitHub.
-They are aggregated in the "Aggregate test durations" job, and available for download as the `aggregated-test-durations` artifact.
+The updater is rendered from `conda/infrastructure`. Its workflow name,
+artifact pattern, and durations directory are configured in
+`.github/template-files/config.yml`; edit that configuration rather than the
+generated workflow.
 
-For more details, see the
-[pytest-split documentation](https://jerry-git.github.io/pytest-split/).
+Filenames must match `<os>-py<version>.json` in the test matrix. Update them when
+changing Python versions so pytest-split can use existing timings immediately.
+
+See the [pytest-split documentation](https://jerry-git.github.io/pytest-split/).
