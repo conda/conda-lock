@@ -190,10 +190,27 @@ def _stop_process_tree(p: "subprocess.Popen[str]") -> None:
 
 
 def _signal_process_group(pgid: int, sig: int) -> bool:
-    """Send ``sig`` to the process group; return False once it has no members."""
+    """Send ``sig`` to the group; return False if it has already exited."""
     try:
         os.killpg(pgid, sig)
     except ProcessLookupError:
+        return False
+    except PermissionError:
+        if sys.platform != "darwin":
+            raise
+        # Darwin reports EPERM for groups containing only zombies.
+        status = subprocess.run(
+            ["/bin/ps", "-o", "stat=", "-g", str(pgid)],
+            capture_output=True,
+            text=True,
+            timeout=1,
+        )
+        if (
+            status.returncode not in (0, 1)
+            or status.stderr
+            or any(not state.startswith("Z") for state in status.stdout.split())
+        ):
+            raise
         return False
     return True
 
