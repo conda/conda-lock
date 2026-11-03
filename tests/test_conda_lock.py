@@ -3706,8 +3706,12 @@ dependencies:
   - pip:
     - simplejson
 """)
+    # One platform is enough to exercise release-candidate version parsing with
+    # a pip section. Solving the four default platforms with conda took up to
+    # 350 s in CI and set the length of whichever shard drew this test.
     run_lock(
         [environment_yml],
         conda_exe=conda_exe,
+        platforms=["linux-64"],
         mapping_url=DEFAULT_MAPPING_URL,
     )
