@@ -35,6 +35,9 @@ time.sleep(15)
 
 @pytest.mark.skipif(sys.platform == "win32", reason="process groups are POSIX only")
 @pytest.mark.parametrize(
+    "exception_type", [RuntimeError, KeyboardInterrupt, pytest.fail.Exception]
+)
+@pytest.mark.parametrize(
     ("child", "grandchild"),
     [
         ("default", "default"),
@@ -43,7 +46,7 @@ time.sleep(15)
     ],
 )
 def test_invoke_conda_stops_child_tree_on_exception(
-    tmp_path, monkeypatch, child, grandchild
+    tmp_path, monkeypatch, child, grandchild, exception_type
 ):
     script = tmp_path / "fake_conda.py"
     script.write_text(FAKE_CONDA)
@@ -53,18 +56,20 @@ def test_invoke_conda_stops_child_tree_on_exception(
     monkeypatch.setenv("FAKE_CONDA_CHILD", child)
     monkeypatch.setenv("FAKE_CONDA_GRANDCHILD", grandchild)
     monkeypatch.setattr(invoke_conda, "_TERMINATE_GRACE_SECONDS", 0.5)
+    interruption = exception_type("interrupted")
 
     def fail_once_the_grandchild_is_running(stderr: IO[str]) -> list[str]:
         assert stderr.readline() == "ready\n"
-        raise RuntimeError("interrupted")
+        raise interruption
 
     monkeypatch.setattr(
         invoke_conda, "_stderr_to_log", fail_once_the_grandchild_is_running
     )
 
     start = time.monotonic()
-    with pytest.raises(RuntimeError, match="interrupted"):
+    with pytest.raises(exception_type, match="interrupted") as exc_info:
         _invoke_conda(
             fake_conda, prefix=str(tmp_path / "env"), name=None, command_args=["create"]
         )
+    assert exc_info.value is interruption
     assert time.monotonic() - start < 5
