@@ -147,6 +147,9 @@ addopts = [
 ]
 log_level = "DEBUG"
 faulthandler_timeout = 600
+# Fail a hung test instead of letting it run into the 90-minute job timeout.
+# Individual tests can override this with @pytest.mark.timeout.
+timeout = 600
 testpaths = ["tests", "conda_lock"]
 
 [tool.vendoring]
