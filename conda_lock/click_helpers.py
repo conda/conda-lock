@@ -19,5 +19,5 @@ class OrderedGroup(DefaultGroup):
         self.commands = commands or OrderedDict()
 
     @override
-    def list_commands(self, ctx: click.Context) -> dict[str, click.Command]:
-        return self.commands
+    def list_commands(self, ctx: click.Context) -> list[str]:
+        return list(self.commands)
