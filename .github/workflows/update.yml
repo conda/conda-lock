@@ -23,7 +23,6 @@ jobs:
       contents: write  # Required to commit synced template and workflow updates.
       pull-requests: write  # Required to open the generated update pull request.
       issues: write  # Required for generated update pull request metadata.
-      actions: read  # Required to download the test-durations artifacts of test.yml runs.
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -34,28 +33,9 @@ jobs:
           git config --global user.name 'Conda Bot'
           git config --global user.email '18747875+conda-bot@users.noreply.github.com'
 
-      - name: Copy the committed durations to a scratch directory
-        # combine-durations deletes every file and entry that is absent from
-        # the artifacts it downloaded, so it must not run on tests/durations
-        # directly. See scripts/install_refreshed_durations.py.
-        run: cp --recursive tests/durations "${RUNNER_TEMP}/durations"
-
       - uses: conda/actions/combine-durations@8153f7f73472ac36d654d5111be19abaecc48cc6 # v26.10.0
         id: durations
         continue-on-error: true
-        with:
-          # The action defaults (workflow tests.yml, pattern *-all, directory
-          # durations) match none of this repo, so the refresh has never
-          # downloaded anything. See test.yml for the artifact names.
-          workflow: test.yml
-          pattern: test-durations-*
-          durations-dir: ${{ runner.temp }}/durations
-
-      - name: Install the refreshed durations without losing live tests
-        run: >
-          python3 scripts/install_refreshed_durations.py
-          --refreshed "${RUNNER_TEMP}/durations"
-          --committed tests/durations
 
       - uses: conda/actions/template-files@8153f7f73472ac36d654d5111be19abaecc48cc6 # v26.10.0
         id: templates

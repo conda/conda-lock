@@ -117,7 +117,6 @@ jobs:
         run: pip check
 
       - name: run-test
-        id: run-test
         run: |
           mkdir -p tests/durations
           set -x
@@ -141,9 +140,6 @@ jobs:
           cat tests/durations/${{ matrix.os }}-py${{ matrix.python-version }}.json
 
       - name: Store test durations
-        # pytest-split writes the file at session end even when tests fail, so
-        # a red shard can still feed the weekly durations refresh.
-        if: ${{ !cancelled() && (steps.run-test.outcome == 'success' || steps.run-test.outcome == 'failure') }}
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           name: test-durations-${{ matrix.os }}-py${{ matrix.python-version }}-${{ matrix.pytest-split-group-index }}
