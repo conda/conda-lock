@@ -13,10 +13,17 @@ averages them with the committed files, and opens a pull request with the
 result. The same files are also aggregated in the "Aggregate test durations"
 job and available for download as the `aggregated-test-durations` artifact.
 
+The refresh deletes every file and every test entry that is absent from the
+downloaded artifacts, so it runs on a scratch copy of this directory, and
+`scripts/install_refreshed_durations.py` copies the result back only if every
+committed file is still present and none of them lost more than 5% of its
+entries. If the weekly workflow fails at that step, the download was probably
+incomplete; check the run before merging anything.
+
 The filenames must match `<os>-py<version>.json` for every combination in the
-test matrix. A file that no longer matches the matrix is deleted by the
-refresh, and a matrix entry without a file splits evenly by test count until
-the next refresh.
+test matrix. When a combination is removed from the matrix, delete its file by
+hand, since the guard above stops the refresh from deleting it. A matrix entry
+without a file splits evenly by test count until the next refresh.
 
 For more details, see the
 [pytest-split documentation](https://jerry-git.github.io/pytest-split/).

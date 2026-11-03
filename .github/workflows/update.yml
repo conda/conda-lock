@@ -34,6 +34,12 @@ jobs:
           git config --global user.name 'Conda Bot'
           git config --global user.email '18747875+conda-bot@users.noreply.github.com'
 
+      - name: Copy the committed durations to a scratch directory
+        # combine-durations deletes every file and entry that is absent from
+        # the artifacts it downloaded, so it must not run on tests/durations
+        # directly. See scripts/install_refreshed_durations.py.
+        run: cp --recursive tests/durations "${RUNNER_TEMP}/durations"
+
       - uses: conda/actions/combine-durations@8153f7f73472ac36d654d5111be19abaecc48cc6 # v26.10.0
         id: durations
         continue-on-error: true
@@ -43,7 +49,13 @@ jobs:
           # downloaded anything. See test.yml for the artifact names.
           workflow: test.yml
           pattern: test-durations-*
-          durations-dir: tests/durations
+          durations-dir: ${{ runner.temp }}/durations
+
+      - name: Install the refreshed durations if the download was complete
+        run: >
+          python3 scripts/install_refreshed_durations.py
+          --refreshed "${RUNNER_TEMP}/durations"
+          --committed tests/durations
 
       - uses: conda/actions/template-files@8153f7f73472ac36d654d5111be19abaecc48cc6 # v26.10.0
         id: templates
