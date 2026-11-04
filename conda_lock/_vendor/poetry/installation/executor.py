@@ -10,35 +10,42 @@ from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor
 from concurrent.futures import wait
 from pathlib import Path
-from subprocess import CalledProcessError
 from typing import TYPE_CHECKING
 from typing import Any
 
 from conda_lock._vendor.poetry.core.packages.utils.link import Link
 
+from conda_lock._vendor.poetry.console.exceptions import PoetryRuntimeError
 from conda_lock._vendor.poetry.installation.chef import Chef
 from conda_lock._vendor.poetry.installation.chooser import Chooser
 from conda_lock._vendor.poetry.installation.operations import Install
 from conda_lock._vendor.poetry.installation.operations import Uninstall
 from conda_lock._vendor.poetry.installation.operations import Update
+from conda_lock._vendor.poetry.installation.uninstaller import uninstall_distribution
 from conda_lock._vendor.poetry.installation.wheel_installer import WheelInstaller
 from conda_lock._vendor.poetry.puzzle.exceptions import SolverProblemError
 from conda_lock._vendor.poetry.utils._compat import decode
 from conda_lock._vendor.poetry.utils.authenticator import Authenticator
+from conda_lock._vendor.poetry.utils.download import Downloader
 from conda_lock._vendor.poetry.utils.env import EnvCommandError
-from conda_lock._vendor.poetry.utils.helpers import Downloader
 from conda_lock._vendor.poetry.utils.helpers import get_file_hash
 from conda_lock._vendor.poetry.utils.helpers import get_highest_priority_hash_type
 from conda_lock._vendor.poetry.utils.helpers import pluralize
 from conda_lock._vendor.poetry.utils.helpers import remove_directory
 from conda_lock._vendor.poetry.utils.isolated_build import IsolatedBuildBackendError
 from conda_lock._vendor.poetry.utils.isolated_build import IsolatedBuildInstallError
+from conda_lock._vendor.poetry.utils.log_utils import format_build_wheel_log
 from conda_lock._vendor.poetry.vcs.git import Git
 
 
 if TYPE_CHECKING:
+    from collections.abc import Mapping
+    from collections.abc import Sequence
+
     from conda_lock._vendor.cleo.io.io import IO
     from conda_lock._vendor.cleo.io.outputs.section_output import SectionOutput
+    from packaging.utils import NormalizedName
+    from conda_lock._vendor.poetry.core.packages.dependency import Dependency
     from conda_lock._vendor.poetry.core.packages.package import Package
 
     from conda_lock._vendor.poetry.config.config import Config
@@ -62,6 +69,8 @@ class Executor:
         io: IO,
         parallel: bool | None = None,
         disable_cache: bool = False,
+        *,
+        build_constraints: Mapping[NormalizedName, list[Dependency]] | None = None,
     ) -> None:
         self._env = env
         self._io = io
@@ -69,6 +78,10 @@ class Executor:
         self._enabled = True
         self._verbose = False
         self._wheel_installer = WheelInstaller(self._env)
+        self._build_constraints = build_constraints or {}
+        self._use_builtin_uninstall: bool = config.get(
+            "installer.builtin-uninstall", False
+        )
 
         if parallel is None:
             parallel = config.get("installer.parallel", True)
@@ -98,6 +111,11 @@ class Executor:
         # https://github.com/python-poetry/cleo/issues/423
         self._decorated_output: bool = self._io.output.is_decorated()
         self._max_retries = config.get("requests.max-retries", 0)
+
+        # sdist build config settings
+        self._build_config_settings: Mapping[
+            NormalizedName, Mapping[str, str | Sequence[str]]
+        ] = config.get("installer.build-config-settings")
 
     @property
     def installations_count(self) -> int:
@@ -146,6 +164,14 @@ class Executor:
 
         self._sections = {}
         self._yanked_warnings = []
+
+        # pip has to be installed/updated first without parallelism
+        # because we still need it for uninstalls
+        for i, op in enumerate(operations):
+            if op.package.name == "pip":
+                wait([self._executor.submit(self._execute_operation, op)])
+                del operations[i]
+                break
 
         # We group operations by priority
         groups = itertools.groupby(operations, key=lambda o: -o.priority)
@@ -203,6 +229,8 @@ class Executor:
                 wait(tasks)
 
                 for operation in serial_operations:
+                    if self._shutdown:
+                        break
                     self._execute_operation(operation)
 
             except KeyboardInterrupt:
@@ -244,6 +272,8 @@ class Executor:
             section.write(line)
 
     def _execute_operation(self, operation: Operation) -> None:
+        if self._shutdown:
+            return
         try:
             op_message = self.get_operation_message(operation)
             if self.supports_fancy_output():
@@ -283,7 +313,7 @@ class Executor:
             # error to be picked up by the error handler.
             if result == -2:
                 raise KeyboardInterrupt
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             try:
                 from conda_lock._vendor.cleo.ui.exception_trace import ExceptionTrace
 
@@ -309,12 +339,34 @@ class Executor:
                         with_trace = False
                         pip_command = "pip wheel --no-cache-dir --use-pep517"
                         if pkg.develop:
-                            requirement = pkg.source_url
+                            if pkg.source_type == "git":
+                                git_url_parts = (
+                                    pkg.to_dependency()
+                                    .to_pep_508()
+                                    .split(";", 1)[0]
+                                    .split("@", 1)[-1]
+                                    .strip()
+                                ).split("#", 1)
+                                requirement = f"{git_url_parts[0]}#egg={pkg.name}"
+                                if len(git_url_parts) > 1:
+                                    requirement += f"&{git_url_parts[1]}"
+                            else:
+                                assert pkg.source_url
+                                requirement = pkg.source_url
                             pip_command += " --editable"
                         else:
                             requirement = (
                                 pkg.to_dependency().to_pep_508().split(";")[0].strip()
                             )
+
+                        if config_settings := self._build_config_settings.get(pkg.name):
+                            for setting in config_settings:
+                                values = config_settings[setting]
+                                if isinstance(values, str):
+                                    values = [values]
+                                for setting_value in values:
+                                    pip_command += f" --config-settings='{setting}={setting_value}'"
+
                         message = e.generate_message(
                             source_string=f"{pkg.pretty_name} ({pkg.full_pretty_version})",
                             build_command=f'{pip_command} "{requirement}"',
@@ -333,6 +385,10 @@ class Executor:
                             f" for {pkg.pretty_name}."
                             "</error>"
                         )
+                    elif isinstance(e, PoetryRuntimeError):
+                        message = e.get_text(io.is_verbose(), indent="    | ").rstrip()
+                        message = f"<warning>{message}</>"
+                        with_trace = False
                     else:
                         message = f"<error>Cannot install {pkg.pretty_name}.</error>"
 
@@ -553,11 +609,12 @@ class Executor:
 
         try:
             if operation.job_type == "update":
-                # Uninstall first
-                # TODO: Make an uninstaller and find a way to rollback in case
-                # the new package can't be installed
+                # Uninstall the old version first. If this fails, the install is
+                # aborted so the new version is not installed over the old one.
                 assert isinstance(operation, Update)
-                self._remove(operation.initial_package)
+                result_code = self._remove(operation.initial_package)
+                if result_code != 0:
+                    return result_code
 
             self._wheel_installer.install(archive)
         finally:
@@ -576,9 +633,17 @@ class Executor:
             if src_dir.exists():
                 remove_directory(src_dir, force=True)
 
+        if self._use_builtin_uninstall:
+            # The builtin uninstaller removes the files directly and raises if a
+            # file cannot be removed. uninstall_distribution returns None when
+            # there is nothing to uninstall (not installed, outside env, in
+            # stdlib, missing RECORD); treat that as a successful no-op.
+            uninstall_distribution(self._env, package.name)
+            return 0
+
         try:
             return self.run_pip("uninstall", package.name, "-y")
-        except CalledProcessError as e:
+        except EnvCommandError as e:
             if "not installed" in str(e):
                 return 0
 
@@ -592,7 +657,7 @@ class Executor:
 
         message = (
             f"  <fg=blue;options=bold>-</> {operation_message}:"
-            " <info>Preparing...</info>"
+            f"{format_build_wheel_log(package, self._env)}"
         )
         self._write(operation, message)
 
@@ -605,8 +670,13 @@ class Executor:
 
         self._populate_hashes_dict(archive, package)
 
+        name = operation.package.name
         return self._chef.prepare(
-            archive, editable=package.develop, output_dir=output_dir
+            archive,
+            editable=package.develop,
+            output_dir=output_dir,
+            config_settings=self._build_config_settings.get(name),
+            build_constraints=self._build_constraints.get(name),
         )
 
     def _prepare_git_archive(self, operation: Install | Update) -> Path:
@@ -650,7 +720,12 @@ class Executor:
                 package.source_subdirectory,
             )
 
-        archive = self._prepare_archive(operation, output_dir=output_dir)
+        try:
+            archive = self._prepare_archive(operation, output_dir=output_dir)
+        except Exception:
+            # always reset source_url in case of an error for correct output
+            package._source_url = original_url
+            raise
         if not package.develop:
             package._source_url = original_url
 
@@ -707,11 +782,17 @@ class Executor:
         if archive.suffix != ".whl":
             message = (
                 f"  <fg=blue;options=bold>-</> {self.get_operation_message(operation)}:"
-                " <info>Preparing...</info>"
+                f"{format_build_wheel_log(package, self._env)}"
             )
             self._write(operation, message)
 
-            archive = self._chef.prepare(archive, output_dir=original_archive.parent)
+            name = operation.package.name
+            archive = self._chef.prepare(
+                archive,
+                output_dir=original_archive.parent,
+                config_settings=self._build_config_settings.get(name),
+                build_constraints=self._build_constraints.get(name),
+            )
 
         # Use the original archive to provide the correct hash.
         self._populate_hashes_dict(original_archive, package)
@@ -719,7 +800,7 @@ class Executor:
         return archive
 
     def _populate_hashes_dict(self, archive: Path, package: Package) -> None:
-        if package.files and archive.name in {f["file"] for f in package.files}:
+        if package.files:
             archive_hash = self._validate_archive_hash(archive, package)
             self._hashes[package.name] = archive_hash
 
@@ -728,6 +809,14 @@ class Executor:
         known_hashes = {f["hash"] for f in package.files if f["file"] == archive.name}
         hash_types = {t.split(":")[0] for t in known_hashes}
         hash_type = get_highest_priority_hash_type(hash_types, archive.name)
+
+        if not known_hashes:
+            locked_files = sorted(f["file"] for f in package.files)
+            raise RuntimeError(
+                f"Downloaded archive {archive.name} for {package} is not listed in"
+                f" the lock file, so its hash cannot be verified"
+                f" (locked files: {locked_files})"
+            )
 
         if hash_type is None:
             raise RuntimeError(
@@ -854,7 +943,7 @@ class Executor:
 
         assert package.source_url is not None
         return {
-            "url": Path(package.source_url).as_uri(),
+            "url": self._path_to_file_url(package.source_url),
             "archive_info": archive_info,
         }
 
@@ -866,9 +955,17 @@ class Executor:
 
         assert package.source_url is not None
         return {
-            "url": Path(package.source_url).as_uri(),
+            "url": self._path_to_file_url(package.source_url),
             "dir_info": dir_info,
         }
+
+    @staticmethod
+    def _path_to_file_url(path: str) -> str:
+        source = Path(path)
+        if not source.is_absolute():
+            source = source.resolve()
+
+        return source.as_uri()
 
     def _get_archive_info(self, package: Package) -> dict[str, Any]:
         """

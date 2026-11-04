@@ -6,13 +6,15 @@ from conda_lock._vendor.poetry.core.utils.helpers import readme_content_type
 
 
 if TYPE_CHECKING:
+    from pathlib import Path
+
     from packaging.utils import NormalizedName
 
     from conda_lock._vendor.poetry.core.packages.project_package import ProjectPackage
 
 
 class Metadata:
-    metadata_version = "2.3"
+    metadata_version = "2.4"
     # version 1.0
     name: str | None = None
     version: str
@@ -44,6 +46,10 @@ class Metadata:
     # Version 2.1
     description_content_type: str | None = None
     provides_extra: list[NormalizedName] = []  # noqa: RUF012
+
+    # Version 2.4
+    license_expression: str | None = None
+    license_files: tuple[str, ...] = ()
 
     @classmethod
     def from_package(cls, package: ProjectPackage) -> Metadata:
@@ -81,7 +87,16 @@ class Metadata:
         meta.author_email = package.author_email
 
         if package.license:
+            assert package.license_expression is None
             meta.license = package.license.id
+
+        if package.license_expression:
+            assert package.license is None
+            meta.license_expression = package.license_expression
+
+        meta.license_files = tuple(
+            sorted(f.as_posix() for f in cls._license_files_from_package(package))
+        )
 
         meta.classifiers = tuple(package.all_classifiers)
 
@@ -95,7 +110,11 @@ class Metadata:
         elif package.python_versions != "*":
             meta.requires_python = format_python_constraint(package.python_constraint)
 
-        meta.requires_dist = [d.to_pep_508() for d in package.requires]
+        meta.requires_dist = [
+            d.to_pep_508()
+            for d in package.requires
+            if not d.is_optional() or d.in_extras
+        ]
 
         # Version 2.1
         if package.readme_content_type:
@@ -110,3 +129,41 @@ class Metadata:
         )
 
         return meta
+
+    @classmethod
+    def _license_files_from_package(cls, package: ProjectPackage) -> set[Path]:
+        assert package.root_dir is not None, (
+            "root_dir should always be set for the project package"
+        )
+
+        license_files: set[Path] = set()
+        if isinstance(package.license_files, tuple):
+            for glob_pattern in package.license_files:
+                license_files_for_glob = {
+                    license_file.relative_to(package.root_dir)
+                    for license_file in sorted(package.root_dir.glob(glob_pattern))
+                    if license_file.is_file()
+                }
+                if not license_files_for_glob:
+                    # Build tools MUST raise an error if any individual user-specified
+                    # pattern does not match at least one file.
+                    # https://peps.python.org/pep-0639/#add-license-files-key
+                    raise RuntimeError(
+                        f"No files found for license file glob pattern '{glob_pattern}'"
+                    )
+                license_files.update(license_files_for_glob)
+        else:
+            if package.license_files:
+                license_files.add(package.root_dir / package.license_files)
+            # default handling
+            include_files_patterns = {"COPYING*", "LICEN[SC]E*", "AUTHORS*", "NOTICE*"}
+
+            for pattern in include_files_patterns:
+                license_files.update(package.root_dir.glob(pattern))
+
+            license_files.update(package.root_dir.joinpath("LICENSES").glob("**/*"))
+
+            license_files = {
+                f.relative_to(package.root_dir) for f in license_files if f.is_file()
+            }
+        return license_files

@@ -3,9 +3,14 @@ from __future__ import annotations
 import functools
 import hashlib
 
+from collections import defaultdict
 from contextlib import contextmanager
 from contextlib import suppress
+from datetime import datetime
+from datetime import timedelta
+from datetime import timezone
 from pathlib import Path
+from tempfile import TemporaryDirectory
 from typing import TYPE_CHECKING
 from typing import Any
 
@@ -13,9 +18,11 @@ import requests
 import requests.adapters
 
 from packaging.metadata import parse_email
-from conda_lock._vendor.poetry.core.constraints.version import parse_constraint
+from packaging.utils import canonicalize_name
+from conda_lock._vendor.poetry.core.constraints.version import Version
+from conda_lock._vendor.poetry.core.constraints.version import VersionConstraint
+from conda_lock._vendor.poetry.core.constraints.version import parse_marker_version_constraint
 from conda_lock._vendor.poetry.core.packages.dependency import Dependency
-from conda_lock._vendor.poetry.core.utils.helpers import temporary_directory
 from conda_lock._vendor.poetry.core.version.markers import parse_marker
 
 from conda_lock._vendor.poetry.config.config import Config
@@ -26,18 +33,22 @@ from conda_lock._vendor.poetry.repositories.cached_repository import CachedRepos
 from conda_lock._vendor.poetry.repositories.exceptions import PackageNotFoundError
 from conda_lock._vendor.poetry.repositories.exceptions import RepositoryError
 from conda_lock._vendor.poetry.repositories.link_sources.html import HTMLPage
+from conda_lock._vendor.poetry.repositories.link_sources.json import SimpleJsonPage
 from conda_lock._vendor.poetry.utils.authenticator import Authenticator
 from conda_lock._vendor.poetry.utils.constants import REQUESTS_TIMEOUT
-from conda_lock._vendor.poetry.utils.helpers import HTTPRangeRequestSupportedError
-from conda_lock._vendor.poetry.utils.helpers import download_file
+from conda_lock._vendor.poetry.utils.download import HTTPRangeRequestSupportedError
+from conda_lock._vendor.poetry.utils.download import download_file
 from conda_lock._vendor.poetry.utils.helpers import get_highest_priority_hash_type
 from conda_lock._vendor.poetry.utils.patterns import wheel_file_re
 
 
 if TYPE_CHECKING:
+    from collections.abc import Iterable
     from collections.abc import Iterator
 
     from packaging.utils import NormalizedName
+    from conda_lock._vendor.poetry.core.packages.package import Package
+    from conda_lock._vendor.poetry.core.packages.package import PackageFile
     from conda_lock._vendor.poetry.core.packages.utils.link import Link
 
     from conda_lock._vendor.poetry.repositories.link_sources.base import LinkSource
@@ -65,10 +76,34 @@ class HTTPRepository(CachedRepository):
             pool_size=pool_size,
         )
         self._authenticator.add_repository(name, url)
-        self.get_page = functools.lru_cache(maxsize=None)(self._get_page)
+        self.get_page = functools.cache(self._get_page)
+        self._find_packages = functools.cache(self._find_packages_uncached)  # type: ignore[method-assign]
 
         self._lazy_wheel = config.get("solver.lazy-wheel", True)
         self._max_retries = config.get("requests.max-retries", 0)
+
+        self._min_release_age = config.get("solver.min-release-age", 0)
+        self._min_release_age_cutoff: datetime | None = None
+        self._min_release_age_exclude: set[NormalizedName] = set()
+        if self._min_release_age:
+            exclude_sources: set[str] = set(
+                config.get("solver.min-release-age-exclude-source") or []
+            )
+            if self._is_name_excluded_from_min_release_age(
+                exclude_sources
+            ) or self._is_url_excluded_from_min_release_age(exclude_sources):
+                self._min_release_age = 0
+            else:
+                self._min_release_age_cutoff = datetime.now(
+                    tz=timezone.utc
+                ) - timedelta(days=self._min_release_age)
+                self._min_release_age_exclude = {
+                    canonicalize_name(n)
+                    for n in (config.get("solver.min-release-age-exclude") or [])
+                }
+        self._age_filtered_versions: defaultdict[NormalizedName, set[Version]] = (
+            defaultdict(set)
+        )
         # We are tracking if a domain supports range requests or not to avoid
         # unnecessary requests.
         # ATTENTION: A domain might support range requests only for some files, so the
@@ -77,6 +112,12 @@ class HTTPRepository(CachedRepository):
         # - True: The domain supports range requests for at least some files.
         # - False: The domain does not support range requests for the files we tried.
         self._supports_range_requests: dict[str, bool] = {}
+
+    def _is_name_excluded_from_min_release_age(self, exclude_sources: set[str]) -> bool:
+        return self.name.lower() in {s.lower() for s in exclude_sources}
+
+    def _is_url_excluded_from_min_release_age(self, exclude_sources: set[str]) -> bool:
+        return self.url.rstrip("/") in {s.rstrip("/") for s in exclude_sources}
 
     @property
     def session(self) -> Authenticator:
@@ -106,16 +147,81 @@ class HTTPRepository(CachedRepository):
         )
 
     @contextmanager
-    def _cached_or_downloaded_file(
+    def _downloaded_file(
         self, link: Link, *, raise_accepts_ranges: bool = False
     ) -> Iterator[Path]:
         self._log(f"Downloading: {link.url}", level="debug")
-        with temporary_directory() as temp_dir:
+        with TemporaryDirectory(ignore_cleanup_errors=True) as temp_dir:
+            # TODO: remove check as soon as this is handled in poetry-core
+            if "/" in link.filename or "\\" in link.filename:
+                raise ValueError(f"Invalid filename: '{link.filename}'")
             filepath = Path(temp_dir) / link.filename
             self._download(
                 link.url, filepath, raise_accepts_ranges=raise_accepts_ranges
             )
             yield filepath
+
+    def _package(
+        self, name: NormalizedName, version: Version, yanked: str | bool
+    ) -> Package:
+        raise NotImplementedError
+
+    def _is_version_too_recent(self, links: Iterable[Link]) -> bool:
+        """Return True if any file of the version was uploaded after the cutoff.
+
+        If no upload time information is available for any file,
+        the version is considered old enough (return False).
+        """
+        if not self._min_release_age_cutoff:
+            return False
+        for link in links:
+            upload_time = link.upload_time
+            if upload_time is None:
+                continue
+            if upload_time > self._min_release_age_cutoff:
+                return True
+        return False
+
+    def _find_packages_uncached(
+        self, name: NormalizedName, constraint: VersionConstraint
+    ) -> list[Package]:
+        """
+        Find packages on the remote server.
+        """
+        try:
+            page = self.get_page(name)
+        except PackageNotFoundError:
+            self._log(f"No packages found for {name}", level="debug")
+            return []
+
+        versions = [
+            (version, page.yanked(name, version))
+            for version in page.versions(name)
+            if constraint.allows(version)
+        ]
+
+        if (
+            self._min_release_age_cutoff is not None
+            and name not in self._min_release_age_exclude
+        ):
+            filtered_out: set[Version] = set()
+            accepted: list[tuple[Version, str | bool]] = []
+            for version, yanked in versions:
+                if self._is_version_too_recent(page.links_for_version(name, version)):
+                    filtered_out.add(version)
+                else:
+                    accepted.append((version, yanked))
+            if filtered_out:
+                self._age_filtered_versions[name] |= filtered_out
+                version_list = ", ".join(str(v) for v in sorted(filtered_out))
+                self._log(
+                    f"Ignoring {name} version(s) due to "
+                    f"solver.min-release-age={self._min_release_age}: {version_list}",
+                    level="debug",
+                )
+            versions = accepted
+
+        return [self._package(name, version, yanked) for version, yanked in versions]
 
     def _get_info_from_wheel(self, link: Link) -> PackageInfo:
         from conda_lock._vendor.poetry.inspection.info import PackageInfo
@@ -144,7 +250,7 @@ class HTTPRepository(CachedRepository):
                 return package_info
 
         try:
-            with self._cached_or_downloaded_file(
+            with self._downloaded_file(
                 link, raise_accepts_ranges=raise_accepts_ranges
             ) as filepath:
                 return PackageInfo.from_wheel(filepath)
@@ -163,7 +269,7 @@ class HTTPRepository(CachedRepository):
     def _get_info_from_sdist(self, link: Link) -> PackageInfo:
         from conda_lock._vendor.poetry.inspection.info import PackageInfo
 
-        with self._cached_or_downloaded_file(link) as filepath:
+        with self._downloaded_file(link) as filepath:
             return PackageInfo.from_sdist(filepath)
 
     def _get_info_from_metadata(self, link: Link) -> PackageInfo | None:
@@ -268,8 +374,12 @@ class HTTPRepository(CachedRepository):
 
                 if info.requires_python or py3_info.requires_python:
                     info.requires_python = str(
-                        parse_constraint(info.requires_python or "^2.7").union(
-                            parse_constraint(py3_info.requires_python or "^3")
+                        parse_marker_version_constraint(
+                            info.requires_python or "^2.7"
+                        ).union(
+                            parse_marker_version_constraint(
+                                py3_info.requires_python or "^3"
+                            )
                         )
                     )
 
@@ -340,7 +450,7 @@ class HTTPRepository(CachedRepository):
                 f' "{data.version}"'
             )
 
-        files: list[dict[str, Any]] = []
+        files: list[PackageFile] = []
         for link in links:
             if link.yanked and not data.yanked:
                 # drop yanked files unless the entire release is yanked
@@ -359,7 +469,33 @@ class HTTPRepository(CachedRepository):
             ):
                 file_hash = f"{hash_type}:{link.hashes[hash_type]}"
 
-            files.append({"file": link.filename, "hash": file_hash})
+            if file_hash is None:
+                # Is that even possible?
+                # Before introducing this warning and ignoring the file,
+                # null hashes would have been written to the lockfile,
+                # which should have been failed in the Chooser at latest.
+                self._log(
+                    f"Failed to determine hash of {link.url}. Skipping file.",
+                    level="warning",
+                )
+            else:
+                files.append(
+                    {
+                        "file": link.filename,
+                        "hash": file_hash,
+                        "url": link.url_without_fragment,
+                    }
+                )
+                if link.size is not None:
+                    files[-1]["size"] = link.size
+                if link.upload_time_isoformat is not None:
+                    files[-1]["upload_time"] = link.upload_time_isoformat
+
+        if not files:
+            raise PackageNotFoundError(
+                f'Could not determine a hash for any distribution link of package: "{data.name}" version:'
+                f' "{data.version}"'
+            )
 
         data.files = files
 
@@ -373,7 +509,7 @@ class HTTPRepository(CachedRepository):
         return data.asdict()
 
     def calculate_sha256(self, link: Link) -> str | None:
-        with self._cached_or_downloaded_file(link) as filepath:
+        with self._downloaded_file(link) as filepath:
             hash_name = get_highest_priority_hash_type(link.hashes, link.filename)
             known_hash = None
             with suppress(ValueError, AttributeError):
@@ -400,11 +536,13 @@ class HTTPRepository(CachedRepository):
                 return f"{required_hash.name}:{required_hash.hexdigest()}"
         return None
 
-    def _get_response(self, endpoint: str) -> requests.Response | None:
+    def _get_response(
+        self, endpoint: str, *, headers: dict[str, str] | None = None
+    ) -> requests.Response | None:
         url = self._url + endpoint
         try:
             response: requests.Response = self.session.get(
-                url, raise_for_status=False, timeout=REQUESTS_TIMEOUT
+                url, raise_for_status=False, timeout=REQUESTS_TIMEOUT, headers=headers
             )
             if response.status_code in (401, 403):
                 self._log(
@@ -425,8 +563,41 @@ class HTTPRepository(CachedRepository):
             )
         return response
 
+    def _get_prefer_json_header(self) -> dict[str, str]:
+        # Prefer json, but accept anything for backwards compatibility.
+        # Although the more specific value should be preferred to the less specific one
+        # according to https://developer.mozilla.org/en-US/docs/Glossary/Quality_values,
+        # we add a quality value because some servers still prefer html without one.
+        return {"Accept": "application/vnd.pypi.simple.v1+json, */*;q=0.1"}
+
+    def _is_json_response(self, response: requests.Response) -> bool:
+        return (
+            response.headers.get("Content-Type", "").split(";")[0].strip()
+            == "application/vnd.pypi.simple.v1+json"
+        )
+
     def _get_page(self, name: NormalizedName) -> LinkSource:
-        response = self._get_response(f"/{name}/")
+        response = self._get_response(
+            f"/{name}/", headers=self._get_prefer_json_header()
+        )
         if not response:
             raise PackageNotFoundError(f"Package [{name}] not found.")
+        if self._is_json_response(response):
+            return SimpleJsonPage(response.url, response.json())
         return HTMLPage(response.url, response.text)
+
+    def log_age_filtered_versions(self, *, level: str, reset: bool) -> None:
+        if not self._age_filtered_versions:
+            return
+        self._log(
+            "The following package versions were ignored"
+            f" due to solver.min-release-age={self._min_release_age}",
+            level=level,
+        )
+        for name in sorted(self._age_filtered_versions):
+            versions = ", ".join(
+                str(v) for v in sorted(self._age_filtered_versions[name])
+            )
+            self._log(f"{name}: {versions}", level=level)
+        if reset:
+            self._age_filtered_versions.clear()

@@ -23,6 +23,7 @@ def get_vcs(directory: Path) -> Git | None:
             stderr=subprocess.DEVNULL,
             stdout=subprocess.DEVNULL,
             cwd=directory,
+            check=False,
         ).returncode
 
         if check_ignore == 0:

@@ -2,7 +2,7 @@ import decimal
 import re
 
 from .exceptions import JsonSchemaDefinitionException
-from .generator import CodeGenerator, enforce_list
+from .generator import VALIDATION_EXCEPTIONS, CodeGenerator, enforce_list, repr_default
 
 
 JSON_TYPE_TO_PYTHON_TYPE = {
@@ -29,13 +29,13 @@ class CodeGeneratorDraft04(CodeGenerator):
         'date-time': r'^\d{4}-[01]\d-[0-3]\d(t|T)[0-2]\d:[0-5]\d:[0-5]\d(?:\.\d+)?(?:[+-][0-2]\d:[0-5]\d|[+-][0-2]\d[0-5]\d|z|Z)\Z',
         'email': r'^(?!.*\.\..*@)[^@.][^@]*(?<!\.)@[^@]+\.[^@]+\Z',
         'hostname': r'^(([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])\.)*([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9\-]{0,61}[A-Za-z0-9])\Z',
-        'ipv4': r'^((25[0-5]|2[0-4][0-9]|1?[0-9][0-9]?)\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\Z',
-        'ipv6': r'^(?:(?:[0-9A-Fa-f]{1,4}:){6}(?:[0-9A-Fa-f]{1,4}:[0-9A-Fa-f]{1,4}|(?:(?:[0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\\.){3}(?:[0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5]))|::(?:[0-9A-Fa-f]{1,4}:){5}(?:[0-9A-Fa-f]{1,4}:[0-9A-Fa-f]{1,4}|(?:(?:[0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\\.){3}(?:[0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5]))|(?:[0-9A-Fa-f]{1,4})?::(?:[0-9A-Fa-f]{1,4}:){4}(?:[0-9A-Fa-f]{1,4}:[0-9A-Fa-f]{1,4}|(?:(?:[0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\\.){3}(?:[0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5]))|(?:[0-9A-Fa-f]{1,4}:[0-9A-Fa-f]{1,4})?::(?:[0-9A-Fa-f]{1,4}:){3}(?:[0-9A-Fa-f]{1,4}:[0-9A-Fa-f]{1,4}|(?:(?:[0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\\.){3}(?:[0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5]))|(?:(?:[0-9A-Fa-f]{1,4}:){,2}[0-9A-Fa-f]{1,4})?::(?:[0-9A-Fa-f]{1,4}:){2}(?:[0-9A-Fa-f]{1,4}:[0-9A-Fa-f]{1,4}|(?:(?:[0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\\.){3}(?:[0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5]))|(?:(?:[0-9A-Fa-f]{1,4}:){,3}[0-9A-Fa-f]{1,4})?::[0-9A-Fa-f]{1,4}:(?:[0-9A-Fa-f]{1,4}:[0-9A-Fa-f]{1,4}|(?:(?:[0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\\.){3}(?:[0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5]))|(?:(?:[0-9A-Fa-f]{1,4}:){,4}[0-9A-Fa-f]{1,4})?::(?:[0-9A-Fa-f]{1,4}:[0-9A-Fa-f]{1,4}|(?:(?:[0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\\.){3}(?:[0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5]))|(?:(?:[0-9A-Fa-f]{1,4}:){,5}[0-9A-Fa-f]{1,4})?::[0-9A-Fa-f]{1,4}|(?:(?:[0-9A-Fa-f]{1,4}:){,6}[0-9A-Fa-f]{1,4})?::)\Z',
+        'ipv4': r'^((25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])\.){3}(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])\Z',
+        'ipv6': r'^(?:(?:[0-9A-Fa-f]{1,4}:){6}(?:[0-9A-Fa-f]{1,4}:[0-9A-Fa-f]{1,4}|(?:(?:[0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}(?:[0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5]))|::(?:[0-9A-Fa-f]{1,4}:){5}(?:[0-9A-Fa-f]{1,4}:[0-9A-Fa-f]{1,4}|(?:(?:[0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}(?:[0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5]))|(?:[0-9A-Fa-f]{1,4})?::(?:[0-9A-Fa-f]{1,4}:){4}(?:[0-9A-Fa-f]{1,4}:[0-9A-Fa-f]{1,4}|(?:(?:[0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}(?:[0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5]))|(?:[0-9A-Fa-f]{1,4}:[0-9A-Fa-f]{1,4})?::(?:[0-9A-Fa-f]{1,4}:){3}(?:[0-9A-Fa-f]{1,4}:[0-9A-Fa-f]{1,4}|(?:(?:[0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}(?:[0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5]))|(?:(?:[0-9A-Fa-f]{1,4}:){,2}[0-9A-Fa-f]{1,4})?::(?:[0-9A-Fa-f]{1,4}:){2}(?:[0-9A-Fa-f]{1,4}:[0-9A-Fa-f]{1,4}|(?:(?:[0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}(?:[0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5]))|(?:(?:[0-9A-Fa-f]{1,4}:){,3}[0-9A-Fa-f]{1,4})?::[0-9A-Fa-f]{1,4}:(?:[0-9A-Fa-f]{1,4}:[0-9A-Fa-f]{1,4}|(?:(?:[0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}(?:[0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5]))|(?:(?:[0-9A-Fa-f]{1,4}:){,4}[0-9A-Fa-f]{1,4})?::(?:[0-9A-Fa-f]{1,4}:[0-9A-Fa-f]{1,4}|(?:(?:[0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}(?:[0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5]))|(?:(?:[0-9A-Fa-f]{1,4}:){,5}[0-9A-Fa-f]{1,4})?::[0-9A-Fa-f]{1,4}|(?:(?:[0-9A-Fa-f]{1,4}:){,6}[0-9A-Fa-f]{1,4})?::)\Z',
         'uri': r'^\w+:(\/?\/?)[^\s]+\Z',
     }
 
-    def __init__(self, definition, resolver=None, formats={}, use_default=True, use_formats=True, detailed_exceptions=True):
-        super().__init__(definition, resolver, detailed_exceptions)
+    def __init__(self, definition, resolver=None, formats={}, use_default=True, use_formats=True, detailed_exceptions=True, fast_fail=True):
+        super().__init__(definition, resolver, detailed_exceptions, fast_fail)
         self._custom_formats = formats
         self._use_formats = use_formats
         self._use_default = use_default
@@ -87,7 +87,7 @@ class CodeGeneratorDraft04(CodeGenerator):
         try:
             python_types = ', '.join(JSON_TYPE_TO_PYTHON_TYPE[t] for t in types)
         except KeyError as exc:
-            raise JsonSchemaDefinitionException('Unknown type: {}'.format(exc))
+            raise JsonSchemaDefinitionException('Unknown type') from exc
 
         extra = ''
         if ('number' in types or 'integer' in types) and 'boolean' not in types:
@@ -109,8 +109,50 @@ class CodeGeneratorDraft04(CodeGenerator):
         enum = self._definition['enum']
         if not isinstance(enum, (list, tuple)):
             raise JsonSchemaDefinitionException('enum must be an array')
-        with self.l('if {variable} not in {enum}:'):
-            self.exc('{name} must be one of {}', self.e(enum), rule='enum')
+        matches = ' or '.join(self._enum_value_matches(self._variable, value) for value in enum)
+        if matches:
+            with self.l('if not ({}):', matches):
+                self.exc('{name} must be one of {}', self.e(enum), rule='enum')
+        else:
+            with self.l('if True:'):
+                self.exc('{name} must be one of {}', self.e(enum), rule='enum')
+
+    def _enum_value_matches(self, var, value):
+        if isinstance(value, bool):
+            return 'isinstance({var}, bool) and {var} is {val}'.format(var=var, val=repr(value))
+        if isinstance(value, (int, float)) and not isinstance(value, bool):
+            return (
+                'isinstance({var}, (int, float)) and not isinstance({var}, bool) and {var} == {val}'
+            ).format(var=var, val=repr(value))
+        if value is None:
+            return '{var} is None'.format(var=var)
+        if isinstance(value, str):
+            return 'isinstance({var}, str) and {var} == {val}'.format(var=var, val=repr(value))
+        if isinstance(value, dict):
+            if not value:
+                return 'isinstance({var}, dict) and not {var}'.format(var=var)
+            key_checks = ' and '.join(
+                '{key!r} in {var} and {match}'.format(
+                    key=key,
+                    var=var,
+                    match=self._enum_value_matches('{var}[{key!r}]'.format(var=var, key=key), item),
+                )
+                for key, item in value.items()
+            )
+            return 'isinstance({var}, dict) and len({var}) == {size} and {checks}'.format(
+                var=var, size=len(value), checks=key_checks,
+            )
+        if isinstance(value, (list, tuple)):
+            if not value:
+                return 'isinstance({var}, (list, tuple)) and not {var}'.format(var=var)
+            item_checks = ' and '.join(
+                self._enum_value_matches('{var}[{index}]'.format(var=var, index=index), item)
+                for index, item in enumerate(value)
+            )
+            return 'isinstance({var}, (list, tuple)) and len({var}) == {size} and {checks}'.format(
+                var=var, size=len(value), checks=item_checks,
+            )
+        return '{var} == {val}'.format(var=var, val=repr(value))
 
     def generate_all_of(self):
         """
@@ -154,9 +196,10 @@ class CodeGeneratorDraft04(CodeGenerator):
             # When we know it's passing (at least once), we do not need to do another expensive try-except.
             with self.l('if not {variable}_any_of_count{count}:', count=count, optimize=False):
                 with self.l('try:', optimize=False):
-                    self.generate_func_code_block(definition_item, self._variable, self._variable_name, clear_variables=True)
+                    with self.trial_validation():
+                        self.generate_func_code_block(definition_item, self._variable, self._variable_name, clear_variables=True)
                     self.l('{variable}_any_of_count{count} += 1', count=count)
-                self.l('except JsonSchemaValueException: pass')
+                self.l('except {}: pass', VALIDATION_EXCEPTIONS)
 
         with self.l('if not {variable}_any_of_count{count}:', count=count, optimize=False):
             self.exc('{name} cannot be validated by any definition', rule='anyOf')
@@ -184,9 +227,10 @@ class CodeGeneratorDraft04(CodeGenerator):
             # When we know it's failing (one of means exactly once), we do not need to do another expensive try-except.
             with self.l('if {variable}_one_of_count{count} < 2:', count=count, optimize=False):
                 with self.l('try:', optimize=False):
-                    self.generate_func_code_block(definition_item, self._variable, self._variable_name, clear_variables=True)
+                    with self.trial_validation():
+                        self.generate_func_code_block(definition_item, self._variable, self._variable_name, clear_variables=True)
                     self.l('{variable}_one_of_count{count} += 1', count=count)
-                self.l('except JsonSchemaValueException: pass')
+                self.l('except {}: pass', VALIDATION_EXCEPTIONS)
 
         with self.l('if {variable}_one_of_count{count} != 1:', count=count):
             dynamic = '" (" + str({variable}_one_of_count{}) + " matches found)"'
@@ -214,8 +258,12 @@ class CodeGeneratorDraft04(CodeGenerator):
             self.exc('{name} must NOT match a disallowed definition', rule='not')
         else:
             with self.l('try:', optimize=False):
-                self.generate_func_code_block(not_definition, self._variable, self._variable_name)
-            self.l('except JsonSchemaValueException: pass')
+                code_len = len(self._code)
+                with self.trial_validation():
+                    self.generate_func_code_block(not_definition, self._variable, self._variable_name, clear_variables=True)
+                if len(self._code) == code_len:
+                    self.l('pass')
+            self.l('except {}: pass', VALIDATION_EXCEPTIONS)
             with self.l('else:'):
                 self.exc('{name} must NOT match a disallowed definition', rule='not')
 
@@ -256,8 +304,10 @@ class CodeGeneratorDraft04(CodeGenerator):
         """
         if not self._use_formats:
             return
+        format_ = self._definition['format']
+        if format_ not in self._custom_formats and format_ not in self.FORMAT_REGEXS and format_ != 'regex':
+            return
         with self.l('if isinstance({variable}, str):'):
-            format_ = self._definition['format']
             # Checking custom formats - user is allowed to override default formats.
             if format_ in self._custom_formats:
                 custom_format = self._custom_formats[format_]
@@ -271,13 +321,11 @@ class CodeGeneratorDraft04(CodeGenerator):
                 self._generate_format(format_, format_ + '_re_pattern', format_regex)
             # Format regex is used only in meta schemas.
             elif format_ == 'regex':
-                self._extra_imports_lines = ['import re'] 
+                self._extra_imports_lines = ['import re']
                 with self.l('try:', optimize=False):
                     self.l('re.compile({variable})')
                 with self.l('except Exception:'):
                     self.exc('{name} must be a valid regex', rule='format')
-            else:
-                raise JsonSchemaDefinitionException('Unknown format: {}'.format(format_))
 
 
     def _generate_format(self, format_name, regexp_name, regexp):
@@ -414,7 +462,7 @@ class CodeGeneratorDraft04(CodeGenerator):
                             '{}[{}]'.format(self._variable_name, idx),
                         )
                     if self._use_default and isinstance(item_definition, dict) and 'default' in item_definition:
-                        self.l('else: {variable}.append({})', repr(item_definition['default']))
+                        self.l('else: {variable}.append({})', repr_default(item_definition['default']))
 
                 if 'additionalItems' in self._definition:
                     if self._definition['additionalItems'] is False:
@@ -422,22 +470,24 @@ class CodeGeneratorDraft04(CodeGenerator):
                             self.exc('{name} must contain only specified items', rule='items')
                     else:
                         with self.l('for {variable}_x, {variable}_item in enumerate({variable}[{0}:], {0}):', len(items_definition)):
-                            count = self.generate_func_code_block(
+                            code_len = len(self._code)
+                            self.generate_func_code_block(
                                 self._definition['additionalItems'],
                                 '{}_item'.format(self._variable),
                                 '{}[{{{}_x}}]'.format(self._variable_name, self._variable),
                             )
-                            if count == 0:
+                            if len(self._code) == code_len:
                                 self.l('pass')
             else:
                 if items_definition:
                     with self.l('for {variable}_x, {variable}_item in enumerate({variable}):'):
-                        count = self.generate_func_code_block(
+                        code_len = len(self._code)
+                        self.generate_func_code_block(
                             items_definition,
                             '{}_item'.format(self._variable),
                             '{}[{{{}_x}}]'.format(self._variable_name, self._variable),
                         )
-                        if count == 0:
+                        if len(self._code) == code_len:
                             self.l('pass')
 
     def generate_min_properties(self):
@@ -511,7 +561,7 @@ class CodeGeneratorDraft04(CodeGenerator):
                         clear_variables=True,
                     )
                 if self._use_default and isinstance(prop_definition, dict) and 'default' in prop_definition:
-                    self.l('else: {variable}["{}"] = {}', self.e(key), repr(prop_definition['default']))
+                    self.l('else: {variable}["{}"] = {}', self.e(key), repr_default(prop_definition['default']))
 
     def generate_pattern_properties(self):
         """
@@ -530,7 +580,10 @@ class CodeGeneratorDraft04(CodeGenerator):
         self.create_variable_is_dict()
         with self.l('if {variable}_is_dict:'):
             self.create_variable_keys()
-            for pattern, definition in self._definition['patternProperties'].items():
+            pattern_prop_definition = self._definition['patternProperties']
+            if pattern_prop_definition == {}:
+                return
+            for pattern, definition in pattern_prop_definition.items():
                 self._compile_regexps[pattern] = re.compile(pattern)
             with self.l('for {variable}_key, {variable}_val in {variable}.items():'):
                 for pattern, definition in self._definition['patternProperties'].items():
@@ -607,12 +660,15 @@ class CodeGeneratorDraft04(CodeGenerator):
                 is_empty = False
                 with self.l('if "{}" in {variable}:', self.e(key)):
                     if values is False:
-                        self.exc('{} in {name} must not be there', key, rule='dependencies')
+                        self.exc('{} in {name} must not be there', self.e(key), rule='dependencies')
                     elif isinstance(values, list):
                         for value in values:
                             with self.l('if "{}" not in {variable}:', self.e(value)):
                                 self.exc('{name} missing dependency {} for {}', self.e(value), self.e(key), rule='dependencies')
                     else:
+                        code_len = len(self._code)
                         self.generate_func_code_block(values, self._variable, self._variable_name, clear_variables=True)
+                        if len(self._code) == code_len:
+                            self.l('pass')
             if is_empty:
                 self.l('pass')

@@ -1,4 +1,5 @@
 from .draft06 import CodeGeneratorDraft06
+from .generator import VALIDATION_EXCEPTIONS
 
 
 class CodeGeneratorDraft07(CodeGeneratorDraft06):
@@ -7,6 +8,7 @@ class CodeGeneratorDraft07(CodeGeneratorDraft06):
         'iri': r'^\w+:(\/?\/?)[^\s]+\Z',
         'iri-reference': r'^(\w+:(\/?\/?))?[^#\\\s]*(#[^\\\s]*)?\Z',
         'idn-email': r'^[^@]+@[^@]+\.[^@]+\Z',
+        # pylint: disable=line-too-long
         'idn-hostname': r'^(?!-)(xn--)?[a-zA-Z0-9][a-zA-Z0-9-_]{0,61}[a-zA-Z0-9]{0,1}\.(?!-)(xn--)?([a-zA-Z0-9\-]{1,50}|[a-zA-Z0-9-]{1,30}\.[a-zA-Z]{2,})$',
         'relative-json-pointer': r'^(?:0|[1-9][0-9]*)(?:#|(?:\/(?:[^~/]|~0|~1)*)*)\Z',
         #'regex': r'',
@@ -17,8 +19,17 @@ class CodeGeneratorDraft07(CodeGeneratorDraft06):
         ),
     })
 
-    def __init__(self, definition, resolver=None, formats={}, use_default=True, use_formats=True, detailed_exceptions=True):
-        super().__init__(definition, resolver, formats, use_default, use_formats, detailed_exceptions)
+    def __init__(
+        self,
+        definition,
+        resolver=None,
+        formats={},
+        use_default=True,
+        use_formats=True,
+        detailed_exceptions=True,
+        fast_fail=True
+    ):
+        super().__init__(definition, resolver, formats, use_default, use_formats, detailed_exceptions, fast_fail)
         # pylint: disable=duplicate-code
         self._json_keywords_to_function.update((
             ('if', self.generate_if_then_else),
@@ -47,30 +58,40 @@ class CodeGeneratorDraft07(CodeGeneratorDraft06):
         Valid values are any between -10 and 0 or any multiplication of two.
         """
         with self.l('try:', optimize=False):
-            self.generate_func_code_block(
-                self._definition['if'],
-                self._variable,
-                self._variable_name,
-                clear_variables=True
-            )
-        with self.l('except JsonSchemaValueException:'):
+            code_len = len(self._code)
+            with self.trial_validation():
+                self.generate_func_code_block(
+                    self._definition['if'],
+                    self._variable,
+                    self._variable_name,
+                    clear_variables=True
+                )
+            if len(self._code) == code_len:
+                self.l('pass')
+        with self.l('except {}:', VALIDATION_EXCEPTIONS):
             if 'else' in self._definition:
+                code_len = len(self._code)
                 self.generate_func_code_block(
                     self._definition['else'],
                     self._variable,
                     self._variable_name,
                     clear_variables=True
                 )
+                if len(self._code) == code_len:
+                    self.l('pass')
             else:
                 self.l('pass')
         if 'then' in self._definition:
             with self.l('else:'):
+                code_len = len(self._code)
                 self.generate_func_code_block(
                     self._definition['then'],
                     self._variable,
                     self._variable_name,
                     clear_variables=True
                 )
+                if len(self._code) == code_len:
+                    self.l('pass')
 
     def generate_content_encoding(self):
         """

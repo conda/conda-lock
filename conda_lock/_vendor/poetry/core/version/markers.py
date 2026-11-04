@@ -3,15 +3,16 @@ from __future__ import annotations
 import functools
 import itertools
 import re
+import threading
 
 from abc import ABC
 from abc import abstractmethod
+from collections import defaultdict
 from typing import TYPE_CHECKING
 from typing import Any
 from typing import ClassVar
 from typing import Generic
 from typing import TypeVar
-from typing import Union
 
 from packaging.utils import canonicalize_name
 
@@ -21,6 +22,7 @@ from conda_lock._vendor.poetry.core.constraints.generic import MultiConstraint
 from conda_lock._vendor.poetry.core.constraints.generic import UnionConstraint
 from conda_lock._vendor.poetry.core.constraints.generic.parser import STR_CMP_CONSTRAINT
 from conda_lock._vendor.poetry.core.constraints.version import VersionConstraint
+from conda_lock._vendor.poetry.core.constraints.version import VersionRange
 from conda_lock._vendor.poetry.core.constraints.version import VersionUnion
 from conda_lock._vendor.poetry.core.constraints.version.exceptions import ParseConstraintError
 from conda_lock._vendor.poetry.core.version.grammars import GRAMMAR_PEP_508_MARKERS
@@ -30,7 +32,9 @@ from conda_lock._vendor.poetry.core.version.parser import Parser
 if TYPE_CHECKING:
     from collections.abc import Callable
     from collections.abc import Iterable
+    from collections.abc import Iterator
     from collections.abc import Mapping
+    from collections.abc import Sequence
 
     from lark import Tree
 
@@ -98,6 +102,27 @@ class BaseMarker(ABC):
         raise NotImplementedError
 
     @abstractmethod
+    def apply(self, environment: Mapping[str, Any]) -> BaseMarker:
+        """
+        Partially evaluate this marker against the (possibly partial) environment.
+
+        Similar to `validate`, but instead of collapsing the whole marker tree to
+        a single `bool`, this returns a simplified `BaseMarker`:
+
+        - Single markers whose variable name is present in `environment` are
+          validated and replaced with `AnyMarker` (if they hold) or `EmptyMarker`
+          (if they do not).
+        - Single markers whose variable name is not present in `environment` are
+          left untouched, so the result can still depend on those undefined
+          variables.
+        - Composite markers are simplified as usual.
+
+        Whereas `validate` treats missing variables as satisfied (returning
+        `True`), `apply` preserves them so the caller can decide later.
+        """
+        raise NotImplementedError
+
+    @abstractmethod
     def without_extras(self) -> BaseMarker:
         raise NotImplementedError
 
@@ -143,6 +168,9 @@ class AnyMarker(BaseMarker):
 
     def validate(self, environment: Mapping[str, Any] | None) -> bool:
         return True
+
+    def apply(self, environment: Mapping[str, Any]) -> BaseMarker:
+        return self
 
     def without_extras(self) -> BaseMarker:
         return self
@@ -190,6 +218,9 @@ class EmptyMarker(BaseMarker):
     def validate(self, environment: Mapping[str, Any] | None) -> bool:
         return False
 
+    def apply(self, environment: Mapping[str, Any]) -> BaseMarker:
+        return self
+
     def without_extras(self) -> BaseMarker:
         return self
 
@@ -224,7 +255,7 @@ class EmptyMarker(BaseMarker):
 
 
 SingleMarkerConstraint = TypeVar(
-    "SingleMarkerConstraint", bound=Union[BaseConstraint, VersionConstraint]
+    "SingleMarkerConstraint", bound=BaseConstraint | VersionConstraint
 )
 
 
@@ -233,6 +264,7 @@ class SingleMarkerLike(BaseMarker, ABC, Generic[SingleMarkerConstraint]):
         from conda_lock._vendor.poetry.core.constraints.generic import (
             parse_constraint as parse_generic_constraint,
         )
+        from conda_lock._vendor.poetry.core.constraints.generic import parse_extra_constraint
         from conda_lock._vendor.poetry.core.constraints.version import parse_marker_version_constraint
 
         self._name = ALIASES.get(name, name)
@@ -242,6 +274,8 @@ class SingleMarkerLike(BaseMarker, ABC, Generic[SingleMarkerConstraint]):
             self._parser = functools.partial(
                 parse_marker_version_constraint, pep440=name != "platform_release"
             )
+        elif name == "extra":
+            self._parser = parse_extra_constraint
         else:
             self._parser = parse_generic_constraint
 
@@ -285,6 +319,11 @@ class SingleMarkerLike(BaseMarker, ABC, Generic[SingleMarkerConstraint]):
         # to know that.
         constraint = self._parser(environment[self._name])
         return self._constraint.allows(constraint)  # type: ignore[arg-type]
+
+    def apply(self, environment: Mapping[str, Any]) -> BaseMarker:
+        if self._name not in environment:
+            return self
+        return AnyMarker() if self.validate(environment) else EmptyMarker()
 
     def without_extras(self) -> BaseMarker:
         return self.exclude("extra")
@@ -336,9 +375,9 @@ class SingleMarkerLike(BaseMarker, ABC, Generic[SingleMarkerConstraint]):
         return hash(self._key)
 
 
-class SingleMarker(SingleMarkerLike[Union[BaseConstraint, VersionConstraint]]):
+class SingleMarker(SingleMarkerLike[BaseConstraint | VersionConstraint]):
     _CONSTRAINT_RE_PATTERN_1 = re.compile(
-        r"(?i)^(?P<op>~=|!=|>=?|<=?|==?=?|not in|in)?\s*(?P<value>.+)$"
+        r"(?i)^(?P<op>~=|!=|>=?|<=?|==?=?|not in |in )?\s*(?P<value>.+)$"
     )
     _CONSTRAINT_RE_PATTERN_2 = STR_CMP_CONSTRAINT
 
@@ -358,6 +397,7 @@ class SingleMarker(SingleMarkerLike[Union[BaseConstraint, VersionConstraint]]):
         from conda_lock._vendor.poetry.core.constraints.generic import (
             parse_constraint as parse_generic_constraint,
         )
+        from conda_lock._vendor.poetry.core.constraints.generic import parse_extra_constraint
         from conda_lock._vendor.poetry.core.constraints.version import parse_marker_version_constraint
 
         parsed_constraint: BaseConstraint | VersionConstraint
@@ -376,12 +416,9 @@ class SingleMarker(SingleMarkerLike[Union[BaseConstraint, VersionConstraint]]):
                 f"Invalid marker for '{name}': {constraint_string}"
             )
 
-        self._operator = m.group("op")
-        if self._operator is None:
-            self._operator = "=="
-
+        self._operator = (m.group("op") or "==").strip()
         self._value = m.group("value")
-        parser = parse_generic_constraint
+        parser = parse_extra_constraint if name == "extra" else parse_generic_constraint
 
         if swapped_name_value and name not in PYTHON_VERSION_MARKERS:
             # Something like `"tegra" in platform_release`
@@ -409,6 +446,13 @@ class SingleMarker(SingleMarkerLike[Union[BaseConstraint, VersionConstraint]]):
                     glue = " || "
 
                 constraint_string = glue.join(versions)
+            elif name == "python_full_version" and not swapped_name_value:
+                # fix precision of python_full_version marker
+                precision = self._value.count(".") + 1
+                if precision < 3:
+                    suffix = ".0" * (3 - precision)
+                    self._value += suffix
+                    constraint_string += suffix
         else:
             # if we have a in/not in operator we split the constraint
             # into a union/multi-constraint of single constraint
@@ -442,11 +486,24 @@ class SingleMarker(SingleMarkerLike[Union[BaseConstraint, VersionConstraint]]):
         self, python_constraint: VersionConstraint
     ) -> BaseMarker:
         if self.name in PYTHON_VERSION_MARKERS:
+            from conda_lock._vendor.poetry.core.packages.utils.utils import create_nested_marker
+            from conda_lock._vendor.poetry.core.packages.utils.utils import (
+                get_python_constraint_from_marker,
+            )
+
             assert isinstance(self._constraint, VersionConstraint)
-            if self._constraint.allows_all(python_constraint):
+            constraint = get_python_constraint_from_marker(self)
+            if constraint.allows_all(python_constraint):
                 return AnyMarker()
-            elif not self._constraint.allows_any(python_constraint):
+            elif not constraint.allows_any(python_constraint):
                 return EmptyMarker()
+
+            python_marker = parse_marker(
+                create_nested_marker("python_version", python_constraint)
+            )
+            intersection = self.intersect(python_marker)
+            if isinstance(intersection, SingleMarker):
+                return intersection
 
         return self
 
@@ -516,13 +573,20 @@ class SingleMarker(SingleMarkerLike[Union[BaseConstraint, VersionConstraint]]):
 
 class AtomicMultiMarker(SingleMarkerLike[MultiConstraint]):
     def __init__(self, name: str, constraint: MultiConstraint) -> None:
-        assert all(c.operator == "!=" for c in constraint.constraints)
+        assert all(
+            c.operator in ({"==", "!="} if name == "extra" else {"!="})
+            for c in constraint.constraints
+        )
         super().__init__(name, constraint)
-        self._values: list[str] = []
 
     @property
     def complexity(self) -> tuple[int, int]:
         return len(self._constraint.constraints), 1
+
+    def validate(self, environment: Mapping[str, Any] | None) -> bool:
+        if self._name == "extra":
+            return self.expand().validate(environment)
+        return super().validate(environment)
 
     def invert(self) -> BaseMarker:
         return AtomicMarkerUnion(self._name, self._constraint.invert())
@@ -534,14 +598,16 @@ class AtomicMultiMarker(SingleMarkerLike[MultiConstraint]):
 
     def __str__(self) -> str:
         return " and ".join(
-            f'{self._name} != "{c.value}"' for c in self._constraint.constraints
+            f'{self._name} {c.operator} "{c.value}"'
+            for c in self._constraint.constraints
         )
 
 
 class AtomicMarkerUnion(SingleMarkerLike[UnionConstraint]):
     def __init__(self, name: str, constraint: UnionConstraint) -> None:
         assert all(
-            isinstance(c, Constraint) and c.operator == "=="
+            isinstance(c, Constraint)
+            and c.operator in ({"==", "!="} if name == "extra" else {"=="})
             for c in constraint.constraints
         )
         super().__init__(name, constraint)
@@ -549,6 +615,11 @@ class AtomicMarkerUnion(SingleMarkerLike[UnionConstraint]):
     @property
     def complexity(self) -> tuple[int, int]:
         return len(self._constraint.constraints), 1
+
+    def validate(self, environment: Mapping[str, Any] | None) -> bool:
+        if self._name == "extra":
+            return self.expand().validate(environment)
+        return super().validate(environment)
 
     def invert(self) -> BaseMarker:
         return AtomicMultiMarker(self._name, self._constraint.invert())
@@ -563,7 +634,7 @@ class AtomicMarkerUnion(SingleMarkerLike[UnionConstraint]):
         # contains only elements of type Constraint (instead of BaseConstraint)
         # but mypy can't see that.
         return " or ".join(
-            f'{self._name} == "{c.value}"'  # type: ignore[attr-defined]
+            f'{self._name} {c.operator} "{c.value}"'  # type: ignore[attr-defined]
             for c in self._constraint.constraints
         )
 
@@ -576,10 +647,7 @@ def _flatten_markers(
 
     for marker in markers:
         if isinstance(marker, flatten_class):
-            for _marker in _flatten_markers(
-                marker.markers,  # type: ignore[attr-defined]
-                flatten_class,
-            ):
+            for _marker in _flatten_markers(marker.markers, flatten_class):
                 if _marker not in flattened:
                     flattened.append(_marker)
 
@@ -618,24 +686,30 @@ class MultiMarker(BaseMarker):
 
                 intersected = False
                 for i, mark in enumerate(new_markers):
+                    # If we have a MarkerUnion then we can look for the simplifications
+                    # implemented in intersect_simplify().
+                    intersection: BaseMarker | None = None
+                    is_one_union = False
+                    if isinstance(mark, MarkerUnion):
+                        is_one_union = True
+                        intersection = mark.intersect_simplify(marker)
+                    elif isinstance(marker, MarkerUnion):
+                        is_one_union = True
+                        intersection = marker.intersect_simplify(mark)
+                    if intersection is not None:
+                        new_markers[i] = intersection
+                        intersected = True
+                        break
+
                     # If we have a SingleMarker then with any luck after intersection
                     # it'll become another SingleMarker.
-                    if isinstance(mark, SingleMarkerLike):
+                    if not is_one_union and isinstance(mark, SingleMarkerLike):
                         new_marker = mark.intersect(marker)
                         if new_marker.is_empty():
                             return EmptyMarker()
 
                         if isinstance(new_marker, SingleMarkerLike):
                             new_markers[i] = new_marker
-                            intersected = True
-                            break
-
-                    # If we have a MarkerUnion then we can look for the simplifications
-                    # implemented in intersect_simplify().
-                    elif isinstance(mark, MarkerUnion):
-                        intersection = mark.intersect_simplify(marker)
-                        if intersection is not None:
-                            new_markers[i] = intersection
                             intersected = True
                             break
 
@@ -676,8 +750,20 @@ class MultiMarker(BaseMarker):
             - union between two multimarkers where there are some common markers
               and the union of unique markers is a single marker
         """
+        from conda_lock._vendor.poetry.core.packages.utils.utils import get_python_constraint_from_marker
+
         if other in self._markers:
             return other
+
+        if isinstance(other, SingleMarker) and other.name in PYTHON_VERSION_MARKERS:
+            # Convert 'python_version >= "3.8" and sys_platform == "linux" or python_version > "3.6"'
+            # to 'python_version > "3.6"'
+            for m in self._markers:
+                if isinstance(m, SingleMarker) and m.name in PYTHON_VERSION_MARKERS:
+                    constraint = get_python_constraint_from_marker(m)
+                    other_constraint = get_python_constraint_from_marker(other)
+                    if other_constraint.allows_all(constraint):
+                        return other
 
         if isinstance(other, MultiMarker):
             our_markers = set(self.markers)
@@ -693,13 +779,19 @@ class MultiMarker(BaseMarker):
             if not shared_markers:
                 return None
 
-            unique_markers = our_markers - their_markers
-            other_unique_markers = their_markers - our_markers
+            # Do not use sets to create MultiMarkers for deterministic order!
+            unique_markers = [m for m in self.markers if m not in their_markers]
+            other_unique_markers = [m for m in other.markers if m not in our_markers]
             unique_union = MultiMarker(*unique_markers).union(
                 MultiMarker(*other_unique_markers)
             )
-            if isinstance(unique_union, (SingleMarkerLike, AnyMarker)):
-                # Use list instead of set for deterministic order.
+            if isinstance(unique_union, (SingleMarkerLike, AnyMarker)) or (
+                # Convert 'python_version >= "3.8" and python_version < "3.10"
+                # or python_version >= "3.10" and python_version < "3.12"'
+                # to 'python_version >= "3.6" and python_version < "3.12"'
+                isinstance(unique_union, MultiMarker)
+                and unique_union.complexity <= (2, 2)
+            ):
                 common_markers = [
                     marker for marker in self.markers if marker in shared_markers
                 ]
@@ -709,6 +801,11 @@ class MultiMarker(BaseMarker):
 
     def validate(self, environment: Mapping[str, Any] | None) -> bool:
         return all(m.validate(environment) for m in self._markers)
+
+    def apply(self, environment: Mapping[str, Any]) -> BaseMarker:
+        if not environment:
+            return self
+        return self.of(*(m.apply(environment) for m in self._markers))
 
     def without_extras(self) -> BaseMarker:
         return self.exclude("extra")
@@ -726,7 +823,7 @@ class MultiMarker(BaseMarker):
             if not marker.is_empty():
                 new_markers.append(marker)
 
-        return self.of(*new_markers)
+        return intersection(*new_markers)
 
     def only(self, *marker_names: str) -> BaseMarker:
         return self.of(*(m.only(*marker_names) for m in self._markers))
@@ -755,7 +852,7 @@ class MultiMarker(BaseMarker):
     def __str__(self) -> str:
         elements = []
         for m in self._markers:
-            if isinstance(m, (SingleMarker, MultiMarker)):
+            if isinstance(m, (SingleMarker, MultiMarker, AtomicMultiMarker)):
                 elements.append(str(m))
             else:
                 elements.append(f"({m})")
@@ -792,24 +889,37 @@ class MarkerUnion(BaseMarker):
 
                 included = False
                 for i, mark in enumerate(new_markers):
+                    # If we have a MultiMarker then we can look for the simplifications
+                    # implemented in union_simplify().
+                    union_: BaseMarker | None = None
+                    is_one_multi = False
+                    if isinstance(mark, MultiMarker):
+                        is_one_multi = True
+                        union_ = mark.union_simplify(marker)
+                    elif isinstance(marker, MultiMarker):
+                        is_one_multi = True
+                        union_ = marker.union_simplify(mark)
+                    if union_ is not None:
+                        new_markers[i] = union_
+                        included = True
+                        break
+
                     # If we have a SingleMarker then with any luck after union it'll
                     # become another SingleMarker.
-                    if isinstance(mark, SingleMarkerLike):
+                    # Especially, for `python_version` markers a multi marker is also
+                    # an improvement. E.g. the union of 'python_version == "3.6"' and
+                    # 'python_version == "3.7" or python_version == "3.8"' is
+                    # 'python_version >= "3.6" and python_version < "3.9"'.
+                    if not is_one_multi and isinstance(mark, SingleMarkerLike):
                         new_marker = mark.union(marker)
                         if new_marker.is_any():
                             return AnyMarker()
 
-                        if isinstance(new_marker, SingleMarkerLike):
+                        if isinstance(new_marker, SingleMarkerLike) or (
+                            isinstance(new_marker, MultiMarker)
+                            and new_marker.complexity <= (2, 2)
+                        ):
                             new_markers[i] = new_marker
-                            included = True
-                            break
-
-                    # If we have a MultiMarker then we can look for the simplifications
-                    # implemented in union_simplify().
-                    elif isinstance(mark, MultiMarker):
-                        union = mark.union_simplify(marker)
-                        if union is not None:
-                            new_markers[i] = union
                             included = True
                             break
 
@@ -850,8 +960,20 @@ class MarkerUnion(BaseMarker):
             - intersection between two markerunions where there are some common markers
               and the intersection of unique markers is not a single marker
         """
+        from conda_lock._vendor.poetry.core.packages.utils.utils import get_python_constraint_from_marker
+
         if other in self._markers:
             return other
+
+        if isinstance(other, SingleMarker) and other.name in PYTHON_VERSION_MARKERS:
+            # Convert '(python_version >= "3.6" or sys_platform == "linux") and python_version > "3.8"'
+            # to 'python_version > "3.8"'
+            for m in self._markers:
+                if isinstance(m, SingleMarker) and m.name in PYTHON_VERSION_MARKERS:
+                    constraint = get_python_constraint_from_marker(m)
+                    other_constraint = get_python_constraint_from_marker(other)
+                    if constraint.allows_all(other_constraint):
+                        return other
 
         if isinstance(other, MarkerUnion):
             our_markers = set(self.markers)
@@ -867,13 +989,20 @@ class MarkerUnion(BaseMarker):
             if not shared_markers:
                 return None
 
-            unique_markers = our_markers - their_markers
-            other_unique_markers = their_markers - our_markers
+            # Do not use sets to create MarkerUnions for deterministic order!
+            unique_markers = [m for m in self.markers if m not in their_markers]
+            other_unique_markers = [m for m in other.markers if m not in our_markers]
             unique_intersection = MarkerUnion(*unique_markers).intersect(
                 MarkerUnion(*other_unique_markers)
             )
-            if isinstance(unique_intersection, (SingleMarkerLike, EmptyMarker)):
-                # Use list instead of set for deterministic order.
+            if isinstance(unique_intersection, (SingleMarkerLike, EmptyMarker)) or (
+                # Convert '(python_version == "3.6" or python_version >= "3.8)"
+                # and (python_version >= "3.6" and python_version < "3.8"
+                # or python_version == "3.9")'
+                # to 'python_version == "3.6" or python_version == "3.9"'
+                isinstance(unique_intersection, MarkerUnion)
+                and unique_intersection.complexity <= (2, 2)
+            ):
                 common_markers = [
                     marker for marker in self.markers if marker in shared_markers
                 ]
@@ -884,6 +1013,11 @@ class MarkerUnion(BaseMarker):
     def validate(self, environment: Mapping[str, Any] | None) -> bool:
         return any(m.validate(environment) for m in self._markers)
 
+    def apply(self, environment: Mapping[str, Any]) -> BaseMarker:
+        if not environment:
+            return self
+        return self.of(*(m.apply(environment) for m in self._markers))
+
     def without_extras(self) -> BaseMarker:
         return self.exclude("extra")
 
@@ -892,17 +1026,12 @@ class MarkerUnion(BaseMarker):
 
         for m in self._markers:
             if isinstance(m, SingleMarkerLike) and m.name == marker_name:
-                # The marker is not relevant since it must be excluded
-                continue
+                return AnyMarker()
 
             marker = m.exclude(marker_name)
             new_markers.append(marker)
 
-        if not new_markers:
-            # All markers were the excluded marker.
-            return AnyMarker()
-
-        return self.of(*new_markers)
+        return union(*new_markers)
 
     def only(self, *marker_names: str) -> BaseMarker:
         return self.of(*(m.only(*marker_names) for m in self._markers))
@@ -913,7 +1042,7 @@ class MarkerUnion(BaseMarker):
         from conda_lock._vendor.poetry.core.packages.utils.utils import get_python_constraint_from_marker
 
         markers: Iterable[BaseMarker] = self._markers
-        if isinstance(python_constraint, VersionUnion):
+        if isinstance(python_constraint, (VersionRange, VersionUnion)):
             python_only_markers = []
             other_markers = []
             for m in self._markers:
@@ -924,9 +1053,7 @@ class MarkerUnion(BaseMarker):
             if get_python_constraint_from_marker(
                 self.of(*python_only_markers)
             ).allows_all(python_constraint):
-                if not other_markers:
-                    return AnyMarker()
-                markers = other_markers
+                return AnyMarker()
 
         return self.of(
             *(m.reduce_by_python_constraint(python_constraint) for m in markers)
@@ -1000,7 +1127,7 @@ def _compact_markers(
 
             sub_marker = SingleMarker(
                 str(name),
-                f'"{value}" {op}' if stringed_value else f"{op}{value}",
+                f'"{value}" {op}' if stringed_value else f"{op} {value}",
                 swapped_name_value=swapped_name_value,
             )
             groups[-1].append(sub_marker)
@@ -1009,7 +1136,9 @@ def _compact_markers(
             groups.append([])
 
     # Combine the groups.
-    sub_markers = [MultiMarker(*group) for group in groups]
+    sub_markers = [
+        group[0] if len(group) == 1 else MultiMarker(*group) for group in groups
+    ]
 
     # This function calls itself recursively. In the inner calls we don't perform any
     # simplification, instead doing it all only when we have the complete marker.
@@ -1028,7 +1157,7 @@ def cnf(marker: BaseMarker) -> BaseMarker:
             m.markers if isinstance(m, MultiMarker) else [m] for m in cnf_markers
         ]
         return MultiMarker.of(
-            *[MarkerUnion.of(*c) for c in itertools.product(*sub_marker_lists)]
+            *[MarkerUnion.of(*c) for c in _unique_product(*sub_marker_lists)]
         )
 
     if isinstance(marker, MultiMarker):
@@ -1046,7 +1175,7 @@ def dnf(marker: BaseMarker) -> BaseMarker:
             m.markers if isinstance(m, MarkerUnion) else [m] for m in dnf_markers
         ]
         return MarkerUnion.of(
-            *[MultiMarker.of(*c) for c in itertools.product(*sub_marker_lists)]
+            *[MultiMarker.of(*c) for c in _unique_product(*sub_marker_lists)]
         )
 
     if isinstance(marker, MarkerUnion):
@@ -1055,12 +1184,55 @@ def dnf(marker: BaseMarker) -> BaseMarker:
     return marker
 
 
+def detect_recursion(func: Callable[..., BaseMarker]) -> Callable[..., BaseMarker]:
+    """Decorator to detect recursions in `intersection` and `union` early."""
+    func.call_args = defaultdict(list)  # type: ignore[attr-defined]
+
+    def decorated(*markers: BaseMarker) -> BaseMarker:
+        thread_id = threading.get_ident()
+        call_args = func.call_args[thread_id]  # type: ignore[attr-defined]
+        if markers in call_args:
+            raise RecursionError
+        call_args.append(markers)
+        try:
+            result = func(*markers)
+        finally:
+            call_args.pop()
+        return result
+
+    return decorated
+
+
+@detect_recursion
 def intersection(*markers: BaseMarker) -> BaseMarker:
-    return dnf(MultiMarker(*markers))
+    # Sometimes normalization makes it more complicated instead of simple
+    # -> choose candidate with the least complexity
+    unnormalized: BaseMarker = MultiMarker(*markers)
+    while (
+        isinstance(unnormalized, (MultiMarker, MarkerUnion))
+        and len(unnormalized.markers) == 1
+    ):
+        unnormalized = unnormalized.markers[0]
+
+    disjunction = dnf(unnormalized)
+    if not isinstance(disjunction, MarkerUnion):
+        return disjunction
+
+    try:
+        conjunction = cnf(disjunction)
+        if not isinstance(conjunction, MultiMarker):
+            return conjunction
+    except RecursionError:
+        candidates = [disjunction, unnormalized]
+    else:
+        candidates = [disjunction, conjunction, unnormalized]
+
+    return min(*candidates, key=lambda x: x.complexity)
 
 
+@detect_recursion
 def union(*markers: BaseMarker) -> BaseMarker:
-    # Sometimes normalization makes it more complicate instead of simple
+    # Sometimes normalization makes it more complicated instead of simple
     # -> choose candidate with the least complexity
     unnormalized: BaseMarker = MarkerUnion(*markers)
     while (
@@ -1073,11 +1245,31 @@ def union(*markers: BaseMarker) -> BaseMarker:
     if not isinstance(conjunction, MultiMarker):
         return conjunction
 
-    disjunction = dnf(conjunction)
-    if not isinstance(disjunction, MarkerUnion):
-        return disjunction
+    try:
+        disjunction = dnf(conjunction)
+        if not isinstance(disjunction, MarkerUnion):
+            return disjunction
+    except RecursionError:
+        candidates = [conjunction, unnormalized]
+    else:
+        candidates = [disjunction, conjunction, unnormalized]
 
-    return min(disjunction, conjunction, unnormalized, key=lambda x: x.complexity)
+    return min(*candidates, key=lambda x: x.complexity)
+
+
+def _unique_product(
+    *sub_marker_lists: Sequence[BaseMarker],
+) -> Iterator[Sequence[BaseMarker]]:
+    """
+    Returns an itertools.product of the sub_marker_lists
+    without duplicates (and equivalents) removed while maintaining order.
+    """
+    unique_sets = set()
+    for sub_marker_list in itertools.product(*sub_marker_lists):
+        sub_marker_set = frozenset(sub_marker_list)
+        if sub_marker_set not in unique_sets:
+            unique_sets.add(sub_marker_set)
+            yield sub_marker_list
 
 
 @functools.cache
@@ -1094,13 +1286,13 @@ def _merge_single_markers(
     if marker1.name != marker2.name:
         return None
 
-    # "extra" is special because it can have multiple values at the same time.
-    # That's why we can only merge two "extra" markers if they have the same value.
-    if marker1.name == "extra":
-        assert isinstance(marker1, SingleMarker)
-        assert isinstance(marker2, SingleMarker)
-        if marker1.value != marker2.value:  # type: ignore[attr-defined]
-            return None
+    if isinstance(marker1.constraint, VersionConstraint) != isinstance(
+        marker2.constraint, VersionConstraint
+    ):
+        # `platform_release` can be a VersionConstraint (e.g. `platform_release != "1"`)
+        # or a (generic) Constraint (e.g. `"a" not in platform_release`),
+        # which cannot be merged.
+        return None
 
     if merge_class == MultiMarker:
         merge_method = marker1.constraint.intersect
@@ -1125,14 +1317,68 @@ def _merge_single_markers(
     ):
         result_marker = SingleMarker(marker1.name, result_constraint)
     elif isinstance(result_constraint, UnionConstraint) and all(
-        isinstance(c, Constraint) and c.operator == "=="
+        isinstance(c, Constraint)
+        and c.operator in ({"==", "!="} if marker1.name == "extra" else {"=="})
         for c in result_constraint.constraints
     ):
         result_marker = AtomicMarkerUnion(marker1.name, result_constraint)
     elif isinstance(result_constraint, MultiConstraint) and all(
-        c.operator == "!=" for c in result_constraint.constraints
+        c.operator in ({"==", "!="} if marker1.name == "extra" else {"!="})
+        for c in result_constraint.constraints
     ):
         result_marker = AtomicMultiMarker(marker1.name, result_constraint)
+    elif marker1.name == "python_version":
+        from conda_lock._vendor.poetry.core.packages.utils.utils import get_python_constraint_from_marker
+
+        if isinstance(result_constraint, VersionRange) and merge_class == MultiMarker:
+            if result_constraint.min:
+                # Convert 'python_version >= "3.8" and python_version < "3.9"'
+                # to 'python_version == "3.8"'.
+                candidate = parse_marker(f'{marker1.name} == "{result_constraint.min}"')
+                if get_python_constraint_from_marker(candidate) == result_constraint:
+                    result_marker = candidate
+            if result_marker is None:
+                # Detect 'python_version > "3.8" and python_version < "3.9"' as empty.
+                result_constraint = get_python_constraint_from_marker(
+                    marker1
+                ).intersect(get_python_constraint_from_marker(marker2))
+                if result_constraint.is_empty():
+                    result_marker = EmptyMarker()
+
+        elif isinstance(result_constraint, VersionUnion) and merge_class == MarkerUnion:
+            result_constraint = get_python_constraint_from_marker(marker1).union(
+                get_python_constraint_from_marker(marker2)
+            )
+            if result_constraint.is_any():
+                # Convert 'python_version <= "3.8" or python_version >= "3.9"' to "any".
+                result_marker = AnyMarker()
+            elif result_constraint.is_simple():
+                # Convert 'python_version == "3.8" or python_version >= "3.9"'
+                # to 'python_version >= "3.8"'.
+                result_marker = SingleMarker(marker1.name, result_constraint)
+            elif isinstance(result_constraint, VersionRange):
+                # Convert 'python_version' == "3.8" or python_version == "3.9"'
+                # to 'python_version >= "3.8" and python_version < "3.10"'.
+                # Although both markers have the same complexity, the latter behaves
+                # better if it is merged with 'python_version == "3.10' in a next step
+                # for example.
+                result_marker = MultiMarker(
+                    SingleMarker(
+                        marker1.name,
+                        VersionRange(
+                            min=result_constraint.min,
+                            include_min=result_constraint.include_min,
+                        ),
+                    ),
+                    SingleMarker(
+                        marker1.name,
+                        VersionRange(
+                            max=result_constraint.max,
+                            include_max=result_constraint.include_max,
+                        ),
+                    ),
+                )
+
     return result_marker
 
 
@@ -1168,7 +1414,24 @@ def _merge_python_version_single_markers(
         # it may be sufficient to handle it here.
         marker_string = str(merged_marker)
         precision = marker_string.count(".") + 1
-        if precision < 3:
-            marker_string = marker_string[:-1] + ".0" * (3 - precision) + '"'
-            merged_marker = parse_marker(marker_string)
+        target_precision = 3
+        if precision < target_precision:
+            if merged_marker.operator in {"<", ">="}:
+                target_precision = 2
+                marker_string = marker_string.replace(
+                    "python_full_version", "python_version"
+                )
+            marker_string = (
+                marker_string[:-1] + ".0" * (target_precision - precision) + '"'
+            )
+        elif (
+            precision == target_precision
+            and merged_marker.operator in {"<", ">="}
+            and marker_string[:-1].endswith(".0")
+        ):
+            marker_string = marker_string.replace(
+                "python_full_version", "python_version"
+            )
+            marker_string = marker_string[:-3] + '"'  # drop trailing ".0"
+        merged_marker = parse_marker(marker_string)
     return merged_marker

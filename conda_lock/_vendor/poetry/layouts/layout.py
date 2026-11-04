@@ -13,7 +13,6 @@ from conda_lock._vendor.poetry.core.utils.patterns import AUTHOR_REGEX
 from tomlkit import inline_table
 from tomlkit import loads
 from tomlkit import table
-from tomlkit.toml_document import TOMLDocument
 
 from conda_lock._vendor.poetry.factory import Factory
 from conda_lock._vendor.poetry.pyproject.toml import PyProjectTOML
@@ -23,6 +22,7 @@ if TYPE_CHECKING:
     from collections.abc import Mapping
 
     from tomlkit.items import InlineTable
+    from tomlkit.toml_document import TOMLDocument
 
 
 POETRY_DEFAULT = """\
@@ -32,16 +32,18 @@ version = ""
 description = ""
 authors = [
 ]
-license = {}
+license = ""
 readme = ""
 requires-python = ""
 dependencies = [
 ]
 
+[dependency-groups]
+dev = [
+]
+
 [tool.poetry]
 packages = []
-
-[tool.poetry.group.dev.dependencies]
 """
 
 poetry_core_version = Version.parse(importlib.metadata.version("poetry-core"))
@@ -134,10 +136,12 @@ class Layout:
         if with_pyproject:
             self._write_poetry(path)
 
-    def generate_project_content(self) -> TOMLDocument:
+    def generate_project_content(
+        self, project_path: Path | None = None
+    ) -> TOMLDocument:
         template = POETRY_DEFAULT
 
-        content: dict[str, Any] = loads(template)
+        content = loads(template)
 
         project_content = content["project"]
         project_content["name"] = self._project
@@ -154,11 +158,18 @@ class Layout:
             project_content["authors"].append(author)
 
         if self._license:
-            project_content["license"]["text"] = self._license
+            project_content["license"] = self._license
         else:
             project_content.remove("license")
 
-        project_content["readme"] = f"README.{self._readme_format}"
+        if project_path:
+            project_dir = project_path / f"README.{self._readme_format}"
+            abs_path = project_dir.resolve()
+
+            if abs_path.exists():
+                project_content["readme"] = f"README.{self._readme_format}"
+            else:
+                project_content.remove("readme")
 
         if self._python:
             project_content["requires-python"] = self._python
@@ -179,11 +190,10 @@ class Layout:
 
         if self._dev_dependencies:
             for dep_name, dep_constraint in self._dev_dependencies.items():
-                poetry_content["group"]["dev"]["dependencies"][dep_name] = (
-                    dep_constraint
-                )
+                dependency = Factory.create_dependency(dep_name, dep_constraint)
+                content["dependency-groups"]["dev"].append(dependency.to_pep_508())
         else:
-            del poetry_content["group"]
+            del content["dependency-groups"]
 
         if not poetry_content:
             del content["tool"]["poetry"]
@@ -202,7 +212,6 @@ class Layout:
         build_system.add("requires", ["poetry-core" + build_system_version])
         build_system.add("build-backend", "poetry.core.masonry.api")
 
-        assert isinstance(content, TOMLDocument)
         content.add("build-system", build_system)
 
         return content

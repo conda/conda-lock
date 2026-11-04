@@ -109,33 +109,43 @@ class Version(PEP440Version, VersionRangeConstraint):
         return other.intersect(self)
 
     def union(self, other: VersionConstraint) -> VersionConstraint:
-        from conda_lock._vendor.poetry.core.constraints.version.version_range import VersionRange
+        if not isinstance(other, Version):
+            # Delegate to the other operand's ``union`` so the broadening
+            # rules for local-tagged bounds are applied symmetrically
+            # whether the union is written as ``range.union(point)`` or
+            # ``point.union(range)``.
+            return other.union(self)
 
         if other.allows(self):
             return other
 
-        if isinstance(other, VersionRangeConstraint):
-            if self.allows(other.min):
-                return VersionRange(
-                    other.min,
-                    other.max,
-                    include_min=True,
-                    include_max=other.include_max,
-                )
-
-            if self.allows(other.max):
-                return VersionRange(
-                    other.min,
-                    other.max,
-                    include_min=other.include_min,
-                    include_max=True,
-                )
+        if self.allows(other):
+            return self
 
         return VersionUnion.of(self, other)
 
-    def difference(self, other: VersionConstraint) -> Version | EmptyConstraint:
-        if other.allows(self):
+    def difference(self, other: VersionConstraint) -> VersionConstraint:
+        # ``allows_all`` rather than ``allows``: a public version constraint is
+        # not a single version, it also allows all of its local variants, and
+        # ``other`` has to cover those as well for the difference to be empty.
+        if other.allows_all(self):
             return EmptyConstraint()
+
+        if other.allows_any(self):
+            # ``other`` covers part of what this constraint allows -- the
+            # version itself or some of its local variants -- which a plain
+            # ``Version`` cannot express. Represent the allowed set as a
+            # half-open range before subtracting, so that the remainder can be
+            # spelled out. Using ``self`` as both bounds would discard the
+            # local variants ordered after ``other``.
+            from conda_lock._vendor.poetry.core.constraints.version.version_range import VersionRange
+
+            upper = (
+                self.next_devrelease()
+                if self.is_devrelease()
+                else self.next_postrelease()
+            )
+            return VersionRange(self, upper, include_min=True).difference(other)
 
         return self
 
@@ -146,6 +156,13 @@ class Version(PEP440Version, VersionRangeConstraint):
         return self.text
 
     def __eq__(self, other: object) -> bool:
+        # Common case: comparing against another Version. Handle it first
+        # (inlining the semantics of the dataclass-generated __eq__) to avoid
+        # extra call layers and the (otherwise per-call) import of VersionRange
+        # below.
+        if self.__class__ is other.__class__:
+            return self._compare_key == other._compare_key
+
         from conda_lock._vendor.poetry.core.constraints.version.version_range import VersionRange
 
         if isinstance(other, VersionRange):

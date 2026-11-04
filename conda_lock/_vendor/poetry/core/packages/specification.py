@@ -40,10 +40,11 @@ class PackageSpecification:
         self._source_resolved_reference = source_resolved_reference
         self._source_subdirectory = source_subdirectory
 
-        if not features:
-            features = []
-
-        self._features = frozenset(canonicalize_name(feature) for feature in features)
+        self._features = (
+            frozenset(canonicalize_name(feature) for feature in features)
+            if features
+            else frozenset()
+        )
 
     @staticmethod
     def _normalize_source_url(

@@ -10,6 +10,7 @@ from typing import TYPE_CHECKING
 
 from build import BuildBackendException
 from build.env import IsolatedEnv as BaseIsolatedEnv
+from conda_lock._vendor.poetry.core.packages.dependency_group import DependencyGroup
 
 from conda_lock._vendor.poetry.utils._compat import decode
 from conda_lock._vendor.poetry.utils.env import Env
@@ -24,8 +25,12 @@ if TYPE_CHECKING:
 
     from build import DistributionType
     from build import ProjectBuilder
+    from conda_lock._vendor.poetry.core.packages.dependency import Dependency
 
     from conda_lock._vendor.poetry.repositories import RepositoryPool
+
+
+CONSTRAINTS_GROUP_NAME = "constraints"
 
 
 class IsolatedBuildBaseError(Exception): ...
@@ -111,7 +116,12 @@ class IsolatedEnv(BaseIsolatedEnv):
             )
         }
 
-    def install(self, requirements: Collection[str]) -> None:
+    def install(
+        self,
+        requirements: Collection[str],
+        *,
+        constraints: list[Dependency] | None = None,
+    ) -> None:
         from conda_lock._vendor.cleo.io.buffered_io import BufferedIO
         from conda_lock._vendor.poetry.core.packages.dependency import Dependency
         from conda_lock._vendor.poetry.core.packages.project_package import ProjectPackage
@@ -124,10 +134,24 @@ class IsolatedEnv(BaseIsolatedEnv):
         # We build Poetry dependencies from the requirements
         package = ProjectPackage("__root__", "0.0.0")
         package.python_versions = ".".join(str(v) for v in self._env.version_info[:3])
+        env_markers = self._env.get_marker_env()
 
         for requirement in requirements:
             dependency = Dependency.create_from_pep_508(requirement)
-            package.add_dependency(dependency)
+
+            if dependency.marker.is_empty() or dependency.marker.validate(env_markers):
+                # we ignore dependencies that are not valid for this environment
+                # this ensures that we do not end up with unnecessary constraint
+                # errors when solving build system requirements; this is assumed
+                # safe as this environment is ephemeral
+                package.add_dependency(dependency)
+
+        if constraints:
+            constraints_group = DependencyGroup(CONSTRAINTS_GROUP_NAME, optional=True)
+            for constraint in constraints:
+                if constraint.marker.validate(env_markers):
+                    constraints_group.add_dependency(constraint)
+            package.add_dependency_group(constraints_group)
 
         io = BufferedIO()
 
@@ -154,6 +178,8 @@ def isolated_builder(
     distribution: DistributionType = "wheel",
     python_executable: Path | None = None,
     pool: RepositoryPool | None = None,
+    *,
+    build_constraints: list[Dependency] | None = None,
 ) -> Iterator[ProjectBuilder]:
     from build import ProjectBuilder
     from pyproject_hooks import quiet_subprocess_runner
@@ -189,12 +215,15 @@ def isolated_builder(
             )
 
             with redirect_stdout(stdout):
-                env.install(builder.build_system_requires)
+                env.install(
+                    builder.build_system_requires, constraints=build_constraints
+                )
 
                 # we repeat the build system requirements to avoid poetry installer from removing them
                 env.install(
                     builder.build_system_requires
-                    | builder.get_requires_for_build(distribution)
+                    | builder.get_requires_for_build(distribution),
+                    constraints=build_constraints,
                 )
 
                 yield builder

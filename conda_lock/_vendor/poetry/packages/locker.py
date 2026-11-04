@@ -18,6 +18,7 @@ from conda_lock._vendor.poetry.core.constraints.version import Version
 from conda_lock._vendor.poetry.core.constraints.version import parse_constraint
 from conda_lock._vendor.poetry.core.packages.dependency import Dependency
 from conda_lock._vendor.poetry.core.packages.package import Package
+from conda_lock._vendor.poetry.core.version.exceptions import InvalidVersionError
 from conda_lock._vendor.poetry.core.version.markers import parse_marker
 from conda_lock._vendor.poetry.core.version.requirements import InvalidRequirementError
 from tomlkit import array
@@ -28,6 +29,7 @@ from tomlkit import table
 
 from conda_lock._vendor.poetry.__version__ import __version__
 from conda_lock._vendor.poetry.packages.transitive_package_info import TransitivePackageInfo
+from conda_lock._vendor.poetry.packages.transitive_package_info import group_sort_key
 from conda_lock._vendor.poetry.toml.file import TOMLFile
 from conda_lock._vendor.poetry.utils._compat import tomllib
 
@@ -100,6 +102,23 @@ class Locker:
 
         if "content-hash" in metadata:
             fresh: bool = self._content_hash == metadata["content-hash"]
+            if not fresh:
+                with self.lock.open("r", encoding="utf-8") as f:
+                    generated_comment = f.readline()
+                if m := re.search("Poetry ([^ ]+)", generated_comment):
+                    try:
+                        version = Version.parse(m.group(1))
+                    except InvalidVersionError:
+                        pass
+                    else:
+                        if version < Version.parse("2.3.0"):
+                            # Before Poetry 2.3.0, the content hash did not include
+                            # dependency groups, so we need to recompute it without
+                            # them for comparison.
+                            old_content_hash = self._get_content_hash(
+                                with_dependency_groups=False
+                            )
+                            fresh = old_content_hash == metadata["content-hash"]
             return fresh
 
         return False
@@ -162,13 +181,20 @@ class Locker:
             groups = set(info["groups"])
             locked_marker = info.get("markers", "*")
             if isinstance(locked_marker, str):
-                markers = {group: parse_marker(locked_marker) for group in groups}
-            else:
                 markers = {
-                    group: parse_marker(locked_marker.get(group, "*"))
+                    canonicalize_name(group): parse_marker(locked_marker)
                     for group in groups
                 }
-            locked_packages[package] = TransitivePackageInfo(0, groups, markers)
+            else:
+                markers = {
+                    canonicalize_name(group): parse_marker(
+                        locked_marker.get(group, "*")
+                    )
+                    for group in groups
+                }
+            locked_packages[package] = TransitivePackageInfo(
+                0, {canonicalize_name(g) for g in groups}, markers
+            )
 
         return locked_packages
 
@@ -263,11 +289,16 @@ class Locker:
 
         self._lock_data = None
 
-    def _get_content_hash(self) -> str:
+    def _get_content_hash(self, *, with_dependency_groups: bool = True) -> str:
         """
         Returns the sha256 hash of the sorted content of the pyproject file.
         """
         project_content = self._pyproject_data.get("project", {})
+        group_content = (
+            self._pyproject_data.get("dependency-groups", {})
+            if with_dependency_groups
+            else {}
+        )
         tool_poetry_content = self._pyproject_data.get("tool", {}).get("poetry", {})
 
         relevant_project_content = {}
@@ -282,18 +313,26 @@ class Locker:
 
             if data is None and (
                 # Special handling for legacy keys is just for backwards compatibility,
-                # and thereby not required if there is relevant content in [project].
-                key not in self._legacy_keys or relevant_project_content
+                # and thereby not required if there is relevant content in [project]
+                # or [dependency-groups].
+                key not in self._legacy_keys
+                or relevant_project_content
+                or group_content
             ):
                 continue
 
             relevant_poetry_content[key] = data
 
+        relevant_content = {}
         if relevant_project_content:
-            relevant_content = {
-                "project": relevant_project_content,
-                "tool": {"poetry": relevant_poetry_content},
-            }
+            relevant_content["project"] = relevant_project_content
+        if group_content:
+            # For backwards compatibility, we must not add dependency-groups
+            # if it is empty.
+            relevant_content["dependency-groups"] = group_content
+
+        if relevant_content:
+            relevant_content["tool"] = {"poetry": relevant_poetry_content}
         else:
             # For backwards compatibility, we have to put the relevant content
             # of the [tool.poetry] section at top level!
@@ -381,7 +420,10 @@ class Locker:
             package.files = package_files
         elif "hashes" in metadata:
             hashes = cast("dict[str, Any]", metadata["hashes"])
-            package.files = [{"name": h, "hash": h} for h in hashes[name]]
+            # Strictly speaking, this is not correct,
+            # but we do not know the file names here,
+            # so we just set both file and hash.
+            package.files = [{"file": h, "hash": h} for h in hashes[name]]
         elif source_type in {"git", "directory", "url"}:
             package.files = []
         else:
@@ -479,7 +521,10 @@ class Locker:
         dependencies: dict[str, list[Any]] = {}
         for dependency in sorted(
             package.requires,
-            key=lambda d: d.name,
+            key=lambda d: (
+                d.name,
+                str(d.marker) if not d.marker.is_any() else "",
+            ),
         ):
             dependencies.setdefault(dependency.pretty_name, [])
 
@@ -545,7 +590,7 @@ class Locker:
             "description": package.description or "",
             "optional": package.optional,
             "python-versions": package.python_versions,
-            "groups": sorted(transitive_info.groups, key=lambda x: (x != "main", x)),
+            "groups": sorted(transitive_info.groups, key=group_sort_key),
         }
         if transitive_info.markers:
             if len(markers := set(transitive_info.markers.values())) == 1:
@@ -553,28 +598,34 @@ class Locker:
                     data["markers"] = str(marker)
             else:
                 data["markers"] = inline_table()
-                for k, v in sorted(
+                for group, marker in sorted(
                     transitive_info.markers.items(),
-                    key=lambda x: (x[0] != "main", x[0]),
+                    key=lambda x: group_sort_key(x[0]),
                 ):
-                    if not v.is_any():
-                        data["markers"][k] = str(v)
-        data["files"] = sorted(package.files, key=lambda x: x["file"])
+                    if not marker.is_any():
+                        data["markers"][group] = str(marker)
+        data["files"] = sorted(
+            [
+                {k: v for k, v in f.items() if k in {"file", "hash"}}
+                for f in package.files
+            ],
+            key=lambda x: x["file"],
+        )
 
         if dependencies:
             data["dependencies"] = table()
-            for k, constraints in dependencies.items():
+            for dep_name, constraints in dependencies.items():
                 if len(constraints) == 1:
-                    data["dependencies"][k] = constraints[0]
+                    data["dependencies"][dep_name] = constraints[0]
                 else:
-                    data["dependencies"][k] = array().multiline(True)
+                    data["dependencies"][dep_name] = array().multiline(True)
                     for constraint in constraints:
-                        data["dependencies"][k].append(constraint)
+                        data["dependencies"][dep_name].append(constraint)
 
         if package.extras:
             extras = {}
             for name, deps in sorted(package.extras.items()):
-                extras[name] = sorted(dep.base_pep_508_name for dep in deps)
+                extras[name] = sorted(dep.to_pep_508(with_extras=False) for dep in deps)
 
             data["extras"] = extras
 

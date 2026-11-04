@@ -9,14 +9,14 @@ class AboutCommand(Command):
     description = "Shows information about Poetry."
 
     def handle(self) -> int:
-        from conda_lock._vendor.poetry.utils._compat import metadata
+        from importlib import metadata
 
         self.line(
             f"""\
 <info>Poetry - Package Management for Python
 
-Version: {metadata.version('poetry')}
-Poetry-Core Version: {metadata.version('poetry-core')}</info>
+Version: {metadata.version("poetry")}
+Poetry-Core Version: {metadata.version("poetry-core")}</info>
 
 <comment>Poetry is a dependency manager tracking local dependencies of your projects\
  and libraries.

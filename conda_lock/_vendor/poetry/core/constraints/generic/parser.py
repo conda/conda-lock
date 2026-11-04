@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING
 
 from conda_lock._vendor.poetry.core.constraints.generic.any_constraint import AnyConstraint
 from conda_lock._vendor.poetry.core.constraints.generic.constraint import Constraint
+from conda_lock._vendor.poetry.core.constraints.generic.constraint import ExtraConstraint
 from conda_lock._vendor.poetry.core.constraints.generic.union_constraint import UnionConstraint
 from conda_lock._vendor.poetry.core.constraints.version.exceptions import ParseConstraintError
 
@@ -15,7 +16,8 @@ if TYPE_CHECKING:
     from conda_lock._vendor.poetry.core.constraints.generic.base_constraint import BaseConstraint
 
 
-BASIC_CONSTRAINT = re.compile(r"^(!?==?)?\s*([^\s]+?)\s*$")
+BASIC_CONSTRAINT = re.compile(r"^(?P<op>!=|==?=?)?\s*(?P<value>.+?)\s*$")
+EXTRA_CONSTRAINT = re.compile(r"^(?P<op>!=|==?=?)?\s*(?P<value>\S+?)\s*$")
 STR_CMP_CONSTRAINT = re.compile(
     r"""(?ix)^ # case insensitive and verbose mode
     (?P<quote>['"]) # Single or double quotes
@@ -29,20 +31,35 @@ STR_CMP_CONSTRAINT = re.compile(
 
 @functools.cache
 def parse_constraint(constraints: str) -> BaseConstraint:
+    return _parse_constraint(constraints, Constraint)
+
+
+@functools.cache
+def parse_extra_constraint(constraints: str) -> BaseConstraint:
+    return _parse_constraint(constraints, ExtraConstraint)
+
+
+def _parse_constraint(
+    constraints: str, constraint_type: type[Constraint]
+) -> BaseConstraint:
     if constraints == "*":
         return AnyConstraint()
 
     or_constraints = re.split(r"\s*\|\|?\s*", constraints.strip())
     or_groups = []
-    for constraints in or_constraints:
-        and_constraints = re.split(r"\s*,\s*", constraints)
+    for or_constraint in or_constraints:
+        and_constraints = re.split(r"\s*,\s*", or_constraint)
         constraint_objects = []
 
         if len(and_constraints) > 1:
             for constraint in and_constraints:
-                constraint_objects.append(parse_single_constraint(constraint))
+                constraint_objects.append(
+                    _parse_single_constraint(constraint, constraint_type)
+                )
         else:
-            constraint_objects.append(parse_single_constraint(and_constraints[0]))
+            constraint_objects.append(
+                _parse_single_constraint(and_constraints[0], constraint_type)
+            )
 
         if len(constraint_objects) == 1:
             constraint = constraint_objects[0]
@@ -59,22 +76,27 @@ def parse_constraint(constraints: str) -> BaseConstraint:
         return UnionConstraint(*or_groups)
 
 
-def parse_single_constraint(constraint: str) -> Constraint:
+def _parse_single_constraint(
+    constraint: str, constraint_type: type[Constraint]
+) -> Constraint:
     # string comparator
     if m := STR_CMP_CONSTRAINT.match(constraint):
         op = m.group("op")
         value = m.group("value").strip()
-        return Constraint(value, op)
+        return constraint_type(value, op)
 
     # Basic comparator
 
-    if m := BASIC_CONSTRAINT.match(constraint):
-        op = m.group(1)
-        if op is None:
+    pattern = (
+        EXTRA_CONSTRAINT if constraint_type is ExtraConstraint else BASIC_CONSTRAINT
+    )
+    if m := pattern.match(constraint):
+        op = m.group("op")
+        if op in {None, "==="}:
             op = "=="
 
-        version = m.group(2).strip()
+        version = m.group("value").strip()
 
-        return Constraint(version, op)
+        return constraint_type(version, op)
 
     raise ParseConstraintError(f"Could not parse version constraint: {constraint}")

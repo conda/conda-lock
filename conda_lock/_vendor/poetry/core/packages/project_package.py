@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 from typing import Any
 
-from conda_lock._vendor.poetry.core.constraints.version import parse_constraint
+from conda_lock._vendor.poetry.core.constraints.version import parse_marker_version_constraint
 
 
 if TYPE_CHECKING:
@@ -38,7 +38,7 @@ class ProjectPackage(Package):
         self.entry_points: Mapping[str, dict[str, str]] = {}
 
         if self._python_versions == "*":
-            self._python_constraint = parse_constraint("~2.7 || >=3.4")
+            self._python_constraint = parse_marker_version_constraint("~2.7 || >=3.4")
 
     @property
     def build_script(self) -> str | None:
@@ -80,8 +80,8 @@ class ProjectPackage(Package):
                 )
             value = "~2.7 || >=3.4"
 
-        self._python_constraint = parse_constraint(value)
-        if not parse_constraint(self._requires_python).allows_all(
+        self._python_constraint = parse_marker_version_constraint(value)
+        if not parse_marker_version_constraint(self._requires_python).allows_all(
             self._python_constraint
         ):
             raise ValueError(

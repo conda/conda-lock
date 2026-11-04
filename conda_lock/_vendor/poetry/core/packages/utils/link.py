@@ -1,9 +1,11 @@
 from __future__ import annotations
 
-import posixpath
+import os
 import re
+import sys
 import urllib.parse as urlparse
 
+from datetime import datetime
 from functools import cached_property
 from typing import TYPE_CHECKING
 
@@ -20,16 +22,25 @@ class Link:
         self,
         url: str,
         *,
+        filename: str | None = None,
         requires_python: str | None = None,
         hashes: Mapping[str, str] | None = None,
         metadata: str | bool | dict[str, str] | None = None,
         yanked: str | bool = False,
+        size: int | None = None,
+        upload_time: str | None = None,
     ) -> None:
         """
         Object representing a parsed link from https://pypi.python.org/simple/*
 
         url:
             url of the resource pointed to (href of the link)
+        filename:
+            The filename of the resource.
+            If not provided, it will be derived from the URL.
+            PEP 691 mandates a `filename` field,
+            which does not even have to be part of the URL.
+            Further, using it lets us skip expensive work.
         requires_python:
             String containing the `Requires-Python` metadata field, specified
             in PEP 345. This may be specified by a data-requires-python
@@ -49,6 +60,10 @@ class Link:
             A string, if the data-yanked attribute has a string value.
             True, if the data-yanked attribute is present but has no value.
             According to PEP 592.
+        size:
+            The size of the files in bytes.
+        upload_time:
+            The upload time of the file as an ISO 8601 formatted string.
         """
 
         # url can be a UNC windows share
@@ -56,6 +71,7 @@ class Link:
             url = path_to_url(url)
 
         self.url = url
+        self._filename = filename
         self.requires_python = requires_python if requires_python else None
         self._hashes = hashes
 
@@ -66,6 +82,8 @@ class Link:
 
         self._metadata = metadata
         self._yanked = yanked
+        self._size = size
+        self._upload_time = upload_time
 
     def __str__(self) -> str:
         if self.requires_python:
@@ -113,9 +131,14 @@ class Link:
 
     @cached_property
     def filename(self) -> str:
-        _, netloc, path, _, _ = urlparse.urlsplit(self.url)
-        name = posixpath.basename(path.rstrip("/")) or netloc
-        name = urlparse.unquote(name)
+        if self._filename:
+            name = self._filename
+        else:
+            _, netloc, path, _, _ = urlparse.urlsplit(self.url)
+            name = os.path.basename(path.rstrip("/")) or netloc  # noqa: PTH119
+            name = urlparse.unquote(name)
+        if "/" in name or "\\" in name:
+            raise ValueError(f"Invalid filename: '{name}'")
 
         return name
 
@@ -132,7 +155,7 @@ class Link:
         return urlparse.unquote(urlparse.urlsplit(self.url)[2])
 
     def splitext(self) -> tuple[str, str]:
-        return splitext(posixpath.basename(self.path.rstrip("/")))
+        return splitext(self.filename, is_filename=True)
 
     @cached_property
     def ext(self) -> str:
@@ -140,7 +163,7 @@ class Link:
 
     @cached_property
     def url_without_fragment(self) -> str:
-        scheme, netloc, path, query, fragment = urlparse.urlsplit(self.url)
+        scheme, netloc, path, query, _fragment = urlparse.urlsplit(self.url)
         return urlparse.urlunsplit((scheme, netloc, path, query, None))
 
     _egg_fragment_re = re.compile(r"[#&]egg=([^&]*)")
@@ -197,7 +220,7 @@ class Link:
 
     @cached_property
     def show_url(self) -> str:
-        return posixpath.basename(self.url.split("#", 1)[0].split("?", 1)[0])
+        return os.path.basename(self.url.split("#", 1)[0].split("?", 1)[0])  # noqa: PTH119
 
     @cached_property
     def is_wheel(self) -> bool:
@@ -224,3 +247,23 @@ class Link:
         if isinstance(self._yanked, str):
             return self._yanked
         return ""
+
+    @cached_property
+    def size(self) -> int | None:
+        return self._size
+
+    @cached_property
+    def upload_time_isoformat(self) -> str | None:
+        return self._upload_time
+
+    @cached_property
+    def upload_time(self) -> datetime | None:
+        if self._upload_time is None:
+            return None
+        try:
+            # Python < 3.11 does not support 'Z' suffix for UTC, replace it with '+00:00'
+            if sys.version_info < (3, 11) and self._upload_time.endswith("Z"):
+                return datetime.fromisoformat(self._upload_time[:-1] + "+00:00")
+            return datetime.fromisoformat(self._upload_time)
+        except ValueError:
+            return None

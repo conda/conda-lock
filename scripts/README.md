@@ -15,10 +15,6 @@ Keep source changes in `scripts/vendor_patches/`, not in generated files under
 `conda_lock/_vendor/`. Vendoring applies these patches to upstream sources before
 rewriting imports. Regenerate and commit the resulting files separately.
 
-`poetry-dulwich-1.patch` keeps Poetry 2.0.1 compatible with Dulwich 1.2.20. It
-backports the Git backend changes from Poetry PRs
-[#10492](https://github.com/python-poetry/poetry/pull/10492),
-[#10674](https://github.com/python-poetry/poetry/pull/10674),
-[#10719](https://github.com/python-poetry/poetry/pull/10719), and
-[#10799](https://github.com/python-poetry/poetry/pull/10799).
-Remove the patch when updating to a Poetry release containing these fixes.
+Poetry 2.5.1 includes the Dulwich compatibility changes previously backported
+in `poetry-dulwich-1.patch`. Keep `poetry-source-cache.patch` to avoid reusing
+checkouts created before the Dulwich 1.2.20 parser fix.

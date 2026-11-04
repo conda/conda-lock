@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import operator
 
-from typing import Callable
+from collections.abc import Callable
 from typing import ClassVar
 
 from conda_lock._vendor.poetry.core.constraints.generic.any_constraint import AnyConstraint
@@ -88,11 +88,8 @@ class Constraint(BaseConstraint):
             if other.operator == "in" and self._operator == "in":
                 return self.value in other.value
 
-            if other.operator == "not in":
-                if self._operator == "not in":
-                    return other.value in self.value
-                if self._operator == "!=":
-                    return self.value not in other.value
+            if other.operator == "not in" and self._operator in ("not in", "!="):
+                return other.value in self.value
 
             return self == other
 
@@ -115,9 +112,6 @@ class Constraint(BaseConstraint):
             if other.operator == "==":
                 return self.allows(other)
 
-            if other.operator == "!=" and self._operator == "==":
-                return self._value != other.value
-
             if other.operator == "not in" and self._operator == "in":
                 return other.value not in self.value
 
@@ -126,18 +120,16 @@ class Constraint(BaseConstraint):
 
             return True
 
-        elif isinstance(other, MultiConstraint):
-            return self._operator == "!="
+        if isinstance(other, MultiConstraint):
+            return all(self.allows_any(c) for c in other.constraints)
 
-        elif isinstance(other, UnionConstraint):
-            return self._operator == "!=" and any(
-                self.allows_any(c) for c in other.constraints
-            )
+        if isinstance(other, UnionConstraint):
+            return any(self.allows_any(c) for c in other.constraints)
 
         return other.is_any()
 
     def invert(self) -> Constraint:
-        return Constraint(self._value, self._trans_op_inv[self.operator])
+        return self.__class__(self._value, self._trans_op_inv[self.operator])
 
     def difference(self, other: BaseConstraint) -> Constraint | EmptyConstraint:
         if other.allows(self):
@@ -180,7 +172,7 @@ class Constraint(BaseConstraint):
 
             ops = {self.operator, other.operator}
             if (
-                (ops in ({"!="}, {"not in"}))
+                ops == {"!="}
                 or (
                     (
                         ops in ({"in", "!="}, {"in", "not in"})
@@ -207,8 +199,8 @@ class Constraint(BaseConstraint):
         return False
 
     def __eq__(self, other: object) -> bool:
-        if not isinstance(other, Constraint):
-            return NotImplemented
+        if not isinstance(other, self.__class__):
+            return False
 
         return (self.value, self.operator) == (other.value, other.operator)
 
@@ -220,3 +212,44 @@ class Constraint(BaseConstraint):
             return f"'{self._value}' {self._operator}"
         op = self._operator if self._operator != "==" else ""
         return f"{op}{self._value}"
+
+
+class ExtraConstraint(Constraint):
+    def __init__(self, value: str, operator: str = "==") -> None:
+        super().__init__(value, operator)
+        # Do the check after calling the super constructor,
+        # i.e. after the operator has been normalized.
+        if self._operator not in {"==", "!="}:
+            raise ValueError(
+                'Only the operators "==" and "!=" are supported for extra constraints'
+            )
+
+    def intersect(self, other: BaseConstraint) -> BaseConstraint:
+        from conda_lock._vendor.poetry.core.constraints.generic.multi_constraint import (
+            ExtraMultiConstraint,
+        )
+
+        if isinstance(other, Constraint):
+            if other == self:
+                return self
+
+            if self._value == other._value and self._operator != other.operator:
+                return EmptyConstraint()
+
+            return ExtraMultiConstraint(self, other)
+
+        return super().intersect(other)
+
+    def union(self, other: BaseConstraint) -> BaseConstraint:
+        from conda_lock._vendor.poetry.core.constraints.generic.union_constraint import UnionConstraint
+
+        if isinstance(other, Constraint):
+            if other == self:
+                return self
+
+            if self._value == other._value and self._operator != other.operator:
+                return AnyConstraint()
+
+            return UnionConstraint(self, other)
+
+        return super().union(other)
