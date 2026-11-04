@@ -9,13 +9,14 @@ channels:
 - nodefaults
 dependencies:
 - check-manifest
+- conda
 - docker-py
 - doctr
 - flaky
 - freezegun
 - gitpython
-# Pinned below 2.6.0 until conda-lock supports mamba/micromamba 2.6; see #907.
 - mamba
+- micromamba
 - mkdocs
 - mkdocs-click
 - mkdocs-material

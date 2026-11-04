@@ -6,6 +6,8 @@ subcommand when this package is installed in the same environment as conda.
 
 from __future__ import annotations
 
+from collections.abc import Generator
+
 
 try:
     from conda.plugins import hookimpl
@@ -26,7 +28,7 @@ else:
         return main(args, standalone_mode=False)
 
     @hookimpl
-    def conda_subcommands() -> CondaSubcommand:
+    def conda_subcommands() -> Generator[CondaSubcommand]:
         yield CondaSubcommand(
             name="lock",
             summary=("enerate fully reproducible lock files for conda environments."),

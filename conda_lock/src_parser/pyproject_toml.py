@@ -2,21 +2,13 @@ import collections
 import collections.abc
 import logging
 import pathlib
-import sys
 import warnings
 
 from collections.abc import Mapping, Sequence, Set
 from functools import partial
-from typing import Any
+from tomllib import load as toml_load
+from typing import Any, Literal
 from urllib.parse import urldefrag
-
-
-if sys.version_info >= (3, 11):
-    from tomllib import load as toml_load
-else:
-    from tomli import load as toml_load
-
-from typing import Literal
 
 from packaging.requirements import Requirement
 from packaging.utils import canonicalize_name as canonicalize_pypi_name

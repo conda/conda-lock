@@ -33,7 +33,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ ubuntu-latest, macos-latest, windows-latest ]
-        python-version: [ "3.10", "3.14" ]
+        python-version: [ "3.11", "3.14" ]
     steps:
       - name: Set Conda platform
         run: |
@@ -83,7 +83,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ ubuntu-latest, macos-latest, windows-latest ]
-        python-version: [ "3.10" ]
+        python-version: [ "3.11" ]
     steps:
       - name: Set Conda platform
         run: |
@@ -128,7 +128,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ ubuntu-latest, macos-latest, windows-latest ]
-        python-version: [ "3.10", "3.14" ]
+        python-version: [ "3.11", "3.14" ]
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
         with:
@@ -175,7 +175,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ ubuntu-latest, macos-latest, windows-latest ]
-        python-version: [ "3.10" ]
+        python-version: [ "3.11" ]
     steps:
       - uses: conda-incubator/setup-miniconda@fc2d68f6413eb2d87b895e92f8584b5b94a10167 # v3.3.0
         with:
