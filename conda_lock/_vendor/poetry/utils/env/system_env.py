@@ -7,7 +7,7 @@ import sys
 import sysconfig
 
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING
 
 from packaging.tags import Tag
 from packaging.tags import interpreter_name
@@ -15,6 +15,11 @@ from packaging.tags import interpreter_version
 from packaging.tags import sys_tags
 
 from conda_lock._vendor.poetry.utils.env.base_env import Env
+from conda_lock._vendor.poetry.utils.env.base_env import MarkerEnv
+
+
+if TYPE_CHECKING:
+    from conda_lock._vendor.poetry.utils.env.base_env import EnvPaths
 
 
 class SystemEnv(Env):
@@ -30,10 +35,10 @@ class SystemEnv(Env):
     def sys_path(self) -> list[str]:
         return sys.path
 
-    def get_paths(self) -> dict[str, str]:
+    def get_paths(self) -> EnvPaths:
         import site
 
-        paths = sysconfig.get_paths().copy()
+        paths: EnvPaths = {**sysconfig.get_paths()}  # type: ignore[typeddict-item]
 
         if site.check_enableusersite():
             paths["usersite"] = site.getusersitepackages()
@@ -44,7 +49,7 @@ class SystemEnv(Env):
     def get_supported_tags(self) -> list[Tag]:
         return list(sys_tags())
 
-    def get_marker_env(self) -> dict[str, Any]:
+    def get_marker_env(self) -> MarkerEnv:
         if hasattr(sys, "implementation"):
             info = sys.implementation.version
             iver = f"{info.major}.{info.minor}.{info.micro}"
@@ -73,10 +78,12 @@ class SystemEnv(Env):
             "version_info": sys.version_info,
             "interpreter_name": interpreter_name(),
             "interpreter_version": interpreter_version(),
+            "sysconfig_platform": sysconfig.get_platform(),
+            "free_threading": bool(sysconfig.get_config_var("Py_GIL_DISABLED")),
         }
 
     def is_venv(self) -> bool:
-        return self._path != self._base
+        return self._path != self.base
 
     def _get_lib_dirs(self) -> list[Path]:
         return super()._get_lib_dirs() + [Path(d) for d in site.getsitepackages()]

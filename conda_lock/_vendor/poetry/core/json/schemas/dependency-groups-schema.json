@@ -1,0 +1,39 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "name": "dependency-groups",
+  "type": "object",
+  "additionalProperties": {
+    "title": "Dependency group requirements",
+    "type": "array",
+    "items": {
+      "oneOf": [
+        {
+          "type": "string",
+          "description": "A single dependency requirement"
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "include-group"
+          ],
+          "properties": {
+            "include-group": {
+              "type": "string",
+              "description": "The name of the group to include"
+            }
+          }
+        }
+      ]
+    },
+    "examples": [
+      [
+        "attrs",
+        "requests ~= 2.28",
+        {
+          "include-group": "dev"
+        }
+      ]
+    ]
+  }
+}

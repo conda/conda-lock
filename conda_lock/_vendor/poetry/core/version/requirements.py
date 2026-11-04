@@ -1,12 +1,19 @@
 from __future__ import annotations
 
+import functools
 import urllib.parse as urlparse
+
+from typing import TYPE_CHECKING
 
 from conda_lock._vendor.poetry.core.constraints.version import parse_constraint
 from conda_lock._vendor.poetry.core.constraints.version.exceptions import ParseConstraintError
 from conda_lock._vendor.poetry.core.version.grammars import GRAMMAR_PEP_508_CONSTRAINTS
 from conda_lock._vendor.poetry.core.version.markers import _compact_markers
 from conda_lock._vendor.poetry.core.version.parser import Parser
+
+
+if TYPE_CHECKING:
+    from collections.abc import Sequence
 
 
 class InvalidRequirementError(ValueError):
@@ -61,7 +68,9 @@ class Requirement:
         else:
             self.url = None
 
-        self.extras = [e.value for e in parsed.scan_values(lambda t: t.type == "EXTRA")]
+        self.extras: Sequence[str] = [
+            e.value for e in parsed.scan_values(lambda t: t.type == "EXTRA")
+        ]
         constraint = next(parsed.find_data("version_specification"), None)
         constraint = ",".join(constraint.children) if constraint else "*"
 
@@ -70,6 +79,11 @@ class Requirement:
         except ParseConstraintError:
             raise InvalidRequirementError(
                 f'The requirement is invalid: invalid version constraint "{constraint}"'
+            )
+
+        if self.constraint.is_empty():
+            raise InvalidRequirementError(
+                f'The requirement is invalid: unsatisfiable requirement: "{constraint}"'
             )
 
         self.pretty_constraint = constraint
@@ -102,3 +116,8 @@ class Requirement:
 
     def __repr__(self) -> str:
         return f"<Requirement({str(self)!r})>"
+
+
+@functools.cache
+def parse_requirement(requirement_string: str) -> Requirement:
+    return Requirement(requirement_string)

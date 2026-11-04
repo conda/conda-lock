@@ -74,14 +74,17 @@ class Repository(AbstractRepository):
         self._packages.append(package)
 
     def search(self, query: str | list[str]) -> list[Package]:
-        results: list[Package] = []
-        tokens = query if isinstance(query, list) else [query]
+        if isinstance(query, str):
+            # performance shortcut
+            # We could also create a list from query and use the more general code below,
+            # but this is a common case that we can optimize for.
+            return [package for package in self.packages if query in package.name]
 
-        for package in self.packages:
-            if any(token in package.name for token in tokens):
-                results.append(package)
-
-        return results
+        return [
+            package
+            for package in self.packages
+            if any(token in package.name for token in query)
+        ]
 
     def _find_packages(
         self, name: NormalizedName, constraint: VersionConstraint
@@ -102,12 +105,20 @@ class Repository(AbstractRepository):
     def find_links_for_package(self, package: Package) -> list[Link]:
         return []
 
-    def package(
-        self, name: str, version: Version, extras: list[str] | None = None
-    ) -> Package:
+    def package(self, name: str, version: Version) -> Package:
         canonicalized_name = canonicalize_name(name)
         for package in self.packages:
             if canonicalized_name == package.name and package.version == version:
                 return package
 
         raise PackageNotFoundError(f"Package {name} ({version}) not found.")
+
+    def log_age_filtered_versions(self, *, level: str, reset: bool) -> None:
+        """Log package versions that were ignored due to solver.min-release-age.
+
+        Must be overridden in Repository classes that support filtering by release age.
+
+        Args:
+            level: The log level to use (e.g. "info", "warning").
+            reset: If True, clear the recorded filtered versions after logging.
+        """

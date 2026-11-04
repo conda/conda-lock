@@ -1,5 +1,9 @@
 from __future__ import annotations
 
+import json
+import sys
+
+from enum import Enum
 from typing import TYPE_CHECKING
 from typing import ClassVar
 
@@ -9,6 +13,7 @@ from packaging.utils import canonicalize_name
 
 from conda_lock._vendor.poetry.console.commands.env_command import EnvCommand
 from conda_lock._vendor.poetry.console.commands.group_command import GroupCommand
+from conda_lock._vendor.poetry.utils.constants import POETRY_SYSTEM_PROJECT_NAME
 
 
 if TYPE_CHECKING:
@@ -33,6 +38,11 @@ def reverse_deps(pkg: Package, repo: Repository) -> dict[str, str]:
             required_by[locked.pretty_name] = dependencies[pkg.name]
 
     return required_by
+
+
+class OutputFormats(str, Enum):
+    JSON = "json"
+    TEXT = "text"
 
 
 class ShowCommand(GroupCommand, EnvCommand):
@@ -64,6 +74,18 @@ class ShowCommand(GroupCommand, EnvCommand):
             "Show all packages (even those not compatible with current system).",
         ),
         option("top-level", "T", "Show only top-level dependencies."),
+        option(
+            "no-truncate",
+            None,
+            "Do not truncate the output based on the terminal width.",
+        ),
+        option(
+            "format",
+            "f",
+            "Specify the output format (`json` or `text`). Default is `text`. `json` cannot be combined with the <info>--tree</info> option.",
+            flag=False,
+            default="text",
+        ),
     ]
 
     help = """The show command displays detailed information about a package, or
@@ -108,22 +130,34 @@ lists all packages available."""
 
                 return 1
 
+        if self.option("format") not in set(OutputFormats):
+            self.line_error(
+                f"<error>Error: Invalid output format. Supported formats are: {', '.join(OutputFormats)}.</error>"
+            )
+
+            return 1
+
+        if self.option("format") != OutputFormats.TEXT and self.option("tree"):
+            self.line_error(
+                "<error>Error: --tree option can only be used with the text output option.</error>"
+            )
+            return 1
+
         if self.option("outdated"):
             self.io.input.set_option("latest", True)
 
         if not self.poetry.locker.is_locked():
             self.line_error(
-                "<error>Error: poetry.lock not found. Run `poetry lock` to create"
-                " it.</error>"
+                f"<error>Error: poetry.lock not found. Run `{self._lock_create_command()}`"
+                " to create it.</error>"
             )
             return 1
 
         locked_repo = self.poetry.locker.locked_repository()
+        root = self.project_with_activated_groups_only()
 
         if package:
-            return self._display_single_package_information(package, locked_repo)
-
-        root = self.project_with_activated_groups_only()
+            return self._display_single_package_information(package, locked_repo, root)
 
         # Show tree view if requested
         if self.option("tree"):
@@ -131,20 +165,35 @@ lists all packages available."""
 
         return self._display_packages_information(locked_repo, root)
 
+    def _lock_create_command(self) -> str:
+        if self.poetry.package.name == POETRY_SYSTEM_PROJECT_NAME:
+            return "poetry self lock"
+
+        return "poetry lock"
+
     def _display_single_package_information(
-        self, package: str, locked_repository: Repository
+        self, package: str, locked_repository: Repository, root: ProjectPackage
     ) -> int:
         locked_packages = locked_repository.packages
         canonicalized_package = canonicalize_name(package)
-        pkg = None
+        matches = [
+            locked for locked in locked_packages if locked.name == canonicalized_package
+        ]
 
-        for locked in locked_packages:
-            if locked.name == canonicalized_package:
-                pkg = locked
-                break
-
-        if not pkg:
+        if not matches:
             raise ValueError(f"Package {package} not found")
+
+        pkg = matches[0]
+        if len(matches) > 1:
+            # The lock file may contain several entries for the same name (e.g.
+            # platform- or marker-conditioned variants). Select the one that
+            # applies to the current environment, consistent with the
+            # all-packages view. Fall back to the first match if none of them
+            # apply, so the command still displays something.
+            required_locked_packages = self._required_locked_packages(
+                root, locked_packages
+            )
+            pkg = next((p for p in matches if p in required_locked_packages), pkg)
 
         required_by = reverse_deps(pkg, locked_repository)
 
@@ -174,6 +223,24 @@ lists all packages available."""
 
             return 0
 
+        if self.option("format") == OutputFormats.JSON:
+            package_info: dict[str, str | dict[str, str]] = {
+                "name": pkg.pretty_name,
+                "version": pkg.pretty_version,
+                "description": pkg.description,
+            }
+            if pkg.requires:
+                package_info["dependencies"] = {
+                    dependency.pretty_name: dependency.pretty_constraint
+                    for dependency in pkg.requires
+                }
+            if required_by:
+                package_info["required_by"] = required_by
+
+            self.line(json.dumps(package_info))
+
+            return 0
+
         rows: Rows = [
             ["<info>name</>", f" : <c1>{pkg.pretty_name}</>"],
             ["<info>version</>", f" : <b>{pkg.pretty_version}</b>"],
@@ -199,19 +266,15 @@ lists all packages available."""
 
         return 0
 
-    def _display_packages_information(
-        self, locked_repository: Repository, root: ProjectPackage
-    ) -> int:
-        import shutil
-
+    def _required_locked_packages(
+        self, root: ProjectPackage, locked_packages: list[Package]
+    ) -> set[Package]:
+        """Return the locked packages required by the current environment."""
         from conda_lock._vendor.cleo.io.null_io import NullIO
 
         from conda_lock._vendor.poetry.puzzle.solver import Solver
-        from conda_lock._vendor.poetry.repositories.installed_repository import InstalledRepository
         from conda_lock._vendor.poetry.repositories.repository_pool import RepositoryPool
-        from conda_lock._vendor.poetry.utils.helpers import get_package_version_display_string
 
-        locked_packages = locked_repository.packages
         pool = RepositoryPool.from_packages(locked_packages, self.poetry.config)
         solver = Solver(
             root,
@@ -224,16 +287,33 @@ lists all packages available."""
         with solver.use_environment(self.env):
             ops = solver.solve().calculate_operations()
 
-        required_locked_packages = {op.package for op in ops if not op.skipped}
+        return {op.package for op in ops if not op.skipped}
+
+    def _display_packages_information(
+        self, locked_repository: Repository, root: ProjectPackage
+    ) -> int:
+        import shutil
+
+        from conda_lock._vendor.poetry.repositories.installed_repository import InstalledRepository
+        from conda_lock._vendor.poetry.utils.helpers import get_package_version_display_string
+
+        locked_packages = locked_repository.packages
+        required_locked_packages = self._required_locked_packages(root, locked_packages)
 
         show_latest = self.option("latest")
         show_all = self.option("all")
         show_top_level = self.option("top-level")
-        width = shutil.get_terminal_size().columns
+        show_why = self.option("why")
+        width = (
+            sys.maxsize
+            if self.option("no-truncate")
+            else shutil.get_terminal_size().columns
+        )
         name_length = version_length = latest_length = required_by_length = 0
         latest_packages = {}
         latest_statuses = {}
         installed_repo = InstalledRepository.load(self.env)
+        requires = root.all_requires
 
         # Computing widths
         for locked in locked_packages:
@@ -278,7 +358,7 @@ lists all packages available."""
                         ),
                     )
 
-                    if self.option("why"):
+                    if show_why:
                         required_by = reverse_deps(locked, locked_repository)
                         required_by_length = max(
                             required_by_length,
@@ -295,11 +375,56 @@ lists all packages available."""
                     ),
                 )
 
-                if self.option("why"):
+                if show_why:
                     required_by = reverse_deps(locked, locked_repository)
                     required_by_length = max(
                         required_by_length, len(" from " + ",".join(required_by.keys()))
                     )
+
+        if self.option("format") == OutputFormats.JSON:
+            packages = []
+
+            for locked in locked_packages:
+                if locked not in required_locked_packages and not show_all:
+                    continue
+
+                if (
+                    show_latest
+                    and self.option("outdated")
+                    and latest_statuses[locked.pretty_name] == "up-to-date"
+                ):
+                    continue
+
+                if show_top_level and not any(locked.satisfies(r) for r in requires):
+                    continue
+
+                package: dict[str, str | list[str]] = {}
+                package["name"] = locked.pretty_name
+                package["installed_status"] = self.get_installed_status(
+                    locked, installed_repo.packages
+                )
+                package["version"] = get_package_version_display_string(
+                    locked, root=self.poetry.file.path.parent
+                )
+
+                if show_latest:
+                    latest = latest_packages[locked.pretty_name]
+                    package["latest_version"] = get_package_version_display_string(
+                        latest, root=self.poetry.file.path.parent
+                    )
+
+                if show_why:
+                    required_by = reverse_deps(locked, locked_repository)
+                    if required_by:
+                        package["required_by"] = list(required_by.keys())
+
+                package["description"] = locked.description
+
+                packages.append(package)
+
+            self.line(json.dumps(packages))
+
+            return 0
 
         write_version = name_length + version_length + 3 <= width
         write_latest = name_length + version_length + latest_length + 3 <= width
@@ -307,10 +432,8 @@ lists all packages available."""
         why_end_column = (
             name_length + version_length + latest_length + required_by_length
         )
-        write_why = self.option("why") and (why_end_column + 3) <= width
+        write_why = show_why and (why_end_column + 3) <= width
         write_description = (why_end_column + 24) <= width
-
-        requires = root.all_requires
 
         for locked in locked_packages:
             color = "cyan"
@@ -446,7 +569,7 @@ lists all packages available."""
             self._write_tree_line(io, info)
 
             tree_bar = tree_bar.replace("└", " ")
-            packages_in_tree = [package.name, dependency.name]
+            packages_in_tree = {package.name, dependency.name}
 
             self._display_tree(
                 io,
@@ -462,7 +585,7 @@ lists all packages available."""
         io: IO,
         dependency: Dependency,
         installed_packages: list[Package],
-        packages_in_tree: list[NormalizedName],
+        packages_in_tree: set[NormalizedName],
         previous_tree_bar: str = "├",
         level: int = 1,
     ) -> None:
@@ -481,8 +604,7 @@ lists all packages available."""
         )
         tree_bar = previous_tree_bar + "   ├"
         total = len(dependencies)
-        for i, dependency in enumerate(dependencies, 1):
-            current_tree = packages_in_tree
+        for i, dep in enumerate(dependencies, 1):
             if i == total:
                 tree_bar = previous_tree_bar + "   └"
 
@@ -490,28 +612,30 @@ lists all packages available."""
             color = self.colors[color_ident]
 
             circular_warn = ""
-            if dependency.name in current_tree:
+            if dep.name in packages_in_tree:
                 circular_warn = "(circular dependency aborted here)"
 
             info = (
-                f"{tree_bar}── <{color}>{dependency.name}</{color}>"
-                f" {dependency.pretty_constraint} {circular_warn}"
+                f"{tree_bar}── <{color}>{dep.name}</{color}>"
+                f" {dep.pretty_constraint} {circular_warn}"
             )
             self._write_tree_line(io, info)
 
             tree_bar = tree_bar.replace("└", " ")
 
-            if dependency.name not in current_tree:
-                current_tree.append(dependency.name)
-
-                self._display_tree(
-                    io,
-                    dependency,
-                    installed_packages,
-                    current_tree,
-                    tree_bar,
-                    level + 1,
-                )
+            if dep.name not in packages_in_tree:
+                packages_in_tree.add(dep.name)
+                try:
+                    self._display_tree(
+                        io,
+                        dep,
+                        installed_packages,
+                        packages_in_tree,
+                        tree_bar,
+                        level + 1,
+                    )
+                finally:
+                    packages_in_tree.discard(dep.name)
 
     def _write_tree_line(self, io: IO, line: str) -> None:
         if not io.output.supports_utf8():
@@ -552,11 +676,19 @@ lists all packages available."""
                 allow_prereleases = dep.allows_prereleases()
                 break
 
+        # Use the locked package's own source rather than guessing from the first
+        # matching dependency. A package may be declared with several constraints
+        # (different markers and/or sources); the one active in the current
+        # environment is the one that was locked, and its source is recorded
+        # unambiguously on the locked package as ``source_reference`` (empty for
+        # the default repository). Direct-origin packages are handled above.
+        source = None if package.is_direct_origin() else package.source_reference
+
         name = package.name
         selector = VersionSelector(self.poetry.pool)
 
         return selector.find_best_candidate(
-            name, f">={package.pretty_version}", allow_prereleases
+            name, f">={package.pretty_version}", allow_prereleases, source=source
         )
 
     def get_update_status(self, latest: Package, package: Package) -> str:

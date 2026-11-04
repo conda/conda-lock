@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import json
 
+from functools import cache
 from importlib.resources import files
-from pathlib import Path
 from typing import TYPE_CHECKING
 from typing import Any
 
@@ -13,22 +13,18 @@ from fastjsonschema.exceptions import JsonSchemaException
 
 
 if TYPE_CHECKING:
-    from importlib.abc import Traversable
-
-
-SCHEMA_DIR = Path(__file__).parent / "schemas"
-
-
-def _get_schema_file(schema_name: str) -> Traversable:
-    return files(__package__) / "schemas" / f"{schema_name}.json"
+    from collections.abc import Callable
 
 
 class ValidationError(ValueError):
     pass
 
 
-def validate_object(obj: dict[str, Any], schema_name: str) -> list[str]:
-    schema_file = _get_schema_file(schema_name)
+@cache
+def _get_validator(
+    schema_name: str,
+) -> Callable[[dict[str, Any]], dict[str, Any]]:
+    schema_file = files(__package__) / "schemas" / f"{schema_name}.json"
 
     if not schema_file.is_file():
         raise ValueError(f"Schema {schema_name} does not exist.")
@@ -36,7 +32,14 @@ def validate_object(obj: dict[str, Any], schema_name: str) -> list[str]:
     with schema_file.open(encoding="utf-8") as f:
         schema = json.load(f)
 
-    validate = fastjsonschema.compile(schema)
+    validator: Callable[[dict[str, Any]], dict[str, Any]] = fastjsonschema.compile(
+        schema
+    )
+    return validator
+
+
+def validate_object(obj: dict[str, Any], schema_name: str) -> list[str]:
+    validate = _get_validator(schema_name)
 
     errors = []
     try:

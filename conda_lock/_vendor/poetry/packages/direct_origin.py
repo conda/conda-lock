@@ -11,7 +11,7 @@ from conda_lock._vendor.poetry.config.config import Config
 from conda_lock._vendor.poetry.inspection.info import PackageInfo
 from conda_lock._vendor.poetry.inspection.info import PackageInfoError
 from conda_lock._vendor.poetry.utils.authenticator import get_default_authenticator
-from conda_lock._vendor.poetry.utils.helpers import download_file
+from conda_lock._vendor.poetry.utils.download import download_file
 from conda_lock._vendor.poetry.utils.helpers import get_file_hash
 from conda_lock._vendor.poetry.vcs.git import Git
 
@@ -73,6 +73,14 @@ class DirectOrigin:
                 f"Unable to determine package info from path: {file_path}"
             )
 
+        package.files = [
+            {
+                "file": file_path.name,
+                "hash": "sha256:" + get_file_hash(file_path),
+                "size": file_path.stat().st_size,
+            }
+        ]
+
         return package
 
     @classmethod
@@ -91,9 +99,6 @@ class DirectOrigin:
         )
 
         package = self.get_package_from_file(artifact)
-        package.files = [
-            {"file": link.filename, "hash": "sha256:" + get_file_hash(artifact)}
-        ]
 
         package._source_type = "url"
         package._source_url = url

@@ -14,11 +14,32 @@ if TYPE_CHECKING:
     from conda_lock._vendor.poetry.core.constraints.version.version_constraint import VersionConstraint
 
 
+def _canonical_strict_max(
+    version: Version, *, is_marker_constraint: bool = False
+) -> Version:
+    """Canonicalize an exclusive ``<V`` upper bound.
+
+    Per PEP 440, ``<V`` for stable V MUST NOT allow any pre-/dev-release of V,
+    so the effective max is ``V.dev0``.  Applied at parse-time so that user
+    intent (``<V``) is captured in the data structure; internal range
+    arithmetic preserves raw maxes so that, e.g., ``(>1, <3) - {2}`` allows
+    ``2.dev0`` in the interior fragment ``(1, 2)``.
+
+    In a marker-constraint context (``python_version`` etc.) the observable
+    values are always concrete release strings, so canonicalization would be
+    a semantic no-op; we skip it there to keep marker rendering stable.
+    """
+    if is_marker_constraint or version.is_unstable():
+        return version
+    return version.first_devrelease()
+
+
 @functools.cache
 def parse_constraint(constraints: str) -> VersionConstraint:
     return _parse_constraint(constraints=constraints)
 
 
+@functools.cache
 def parse_marker_version_constraint(
     constraints: str, *, pep440: bool = True
 ) -> VersionConstraint:
@@ -37,12 +58,12 @@ def _parse_constraint(
 
     or_constraints = re.split(r"\s*\|\|?\s*", constraints.strip())
     or_groups = []
-    for constraints in or_constraints:
+    for or_constraint in or_constraints:
         # allow trailing commas for robustness (even though it may not be
         # standard-compliant it seems to occur in some packages)
-        constraints = constraints.rstrip(",").rstrip()
+        or_constraint = or_constraint.rstrip(",").rstrip()
         and_constraints = re.split(
-            r"(?<!^)(?<![\^~=>< ,]) *(?<!-)[, ](?!-) *(?!,|$)", constraints
+            r"(?<!^)(?<![\^~=>< ,]) *(?<!-)[, ](?!-) *(?!,|$)", or_constraint
         )
         constraint_objects = []
 
@@ -93,6 +114,10 @@ def parse_single_constraint(
     from conda_lock._vendor.poetry.core.constraints.version.version import Version
     from conda_lock._vendor.poetry.core.constraints.version.version_range import VersionRange
     from conda_lock._vendor.poetry.core.constraints.version.version_union import VersionUnion
+    from conda_lock._vendor.poetry.core.version.pep440.segments import Release
+
+    def canon_max(v: Version) -> Version:
+        return _canonical_strict_max(v, is_marker_constraint=is_marker_constraint)
 
     m = re.match(r"(?i)^v?[xX*](\.[xX*])*$", constraint)
     if m:
@@ -112,7 +137,7 @@ def parse_single_constraint(
         if version.release.precision == 1:
             high = version.stable.next_major()
 
-        return VersionRange(version, high, include_min=True)
+        return VersionRange(version, canon_max(high), include_min=True)
 
     # PEP 440 Tilde range (~=)
     m = TILDE_PEP440_CONSTRAINT.match(constraint)
@@ -124,12 +149,22 @@ def parse_single_constraint(
                 f"Could not parse version constraint: {constraint}"
             ) from e
 
-        if version.release.precision == 2:
+        # Per PEP 440, ``~=V.N`` is short for ``>=V.N, ==V.*``, where ``V`` is
+        # the release with its last segment dropped, e.g. ``~=1.4.5`` becomes
+        # ``1.5`` and ``~=0.0.0.5`` becomes ``0.0.1``. That is: bump the
+        # second-to-last release segment and zero out the last one.
+        parts = list(version.stable.release.to_parts())
+        if len(parts) < 2:
             high = version.stable.next_major()
         else:
-            high = version.stable.next_minor()
+            parts[-2] += 1
+            parts[-1] = 0
+            high = version.stable.__class__(
+                epoch=version.stable.epoch,
+                release=Release.from_parts(*parts),
+            )
 
-        return VersionRange(version, high, include_min=True)
+        return VersionRange(version, canon_max(high), include_min=True)
 
     # Caret range
     m = CARET_CONSTRAINT.match(constraint)
@@ -141,7 +176,9 @@ def parse_single_constraint(
                 f"Could not parse version constraint: {constraint}"
             ) from e
 
-        return VersionRange(version, version.next_breaking(), include_min=True)
+        return VersionRange(
+            version, canon_max(version.next_breaking()), include_min=True
+        )
 
     # X Range
     m = X_CONSTRAINT.match(constraint)
@@ -174,7 +211,7 @@ def parse_single_constraint(
             ) from e
 
         if op == "<":
-            return VersionRange(max=version)
+            return VersionRange(max=canon_max(version))
         if op == "<=":
             return VersionRange(max=version, include_max=True)
         if op == ">":
@@ -190,7 +227,13 @@ def parse_single_constraint(
             )
 
         if op == "!=":
-            return VersionUnion(VersionRange(max=version), VersionRange(min=version))
+            # PEP 440 strict equality: ``!=V`` excludes exactly ``V``, *not* its
+            # prereleases (unlike the ordered ``<V`` comparison).  We therefore
+            # leave the upper piece raw; ``2.0.dev1`` correctly matches ``!=2``.
+            return VersionUnion(
+                VersionRange(max=version),
+                VersionRange(min=version),
+            )
 
         return version
 
@@ -212,7 +255,7 @@ def parse_single_constraint(
             ) from e
 
         if op == "<":
-            return VersionRange(max=version)
+            return VersionRange(max=canon_max(version))
         if op == "<=":
             return VersionRange(max=version, include_max=True)
         if op == ">":
@@ -220,7 +263,11 @@ def parse_single_constraint(
         if op == ">=":
             return VersionRange(min=version, include_min=True)
         if op == "!=":
-            return VersionUnion(VersionRange(max=version), VersionRange(min=version))
+            # See PEP 440 ``!=V`` note above (basic constraint branch).
+            return VersionUnion(
+                VersionRange(max=version),
+                VersionRange(min=version),
+            )
         return version
 
     raise ParseConstraintError(f"Could not parse version constraint: {constraint}")

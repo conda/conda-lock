@@ -1,8 +1,11 @@
 from __future__ import annotations
 
+import dataclasses
 import functools
+import os
 import re
 import sys
+import warnings
 
 from contextlib import suppress
 from pathlib import Path
@@ -72,8 +75,24 @@ def url_to_path(url: str) -> Path:
         # According to RFC 8089, same as empty authority.
         netloc = ""
     elif netloc not in {".", ".."} and sys.platform == "win32":
-        # If we have a UNC path, prepend UNC share notation.
-        netloc = "\\\\" + netloc
+        if re.match(r"^(localhost)?([a-zA-Z]:)$", netloc):
+            path = f"/{netloc[-2:]}{path}"
+            if netloc.startswith("localhost"):
+                message = (
+                    f"The file URL {url} is missing a slash between localhost"
+                    " and the drive letter."
+                    f" Did you mean file://localhost{path}?"
+                )
+            else:
+                message = (
+                    f"The file URL {url} uses a drive letter without a leading slash."
+                    f" Did you mean file://{path}?"
+                )
+            warnings.warn(message, UserWarning, stacklevel=2)
+            netloc = ""
+        else:
+            # If we have a UNC path, prepend UNC share notation.
+            netloc = "\\\\" + netloc
     else:
         raise ValueError(
             f"non-local file URIs are not supported on this platform: {url}"
@@ -141,13 +160,30 @@ def is_archive_file(name: str | Path) -> bool:
     return ext in ARCHIVE_EXTENSIONS
 
 
-def splitext(path: str | Path) -> tuple[str, str]:
-    """Like pathlib.Path.stem and suffix, but take off .tar too"""
-    if isinstance(path, str):
-        path = Path(path)
-    base, ext = path.stem, path.suffix
+def splitext(path: str | Path, *, is_filename: bool = False) -> tuple[str, str]:
+    """Like os.path.splitext, but take off .tar too
+
+    path:
+        The path or filename.
+    is_filename:
+        Whether the path is just a filename (i.e., contains no path separators).
+        In this case, we can use a performance shortcut
+        that only takes half of the time.
+    """
+    # Do not use pathlib because this method is a performance hotspot!
+    if is_filename:
+        # Using rpartition()
+        # - seems to be slightly faster than rsplit()
+        # - is twice as fast as os.path.splitext()
+        # - is by factor 10 faster than path.stem and path.suffix
+        base, sep, ext = str(path).rpartition(".")
+        ext = sep + ext
+        if not base:
+            return ext, ""
+    else:
+        base, ext = os.path.splitext(path)  # noqa: PTH122
     if base.lower().endswith(".tar"):
-        ext = f"{base[-4:]}{ext}"
+        ext = base[-4:] + ext
         base = base[:-4]
     return base, ext
 
@@ -243,9 +279,9 @@ def create_nested_marker(
 
         marker = f'{name} == "{constraint.text}"'
     else:
-        assert isinstance(
-            constraint, VersionRange
-        ), f"Unexpected constraint of type {type(constraint)}"
+        assert isinstance(constraint, VersionRange), (
+            f"Unexpected constraint of type {type(constraint)}"
+        )
         min_name = max_name = name
 
         parts = []
@@ -271,10 +307,17 @@ def create_nested_marker(
                 and not constraint.include_min
                 and version.precision < 3
             ):
-                padding = ".0" * (3 - version.precision)
-                part = f'python_full_version > "{version}{padding}"'
+                release = version.release
+                release = dataclasses.replace(
+                    release,
+                    major=release.major or 0,
+                    minor=release.minor or 0,
+                    patch=release.patch or 0,
+                )
+                version = dataclasses.replace(version, release=release)
+                part = f'python_full_version > "{version}"'
             else:
-                part = f'{min_name} {op} "{version}"'
+                part = f'{min_name} {op} "{version.stable}"'
 
             parts.append(part)
 
@@ -289,10 +332,17 @@ def create_nested_marker(
                 and constraint.include_max
                 and version.precision < 3
             ):
-                padding = ".0" * (3 - version.precision)
-                part = f'python_full_version <= "{version}{padding}"'
+                release = version.release
+                release = dataclasses.replace(
+                    release,
+                    major=release.major or 0,
+                    minor=release.minor or 0,
+                    patch=release.patch or 0,
+                )
+                version = dataclasses.replace(version, release=release)
+                part = f'python_full_version <= "{version}"'
             else:
-                part = f'{max_name} {op} "{version}"'
+                part = f'{max_name} {op} "{version.stable}"'
 
             parts.append(part)
 
@@ -336,10 +386,14 @@ def normalize_python_version_markers(  # NOSONAR
         for op, version in or_:
             # Expand python version
             if op == "==" and "*" not in version and version.count(".") < 2:
+                if version.count(".") == 0:
+                    version += ".0"
                 version = "~" + version
                 op = ""
 
             elif op == "!=" and "*" not in version and version.count(".") < 2:
+                if version.count(".") == 0:
+                    version += ".0"
                 version += ".*"
 
             elif op in ("<=", ">"):
@@ -370,7 +424,6 @@ def normalize_python_version_markers(  # NOSONAR
                     elif op == ">":
                         op = ">="
 
-                if parsed_version.precision == 2:
                     version = parsed_version.next_minor().text
 
             elif op in ("in", "not in"):

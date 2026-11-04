@@ -9,6 +9,7 @@ from typing import TYPE_CHECKING
 
 from conda_lock._vendor.poetry.config.config import Config
 from conda_lock._vendor.poetry.repositories.abstract_repository import AbstractRepository
+from conda_lock._vendor.poetry.repositories.cached_repository import CachedRepository
 from conda_lock._vendor.poetry.repositories.exceptions import PackageNotFoundError
 from conda_lock._vendor.poetry.repositories.repository import Repository
 from conda_lock._vendor.poetry.utils.cache import ArtifactCache
@@ -152,20 +153,14 @@ class RepositoryPool(AbstractRepository):
         return self
 
     def package(
-        self,
-        name: str,
-        version: Version,
-        extras: list[str] | None = None,
-        repository_name: str | None = None,
+        self, name: str, version: Version, repository_name: str | None = None
     ) -> Package:
         if repository_name:
-            return self.repository(repository_name).package(
-                name, version, extras=extras
-            )
+            return self.repository(repository_name).package(name, version)
 
         for repo in self.repositories:
             try:
-                return repo.package(name, version, extras=extras)
+                return repo.package(name, version)
             except PackageNotFoundError:
                 continue
         raise PackageNotFoundError(f"Package {name} ({version}) not found.")
@@ -187,3 +182,14 @@ class RepositoryPool(AbstractRepository):
         for repo in self.repositories:
             results += repo.search(query)
         return results
+
+    def refresh(self, package: Package) -> Package:
+        repository_name = package.source_reference or "PyPI"
+        repo = self.repository(repository_name)
+        if isinstance(repo, CachedRepository):
+            repo.forget(package.name, package.version)
+        return repo.package(package.name, package.version)
+
+    def log_age_filtered_versions(self, *, level: str, reset: bool) -> None:
+        for repo in self.all_repositories:
+            repo.log_age_filtered_versions(level=level, reset=reset)

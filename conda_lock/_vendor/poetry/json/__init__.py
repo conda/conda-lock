@@ -2,23 +2,44 @@ from __future__ import annotations
 
 import json
 
-from pathlib import Path
+from functools import cache
+from importlib.resources import files
+from typing import TYPE_CHECKING
 from typing import Any
 
 import fastjsonschema
 
 from fastjsonschema.exceptions import JsonSchemaValueException
-from conda_lock._vendor.poetry.core.json import SCHEMA_DIR as CORE_SCHEMA_DIR
 
 
-SCHEMA_DIR = Path(__file__).parent / "schemas"
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
+
+@cache
+def _get_validator_and_properties() -> tuple[
+    Callable[[dict[str, Any]], dict[str, Any]], frozenset[str]
+]:
+    schema = json.loads(
+        (files(__package__) / "schemas" / "poetry.json").read_text(encoding="utf-8")
+    )
+
+    validator: Callable[[dict[str, Any]], dict[str, Any]] = fastjsonschema.compile(
+        schema
+    )
+
+    core_schema = json.loads(
+        (files("conda_lock._vendor.poetry.core") / "json" / "schemas" / "poetry-schema.json").read_text(
+            encoding="utf-8"
+        )
+    )
+
+    properties = frozenset(schema["properties"]) | frozenset(core_schema["properties"])
+    return validator, properties
 
 
 def validate_object(obj: dict[str, Any]) -> list[str]:
-    schema_file = Path(SCHEMA_DIR, "poetry.json")
-    schema = json.loads(schema_file.read_text(encoding="utf-8"))
-
-    validate = fastjsonschema.compile(schema)
+    validate, properties = _get_validator_and_properties()
 
     errors = []
     try:
@@ -26,11 +47,6 @@ def validate_object(obj: dict[str, Any]) -> list[str]:
     except JsonSchemaValueException as e:
         errors = [e.message]
 
-    core_schema = json.loads(
-        (CORE_SCHEMA_DIR / "poetry-schema.json").read_text(encoding="utf-8")
-    )
-
-    properties = schema["properties"].keys() | core_schema["properties"].keys()
     additional_properties = obj.keys() - properties
     for key in additional_properties:
         errors.append(f"Additional properties are not allowed ('{key}' was unexpected)")

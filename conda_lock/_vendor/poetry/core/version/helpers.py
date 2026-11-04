@@ -26,6 +26,8 @@ PYTHON_VERSION = [
     "3.11.*",
     "3.12.*",
     "3.13.*",
+    "3.14.*",
+    "3.15.*",
 ]
 
 
@@ -60,8 +62,15 @@ def format_python_constraint(constraint: VersionConstraint) -> str:
             accepted.append(version)
 
     # Checking lower bound
-    low = accepted[0]
-
-    formatted.insert(0, ">=" + ".".join(low.split(".")[:2]))
+    if accepted:
+        low = accepted[0]
+        formatted.insert(0, ">=" + ".".join(low.split(".")[:2]))
+    elif constraint.ranges:
+        min_version = constraint.ranges[0].min
+        if min_version is not None:
+            parts = [str(min_version.major)]
+            if min_version.precision >= 2:
+                parts.append(str(min_version.minor))
+            formatted.insert(0, ">=" + ".".join(parts))
 
     return ", ".join(formatted)

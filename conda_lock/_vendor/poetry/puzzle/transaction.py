@@ -8,6 +8,8 @@ from conda_lock._vendor.poetry.utils.extras import get_extra_package_names
 
 
 if TYPE_CHECKING:
+    from collections.abc import Mapping
+
     from packaging.utils import NormalizedName
     from conda_lock._vendor.poetry.core.packages.package import Package
 
@@ -22,8 +24,8 @@ class Transaction:
         result_packages: list[Package] | dict[Package, TransitivePackageInfo],
         installed_packages: list[Package] | None = None,
         root_package: Package | None = None,
-        marker_env: dict[str, Any] | None = None,
-        groups: set[str] | None = None,
+        marker_env: Mapping[str, Any] | None = None,
+        groups: set[NormalizedName] | None = None,
     ) -> None:
         self._current_packages = current_packages
         self._result_packages = result_packages
@@ -60,7 +62,7 @@ class Transaction:
 
         extra_packages: set[NormalizedName] = set()
         if self._marker_env:
-            marker_env_with_extras = self._marker_env.copy()
+            marker_env_with_extras = dict(self._marker_env)
             if extras is not None:
                 marker_env_with_extras["extra"] = extras
         elif extras is not None:
@@ -107,22 +109,30 @@ class Transaction:
                     pass
 
                 # We have to perform an update if the version or another
-                # attribute of the package has changed (source type, url, ref, ...).
-                elif result_package.version != installed_package.version or (
-                    (
-                        # This has to be done because installed packages cannot
-                        # have type "legacy". If a package with type "legacy"
-                        # is installed, the installed package has no source_type.
-                        # Thus, if installed_package has no source_type and
-                        # the result_package has source_type "legacy" (negation of
-                        # the following condition), update must not be performed.
-                        # This quirk has the side effect that when switching
-                        # from PyPI to legacy (or vice versa),
-                        # no update is performed.
-                        installed_package.source_type
-                        or result_package.source_type != "legacy"
+                # attribute of the package has changed
+                # (source type, url, ref, develop, ...).
+                elif (
+                    result_package.version != installed_package.version
+                    or (
+                        result_package.source_type in {"directory", "git"}
+                        and result_package.develop != installed_package.develop
                     )
-                    and not result_package.is_same_package_as(installed_package)
+                    or (
+                        (
+                            # This has to be done because installed packages cannot
+                            # have type "legacy". If a package with type "legacy"
+                            # is installed, the installed package has no source_type.
+                            # Thus, if installed_package has no source_type and
+                            # the result_package has source_type "legacy" (negation of
+                            # the following condition), update must not be performed.
+                            # This quirk has the side effect that when switching
+                            # from PyPI to legacy (or vice versa),
+                            # no update is performed.
+                            installed_package.source_type
+                            or result_package.source_type != "legacy"
+                        )
+                        and not result_package.is_same_package_as(installed_package)
+                    )
                 ):
                     operations.append(
                         Update(

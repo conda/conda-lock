@@ -8,6 +8,8 @@ from typing import Any
 
 from conda_lock._vendor.poetry.config.config import Config
 from conda_lock._vendor.poetry.config.config import PackageFilterPolicy
+from conda_lock._vendor.poetry.console.exceptions import ConsoleMessage
+from conda_lock._vendor.poetry.console.exceptions import PoetryRuntimeError
 from conda_lock._vendor.poetry.repositories.http_repository import HTTPRepository
 from conda_lock._vendor.poetry.utils.helpers import get_highest_priority_hash_type
 from conda_lock._vendor.poetry.utils.wheel import Wheel
@@ -18,6 +20,7 @@ if TYPE_CHECKING:
     from conda_lock._vendor.poetry.core.packages.package import Package
     from conda_lock._vendor.poetry.core.packages.utils.link import Link
 
+    from conda_lock._vendor.poetry.repositories.repository import Repository
     from conda_lock._vendor.poetry.repositories.repository_pool import RepositoryPool
     from conda_lock._vendor.poetry.utils.env import Env
 
@@ -48,15 +51,35 @@ class Chooser:
         Return the url of the selected archive for a given package.
         """
         links = []
-        for link in self._get_links(package):
+
+        # these are used only for providing insightful errors to the user
+        unsupported_wheels = set()
+        links_seen = 0
+        wheels_skipped = 0
+        sdists_skipped = 0
+
+        repository = self._get_repository(package)
+
+        for link in repository.find_links_for_package(package):
+            links_seen += 1
+
             if link.is_wheel:
-                if not self._no_binary_policy.allows(package.name):
+                if (
+                    # exact package name must reject wheel, even if `only-binary` includes it
+                    self._no_binary_policy.has_exact_package(package.name)
+                    # `:all:` reject wheel only if `only-binary` does not include it
+                    or (
+                        not self._no_binary_policy.allows(package.name)
+                        and not self._only_binary_policy.has_exact_package(package.name)
+                    )
+                ):
                     logger.debug(
                         "Skipping wheel for %s as requested in no binary policy for"
                         " package (%s)",
                         link.filename,
                         package.name,
                     )
+                    wheels_skipped += 1
                     continue
 
                 if not Wheel(link.filename).is_supported_by_environment(self._env):
@@ -65,32 +88,115 @@ class Chooser:
                         " environment",
                         link.filename,
                     )
+                    unsupported_wheels.add(link.filename)
                     continue
 
             if link.ext in {".egg", ".exe", ".msi", ".rpm", ".srpm"}:
                 logger.debug("Skipping unsupported distribution %s", link.filename)
                 continue
 
-            if link.is_sdist and not self._only_binary_policy.allows(package.name):
+            if link.is_sdist and (
+                # exact package name must reject sdist, even if `no-binary` includes it
+                self._only_binary_policy.has_exact_package(package.name)
+                # `:all:` reject sdist only if `no-binary` does not include it
+                or (
+                    not self._only_binary_policy.allows(package.name)
+                    and not self._no_binary_policy.has_exact_package(package.name)
+                )
+            ):
                 logger.debug(
                     "Skipping source distribution for %s as requested in only binary policy for"
                     " package (%s)",
                     link.filename,
                     package.name,
                 )
+                sdists_skipped += 1
                 continue
 
             links.append(link)
 
         if not links:
-            raise RuntimeError(f"Unable to find installation candidates for {package}")
+            raise self._no_links_found_error(
+                package, links_seen, wheels_skipped, sdists_skipped, unsupported_wheels
+            )
 
-        # Get the best link
-        chosen = max(links, key=lambda link: self._sort_key(package, link))
+        return self._choose_hash_verified_link(package, repository, links)
 
-        return chosen
+    def _no_links_found_error(
+        self,
+        package: Package,
+        links_seen: int,
+        wheels_skipped: int,
+        sdists_skipped: int,
+        unsupported_wheels: set[str],
+    ) -> PoetryRuntimeError:
+        messages = []
+        info = (
+            f"This is likely not a Poetry issue.\n\n"
+            f"  - {links_seen} candidate(s) were identified for the package\n"
+        )
 
-    def _get_links(self, package: Package) -> list[Link]:
+        if wheels_skipped > 0:
+            info += f"  - {wheels_skipped} wheel(s) were skipped due to your <c1>installer.no-binary</> policy\n"
+
+        if sdists_skipped > 0:
+            info += f"  - {sdists_skipped} source distribution(s) were skipped due to your <c1>installer.only-binary</> policy\n"
+
+        if unsupported_wheels:
+            info += (
+                f"  - {len(unsupported_wheels)} wheel(s) were skipped as your project's environment does not support "
+                f"the identified abi tags\n"
+            )
+
+        messages.append(ConsoleMessage(info.strip()))
+
+        if unsupported_wheels:
+            messages += [
+                ConsoleMessage(
+                    "The following wheel(s) were skipped as the current project environment does not support them "
+                    "due to abi compatibility issues.",
+                    debug=True,
+                ),
+                ConsoleMessage("\n".join(unsupported_wheels), debug=True)
+                .indent("  - ")
+                .wrap("warning"),
+                ConsoleMessage(
+                    "If you would like to see the supported tags in your project environment, you can execute "
+                    "the following command:\n\n"
+                    "    <c1>poetry debug tags</>",
+                    debug=True,
+                ),
+            ]
+
+        source_hint = ""
+        if package.source_type and package.source_reference:
+            source_hint += f" ({package.source_reference})"
+
+        messages.append(
+            ConsoleMessage(
+                f"Make sure the lockfile is up-to-date. You can try one of the following;\n\n"
+                f"    1. <b>Regenerate lockfile: </><fg=yellow>poetry lock --no-cache --regenerate</>\n"
+                f"    2. <b>Update package     : </><fg=yellow>poetry update --no-cache {package.name}</>\n\n"
+                # FIXME: In the future, it would be better to suggest a more targeted
+                # cache clear command for just the package in question. E.g.
+                # `poetry cache clear {package.source_reference}:{package.name}:{package.version}`
+                # but `package.source_reference` currently resolves to `None` because
+                # repository names are case sensitive at the moment (`PyPI` vs `pypi`).
+                f"If any of those solutions worked, you will have to clear your caches using (<c1>poetry cache clear --all</>).\n\n"
+                f"If neither works, please first check to verify that the {package.name} has published wheels "
+                f"available from your configured source{source_hint} that are compatible with your environment"
+                f"- ie. operating system, architecture (x86_64, arm64 etc.), python interpreter."
+            )
+            .make_section("Solutions")
+            .wrap("info")
+        )
+
+        return PoetryRuntimeError(
+            reason=f"Unable to find installation candidates for {package}",
+            messages=messages,
+        )
+
+    def _get_repository(self, package: Package) -> Repository:
         if package.source_type:
             assert package.source_reference is not None
             repository = self._pool.repository(package.source_reference)
@@ -99,20 +205,27 @@ class Chooser:
             repository = self._pool.repositories[0]
         else:
             repository = self._pool.repository("pypi")
-        links = repository.find_links_for_package(package)
+
+        return repository
+
+    def _choose_hash_verified_link(
+        self, package: Package, repository: Repository, links: list[Link]
+    ) -> Link:
+        # Best candidate first, so we can stop at the first verified hash match
+        # instead of verifying every candidate.
+        ordered_links = sorted(
+            links, key=lambda link: self._sort_key(package, link), reverse=True
+        )
 
         locked_hashes = {f["hash"] for f in package.files}
         if not locked_hashes:
-            return links
+            return ordered_links[0]
 
-        selected_links = []
         skipped = []
         locked_hash_names = {h.split(":")[0] for h in locked_hashes}
-        for link in links:
-            if not link.hashes:
-                selected_links.append(link)
-                continue
-
+        for link in ordered_links:
+            # A link that advertises no hash is not trusted: the lock file requires
+            # a hash for this package, so fall through and compute one to compare.
             link_hash: str | None = None
             if (candidates := locked_hash_names.intersection(link.hashes.keys())) and (
                 hash_name := get_highest_priority_hash_type(candidates, link.filename)
@@ -122,25 +235,38 @@ class Chooser:
             elif isinstance(repository, HTTPRepository):
                 link_hash = repository.calculate_sha256(link)
 
-            if link_hash not in locked_hashes:
-                skipped.append((link.filename, link_hash))
-                logger.debug(
-                    "Skipping %s as %s checksum does not match expected value",
-                    link.filename,
-                    link_hash,
-                )
-                continue
+            if link_hash in locked_hashes:
+                return link
 
-            selected_links.append(link)
-
-        if links and not selected_links:
-            links_str = ", ".join(f"{link}({h})" for link, h in skipped)
-            raise RuntimeError(
-                f"Retrieved digests for links {links_str} not in poetry.lock"
-                f" metadata {locked_hashes}"
+            skipped.append((link.filename, link_hash))
+            logger.debug(
+                "Skipping %s as %s checksum does not match expected value",
+                link.filename,
+                link_hash,
             )
 
-        return selected_links
+        reason = f"Downloaded distributions for <b>{package.pretty_name} ({package.pretty_version})</> did not match any known checksums in your lock file."
+        link_hashes = "\n".join(f"  - {link}({h})" for link, h in skipped)
+        known_hashes = "\n".join(f"  - {h}" for h in locked_hashes)
+        messages = [
+            ConsoleMessage(
+                "<options=bold>Causes:</>\n"
+                "  - invalid or corrupt cache either during locking or installation\n"
+                "  - network interruptions or errors causing corrupted downloads\n\n"
+                "<b>Solutions:</>\n"
+                "  1. Try running your command again using the <c1>--no-cache</> global option enabled.\n"
+                "  2. Try regenerating your lock file using (<c1>poetry lock --no-cache --regenerate</>).\n\n"
+                "If any of those solutions worked, you will have to clear your caches using (<c1>poetry cache clear --all CACHE_NAME</>)."
+            ),
+            ConsoleMessage(
+                f"Poetry retrieved the following links:\n"
+                f"{link_hashes}\n\n"
+                f"The lockfile contained only the following hashes:\n"
+                f"{known_hashes}",
+                debug=True,
+            ),
+        ]
+        raise PoetryRuntimeError(reason, messages)
 
     def _sort_key(
         self, package: Package, link: Link

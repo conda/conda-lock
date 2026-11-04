@@ -12,13 +12,16 @@ from conda_lock._vendor.poetry.repositories import Repository
 from conda_lock._vendor.poetry.repositories import RepositoryPool
 from conda_lock._vendor.poetry.repositories.installed_repository import InstalledRepository
 from conda_lock._vendor.poetry.repositories.lockfile_repository import LockfileRepository
+from conda_lock._vendor.poetry.utils.constants import POETRY_SYSTEM_PROJECT_NAME
 
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
+    from collections.abc import Mapping
 
     from conda_lock._vendor.cleo.io.io import IO
     from packaging.utils import NormalizedName
+    from conda_lock._vendor.poetry.core.packages.dependency import Dependency
     from conda_lock._vendor.poetry.core.packages.package import Package
     from conda_lock._vendor.poetry.core.packages.path_dependency import PathDependency
     from conda_lock._vendor.poetry.core.packages.project_package import ProjectPackage
@@ -42,6 +45,8 @@ class Installer:
         installed: InstalledRepository | None = None,
         executor: Executor | None = None,
         disable_cache: bool = False,
+        *,
+        build_constraints: Mapping[NormalizedName, list[Dependency]] | None = None,
     ) -> None:
         self._io = io
         self._env = env
@@ -54,7 +59,7 @@ class Installer:
         self._requires_synchronization = False
         self._update = False
         self._verbose = False
-        self._groups: Iterable[str] | None = None
+        self._groups: Iterable[NormalizedName] | None = None
         self._skip_directory = False
         self._lock = False
 
@@ -64,7 +69,12 @@ class Installer:
 
         if executor is None:
             executor = Executor(
-                self._env, self._pool, config, self._io, disable_cache=disable_cache
+                self._env,
+                self._pool,
+                config,
+                self._io,
+                disable_cache=disable_cache,
+                build_constraints=build_constraints,
             )
 
         self._executor = executor
@@ -127,7 +137,7 @@ class Installer:
     def is_verbose(self) -> bool:
         return self._verbose
 
-    def only_groups(self, groups: Iterable[str]) -> Installer:
+    def only_groups(self, groups: Iterable[NormalizedName]) -> Installer:
         self._groups = groups
 
         return self
@@ -207,7 +217,7 @@ class Installer:
         from conda_lock._vendor.poetry.puzzle.solver import Solver
 
         locked_repository = Repository("poetry-locked")
-        reresolve = self._config.get("installer.re-resolve", True)
+        reresolve = self._config.get("installer.re-resolve", False)
         solved_packages: dict[Package, TransitivePackageInfo] = {}
         lockfile_repo = LockfileRepository()
 
@@ -257,7 +267,7 @@ class Installer:
             if not self._locker.is_fresh():
                 raise ValueError(
                     "pyproject.toml changed significantly since poetry.lock was last"
-                    " generated. Run `poetry lock` to fix the lock file."
+                    f" generated. Run `{self._lock_fix_command()}` to fix the lock file."
                 )
             if not (reresolve or self._locker.is_locked_groups_and_markers()):
                 if self._io.is_verbose():
@@ -370,6 +380,14 @@ class Installer:
             self._write_lock_file(solved_packages)
 
         return status
+
+    def _lock_fix_command(self) -> str:
+        # `poetry self` commands operate on Poetry's own system project. When the lock
+        # file is outdated, users should run `poetry self lock` rather than `poetry lock`.
+        if self._package.name == POETRY_SYSTEM_PROJECT_NAME:
+            return "poetry self lock"
+
+        return "poetry lock"
 
     def _write_lock_file(
         self,

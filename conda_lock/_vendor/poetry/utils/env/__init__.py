@@ -2,18 +2,14 @@ from __future__ import annotations
 
 from contextlib import contextmanager
 from pathlib import Path
+from tempfile import TemporaryDirectory
 from typing import TYPE_CHECKING
-
-from conda_lock._vendor.poetry.core.utils.helpers import temporary_directory
 
 from conda_lock._vendor.poetry.utils.env.base_env import Env
 from conda_lock._vendor.poetry.utils.env.env_manager import EnvManager
 from conda_lock._vendor.poetry.utils.env.exceptions import EnvCommandError
 from conda_lock._vendor.poetry.utils.env.exceptions import EnvError
 from conda_lock._vendor.poetry.utils.env.exceptions import IncorrectEnvError
-from conda_lock._vendor.poetry.utils.env.exceptions import InvalidCurrentPythonVersionError
-from conda_lock._vendor.poetry.utils.env.exceptions import NoCompatiblePythonVersionFoundError
-from conda_lock._vendor.poetry.utils.env.exceptions import PythonVersionNotFoundError
 from conda_lock._vendor.poetry.utils.env.generic_env import GenericEnv
 from conda_lock._vendor.poetry.utils.env.mock_env import MockEnv
 from conda_lock._vendor.poetry.utils.env.null_env import NullEnv
@@ -41,7 +37,7 @@ def ephemeral_environment(
     executable: Path | None = None,
     flags: dict[str, str | bool] | None = None,
 ) -> Iterator[VirtualEnv]:
-    with temporary_directory() as tmp_dir:
+    with TemporaryDirectory(ignore_cleanup_errors=True) as tmp_dir:
         # TODO: cache PEP 517 build environment corresponding to each project venv
         venv_dir = Path(tmp_dir) / ".venv"
         EnvManager.build_venv(
@@ -92,24 +88,21 @@ def build_environment(
 __all__ = [
     "GET_BASE_PREFIX",
     "GET_ENVIRONMENT_INFO",
-    "GET_PATHS",
-    "GET_SYS_PATH",
     "GET_ENV_PATH_ONELINER",
+    "GET_PATHS",
     "GET_PYTHON_VERSION_ONELINER",
-    "EnvError",
-    "EnvCommandError",
-    "IncorrectEnvError",
-    "InvalidCurrentPythonVersionError",
-    "NoCompatiblePythonVersionFoundError",
-    "PythonVersionNotFoundError",
+    "GET_SYS_PATH",
     "Env",
+    "EnvCommandError",
+    "EnvError",
     "EnvManager",
     "GenericEnv",
+    "IncorrectEnvError",
     "MockEnv",
     "NullEnv",
+    "SitePackages",
     "SystemEnv",
     "VirtualEnv",
-    "SitePackages",
     "build_environment",
     "ephemeral_environment",
 ]

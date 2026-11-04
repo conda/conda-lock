@@ -1,22 +1,10 @@
 from __future__ import annotations
 
-import shutil
-import stat
-import sys
-import tempfile
-import time
 import unicodedata
 
-from contextlib import contextmanager
 from pathlib import Path
-from typing import TYPE_CHECKING
-from typing import Any
 
 from packaging.utils import canonicalize_name
-
-
-if TYPE_CHECKING:
-    from collections.abc import Iterator
 
 
 def combine_unicode(string: str) -> str:
@@ -25,22 +13,6 @@ def combine_unicode(string: str) -> str:
 
 def module_name(name: str) -> str:
     return canonicalize_name(name).replace("-", "_")
-
-
-@contextmanager
-def temporary_directory(*args: Any, **kwargs: Any) -> Iterator[Path]:
-    if sys.version_info >= (3, 10):
-        # mypy reports an error if ignore_cleanup_errors is
-        # specified literally in the call
-        kwargs["ignore_cleanup_errors"] = True
-        with tempfile.TemporaryDirectory(*args, **kwargs) as name:
-            yield Path(name)
-    else:
-        name = tempfile.mkdtemp(*args, **kwargs)
-        try:
-            yield Path(name)
-        finally:
-            robust_rmtree(name)
 
 
 def parse_requires(requires: str) -> list[str]:
@@ -78,42 +50,6 @@ def parse_requires(requires: str) -> list[str]:
         requires_dist.append(line)
 
     return requires_dist
-
-
-def _on_rm_error(func: Any, path: str | Path, exc_info: Any) -> None:
-    path = Path(path)
-    if not path.exists():
-        return
-
-    path.chmod(stat.S_IWRITE)
-    func(path)
-
-
-def robust_rmtree(path: str | Path, max_timeout: float = 1) -> None:
-    """
-    Robustly tries to delete paths.
-    Retries several times if an OSError occurs.
-    If the final attempt fails, the Exception is propagated
-    to the caller.
-    """
-    path = Path(path)  # make sure this is a Path object, not str
-    timeout = 0.001
-    while timeout < max_timeout:
-        try:
-            # both os.unlink and shutil.rmtree can throw exceptions on Windows
-            # if the files are in use when called
-            if path.is_symlink():
-                path.unlink()
-            else:
-                shutil.rmtree(path)
-            return  # Only hits this on success
-        except OSError:
-            # Increase the timeout and try again
-            time.sleep(timeout)
-            timeout *= 2
-
-    # Final attempt, pass any Exceptions up to caller.
-    shutil.rmtree(path, onerror=_on_rm_error)
 
 
 def readme_content_type(path: str | Path) -> str:

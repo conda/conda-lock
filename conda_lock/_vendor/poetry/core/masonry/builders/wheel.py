@@ -17,7 +17,9 @@ from base64 import urlsafe_b64encode
 from functools import cached_property
 from io import StringIO
 from pathlib import Path
+from tempfile import TemporaryDirectory
 from typing import TYPE_CHECKING
+from typing import Any
 from typing import TextIO
 
 import packaging.tags
@@ -29,7 +31,6 @@ from conda_lock._vendor.poetry.core.masonry.builders.sdist import SdistBuilder
 from conda_lock._vendor.poetry.core.masonry.utils.helpers import distribution_name
 from conda_lock._vendor.poetry.core.masonry.utils.helpers import normalize_file_permissions
 from conda_lock._vendor.poetry.core.masonry.utils.package_include import PackageInclude
-from conda_lock._vendor.poetry.core.utils.helpers import temporary_directory
 
 
 if TYPE_CHECKING:
@@ -61,8 +62,9 @@ class WheelBuilder(Builder):
         executable: Path | None = None,
         editable: bool = False,
         metadata_directory: Path | None = None,
+        config_settings: dict[str, Any] | None = None,
     ) -> None:
-        super().__init__(poetry, executable=executable)
+        super().__init__(poetry, executable=executable, config_settings=config_settings)
 
         self._records: list[tuple[str, str, int]] = []
         self._original_path = self._path
@@ -80,13 +82,15 @@ class WheelBuilder(Builder):
         executable: Path | None = None,
         editable: bool = False,
         metadata_directory: Path | None = None,
+        config_settings: dict[str, Any] | None = None,
     ) -> str:
-        wb = WheelBuilder(
+        wb = cls(
             poetry,
             original=original,
             executable=executable,
             editable=editable,
             metadata_directory=metadata_directory,
+            config_settings=config_settings,
         )
         wb.build(target_dir=directory)
 
@@ -133,7 +137,7 @@ class WheelBuilder(Builder):
             self._copy_file_scripts(zip_file)
 
             if self._metadata_directory is None:
-                with temporary_directory() as temp_dir:
+                with TemporaryDirectory(ignore_cleanup_errors=True) as temp_dir:
                     metadata_directory = self.prepare_metadata(Path(temp_dir))
                     self._copy_dist_info(zip_file, metadata_directory)
             else:
@@ -246,8 +250,8 @@ print(sysconfig.get_platform(), sys.implementation.cache_tag, sep='-')
                 )
             plat_specifier = output.strip()
         else:
-            plat_specifier = "-".join(
-                (sysconfig.get_platform(), sys.implementation.cache_tag)
+            plat_specifier = (
+                f"{sysconfig.get_platform()}-{sys.implementation.cache_tag}"
             )
         return self._path / "build" / f"lib.{plat_specifier}"
 
@@ -328,7 +332,7 @@ print(sysconfig.get_platform(), sys.implementation.cache_tag, sep='-')
                 logger.debug(f"Skipping: {legal_file.as_posix()}")
                 continue
 
-            dest = dist_info / legal_file.relative_to(self._path)
+            dest = dist_info / "licenses" / legal_file.relative_to(self._path)
             dest.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy(legal_file, dest)
 
@@ -537,8 +541,9 @@ for t in packaging_tags.sys_tags():
 
         for group_name in sorted(entry_points):
             fp.write(f"[{group_name}]\n")
-            for ep in sorted(entry_points[group_name]):
-                fp.write(ep.replace(" ", "") + "\n")
+            fp.writelines(
+                ep.replace(" ", "") + "\n" for ep in sorted(entry_points[group_name])
+            )
 
             fp.write("\n")
 

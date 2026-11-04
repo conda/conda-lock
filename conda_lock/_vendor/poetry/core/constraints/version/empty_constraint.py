@@ -22,6 +22,14 @@ class EmptyConstraint(VersionConstraint):
     def is_simple(self) -> bool:
         return True
 
+    def has_upper_bound(self) -> bool:
+        # Rationale:
+        # 1. If no version can satisfy the constraint,
+        #    this is like an upper bound of 0 (not included).
+        # 2. The opposite of an empty constraint, which is *, has no upper bound
+        #    and the two extremes often behave the other way around.
+        return True
+
     def allows(self, version: Version) -> bool:
         return False
 

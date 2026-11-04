@@ -6,9 +6,9 @@ import re
 
 from typing import TYPE_CHECKING
 from typing import Any
-from typing import cast
 
 from conda_lock._vendor.cleo.io.null_io import NullIO
+from packaging.utils import NormalizedName
 from packaging.utils import canonicalize_name
 from conda_lock._vendor.poetry.core.constraints.version import Version
 from conda_lock._vendor.poetry.core.constraints.version import parse_constraint
@@ -23,7 +23,9 @@ from conda_lock._vendor.poetry.packages.locker import Locker
 from conda_lock._vendor.poetry.plugins.plugin import Plugin
 from conda_lock._vendor.poetry.plugins.plugin_manager import PluginManager
 from conda_lock._vendor.poetry.poetry import Poetry
+from conda_lock._vendor.poetry.pyproject.toml import PyProjectTOML
 from conda_lock._vendor.poetry.toml.file import TOMLFile
+from conda_lock._vendor.poetry.utils.isolated_build import CONSTRAINTS_GROUP_NAME
 
 
 if TYPE_CHECKING:
@@ -31,6 +33,7 @@ if TYPE_CHECKING:
     from pathlib import Path
 
     from conda_lock._vendor.cleo.io.io import IO
+    from conda_lock._vendor.poetry.core.packages.dependency import Dependency
     from conda_lock._vendor.poetry.core.packages.package import Package
     from tomlkit.toml_document import TOMLDocument
 
@@ -46,6 +49,20 @@ class Factory(BaseFactory):
     Factory class to create various elements needed by Poetry.
     """
 
+    def _ensure_valid_poetry_version(self, cwd: Path | None) -> None:
+        poetry_file = self.locate(cwd)
+        pyproject = PyProjectTOML(path=poetry_file)
+        poetry_config = pyproject.data.get("tool", {}).get("poetry", {})
+
+        if version_str := poetry_config.get("requires-poetry"):
+            version_constraint = parse_constraint(version_str)
+            version = Version.parse(__version__)
+            if not version_constraint.allows(version):
+                raise PoetryError(
+                    f"This project requires Poetry {version_constraint},"
+                    f" but you are using Poetry {version}"
+                )
+
     def create_poetry(
         self,
         cwd: Path | None = None,
@@ -57,16 +74,26 @@ class Factory(BaseFactory):
         if io is None:
             io = NullIO()
 
+        self._ensure_valid_poetry_version(cwd)
+
         base_poetry = super().create_poetry(cwd=cwd, with_groups=with_groups)
 
-        if version_str := base_poetry.local_config.get("requires-poetry"):
-            version_constraint = parse_constraint(version_str)
-            version = Version.parse(__version__)
-            if not version_constraint.allows(version):
-                raise PoetryError(
-                    f"This project requires Poetry {version_constraint},"
-                    f" but you are using Poetry {version}"
+        build_constraints: dict[NormalizedName, list[Dependency]] = {}
+        for name, constraints in base_poetry.local_config.get(
+            "build-constraints", {}
+        ).items():
+            name = canonicalize_name(name)
+            build_constraints[name] = []
+            for dep_name, constraint in constraints.items():
+                _constraints = (
+                    constraint if isinstance(constraint, list) else [constraint]
                 )
+                for _constraint in _constraints:
+                    build_constraints[name].append(
+                        Factory.create_dependency(
+                            dep_name, _constraint, groups=[CONSTRAINTS_GROUP_NAME]
+                        )
+                    )
 
         poetry_file = base_poetry.pyproject_path
         locker = Locker(poetry_file.parent / "poetry.lock", base_poetry.pyproject.data)
@@ -99,7 +126,8 @@ class Factory(BaseFactory):
             base_poetry.package,
             locker,
             config,
-            disable_cache,
+            disable_cache=disable_cache,
+            build_constraints=build_constraints,
         )
 
         poetry.set_pool(
@@ -220,12 +248,12 @@ class Factory(BaseFactory):
         )
 
     @classmethod
-    def create_pyproject_from_package(cls, package: Package) -> TOMLDocument:
+    def create_legacy_pyproject_from_package(cls, package: Package) -> TOMLDocument:
         import tomlkit
 
         from conda_lock._vendor.poetry.utils.dependency_specification import dependency_to_specification
 
-        pyproject: dict[str, Any] = tomlkit.document()
+        pyproject = tomlkit.document()
 
         pyproject["tool"] = tomlkit.table(is_super_table=True)
 
@@ -321,8 +349,6 @@ class Factory(BaseFactory):
         if extras_section:
             content["extras"] = extras_section
 
-        pyproject = cast("TOMLDocument", pyproject)
-
         return pyproject
 
     @classmethod
@@ -332,7 +358,9 @@ class Factory(BaseFactory):
         results = super().validate(toml_data, strict)
         poetry_config = toml_data["tool"]["poetry"]
 
-        results["errors"].extend(validate_object(poetry_config))
+        results["errors"].extend(
+            [e.replace("data.", "tool.poetry.") for e in validate_object(poetry_config)]
+        )
 
         # A project should not depend on itself.
         # TODO: consider [project.dependencies] and [project.optional-dependencies]

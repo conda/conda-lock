@@ -11,6 +11,7 @@ from conda_lock._vendor.poetry.plugins.plugin_manager import PluginManager
 
 if TYPE_CHECKING:
     from conda_lock._vendor.cleo.io.inputs.option import Option
+    from packaging.utils import NormalizedName
 
 
 class InstallCommand(InstallerCommand):
@@ -83,7 +84,7 @@ you can set the "package-mode" to false in your pyproject.toml file.
     ]
 
     @property
-    def activated_groups(self) -> set[str]:
+    def activated_groups(self) -> set[NormalizedName]:
         if self.option("only-root"):
             return set()
         else:
@@ -99,8 +100,7 @@ you can set the "package-mode" to false in your pyproject.toml file.
         if with_synchronization:
             self.line_error(
                 "<warning>The `<fg=yellow;options=bold>--sync</>` option is"
-                " deprecated and slated for removal in the next minor release"
-                " after June 2025, use the"
+                " deprecated and slated for removal, use the"
                 f" `<fg=yellow;options=bold>{self._alternative_sync_command}</>`"
                 " command instead.</warning>"
             )
@@ -111,7 +111,8 @@ you can set the "package-mode" to false in your pyproject.toml file.
 
         from conda_lock._vendor.poetry.masonry.builders.editable import EditableBuilder
 
-        PluginManager.ensure_project_plugins(self.poetry, self.io)
+        if not self.option("no-plugins"):
+            PluginManager.ensure_project_plugins(self.poetry, self.io)
 
         if self.option("extras") and self.option("all-extras"):
             self.line_error(
@@ -122,7 +123,7 @@ you can set the "package-mode" to false in your pyproject.toml file.
             return 1
 
         if self.option("only-root") and any(
-            self.option(key) for key in {"with", "without", "only", "all-groups"}
+            self.option(key) for key in ("with", "without", "only", "all-groups")
         ):
             self.line_error(
                 "<error>The `<fg=yellow;options=bold>--with</>`,"
