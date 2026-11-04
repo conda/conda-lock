@@ -49,7 +49,8 @@ dependencies = [
     # ensureconda v1.4.7 introduced locking for downloads which fixed
     # frequent CI failures on Windows.
     "ensureconda >=1.4.7",
-    "filelock",
+    # 4.2.1 fixes lock-file replacement attacks; virtualenv >=21.10 permits filelock 4.
+    "filelock >=4.2.1,<5",
     "gitpython >=3.1.30",
     "jinja2",
     # constraint on version comes from poetry and conda
@@ -84,7 +85,9 @@ dependencies = [
     "requests-toolbelt >=1.0.0,<2.0.0",
     "shellingham >=1.5,<2.0",
     "trove-classifiers >= 2022.5.19",
-    "virtualenv >=20.26.6,<21.0.0",
+    # 21.15.2 makes --try-first-with override configured interpreter preferences.
+    # Poetry uses this option for isolated builds: https://github.com/pypa/virtualenv/pull/3494
+    "virtualenv >=21.15.2,<22.0.0",
     'xattr >=1.0.0,<2.0.0 ; sys_platform == "darwin"',
 ]
 

@@ -22,3 +22,7 @@ backports the Git backend changes from Poetry PRs
 [#10719](https://github.com/python-poetry/poetry/pull/10719), and
 [#10799](https://github.com/python-poetry/poetry/pull/10799).
 Remove the patch when updating to a Poetry release containing these fixes.
+
+`poetry-virtualenv.patch` removes the obsolete `--no-wheel` option for
+virtualenv 21. Wheel is no longer seeded by virtualenv; pip and setuptools
+seeding remain disabled. Poetry 2.5.1 still needs this patch.
