@@ -37,7 +37,6 @@ dependencies:
 - ty
 - types-click
 - types-click-default-group
-- types-filelock
 - types-requests
 - types-toml
 - types-pyyaml
