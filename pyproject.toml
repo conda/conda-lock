@@ -183,7 +183,9 @@ substitute = [
     # for CLI apps. We don't need this functionality in conda-lock, and removing
     # this import allows us to drop it as a dependency.
     { match = 'from rapidfuzz.distance import Levenshtein', replace = ''},
-    { match = '__version__ = metadata\.version\("poetry"\)', replace = '__version__ = "2.0.1"' },
+    { match = '__version__ = metadata\.version\("poetry"\)', replace = '__version__ = "2.5.1"' },
+    # Resource lookups use module-name strings, which vendoring cannot rewrite.
+    { match = 'files\("poetry\.core"\)', replace = 'files("conda_lock._vendor.poetry.core")' },
 ]
 
 [tool.conda-lock]
