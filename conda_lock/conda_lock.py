@@ -110,11 +110,6 @@ HAVE_MAMBA = (
 )
 
 
-if not (sys.version_info.major >= 3 and sys.version_info.minor >= 6):
-    print("conda_lock needs to run under python >=3.6")
-    sys.exit(1)
-
-
 KIND_EXPLICIT: Literal["explicit"] = "explicit"
 KIND_LOCK: Literal["lock"] = "lock"
 KIND_ENV: Literal["env"] = "env"
