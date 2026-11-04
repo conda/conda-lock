@@ -17,6 +17,7 @@ charset-normalizer = "*"
 click = ">=8.0"
 click-default-group = "*"
 crashtest = "<0.5.0,>=0.4.1"
+dulwich = "<2,>=1.2.20"
 ensureconda = ">=1.4.7"
 filelock = "*"
 gitpython = ">=3.1.30"
@@ -45,7 +46,6 @@ zstandard = ">=0.15"
 
 [pypi-dependencies]
 conda-lock = {path = ".", editable = true}
-dulwich = "<2,>=1.2.20"
 
 [target.osx-64.dependencies]
 xattr = "<2.0.0,>=1.0.0"
