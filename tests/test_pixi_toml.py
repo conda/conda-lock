@@ -36,7 +36,8 @@ def test_generate_pixi_toml() -> None:
 
     assert result.stdout == expected
     # Pip deps with extras can't be converted to Conda deps.
-    warning3 = """Extras not supported in Conda dep name='cachecontrol' manager='conda' category='main' extras=['filecache'] markers=None version='<0.15.0,>=0.14.0'"""
-    for warning in [warning3]:
+    warning1 = """Extras not supported in Conda dep name='cachecontrol' manager='conda' category='main' extras=['filecache'] markers=None version='<0.15.0,>=0.14.0'"""
+    warning2 = """Extras not supported in Conda dep name='pbs-installer' manager='conda' category='main' extras=['download', 'install'] markers=None version='>=2025.6.10'"""
+    for warning in [warning1, warning2]:
         assert any(warning in str(r.message) for r in record)
-    assert len(set(str(r.message) for r in record)) == 1
+    assert len(set(str(r.message) for r in record)) == 2
