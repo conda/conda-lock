@@ -3310,8 +3310,9 @@ def test_pip_finds_recent_manylinux_wheels(
     See https://github.com/conda/conda-lock/issues/517 for more context.
 
     If not found, installation would trigger a build of lightgbm from source.
-    If this test fails, it likely means that MANYLINUX_TAGS in
-    `conda_lock/pypi_solver.py` is out of date.
+    If this test fails, check whether the available wheels are supported by
+    MANYLINUX_TAGS in `conda_lock/pypi_solver.py` and by the default __glibc in
+    `conda_lock/default-virtual-packages.yaml`.
     """
     monkeypatch.chdir(lightgbm_environment.parent)
     run_lock(
