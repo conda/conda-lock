@@ -56,13 +56,31 @@ jobs:
             pytest-split-group-index: 9
           - os: ubuntu-latest
             pytest-split-group-index: 10
+          - os: windows-latest
+            pytest-split-group-index: 5
+          - os: windows-latest
+            pytest-split-group-index: 6
+          - os: windows-latest
+            pytest-split-group-index: 7
+          - os: windows-latest
+            pytest-split-group-index: 8
+          - os: windows-latest
+            pytest-split-group-index: 9
+          - os: windows-latest
+            pytest-split-group-index: 10
         include:
           - os: ubuntu-latest
             pytest-split-group-size: 3
+            pytest-workers: 4
+            pytest-distribution: load
           - os: macos-latest
             pytest-split-group-size: 10
+            pytest-workers: auto
+            pytest-distribution: load
           - os: windows-latest
-            pytest-split-group-size: 10
+            pytest-split-group-size: 4
+            pytest-workers: 4
+            pytest-distribution: worksteal
 
     defaults:
       run:
@@ -70,6 +88,8 @@ jobs:
     env:
       PYTHONUNBUFFERED: "1"
       FORCE_COLOR: "1"
+      PYTEST_WORKERS: ${{ matrix.pytest-workers }}
+      PYTEST_DISTRIBUTION: ${{ matrix.pytest-distribution }}
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
         with:
@@ -122,6 +142,8 @@ jobs:
           set -x
           which pytest
           pytest \
+            --numprocesses="$PYTEST_WORKERS" \
+            --dist="$PYTEST_DISTRIBUTION" \
             --cov=conda_lock --cov-branch --cov-report=xml --cov-report=term \
             --store-durations \
             --clean-durations \
