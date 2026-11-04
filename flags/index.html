@@ -1250,10 +1250,18 @@ need to regenerate the lockfiles if the underlying input specification for that 
 </code></pre></div>
 <hr />
 <h2 id="-virtual-package-spec">--virtual-package-spec</h2>
-<p>Conda makes use of <a href="https://conda.io/projects/conda/en/latest/user-guide/tasks/manage-virtual.html">virtual packages</a> that are available at
-runtime to gate dependency on system features.  Due to these not generally existing on your local execution platform conda-lock will inject
-them into the solution environment with a reasonable guess at what a default system configuration should be.</p>
-<p>If you want to override which virtual packages are injected you can create a virtual package spec file</p>
+<p>Conda uses <a href="https://conda.io/projects/conda/en/latest/user-guide/tasks/manage-virtual.html">virtual packages</a> to describe system-level
+features like the glibc version, macOS version, or CUDA version.  Since conda-lock generates
+lockfiles independently of a target system, it assumes a default set of virtual package versions
+that represent a reasonable minimum system configuration.</p>
+<p>Each virtual package version acts as an upper bound on which packages are considered by
+the solver (packages requiring a newer version are excluded) and as a lower bound on
+compatible target systems (the lockfile is installable on systems that meet or exceed
+these versions).</p>
+<p>There is a tradeoff: increasing a version widens the set of candidate packages but narrows
+the set of compatible target systems.  If a package you need is being filtered out, increase the
+relevant version.  If the lockfile is incompatible with your target system, decrease it.</p>
+<p>To override the defaults, create a virtual package spec file</p>
 <div class="highlight"><span class="filename">virtual-packages.yml</span><pre><span></span><code><span class="nt">subdirs</span><span class="p">:</span>
 <span class="w">  </span><span class="nt">linux-64</span><span class="p">:</span>
 <span class="w">    </span><span class="nt">packages</span><span class="p">:</span>
