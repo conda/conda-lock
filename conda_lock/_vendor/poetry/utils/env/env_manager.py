@@ -522,7 +522,6 @@ class EnvManager:
 
         flags.setdefault("no-pip", True)
         flags.setdefault("no-setuptools", True)
-        flags.setdefault("no-wheel", True)
 
         if WINDOWS:
             path = get_real_windows_path(path)
