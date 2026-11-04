@@ -225,8 +225,10 @@ jobs:
         run: |
           conda install conda pip setuptools editables hatchling hatch-vcs conda-lock --yes
           conda uninstall conda-lock --force --yes
-          # Upgrade Dulwich after removing the release's older dependency constraint.
-          conda install "conda-forge::dulwich>=1.2.20,<2" --yes
+          conda_specs=$(python .github/scripts/conda_dependency_specs.py)
+          printf 'Conda dependency specs:\n%s\n' "$conda_specs"
+          mapfile -t conda_spec_args <<< "$conda_specs"
+          conda install --yes "${conda_spec_args[@]}"
           pip install --no-deps --no-build-isolation -e .
           pip check
       - name: run-test
