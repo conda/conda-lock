@@ -220,4 +220,4 @@ This is useful in particular for packages that are not present on conda channels
 numpy = {source = "pypi"}
 ```
 
-[mapping]: https://github.com/regro/cf-graph-countyfair/blob/master/mappings/pypi/grayskull_pypi_mapping.yaml
+[mapping]: https://github.com/conda-forge/conda-forge-bot-data/blob/main/mappings/pypi/grayskull_pypi_mapping.json
