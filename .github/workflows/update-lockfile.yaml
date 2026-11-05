@@ -128,21 +128,43 @@ jobs:
         merge-multiple: true
 
     - name: Open a pull request
-      uses: peter-evans/create-pull-request@5f6978faf089d4d20b00c7766989d076bb2fc7f1 # v8.1.1
-      with:
-        # # The default GITHUB_TOKEN doesn't allow other workflows to trigger.
-        # # Thus if there are tests to be run, they won't be run. For more info,
-        # # see the note under
-        # # <https://github.com/peter-evans/create-pull-request#action-inputs>.
-        # # One possible workaround is to specify a Personal Access Token (PAT).
-        # # This PAT should have read-write permissions for "Pull Requests"
-        # # and read-write permissions for "Contents".
-        token: ${{ secrets.GH_PAT_FOR_PR_2 }}
-        commit-message: Relock dependencies
-        title: Relock dependencies
-        body: >
-          This pull request relocks the dependencies with conda-lock.
-          It is triggered by [update-lockfile](https://github.com/conda/conda-lock/blob/main/.github/workflows/update-lockfile.yaml).
-        branch: relock-deps
-        labels: conda-lock
-        delete-branch: true
+      env:
+        # The default GITHUB_TOKEN doesn't allow other workflows to trigger.
+        # Thus if there are tests to be run, they won't be run. For more info,
+        # see <https://docs.github.com/en/actions/how-tos/write-workflows/choose-when-workflows-run/trigger-a-workflow#triggering-a-workflow-from-a-workflow>.
+        # One possible workaround is to specify a Personal Access Token (PAT).
+        # This PAT should have read-write permissions for "Pull Requests"
+        # and read-write permissions for "Contents".
+        GH_TOKEN: ${{ secrets.GH_PAT_FOR_PR_2 }}
+        BRANCH: relock-deps
+      run: |
+        git config user.name "github-actions[bot]"
+        git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+        # The checkout doesn't persist credentials, so let git push with GH_TOKEN.
+        gh auth setup-git
+
+        git add --all
+        if git diff --cached --quiet; then
+          echo "Dependencies are already up to date."
+          # Delete a stale branch so that any open pull request for it gets closed.
+          if git ls-remote --exit-code --heads origin "${BRANCH}" > /dev/null; then
+            git push origin --delete "${BRANCH}"
+          fi
+          exit 0
+        fi
+
+        git commit --message "Relock dependencies"
+        git push --force origin "HEAD:refs/heads/${BRANCH}"
+
+        existing_pr=$(gh pr list --repo "${GITHUB_REPOSITORY}" --head "${BRANCH}" --base "${GITHUB_REF_NAME}" --state open --json number --jq '.[].number')
+        if [[ -n "${existing_pr}" ]]; then
+          echo "Updated the existing pull request #${existing_pr}."
+        else
+          gh pr create \
+            --repo "${GITHUB_REPOSITORY}" \
+            --base "${GITHUB_REF_NAME}" \
+            --head "${BRANCH}" \
+            --title "Relock dependencies" \
+            --body "This pull request relocks the dependencies with conda-lock. It is triggered by [update-lockfile](https://github.com/conda/conda-lock/blob/main/.github/workflows/update-lockfile.yaml)." \
+            --label conda-lock
+        fi
