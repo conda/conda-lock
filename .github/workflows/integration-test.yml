@@ -107,9 +107,19 @@ jobs:
           path: lockfiles
       - name: Install GDAL with Micromamba
         run: |
-          micromamba create -y -n gdal-test-mm-lock -f lockfiles/conda-lock.yml
-          micromamba create -y -n gdal-test-mm-explicit -f lockfiles/conda-*.lock
-          micromamba create -y -n gdal-test-mm-env -f lockfiles/conda-*.lock.yml
+          # On macOS, an executable hardlinked from the package cache can resolve
+          # its own path to the cache, so dyld then fails to find its @rpath
+          # libraries ("Library not loaded: @rpath/libcrypto.3.dylib",
+          # intermittent). Copying instead of hardlinking avoids it.
+          # See https://github.com/conda-forge/cmake-feedstock/issues/230
+          if [ "$RUNNER_OS" == "macOS" ]; then
+            create_flags="--always-copy"
+          else
+            create_flags=""
+          fi
+          micromamba create -y $create_flags -n gdal-test-mm-lock -f lockfiles/conda-lock.yml
+          micromamba create -y $create_flags -n gdal-test-mm-explicit -f lockfiles/conda-*.lock
+          micromamba create -y $create_flags -n gdal-test-mm-env -f lockfiles/conda-*.lock.yml
 
           micromamba run -n gdal-test-mm-lock gdalinfo --version
           micromamba run -n gdal-test-mm-explicit gdalinfo --version
