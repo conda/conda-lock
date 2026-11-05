@@ -145,6 +145,7 @@ jobs:
           persist-credentials: false
       - uses: conda-incubator/setup-miniconda@fc2d68f6413eb2d87b895e92f8584b5b94a10167 # v3.3.0
         with:
+          run-post: "false" # No conda package cache is saved on these disposable runners.
           auto-activate-base: true
           python-version: ${{ matrix.python-version }}
       - name: install conda-lock
@@ -189,6 +190,7 @@ jobs:
     steps:
       - uses: conda-incubator/setup-miniconda@fc2d68f6413eb2d87b895e92f8584b5b94a10167 # v3.3.0
         with:
+          run-post: "false" # No conda package cache is saved on these disposable runners.
           auto-activate-base: true
           python-version: ${{ matrix.python-version }}
       - name: Download lockfiles
@@ -228,6 +230,7 @@ jobs:
       - name: Set up Conda
         uses: conda-incubator/setup-miniconda@fc2d68f6413eb2d87b895e92f8584b5b94a10167 # v3.3.0
         with:
+          run-post: "false" # No conda package cache is saved on these disposable runners.
           auto-activate-base: true
           python-version: 3.14
       - name: install conda-lock
