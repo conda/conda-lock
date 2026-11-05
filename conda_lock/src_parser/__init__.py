@@ -5,7 +5,7 @@ from collections.abc import Sequence, Set
 
 from conda_lock.common import ordered_union
 from conda_lock.models.channel import Channel
-from conda_lock.models.lock_spec import Dependency, LockSpecification
+from conda_lock.models.lock_spec import LockSpecification
 from conda_lock.models.pip_repository import PipRepository
 from conda_lock.src_parser.aggregation import aggregate_lock_specs
 from conda_lock.src_parser.environment_yaml import (
@@ -98,7 +98,9 @@ def make_lock_spec(
         src_files, platforms=platforms, mapping_url=mapping_url
     )
 
-    aggregated_lock_spec = aggregate_lock_specs(lock_specs, platforms)
+    aggregated_lock_spec = aggregate_lock_specs(
+        lock_specs, platforms, filtered_categories=filtered_categories
+    )
 
     # Use channel overrides if given, otherwise use the channels specified in the
     # source files.
@@ -117,25 +119,8 @@ def make_lock_spec(
         else aggregated_lock_spec.pip_repositories
     )
 
-    if filtered_categories is None:
-        dependencies = aggregated_lock_spec.dependencies
-    else:
-        # Filtering based on category (e.g. "main" or "dev") was requested.
-        # Thus we need to filter the specs based on the category.
-        def dep_has_category(d: Dependency, categories: Set[str]) -> bool:
-            return d.category in categories
-
-        dependencies = {
-            platform: [
-                d
-                for d in dependencies
-                if dep_has_category(d, categories=filtered_categories)
-            ]
-            for platform, dependencies in aggregated_lock_spec.dependencies.items()
-        }
-
     return LockSpecification(
-        dependencies=dependencies,
+        dependencies=aggregated_lock_spec.dependencies,
         channels=channels,
         pip_repositories=pip_repositories,
         sources=aggregated_lock_spec.sources,
