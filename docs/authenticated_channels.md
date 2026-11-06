@@ -1,5 +1,9 @@
 # Authentication for channels
 
+If channel settings such as `channel_alias` come from a `.condarc` in a separate
+Conda installation, see [configuration discovery](flags.md#conda-configuration-files)
+for shared configuration locations and the `CONDARC` workaround.
+
 Conda lock supports two kinds of credentials used for channels
 ## Token based
 
