@@ -281,7 +281,7 @@ def make_lock_files(  # noqa: C901
     with_cuda: str | None = None,
     strip_auth: bool = False,
     mapping_url: str,
-) -> None:
+) -> bool:
     """
     Generate a lock file from the src files provided
 
@@ -322,6 +322,11 @@ def make_lock_files(  # noqa: C901
         None will pick a default version and warn if cuda packages are installed.
     metadata_yamls:
         YAML or JSON file(s) containing structured metadata to add to metadata section of the lockfile.
+
+    Returns
+    -------
+    bool
+        Whether any lockfile was written.
     """
     # Compute lock specification
     filtered_categories: Set[str] | None = None
@@ -421,6 +426,7 @@ def make_lock_files(  # noqa: C901
             )
         platforms_to_lock = sorted(set(platforms_to_lock))
 
+        written = False
         if not platforms_to_lock:
             new_lock_content = original_lock_content
         else:
@@ -460,6 +466,7 @@ def make_lock_files(  # noqa: C901
                     lockfile_path,
                     metadata_choices=metadata_choices,
                 )
+                written = True
                 print(
                     " - Install lock using:",
                     KIND_USE_TEXT["lock"].format(lockfile=str(lockfile_path)),
@@ -485,7 +492,7 @@ def make_lock_files(  # noqa: C901
                         logger.warning(_implicit_cuda_message)
                         break
 
-        do_render(
+        rendered = do_render(
             new_lock_content,
             kinds=[k for k in kinds if k != "lock"],
             include_dev_dependencies=include_dev_dependencies,
@@ -493,6 +500,7 @@ def make_lock_files(  # noqa: C901
             extras=extras,
             check_input_hash=check_input_hash,
         )
+        return written or rendered
 
 
 def do_render(
@@ -503,7 +511,7 @@ def do_render(
     extras: Set[str] | None = None,
     check_input_hash: bool = False,
     override_platform: Sequence[str] | None = None,
-) -> None:
+) -> bool:
     """Render the lock content for each platform in lockfile
 
     Parameters
@@ -522,6 +530,11 @@ def do_render(
         Do not re-render if specifications are unchanged
     override_platform :
         Generate only this subset of the platform files
+
+    Returns
+    -------
+    bool
+        Whether any output was rendered.
     """
     platforms = lockfile.metadata.platforms
     if override_platform is not None and len(override_platform) > 0:
@@ -544,6 +557,7 @@ def do_render(
                 )
                 sys.exit(1)
 
+    rendered = False
     for plat in platforms:
         for kind in kinds:
             if filename_template:
@@ -561,6 +575,7 @@ def do_render(
             else:
                 filename = f"conda-{plat}.lock"
 
+            filename += KIND_FILE_EXT[kind]
             if pathlib.Path(filename).exists() and check_input_hash:
                 with open(filename) as f:
                     previous_hash = extract_input_hash(f.read())
@@ -580,9 +595,9 @@ def do_render(
                 platform=plat,
             )
 
-            filename += KIND_FILE_EXT[kind]
             with open(filename, "w") as fo:
                 fo.write("\n".join(lockfile_contents) + "\n")
+            rendered = True
 
             print(
                 f" - Install lock using {'(see warning below)' if kind == 'env' else ''}:",
@@ -601,6 +616,7 @@ def do_render(
             "makes them useful when updating existing environments.",
             file=sys.stderr,
         )
+    return rendered
 
 
 def render_lockfile_for_platform(  # noqa: C901
@@ -1183,7 +1199,8 @@ def run_lock(
     metadata_yamls: Sequence[pathlib.Path] = (),
     strip_auth: bool = False,
     mapping_url: str,
-) -> None:
+) -> bool:
+    """Generate lockfiles and return whether any lockfile was written."""
     if len(environment_files) == 0:
         environment_files = handle_no_specified_source_files(lockfile_path)
 
@@ -1195,7 +1212,7 @@ def run_lock(
     ).strip()
     logger.debug(f"Executable has version: {version_info}")
 
-    make_lock_files(
+    return make_lock_files(
         conda=_conda_exe,
         src_files=environment_files,
         platform_overrides=platforms,
@@ -1322,6 +1339,12 @@ CONTEXT_SETTINGS = {"show_default": True, "help_option_names": ["--help", "-h"]}
     help="Check existing input hashes in lockfiles before regenerating lock files.  Incompatible with --strip-auth",
 )
 @click.option(
+    "--fail-on-no-change",
+    is_flag=True,
+    default=False,
+    help="Exit with status 4 if no lockfiles are written. Requires --check-input-hash; incompatible with --strip-auth.",
+)
+@click.option(
     "--log-level",
     help="Log level.",
     default="INFO",
@@ -1401,6 +1424,7 @@ def lock(
     extras: Sequence[str],
     filter_categories: bool,
     check_input_hash: bool,
+    fail_on_no_change: bool,
     log_level: TLogLevel,
     pdb: bool,
     virtual_package_spec: PathLike | None,
@@ -1426,6 +1450,14 @@ def lock(
         version: The version of conda-lock used to generate this lock file.
         timestamp: The approximate timestamp of the output file in ISO8601 basic format.
     """
+    if fail_on_no_change:
+        if not check_input_hash:
+            raise click.UsageError("--fail-on-no-change requires --check-input-hash.")
+        if strip_auth:
+            raise click.UsageError(
+                "--fail-on-no-change is incompatible with --strip-auth."
+            )
+
     logging.basicConfig(level=log_level, force=True)
 
     # Set the flag for deleting temporary paths (files/dirs)
@@ -1491,7 +1523,9 @@ def lock(
                 lockfile_content = _strip_auth_from_lockfile(lockfile_content)
                 write_file(lockfile_content, os.path.join(filename_template_dir, file))
     else:
-        lock_func(filename_template=filename_template)
+        changed = lock_func(filename_template=filename_template)
+        if fail_on_no_change and not changed:
+            ctx.exit(4)
 
 
 DEFAULT_INSTALL_OPT_MAMBA = HAVE_MAMBA
