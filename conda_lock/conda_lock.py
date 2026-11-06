@@ -1319,7 +1319,7 @@ CONTEXT_SETTINGS = {"show_default": True, "help_option_names": ["--help", "-h"]}
     "--check-input-hash",
     is_flag=True,
     default=False,
-    help="Check existing input hashes in lockfiles before regenerating lock files.  If no files were updated exit with exit code 4.  Incompatible with --strip-auth",
+    help="Check existing input hashes in lockfiles before regenerating lock files.  Incompatible with --strip-auth",
 )
 @click.option(
     "--log-level",
@@ -1840,7 +1840,7 @@ def render(
     "--check-input-hash",
     is_flag=True,
     default=None,
-    help="Check existing input hashes in lockfiles before regenerating lock files.  If no files were updated exit with exit code 4.  Incompatible with --strip-auth",
+    help="Check existing input hashes in lockfiles before regenerating lock files.  Incompatible with --strip-auth",
     hidden=True,
 )
 @click.option(
