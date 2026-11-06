@@ -120,7 +120,7 @@ with the source specification. This applies to both Conda and pip dependencies.
 Repeat the option to name more than one package:
 
 ```shell
-conda-lock lock -f environment.yml --update numpy --update pandas
+conda-lock -f environment.yml --update numpy --update pandas
 ```
 
 Each `--update` requires a **package name**, not a version constraint. Put version
@@ -155,13 +155,14 @@ Selective updates do not guarantee that every other package stays unchanged:
     write to a new lockfile path and review the result:
 
     ```shell
-    conda-lock lock -f environment.yml --lockfile fresh-conda-lock.yml
+    conda-lock -f environment.yml --lockfile fresh-conda-lock.yml
     ```
 
     These limitations are tracked in [#824](https://github.com/conda/conda-lock/issues/824)
     and [#955](https://github.com/conda/conda-lock/issues/955).
     [#947](https://github.com/conda/conda-lock/pull/947) proposes changes to update
-    handling; the behavior described here is the current implementation.
+    handling. These descriptions record current behavior, not a guarantee that
+    the limitations will be preserved.
 
 Omitting `--update` re-solves the Conda dependencies, unless `--check-input-hash`
 skips the solve. Existing pip locks can still be retained. Use a new lockfile path
