@@ -115,14 +115,35 @@ When generating lockfiles that make use of extras it is recommended to make use 
 
 ## --check-input-hash
 
-Under some situation you may want to run conda lock in some kind of automated way (eg as a precommit) and want to not
-need to regenerate the lockfiles if the underlying input specification for that particular lock as not changed.
+Use `--check-input-hash` to skip regenerating lockfiles when their input specification
+has not changed, for example in a pre-commit hook.
 
 ```bash
 conda-lock --check-input-hash --platform linux-64
 ```
 
-When the input_hash of the input files, channels match those present in a given lockfile, that lockfile will not be regenerated.
+Matching input hashes allow conda-lock to skip solving platforms already present in
+the unified lockfile and skip rendering existing explicit or environment lockfiles.
+By default, a successful command exits with status 0 even when every output is skipped.
+
+### --fail-on-no-change
+
+Add `--fail-on-no-change` when a script needs to distinguish skipped outputs from
+regeneration:
+
+```bash
+conda-lock --check-input-hash --fail-on-no-change --platform linux-64
+```
+
+With both flags, a successful command exits with:
+
+- **4** if no lockfiles were written because their input hashes already match.
+- **0** if any lockfile was written, including a missing rendered output or an update
+  to just one platform. Writing a file counts even if its contents are identical.
+
+Errors keep their usual exit status. `--fail-on-no-change` requires
+`--check-input-hash` and cannot be combined with `--strip-auth`.
+Leave it off in pre-commit hooks, where skipping unchanged outputs should succeed.
 
 ---
 
