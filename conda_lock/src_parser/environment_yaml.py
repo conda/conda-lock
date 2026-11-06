@@ -4,6 +4,7 @@ import sys
 
 import yaml
 
+from conda_lock.lookup import pypi_name_to_conda_name
 from conda_lock.models.lock_spec import (
     Dependency,
     LockSpecification,
@@ -88,7 +89,11 @@ def _parse_environment_file_for_platform(
 
         # Aggregation keeps an explicit conda pip constraint over this fallback.
         dependencies.append(
-            VersionedDependency(name="pip", version="*", is_pip_fallback=True)
+            VersionedDependency(
+                name=pypi_name_to_conda_name("pip", mapping_url=mapping_url),
+                version="*",
+                is_pip_fallback=True,
+            )
         )
 
     return dependencies

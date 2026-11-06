@@ -49,16 +49,21 @@ def aggregate_lock_specs(
             lock_spec.dependencies.get(platform, []) for lock_spec in lock_specs
         ):
             key = (dep.manager, dep.name)
-            if key == ("conda", "pip"):
-                if isinstance(dep, VersionedDependency) and dep.is_pip_fallback:
-                    # Provenance is resolved here and never leaves the aggregate.
-                    dep = fallback_pip = dep.model_copy(
-                        update={"is_pip_fallback": False}
-                    )
-                else:
-                    # Whatever the source wrote last, including a URL, VCS or
-                    # path reference, is the explicit requirement.
-                    explicit_pip = dep
+            if (
+                isinstance(dep, VersionedDependency)
+                and dep.manager == "conda"
+                and dep.is_pip_fallback
+            ):
+                if fallback_pip is None:
+                    # The fallback identifies pip's mapped conda name. Recover
+                    # the last explicit requirement that preceded it, if any.
+                    explicit_pip = unique_deps.get(key)
+                # Provenance is resolved here and never leaves the aggregate.
+                dep = fallback_pip = dep.model_copy(update={"is_pip_fallback": False})
+            elif fallback_pip is not None and key == ("conda", fallback_pip.name):
+                # Whatever the source wrote last, including a URL, VCS or
+                # path reference, is the explicit requirement.
+                explicit_pip = dep
             unique_deps[key] = dep
 
         # A real explicit constraint beats the fallback wherever either appears.
@@ -69,7 +74,7 @@ def aggregate_lock_specs(
             and not _is_unconstrained(explicit_pip)
         ):
             pip_constraint = explicit_pip
-            unique_deps[("conda", "pip")] = pip_constraint
+            unique_deps[("conda", fallback_pip.name)] = pip_constraint
 
         # Preserve last-wins handling of explicit dependencies, then filter categories.
         if filtered_categories is not None:
@@ -86,15 +91,16 @@ def aggregate_lock_specs(
                 or fallback_pip.category in filtered_categories
             )
         ):
-            if ("conda", "pip") not in unique_deps:
+            pip_key = ("conda", fallback_pip.name)
+            if pip_key not in unique_deps:
                 # The constraint belongs to an excluded category, so the
                 # subsection's own requirement applies again.
-                unique_deps[("conda", "pip")] = fallback_pip
+                unique_deps[pip_key] = fallback_pip
             elif pip_constraint.category != fallback_pip.category:
                 # pip is needed by the subsection's category as well as by the
                 # constraint. The fallback's main category is installed with every
                 # selection, so it covers both without merging anything.
-                unique_deps[("conda", "pip")] = pip_constraint.model_copy(
+                unique_deps[pip_key] = pip_constraint.model_copy(
                     update={"category": fallback_pip.category}
                 )
 

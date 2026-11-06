@@ -1,5 +1,7 @@
 """A pip subsection must not displace explicit conda pip constraints (#919)."""
 
+import json
+
 from itertools import product
 from pathlib import Path
 from typing import Any
@@ -31,6 +33,31 @@ def mapping_url(tmp_path: Path) -> str:
     mapping = tmp_path / "mapping.json"
     mapping.write_text("{}")
     return str(mapping)
+
+
+@pytest.fixture
+def mapped_pip_url(tmp_path: Path) -> str:
+    mapping = tmp_path / "mapped-pip.json"
+    mapping.write_text(
+        json.dumps({"pip": {"pypi_name": "pip", "conda_name": "company-pip"}})
+    )
+    return str(mapping)
+
+
+def test_pip_subsection_uses_mapped_installer(
+    tmp_path: Path, mapped_pip_url: str
+) -> None:
+    source = tmp_path / "environment.yml"
+    source.write_text("dependencies:\n  - pip: [requests]\n")
+    spec = make_lock_spec(
+        src_files=[source],
+        platform_overrides=["linux-64"],
+        mapping_url=mapped_pip_url,
+    )
+    assert spec.dependencies["linux-64"] == [
+        VersionedDependency(name="requests", manager="pip", version="*"),
+        VersionedDependency(name="company-pip", version="*"),
+    ]
 
 
 def _conda_pip(spec: LockSpecification, platform: str) -> list[VersionedDependency]:
