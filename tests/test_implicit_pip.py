@@ -60,6 +60,62 @@ def test_pip_subsection_uses_mapped_installer(
     ]
 
 
+@pytest.mark.parametrize("explicit_first", [True, False])
+@pytest.mark.parametrize("categories", [None, {"main"}])
+def test_mapped_pip_pin_across_sources_and_categories(
+    tmp_path: Path,
+    mapped_pip_url: str,
+    explicit_first: bool,
+    categories: set[str] | None,
+) -> None:
+    explicit = tmp_path / "explicit.yml"
+    explicit.write_text(
+        "category: dev\ndependencies:\n  - conda-forge::company-pip=25.0.1=custom_0\n"
+    )
+    subsection = tmp_path / "subsection.yml"
+    subsection.write_text("dependencies:\n  - pip: [requests]\n")
+    sources = [explicit, subsection] if explicit_first else [subsection, explicit]
+    spec = make_lock_spec(
+        src_files=sources,
+        platform_overrides=["linux-64"],
+        filtered_categories=categories,
+        mapping_url=mapped_pip_url,
+    )
+    expected = (
+        VersionedDependency(
+            name="company-pip",
+            version="25.0.1",
+            build="custom_0",
+            conda_channel="conda-forge",
+        )
+        if categories is None
+        else VersionedDependency(name="company-pip", version="*")
+    )
+    # Including dev preserves its pin with main membership. Filtering dev out
+    # restores the subsection's own mapped, unconstrained installer requirement.
+    assert [d for d in spec.dependencies["linux-64"] if d.manager == "conda"] == [
+        expected
+    ]
+
+
+def test_mapped_installer_keeps_literal_pip_requirements(
+    tmp_path: Path, mapped_pip_url: str
+) -> None:
+    source = tmp_path / "environment.yml"
+    source.write_text("dependencies:\n  - pip=25.0.1\n  - pip: ['pip==24.0']\n")
+    spec = make_lock_spec(
+        src_files=[source],
+        platform_overrides=["linux-64"],
+        mapping_url=mapped_pip_url,
+    )
+    # Explicit conda names and pip-managed requirements keep their own identities.
+    assert spec.dependencies["linux-64"] == [
+        VersionedDependency(name="pip", version="25.0.1.*"),
+        VersionedDependency(name="pip", manager="pip", version="==24.0"),
+        VersionedDependency(name="company-pip", version="*"),
+    ]
+
+
 def _conda_pip(spec: LockSpecification, platform: str) -> list[VersionedDependency]:
     return [
         d
