@@ -1,45 +1,5 @@
 # Options
 
-## Conda configuration files
-
-Conda-lock uses vendored Conda code to interpret channel configuration and a
-separate Conda, mamba, or micromamba executable to solve environments. Their
-configuration discovery can differ. In particular, when conda-lock is installed
-outside the solver's base environment (for example with pipx, pixi, or pre-commit),
-it may miss a `.condarc` stored under that Conda installation's root, such as
-`/opt/conda/.condarc`. Settings such as `channel_alias` may then differ even when
-`conda` and `conda-lock` are invoked from the same shell.
-
-To share configuration, place it in a system-wide location searched by both
-tools: `/etc/conda/condarc` on Unix, or `C:\ProgramData\conda\condarc` on Windows.
-Both locations are outside individual environments.
-
-Alternatively, explicitly point `CONDARC` at the configuration file before
-starting conda-lock:
-
-=== "Unix shell"
-
-    ```shell
-    CONDARC=/opt/conda/.condarc conda-lock lock -f environment.yml
-    ```
-
-=== "PowerShell"
-
-    ```powershell
-    $env:CONDARC = 'C:\path\to\condarc'
-    conda-lock lock -f environment.yml
-    ```
-
-`CONDARC` adds an explicit configuration source; it does not disable other rc
-files or environment-variable settings. Continue declaring the environment's
-channels in the source specification.
-
-This is a workaround for the discovery limitation tracked in
-[#743](https://github.com/conda/conda-lock/issues/743), rather than a change to
-how conda-lock finds the selected solver's configuration.
-
----
-
 ## --conda
 
 If you wish to specify a particular conda/mamba executable to use to perform the solve this can be provided as follows
@@ -221,3 +181,49 @@ we recommend creating a `virtual-packages.yml` file to lock down the virtual pac
 
     Micromamba does not presently support some of the overrides to remove all discovered virtual packages, consequently the set of virtual packages
     available at solve time may be larger than those specified in your specification.
+
+---
+
+## Conda configuration files
+
+Conda-lock can consult Conda configuration when parsing package specifications,
+including channel-qualified requirements such as `company::package`. The Conda,
+mamba, or micromamba executable selected for solving reads configuration
+separately and may differ from the `conda` on your `PATH`.
+
+When conda-lock is installed outside that solver's base environment (for example
+with pipx, pixi, or pre-commit), it may miss a `.condarc` stored under the Conda
+installation's root, such as `/opt/conda/.condarc`. Settings such as
+`channel_alias` may then differ even when the commands run from the same shell.
+
+The active environment's own `.condarc` is searched through `$CONDA_PREFIX`.
+This finds the base environment's root `.condarc` when base is active; activating
+another environment points that search entry at the other environment.
+
+To share configuration, place it in a system-wide location searched by both
+tools: `/etc/conda/condarc` on Unix, or `C:\ProgramData\conda\condarc` on Windows.
+Both locations are outside individual environments.
+
+Alternatively, explicitly point `CONDARC` at the configuration file before
+starting conda-lock:
+
+=== "Unix shell"
+
+    ```shell
+    CONDARC=/opt/conda/.condarc conda-lock -f environment.yml
+    ```
+
+=== "PowerShell"
+
+    ```powershell
+    $env:CONDARC = 'C:\path\to\condarc'
+    conda-lock -f environment.yml
+    ```
+
+Setting `CONDARC` does not isolate conda-lock from other configuration files or
+environment-variable settings. Continue declaring the environment's
+channels in the source specification.
+
+These workarounds address the configuration discrepancy reported in
+[#743](https://github.com/conda/conda-lock/issues/743). The underlying discovery
+behavior remains under investigation.
