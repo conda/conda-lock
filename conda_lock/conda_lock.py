@@ -1338,7 +1338,7 @@ CONTEXT_SETTINGS = {"show_default": True, "help_option_names": ["--help", "-h"]}
 @click.option(
     "--update",
     multiple=True,
-    help="Packages to update to their latest versions. If empty, update all.",
+    help="Package name to update. Repeat to update multiple packages.",
 )
 @click.option(
     "--pypi_to_conda_lookup_file",
@@ -1866,7 +1866,7 @@ def render(
 @click.option(
     "--update",
     multiple=True,
-    help="Packages to update to their latest versions. If empty, update all.",
+    help="Package name to update. Repeat to update multiple packages.",
     hidden=True,
 )
 @click.option(

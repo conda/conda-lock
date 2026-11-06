@@ -58,9 +58,9 @@ conda-lock render -p linux-64
 conda create -n my-locked-env --file conda-linux-64.lock
 ```
 
-Note: If there is an existing lockfile, it is used as constraint when
-regenerating the lockfile. This can be useful for adding new packages while
-keeping everything else locked.
+Use `--update` with package names to request selective updates from an existing
+lockfile, and put version constraints in the source specification. Other packages
+may also change; see [update behavior and limitations](https://conda.github.io/conda-lock/flags/#-update).
 
 ### Pre 1.0 compatible usage (explicit per platform locks)
 

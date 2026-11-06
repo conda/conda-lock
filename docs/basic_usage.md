@@ -42,6 +42,10 @@ compatible with the source specification. This command overrides the lockfile.
 conda-lock --update numpy
 ```
 
+Pass package names to `--update` and put version constraints in the source file.
+See [selective updates](flags.md#-update) for multiple targets, pip dependencies,
+solver differences, and current limitations.
+
 ### Adding new Packages
 
 Add a new package to the environment
