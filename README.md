@@ -42,6 +42,9 @@ If you would like to contribute to conda-lock, please refer to the [Contributing
 
 ## Basic usage
 
+Mamba 2.x and micromamba can [install unified lockfiles directly](https://conda.github.io/conda-lock/basic_usage/#installing-with-mamba-or-micromamba)
+without conda-lock on the target machine; see the linked guide for filename, category, and pip requirements.
+
 ```bash
 # generate a multi-platform lockfile
 conda-lock -f environment.yml -p osx-64 -p linux-64
@@ -52,6 +55,9 @@ conda-lock --update pydantic
 
 # create an environment from the lockfile
 conda-lock install [-p {prefix}|-n {name}]
+
+# alternatively, install the unified lockfile directly with mamba 2.x
+mamba create -n my-locked-env -f conda-lock.yml
 
 # alternatively, render a single-platform lockfile and use conda command directly
 conda-lock render -p linux-64

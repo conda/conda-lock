@@ -19,7 +19,19 @@ To install from one of these lockfiles
 conda-lock install conda-lock.yml
 ```
 
-For proper parsing the unified lockfile must have the proper `.conda-lock.yml` extension (e.g foo.conda-lock.yml)
+Mamba 2.x and micromamba also install unified lockfiles directly, including pip
+entries. For example:
+
+```shell
+mamba create -n my-locked-env -f conda-lock.yml
+```
+
+For these tools, the filename must end in `-lock.yml` or `-lock.yaml`. They select
+the current platform and the `main` category by default. See
+[direct installation](basic_usage.md#installing-with-mamba-or-micromamba) for
+category selection and Python/pip requirements.
+
+Conda-lock itself detects the lockfile format from its contents.
 
 ### Render
 
