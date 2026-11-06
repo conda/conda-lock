@@ -42,6 +42,14 @@ If you would like to contribute to conda-lock, please refer to the [Contributing
 
 ## Basic usage
 
+Mamba 2.x and micromamba can install unified lockfiles without installing
+conda-lock. The filename must end in `-lock.yml` or `-lock.yaml`. They select the
+current platform and the `main` category by default; add
+`--category main --category dev` to include development dependencies. Pip entries
+are installed too, using Python and pip from the locked environment.
+See [direct installation](https://conda.github.io/conda-lock/basic_usage/#installing-with-mamba-or-micromamba)
+for details and category selection.
+
 ```bash
 # generate a multi-platform lockfile
 conda-lock -f environment.yml -p osx-64 -p linux-64
@@ -60,14 +68,6 @@ mamba create -n my-locked-env -f conda-lock.yml
 conda-lock render -p linux-64
 conda create -n my-locked-env --file conda-linux-64.lock
 ```
-
-Mamba 2.x and micromamba can install unified lockfiles without installing
-conda-lock. The filename must end in `-lock.yml` or `-lock.yaml`. They select the
-current platform and the `main` category by default; add
-`--category main --category dev` to include development dependencies. Pip entries
-are installed too, using Python and pip from the locked environment.
-See [direct installation](https://conda.github.io/conda-lock/basic_usage/#installing-with-mamba-or-micromamba)
-for details and category selection.
 
 Note: If there is an existing lockfile, it is used as constraint when
 regenerating the lockfile. This can be useful for adding new packages while
