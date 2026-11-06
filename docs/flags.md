@@ -113,6 +113,62 @@ When generating lockfiles that make use of extras it is recommended to make use 
 
 ---
 
+## --update
+
+Update named packages in an existing lockfile to the latest versions compatible
+with the source specification. This applies to both Conda and pip dependencies.
+Repeat the option to name more than one package:
+
+```shell
+conda-lock lock -f environment.yml --update numpy --update pandas
+```
+
+Each `--update` requires a **package name**, not a version constraint. Put version
+constraints in the source file, for example `numpy >=2,<3` in `environment.yml`,
+then pass `--update numpy`. For pip packages, use the normalized name stored in
+the lockfile (lowercase, with underscores and periods replaced by hyphens).
+Passing `--update` without a value is a command-line error.
+
+Selective updates do not guarantee that every other package stays unchanged:
+
+- Conda and micromamba may change other packages to satisfy the solver request
+  and their configuration. In particular, conda-lock does not disable Conda's
+  `aggressive_update_packages` setting.
+- With a `mamba` executable, conda-lock pins the versions of non-target Conda
+  packages. These pins do not fix builds or channels and can make an update
+  unsatisfiable. Try Conda or micromamba if those pins prevent a solution.
+- Pip resolution also considers the locked packages, but may change dependencies
+  to satisfy the updated requirements.
+
+!!! warning "Current selective-update limitations"
+
+    Conda update targets are matched literally against package names already
+    locked for each platform. If none match, the Conda dependencies are solved
+    from scratch for that platform. A typo, a constraint such as `numpy==2.0`,
+    or an update naming only pip packages can therefore update unrelated Conda
+    packages. An installed transitive Conda target absent from the source
+    specification can instead fail with `KeyError`.
+
+    Changes to source constraints on other packages may not be applied during a
+    selective update. Reusing an existing lockfile also rejects changes to its
+    channel list. For source or channel changes that require a fresh resolution,
+    write to a new lockfile path and review the result:
+
+    ```shell
+    conda-lock lock -f environment.yml --lockfile fresh-conda-lock.yml
+    ```
+
+    These limitations are tracked in [#824](https://github.com/conda/conda-lock/issues/824)
+    and [#955](https://github.com/conda/conda-lock/issues/955).
+    [#947](https://github.com/conda/conda-lock/pull/947) proposes changes to update
+    handling; the behavior described here is the current implementation.
+
+Omitting `--update` re-solves the Conda dependencies, unless `--check-input-hash`
+skips the solve. Existing pip locks can still be retained. Use a new lockfile path
+as above to resolve both Conda and pip dependencies without the previous lock.
+
+---
+
 ## --check-input-hash
 
 Under some situation you may want to run conda lock in some kind of automated way (eg as a precommit) and want to not
