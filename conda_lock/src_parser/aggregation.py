@@ -139,7 +139,7 @@ def _is_unconstrained(dep: Dependency) -> bool:
     return (
         isinstance(dep, VersionedDependency)
         and dep.version in ("", "*")
-        and dep.build is None
+        and dep.build in (None, "*")
         and dep.conda_channel is None
         and dep.hash is None
     )

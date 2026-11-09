@@ -331,7 +331,7 @@ def test_dev_pin_keeps_pip_in_main_installation(
     "spec, expected",
     # The subsection's fallback is emitted after the file's string specs, so it
     # is the later of two unconstrained requirements and wins as before.
-    [("pip", "*"), ("pip *", "*"), ("python", "")],
+    [("pip", "*"), ("pip *", "*"), ("pip * *", "*"), ("python", "")],
 )
 @pytest.mark.parametrize("reverse", [False, True])
 def test_explicit_duplicates_still_use_last_source(
@@ -472,6 +472,84 @@ def test_unconstrained_pip_keeps_legacy_last_wins_and_hash(
         d.model_dump() for d in expected
     ]
     assert compute_content_hashes(spec, None)["linux-64"] == base_hash
+
+
+@pytest.mark.parametrize("requirement", ["pip * *", "pip=*=*", "pip[build='*']"])
+def test_wildcard_build_keeps_subsection_hash(
+    mapping_url: str, tmp_path: Path, requirement: str
+) -> None:
+    source = tmp_path / "environment.yml"
+    source.write_text(f"dependencies:\n  - {requirement}\n  - pip: [requests]\n")
+    spec = make_lock_spec(
+        src_files=[source], platform_overrides=["linux-64"], mapping_url=mapping_url
+    )
+    assert _conda_pip(spec, "linux-64") == [
+        VersionedDependency(name="pip", version="*")
+    ]
+    # Frozen on main (bc684265): an all-builds wildcard adds no constraint.
+    assert compute_content_hashes(spec, None)["linux-64"] == (
+        "649cc3219c8549016232df0cdc61d1712cf2d38d3eec5ca7cd86c89dc176e858"
+    )
+
+
+@pytest.mark.parametrize("subsection_first", [False, True])
+def test_wildcard_build_keeps_source_order_and_hash(
+    mapping_url: str, tmp_path: Path, subsection_first: bool
+) -> None:
+    explicit = tmp_path / "explicit.yml"
+    explicit.write_text("category: dev\ndependencies:\n  - pip * *\n")
+    subsection = tmp_path / "subsection.yml"
+    subsection.write_text("dependencies:\n  - pip: [requests]\n")
+    sources = [subsection, explicit] if subsection_first else [explicit, subsection]
+    spec = make_lock_spec(
+        src_files=sources, platform_overrides=["linux-64"], mapping_url=mapping_url
+    )
+    assert _conda_pip(spec, "linux-64") == [
+        VersionedDependency(
+            name="pip",
+            version="*",
+            build="*" if subsection_first else None,
+            category="dev" if subsection_first else "main",
+        )
+    ]
+    # Preserve the legacy winner's representation and category, not just its
+    # set of matching packages. Both hashes were computed on main (bc684265).
+    assert compute_content_hashes(spec, None)["linux-64"] == (
+        "f1577ed9d0de616ecb9086c30e5a55c86840fd199b8bc55c344604b9bea619a1"
+        if subsection_first
+        else "649cc3219c8549016232df0cdc61d1712cf2d38d3eec5ca7cd86c89dc176e858"
+    )
+
+
+@pytest.mark.parametrize(
+    "requirement, expected",
+    [
+        (
+            "pip=25.0.1=*",
+            VersionedDependency(name="pip", version="25.0.1", build="*"),
+        ),
+        ("pip * py*", VersionedDependency(name="pip", version="*", build="py*")),
+        (
+            "conda-forge::pip * *",
+            VersionedDependency(
+                name="pip", version="*", build="*", conda_channel="conda-forge"
+            ),
+        ),
+    ],
+)
+def test_wildcards_do_not_hide_constraints(
+    mapping_url: str, tmp_path: Path, requirement: str, expected: VersionedDependency
+) -> None:
+    source = tmp_path / "environment.yml"
+    source.write_text(f"dependencies:\n  - {requirement}\n  - pip: [requests]\n")
+    spec = make_lock_spec(
+        src_files=[source], platform_overrides=["linux-64"], mapping_url=mapping_url
+    )
+    assert _conda_pip(spec, "linux-64") == [expected]
+    # Main discarded these real constraints; its old hash must be invalidated.
+    assert compute_content_hashes(spec, None)["linux-64"] != (
+        "649cc3219c8549016232df0cdc61d1712cf2d38d3eec5ca7cd86c89dc176e858"
+    )
 
 
 @pytest.mark.parametrize("unconstrained", ["pip", "pip *"])
