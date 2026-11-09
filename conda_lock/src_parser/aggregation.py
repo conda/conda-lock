@@ -50,9 +50,11 @@ def aggregate_lock_specs(
         ):
             key = (dep.manager, dep.name)
             if key == ("conda", "pip"):
-                if isinstance(dep, VersionedDependency) and dep.is_implicit:
+                if isinstance(dep, VersionedDependency) and dep.is_pip_fallback:
                     # Provenance is resolved here and never leaves the aggregate.
-                    dep = fallback_pip = dep.model_copy(update={"is_implicit": False})
+                    dep = fallback_pip = dep.model_copy(
+                        update={"is_pip_fallback": False}
+                    )
                 else:
                     # Whatever the source wrote last, including a URL, VCS or
                     # path reference, is the explicit requirement.

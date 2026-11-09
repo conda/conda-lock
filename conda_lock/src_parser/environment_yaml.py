@@ -88,7 +88,7 @@ def _parse_environment_file_for_platform(
 
         # Aggregation keeps an explicit conda pip constraint over this fallback.
         dependencies.append(
-            VersionedDependency(name="pip", version="*", is_implicit=True)
+            VersionedDependency(name="pip", version="*", is_pip_fallback=True)
         )
 
     return dependencies

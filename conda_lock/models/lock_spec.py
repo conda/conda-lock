@@ -31,7 +31,7 @@ class VersionedDependency(_BaseDependency):
     # Marks the conda pip fallback that a pip subsection generates. Aggregation
     # resolves it, so aggregated specifications, solver input and content hashes
     # never carry it.
-    is_implicit: bool = Field(default=False, exclude=True, repr=False)
+    is_pip_fallback: bool = Field(default=False, exclude=True, repr=False)
 
 
 class URLDependency(_BaseDependency):
