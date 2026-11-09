@@ -1,0 +1,17 @@
+Stop passing the obsolete wheel-seeding flag to virtualenv 21.
+
+Virtualenv no longer seeds wheel and plans to remove --no-wheel after December
+2026. Keep pip and setuptools seeding explicitly disabled.
+
+Apply to upstream sources before vendoring rewrites imports.
+
+--- a/conda_lock/_vendor/poetry/utils/env/env_manager.py
++++ b/conda_lock/_vendor/poetry/utils/env/env_manager.py
+@@ -523,7 +523,6 @@
+ 
+         flags.setdefault("no-pip", True)
+         flags.setdefault("no-setuptools", True)
+-        flags.setdefault("no-wheel", True)
+ 
+         if WINDOWS:
+             path = get_real_windows_path(path)

@@ -29,7 +29,8 @@ classifiers = [
 "Issue Tracker" = "https://github.com/ibis-project/ibis/issues"
 
 [tool.poetry.dependencies]
-python = "^3.8"
+# Pin Python to speed up dependency resolution in CI.
+python = "3.12.*"
 atpublic = ">=2.3,<4"
 bidict = ">=0.22.1,<1"
 importlib-resources = { version = ">=5,<6", python = "<3.9" }

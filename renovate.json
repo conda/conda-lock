@@ -12,12 +12,17 @@
       "rangeStrategy": "replace"
     },
     {
+      "matchUpdateTypes": ["minor", "patch"],
+      "groupName": "non-major dependencies"
+    },
+    {
       "matchManagers": ["github-actions"],
       "groupName": "GitHub Actions"
     },
     {
-      "matchUpdateTypes": ["minor", "patch"],
-      "groupName": "non-major dependencies"
+      "matchManagers": ["github-actions"],
+      "matchDepNames": ["python"],
+      "groupName": "Python in CI"
     }
   ]
 }

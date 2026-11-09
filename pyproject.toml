@@ -10,7 +10,7 @@ authors = [
 ]
 readme = "README.md"
 license = "MIT"
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 classifiers = [
     "Development Status :: 5 - Production/Stable",
     "Intended Audience :: Science/Research",
@@ -18,7 +18,6 @@ classifiers = [
     "License :: OSI Approved :: MIT License",
     "Programming Language :: Python",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
@@ -50,7 +49,8 @@ dependencies = [
     # ensureconda v1.4.7 introduced locking for downloads which fixed
     # frequent CI failures on Windows.
     "ensureconda >=1.4.7",
-    "filelock",
+    # 4.2.1 fixes lock-file replacement attacks; virtualenv >=21.10 permits filelock 4.
+    "filelock >=4.2.1,<5",
     "gitpython >=3.1.30",
     "jinja2",
     # constraint on version comes from poetry and conda
@@ -65,8 +65,6 @@ dependencies = [
     "semver >=3,<4",
     "setuptools",
     # constraint on version comes from poetry
-    'tomli >=2.0.1,<3.0.0 ; python_version <"3.11"',
-    # constraint on version comes from poetry
     "tomlkit >=0.11.4,<1.0.0",
     "typing-extensions >=4.6.1",
     # conda dependencies
@@ -77,9 +75,9 @@ dependencies = [
     "build >=1.2.1,<2.0.0",
     "cachecontrol[filecache] >=0.14.0,<0.15.0",
     "crashtest >=0.4.1,<0.5.0",
-    "dulwich >=0.22.6,<0.25",
+    # 1.2.20 fixes Git/Dulwich disagreement on duplicate commit and tag headers.
+    "dulwich >=1.2.20,<2",
     "fastjsonschema >=2.18.0,<3.0.0",
-    'importlib-metadata >= 4.4 ;  python_version <"3.10"',
     'installer >=1.0.1,<2.0.0',
     "keyring >=25.1.0,<26.0.0",
     "pkginfo >=1.12,<2.0",
@@ -87,7 +85,9 @@ dependencies = [
     "requests-toolbelt >=1.0.0,<2.0.0",
     "shellingham >=1.5,<2.0",
     "trove-classifiers >= 2022.5.19",
-    "virtualenv >=20.26.6,<21.0.0",
+    # 21.15.2 makes --try-first-with override configured interpreter preferences.
+    # Poetry uses this option for isolated builds: https://github.com/pypa/virtualenv/pull/3494
+    "virtualenv >=21.15.2,<22.0.0",
     'xattr >=1.0.0,<2.0.0 ; sys_platform == "darwin"',
 ]
 
@@ -145,6 +145,9 @@ addopts = [
     "--ignore-glob=**/_vendor/**"
 ]
 log_level = "DEBUG"
+faulthandler_timeout = 600
+# Enforce a per-test timeout; faulthandler_timeout only dumps tracebacks.
+timeout = 600
 testpaths = ["tests", "conda_lock"]
 
 [tool.vendoring]
@@ -152,10 +155,12 @@ destination = "conda_lock/_vendor"
 namespace = "conda_lock._vendor"
 requirements = "conda_lock/_vendor/vendor.txt"
 protected-files = ["__init__.py", "README.md", "LICENSES.md", "vendor.txt"]
-patches-dir = "conda_lock/scripts/vendor_poetry/patches"
+patches-dir = "scripts/vendor_patches"
 
 [tool.vendoring.transformations]
 drop = [
+    "*.dist-info",
+    "*.egg-info",
     "bin",
     "conda_env",
     "poetry/publishing",
@@ -168,7 +173,7 @@ drop = [
     # - __init__.py
     # - strategy/__init__.py
     # - strategy/parse_poetry_version.py
-    '^grayskull\/(?!__init__\.py$|strategy\/parse_poetry_version\.py$|strategy\/__init__\.py$)',
+    '^grayskull\/(?!__init__\.py$|strategy$|strategy\/parse_poetry_version\.py$|strategy\/__init__\.py$)',
 ]
 substitute = [
     # simple substitution patch to fix conda.exports
@@ -199,7 +204,9 @@ line-length = 88
 extend-exclude = ["conda_lock/_vendor"]
 
 [tool.ruff.lint]
+extend-select = ["ANN", "PGH003"]
 ignore = [
+    "ANN401",  # Preserve existing explicit Any annotations.
     "E501",
     "F403",
     # Disabled during migration to Ruff:
@@ -239,3 +246,12 @@ max-complexity = 18
 [tool.ruff.lint.isort]
 lines-after-imports = 2
 lines-between-types = 1
+
+[tool.ruff.lint.flake8-annotations]
+# Match mypy's treatment of __init__ with annotated parameters.
+mypy-init-return = true
+
+[tool.ruff.lint.per-file-ignores]
+# Match the previous annotation requirement for first-party package code.
+"!conda_lock/**" = ["ANN"]
+"conda_lock/scripts/vendor_poetry/**" = ["ANN"]

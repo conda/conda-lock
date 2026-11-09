@@ -78,6 +78,7 @@ from conda_lock.interfaces.vendored_conda import MatchSpec
 from conda_lock.invoke_conda import is_micromamba, reset_conda_pkgs_dir
 from conda_lock.lockfile import parse_conda_lock_file
 from conda_lock.lockfile.v2prelim.models import (
+    DependencySource,
     HashModel,
     LockedDependency,
     MetadataOption,
@@ -91,9 +92,9 @@ from conda_lock.models.lock_spec import (
 )
 from conda_lock.models.pip_repository import PipRepository
 from conda_lock.pypi_solver import (
-    MANYLINUX_TAGS,
     PlatformEnv,
     _strip_auth,
+    get_package,
     parse_pip_requirement,
     solve_pypi,
 )
@@ -117,6 +118,7 @@ from conda_lock.src_parser.pyproject_toml import (
     parse_pyproject_toml,
     poetry_version_to_conda_version,
 )
+from conda_lock.virtual_package import VirtualPackage
 
 
 if typing.TYPE_CHECKING:
@@ -1900,14 +1902,14 @@ def test_run_with_channel_inversion(
     lockfile = parse_conda_lock_file(channel_inversion.parent / DEFAULT_LOCKFILE_NAME)
     for package in lockfile.package:
         if package.name == "zlib":
-            ms = MatchSpec(package.url)  # pyright: ignore
+            ms = MatchSpec(package.url)
             assert ms.get("channel") == "conda-forge"
             break
     else:
         raise ValueError("zlib not found!")
     for package in lockfile.package:
         if package.name == "libgomp":
-            ms = MatchSpec(package.url)  # pyright: ignore
+            ms = MatchSpec(package.url)
             assert ms.get("channel") == "defaults"
             break
     else:
@@ -2396,7 +2398,7 @@ def test_install(
 
     prefix = root_prefix / "test_env"
 
-    context: contextlib.AbstractContextManager
+    context: contextlib.AbstractContextManager[object]
     if sys.platform.lower().startswith("linux"):
         context = contextlib.nullcontext()
     else:
@@ -2453,7 +2455,7 @@ def test_install_with_pip_deps(
     package = "requests"
     prefix = root_prefix / "test_env"
 
-    context: contextlib.AbstractContextManager
+    context: contextlib.AbstractContextManager[object]
     if sys.platform.lower().startswith("linux"):
         context = contextlib.nullcontext()
     else:
@@ -2495,7 +2497,7 @@ def test_install_multiple_subcategories(
     root_prefix.mkdir(exist_ok=True)
     prefix = root_prefix / "test_env"
 
-    context: contextlib.AbstractContextManager
+    context: contextlib.AbstractContextManager[object]
     if sys.platform.lower().startswith("linux"):
         context = contextlib.nullcontext()
     else:
@@ -2804,6 +2806,96 @@ def test_virtual_package_input_hash_stability():
 
     expected = "8ee5fc79fca4cb7732d2e88443209e0a3a354da9899cb8899d94f9b1dcccf975"
     assert compute_content_hashes(spec, vpr) == {"linux-64": expected}
+
+
+@pytest.mark.parametrize(
+    ("platform", "expected_archspec"),
+    [("osx-64", "x86_64"), ("osx-arm64", "arm64")],
+)
+def test_solve_uses_target_virtual_package_overrides(
+    monkeypatch: pytest.MonkeyPatch, platform: str, expected_archspec: str
+) -> None:
+    override_names = {
+        "CONDA_OVERRIDE_ARCHSPEC",
+        "CONDA_OVERRIDE_CUDA",
+        "CONDA_OVERRIDE_GLIBC",
+        "CONDA_OVERRIDE_LINUX",
+        "CONDA_OVERRIDE_OSX",
+        "CONDA_OVERRIDE_WIN",
+    }
+    for name in override_names:
+        monkeypatch.setenv(name, "host-value")
+
+    actual_overrides: dict[str, str | None] = {}
+
+    def solve_conda(*args: Any, **kwargs: Any) -> dict[str, LockedDependency]:
+        actual_overrides.update({name: os.environ.get(name) for name in override_names})
+        return {}
+
+    monkeypatch.setattr("conda_lock.conda_lock.solve_conda", solve_conda)
+    spec = LockSpecification(dependencies={platform: []}, channels=[], sources=[])
+    virtual_package_repo = default_virtual_package_repodata()
+
+    with virtual_package_repo:
+        _solve_for_arch(
+            conda="micromamba",
+            spec=spec,
+            platform=platform,
+            channels=[],
+            pip_repositories=[],
+            virtual_package_repo=virtual_package_repo,
+            mapping_url=DEFAULT_MAPPING_URL,
+        )
+
+    assert actual_overrides == {
+        "CONDA_OVERRIDE_ARCHSPEC": expected_archspec,
+        "CONDA_OVERRIDE_CUDA": "",
+        "CONDA_OVERRIDE_GLIBC": "",
+        "CONDA_OVERRIDE_LINUX": "",
+        "CONDA_OVERRIDE_OSX": "11.0",
+        "CONDA_OVERRIDE_WIN": "",
+    }
+    assert {name: os.environ[name] for name in override_names} == dict.fromkeys(
+        override_names, "host-value"
+    )
+
+
+@pytest.mark.parametrize("cuda_override", [None, "host-value"])
+def test_solve_clears_unconfigured_virtual_package_override(
+    monkeypatch: pytest.MonkeyPatch, cuda_override: str | None
+) -> None:
+    from conda_lock.virtual_package import virtual_package_repo_from_specification
+
+    actual_cuda_override = None
+
+    def solve_conda(*args: Any, **kwargs: Any) -> dict[str, LockedDependency]:
+        nonlocal actual_cuda_override
+        actual_cuda_override = os.environ.get("CONDA_OVERRIDE_CUDA")
+        return {}
+
+    monkeypatch.setattr("conda_lock.conda_lock.solve_conda", solve_conda)
+    if cuda_override is None:
+        monkeypatch.delenv("CONDA_OVERRIDE_CUDA", raising=False)
+    else:
+        monkeypatch.setenv("CONDA_OVERRIDE_CUDA", cuda_override)
+    virtual_package_repo = virtual_package_repo_from_specification(
+        TESTS_DIR / "test-archspec" / "virtual-packages.yaml"
+    )
+    spec = LockSpecification(dependencies={"linux-64": []}, channels=[], sources=[])
+
+    with virtual_package_repo:
+        _solve_for_arch(
+            conda="micromamba",
+            spec=spec,
+            platform="linux-64",
+            channels=[],
+            pip_repositories=[],
+            virtual_package_repo=virtual_package_repo,
+            mapping_url=DEFAULT_MAPPING_URL,
+        )
+
+    assert actual_cuda_override == ""
+    assert os.environ.get("CONDA_OVERRIDE_CUDA") == cuda_override
 
 
 def test_default_virtual_package_input_hash_stability():
@@ -3218,8 +3310,9 @@ def test_pip_finds_recent_manylinux_wheels(
     See https://github.com/conda/conda-lock/issues/517 for more context.
 
     If not found, installation would trigger a build of lightgbm from source.
-    If this test fails, it likely means that MANYLINUX_TAGS in
-    `conda_lock/pypi_solver.py` is out of date.
+    If this test fails, check whether the available wheels are supported by
+    MANYLINUX_TAGS in `conda_lock/pypi_solver.py` and by the default __glibc in
+    `conda_lock/default-virtual-packages.yaml`.
     """
     monkeypatch.chdir(lightgbm_environment.parent)
     run_lock(
@@ -3243,30 +3336,43 @@ def test_pip_finds_recent_manylinux_wheels(
     assert manylinux_version > [2, 17]
 
 
-def test_manylinux_tags():
+@pytest.fixture(params=[False, True], ids=["current-tags", "newer-tags"])
+def manylinux_tags(
+    request: pytest.FixtureRequest, monkeypatch: pytest.MonkeyPatch
+) -> list[str]:
+    """Exercise tag support independently of the default glibc version."""
+    tags = pypi_solver.MANYLINUX_TAGS.copy()
+    if request.param:
+        prefix, minor = tags[-1].rsplit("_", 1)
+        tags.append(f"{prefix}_{int(minor) + 1}")
+    monkeypatch.setattr(pypi_solver, "MANYLINUX_TAGS", tags)
+    return tags
+
+
+def test_manylinux_tags(manylinux_tags: list[str]):
     from packaging.version import Version
 
-    MANYLINUX_TAGS = pypi_solver.MANYLINUX_TAGS
-
     # The irregular tags should come at the beginning:
-    assert MANYLINUX_TAGS[:4] == ["1", "2010", "2014", "_2_17"]
+    assert manylinux_tags[:4] == ["1", "2010", "2014", "_2_17"]
     # All other tags should start with "_"
-    assert all(tag.startswith("_") for tag in MANYLINUX_TAGS[3:])
+    assert all(tag.startswith("_") for tag in manylinux_tags[3:])
 
     # Now check that the remaining tags parse to versions in increasing order
-    versions = [Version(tag[1:].replace("_", ".")) for tag in MANYLINUX_TAGS[3:]]
+    versions = [Version(tag[1:].replace("_", ".")) for tag in manylinux_tags[3:]]
     assert versions[0] == Version("2.17")
     assert versions == sorted(versions)
 
-    # Verify that the default repodata uses the highest glibc version
+    # Verify that the default glibc versions are covered by MANYLINUX_TAGS.
+    # (The default may be lower than the max tag; higher tags are available
+    # via --virtual-package-spec.)
     default_repodata = default_virtual_package_repodata()
     glibc_versions_in_default_repodata: set[Version] = {
         Version(package.version)
         for package in default_repodata.packages_by_subdir
         if package.name == "__glibc"
     }
-    max_glibc_version_from_manylinux_tags = versions[-1]
-    assert glibc_versions_in_default_repodata == {max_glibc_version_from_manylinux_tags}
+    manylinux_glibc_versions = set(versions)
+    assert glibc_versions_in_default_repodata <= manylinux_glibc_versions
 
 
 def test_pip_respects_glibc_version(
@@ -3305,11 +3411,11 @@ def test_pip_respects_glibc_version(
     assert manylinux_version == [2, 17]
 
 
-def test_platformenv_linux_platforms():
+def test_platformenv_linux_platforms(manylinux_tags: list[str]):
     """Check that PlatformEnv correctly handles Linux platforms for wheels"""
-    # This is the default and maximal list of platforms that we expect
+    # Without a glibc constraint, all understood tags are accepted.
     all_expected_platforms = [
-        f"manylinux{glibc_ver}_x86_64" for glibc_ver in reversed(MANYLINUX_TAGS)
+        f"manylinux{glibc_ver}_x86_64" for glibc_ver in reversed(manylinux_tags)
     ] + ["linux_x86_64"]
 
     # Check that we get the default platforms when no virtual packages are specified
@@ -3345,8 +3451,17 @@ def test_platformenv_linux_platforms():
     )
     assert e._platforms == all_expected_platforms
 
-    # Check that we get the expected platforms when using the default repodata.
-    # (This should include the glibc corresponding to the latest manylinux tag.)
+    # The default glibc stays at 2.28 even when newer tags are understood.
+    default_expected_platforms = [
+        "manylinux_2_28_x86_64",
+        "manylinux_2_24_x86_64",
+        "manylinux_2_18_x86_64",
+        "manylinux_2_17_x86_64",
+        "manylinux2014_x86_64",
+        "manylinux2010_x86_64",
+        "manylinux1_x86_64",
+        "linux_x86_64",
+    ]
     default_repodata = default_virtual_package_repodata()
     platform_repodata = default_repodata.all_repodata["linux-64"]
     assert "packages" in platform_repodata
@@ -3356,6 +3471,17 @@ def test_platformenv_linux_platforms():
         python_version="3.12",
         platform="linux-64",
         platform_virtual_packages=platform_virtual_packages,
+    )
+    assert e._platforms == default_expected_platforms
+
+    # An explicit target at the newest supported glibc opts into all tags.
+    glibc = VirtualPackage(
+        name="__glibc", version=manylinux_tags[-1][1:].replace("_", ".")
+    )
+    e = PlatformEnv(
+        python_version="3.12",
+        platform="linux-64",
+        platform_virtual_packages=dict([glibc.to_repodata_entry(subdir="linux-64")]),
     )
     assert e._platforms == all_expected_platforms
 
@@ -3482,6 +3608,28 @@ def test_pip_full_whl_url(
     )
 
 
+def test_get_package_preserves_version_for_url_source():
+    """A URL-sourced locked dep must reconcile with its real version, not a 0.0.0 placeholder."""
+    url = "https://example.com/foo-1.2.3-py3-none-any.whl"
+    locked = LockedDependency(
+        name="foo",
+        version="1.2.3",
+        manager="pip",
+        platform="linux-64",
+        dependencies={},
+        url=url,
+        hash=HashModel(),
+        source=DependencySource(type="url", url=url),
+    )
+
+    package = get_package(locked)
+
+    assert str(package.version) == "1.2.3"
+    # The dependency stays URL-pinned.
+    assert package.source_type == "url"
+    assert package.source_url == url
+
+
 def test_when_merging_lockfiles_content_hashes_are_updated(
     conda_exe: str,
     monkeypatch: "pytest.MonkeyPatch",
@@ -3594,8 +3742,10 @@ dependencies:
   - pip:
     - simplejson
 """)
+    # One platform exercises prerelease parsing with pip dependencies.
     run_lock(
         [environment_yml],
         conda_exe=conda_exe,
+        platforms=["linux-64"],
         mapping_url=DEFAULT_MAPPING_URL,
     )

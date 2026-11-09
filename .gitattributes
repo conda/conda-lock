@@ -1,8 +1,13 @@
 * text eol=lf
 *.patch binary
+# Keep maintained source patches reviewable without line-ending conversion.
+scripts/vendor_patches/*.patch diff -whitespace
 *.bat binary
 *.exe binary
 *.ico binary
+# lockfile diffs are big
+environments/conda-lock.yml linguist-generated
+environments/conda-lock-*.yaml linguist-generated
 # Treat vendor folder as vendored and generated
 conda_lock/_vendor/** linguist-vendored linguist-generated
 # GitHub syntax highlighting

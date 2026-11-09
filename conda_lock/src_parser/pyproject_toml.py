@@ -2,21 +2,13 @@ import collections
 import collections.abc
 import logging
 import pathlib
-import sys
 import warnings
 
 from collections.abc import Mapping, Sequence, Set
 from functools import partial
-from typing import Any
+from tomllib import load as toml_load
+from typing import Any, Literal
 from urllib.parse import urldefrag
-
-
-if sys.version_info >= (3, 11):
-    from tomllib import load as toml_load
-else:
-    from tomli import load as toml_load
-
-from typing import Literal
 
 from packaging.requirements import Requirement
 from packaging.utils import canonicalize_name as canonicalize_pypi_name
@@ -109,7 +101,7 @@ def poetry_version_to_conda_version(version_string: str | None) -> str | None:
 
 
 def handle_mapping(
-    depattrs: collections.abc.Mapping,
+    depattrs: collections.abc.Mapping[str, Any],
     depname: str,
     path: pathlib.Path,
     category: str,
@@ -119,8 +111,9 @@ def handle_mapping(
     poetry_version_spec: str | None,
 ) -> PoetryMappedDependencySpec:
     """Handle a dependency in mapping form from a pyproject.toml file"""
+    url: str | None
     if "git" in depattrs:
-        url: str | None = depattrs.get("git", None)
+        url = depattrs.get("git", None)
         manager = "pip"
         # Order is the same as the one used by poetry
         branch_ident = depattrs.get(
@@ -293,6 +286,7 @@ def parse_poetry_pyproject_toml(
                 dependencies.append(
                     VCSDependency(
                         name=name,
+                        extras=extras,
                         markers=markers,
                         source=url,
                         manager=manager,
@@ -577,6 +571,7 @@ def parse_python_requirement(
             source=url,
             manager=manager,
             category=category,
+            extras=extras,
             vcs="git",
             rev=rev,
             markers=markers,

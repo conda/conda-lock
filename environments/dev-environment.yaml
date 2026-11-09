@@ -9,13 +9,14 @@ channels:
 - nodefaults
 dependencies:
 - check-manifest
+- conda
 - docker-py
 - doctr
 - flaky
 - freezegun
 - gitpython
-# Pinned below 2.6.0 until conda-lock supports mamba/micromamba 2.6; see #907.
-- mamba <2.6.0
+- mamba
+- micromamba
 - mkdocs
 - mkdocs-click
 - mkdocs-material
@@ -33,9 +34,9 @@ dependencies:
 - ruff
 - tomli
 - twine
+- ty
 - types-click
 - types-click-default-group
-- types-filelock
 - types-requests
 - types-toml
 - types-pyyaml
@@ -43,5 +44,3 @@ dependencies:
 - types-setuptools
 - wheel
 - zizmor
-- pip:
-  - ty

@@ -19,11 +19,6 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}
   cancel-in-progress: true
 
-env:
-  # See also the same variable in test.yml
-  # Pinned below 2.6.0 until conda-lock supports micromamba 2.6; see #907.
-  MICROMAMBA_VERSION: '2.5.0-2'
-
 defaults:
   run:
     shell: bash -elx {0}
@@ -38,7 +33,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ ubuntu-latest, macos-latest, windows-latest ]
-        python-version: [ "3.10", "3.14" ]
+        python-version: [ "3.11", "3.14" ]
     steps:
       - name: Set Conda platform
         run: |
@@ -52,11 +47,11 @@ jobs:
       - name: Verify Conda platform
         run: echo "Conda platform is $CONDA_PLATFORM"
 
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
         with:
           persist-credentials: false
       - name: Set up Python
-        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
         with:
           python-version: ${{ matrix.python-version }}
       - name: install conda-lock
@@ -88,7 +83,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ ubuntu-latest, macos-latest, windows-latest ]
-        python-version: [ "3.10" ]
+        python-version: [ "3.11" ]
     steps:
       - name: Set Conda platform
         run: |
@@ -104,9 +99,6 @@ jobs:
       - name: Install Conda environment with Micromamba
         uses: mamba-org/setup-micromamba@add3a49764cedee8ee24e82dfde87f5bc2914462 # v2.0.7
         with:
-          micromamba-version: ${{ env.MICROMAMBA_VERSION }}
-          # # Use micromamba-url instead of micromamba-version to test prereleases
-          # micromamba-url: https://github.com/mamba-org/micromamba-releases/releases/download/${{ env.MICROMAMBA_VERSION }}/micromamba-${{ env.CONDA_PLATFORM }}
           init-shell: bash
       - name: Download lockfiles
         uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
@@ -115,9 +107,19 @@ jobs:
           path: lockfiles
       - name: Install GDAL with Micromamba
         run: |
-          micromamba create -y -n gdal-test-mm-lock -f lockfiles/conda-lock.yml
-          micromamba create -y -n gdal-test-mm-explicit -f lockfiles/conda-*.lock
-          micromamba create -y -n gdal-test-mm-env -f lockfiles/conda-*.lock.yml
+          # On macOS, an executable hardlinked from the package cache can resolve
+          # its own path to the cache, so dyld then fails to find its @rpath
+          # libraries ("Library not loaded: @rpath/libcrypto.3.dylib",
+          # intermittent). Copying instead of hardlinking avoids it.
+          # See https://github.com/conda-forge/cmake-feedstock/issues/230
+          if [ "$RUNNER_OS" == "macOS" ]; then
+            create_flags="--always-copy"
+          else
+            create_flags=""
+          fi
+          micromamba create -y $create_flags -n gdal-test-mm-lock -f lockfiles/conda-lock.yml
+          micromamba create -y $create_flags -n gdal-test-mm-explicit -f lockfiles/conda-*.lock
+          micromamba create -y $create_flags -n gdal-test-mm-env -f lockfiles/conda-*.lock.yml
 
           micromamba run -n gdal-test-mm-lock gdalinfo --version
           micromamba run -n gdal-test-mm-explicit gdalinfo --version
@@ -136,13 +138,14 @@ jobs:
       fail-fast: false
       matrix:
         os: [ ubuntu-latest, macos-latest, windows-latest ]
-        python-version: [ "3.10", "3.14" ]
+        python-version: [ "3.11", "3.14" ]
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
         with:
           persist-credentials: false
       - uses: conda-incubator/setup-miniconda@fc2d68f6413eb2d87b895e92f8584b5b94a10167 # v3.3.0
         with:
+          run-post: "false" # No conda package cache is saved on these disposable runners.
           auto-activate-base: true
           python-version: ${{ matrix.python-version }}
       - name: install conda-lock
@@ -183,10 +186,11 @@ jobs:
       fail-fast: false
       matrix:
         os: [ ubuntu-latest, macos-latest, windows-latest ]
-        python-version: [ "3.10" ]
+        python-version: [ "3.11" ]
     steps:
       - uses: conda-incubator/setup-miniconda@fc2d68f6413eb2d87b895e92f8584b5b94a10167 # v3.3.0
         with:
+          run-post: "false" # No conda package cache is saved on these disposable runners.
           auto-activate-base: true
           python-version: ${{ matrix.python-version }}
       - name: Download lockfiles
@@ -220,12 +224,13 @@ jobs:
           echo "CONDA_PLATFORM=linux-64" >> $GITHUB_ENV
       - name: Verify Conda platform
         run: echo "Conda platform is $CONDA_PLATFORM"
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
         with:
           persist-credentials: false
       - name: Set up Conda
         uses: conda-incubator/setup-miniconda@fc2d68f6413eb2d87b895e92f8584b5b94a10167 # v3.3.0
         with:
+          run-post: "false" # No conda package cache is saved on these disposable runners.
           auto-activate-base: true
           python-version: 3.14
       - name: install conda-lock
@@ -233,7 +238,12 @@ jobs:
         run: |
           conda install conda pip setuptools editables hatchling hatch-vcs conda-lock --yes
           conda uninstall conda-lock --force --yes
+          conda_specs=$(python .github/scripts/conda_dependency_specs.py)
+          printf 'Conda dependency specs:\n%s\n' "$conda_specs"
+          mapfile -t conda_spec_args <<< "$conda_specs"
+          conda install --yes "${conda_spec_args[@]}"
           pip install --no-deps --no-build-isolation -e .
+          pip check
       - name: run-test
         shell: bash -leo pipefail {0}
         run: |
@@ -245,3 +255,20 @@ jobs:
           cat conda-$CONDA_PLATFORM.lock
           cat conda-$CONDA_PLATFORM.lock.yml
           cat conda-lock.yml
+
+  # this little bit follows the same pattern from conda-build
+  integration-test-status:
+    name: integration-test-status
+    needs:
+      - lock-gdal
+      - install-gdal-with-micromamba
+      - install-gdal-with-conda
+      - install-gdal-with-conda-lock
+      - lock-gdal-via-conda
+    if: '!cancelled()'
+    runs-on: ubuntu-slim
+    steps:
+      - name: determine success
+        uses: re-actors/alls-green@b5b5b37504aa4183270bd3d855c52a67f212be35 # v1.3.0
+        with:
+          jobs: ${{ toJSON(needs) }}

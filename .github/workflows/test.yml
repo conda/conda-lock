@@ -18,15 +18,11 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}
   cancel-in-progress: true
 
-env:
-  # See also the same variable in integration-test.yml
-  # Pinned below 2.6.0 until conda-lock supports micromamba 2.6; see #907.
-  MICROMAMBA_VERSION: '2.5.0-2'
-
 jobs:
   test:
     name: pytest py${{ matrix.python-version }} on ${{ matrix.os }} (${{ matrix.pytest-split-group-index }}/${{ matrix.pytest-split-group-size }})
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 90
     permissions:
       contents: read
       actions: write  # for uploading artifacts
@@ -34,7 +30,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ ubuntu-latest, macos-latest, windows-latest ]
-        python-version: [ "3.10", "3.14" ]
+        python-version: [ "3.11", "3.14" ]
 
         # pytest-split handles dividing the tests into n groups indexed 1...n.
         # The tests are automatically split so that the expected duration of each
@@ -60,27 +56,31 @@ jobs:
             pytest-split-group-index: 9
           - os: ubuntu-latest
             pytest-split-group-index: 10
-          - os: macos-latest
-            pytest-split-group-index: 4
-          - os: macos-latest
+          - os: windows-latest
             pytest-split-group-index: 5
-          - os: macos-latest
+          - os: windows-latest
             pytest-split-group-index: 6
-          - os: macos-latest
+          - os: windows-latest
             pytest-split-group-index: 7
-          - os: macos-latest
+          - os: windows-latest
             pytest-split-group-index: 8
-          - os: macos-latest
+          - os: windows-latest
             pytest-split-group-index: 9
-          - os: macos-latest
+          - os: windows-latest
             pytest-split-group-index: 10
         include:
           - os: ubuntu-latest
             pytest-split-group-size: 3
+            pytest-workers: 4
+            pytest-distribution: load
           - os: macos-latest
-            pytest-split-group-size: 3
-          - os: windows-latest
             pytest-split-group-size: 10
+            pytest-workers: auto
+            pytest-distribution: load
+          - os: windows-latest
+            pytest-split-group-size: 4
+            pytest-workers: 4
+            pytest-distribution: worksteal
 
     defaults:
       run:
@@ -88,8 +88,10 @@ jobs:
     env:
       PYTHONUNBUFFERED: "1"
       FORCE_COLOR: "1"
+      PYTEST_WORKERS: ${{ matrix.pytest-workers }}
+      PYTEST_DISTRIBUTION: ${{ matrix.pytest-distribution }}
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
         with:
           fetch-depth: 0
           persist-credentials: false
@@ -119,9 +121,6 @@ jobs:
 
       - uses: mamba-org/setup-micromamba@add3a49764cedee8ee24e82dfde87f5bc2914462 # v2.0.7
         with:
-          micromamba-version: ${{ env.MICROMAMBA_VERSION }}
-          # # Use micromamba-url instead of micromamba-version to test prereleases
-          # micromamba-url: https://github.com/mamba-org/micromamba-releases/releases/download/${{ env.MICROMAMBA_VERSION }}/micromamba-${{ env.CONDA_PLATFORM }}
           environment-file: ${{ env.LOCKFILE_DIR }}/conda-lock.yml
           environment-name: conda-lock-dev
           init-shell: bash
@@ -143,6 +142,8 @@ jobs:
           set -x
           which pytest
           pytest \
+            --numprocesses="$PYTEST_WORKERS" \
+            --dist="$PYTEST_DISTRIBUTION" \
             --cov=conda_lock --cov-branch --cov-report=xml --cov-report=term \
             --store-durations \
             --clean-durations \
@@ -151,7 +152,7 @@ jobs:
             --splits="${{ matrix.pytest-split-group-size }}" \
             --group="${{ matrix.pytest-split-group-index }}"
 
-      - uses: codecov/codecov-action@671740ac38dd9b0130fbe1cec585b89eea48d3de # v5.5.2
+      - uses: codecov/codecov-action@0fb7174895f61a3b6b78fc075e0cd60383518dac # v5.5.5
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
 
@@ -196,3 +197,17 @@ jobs:
         with:
           name: aggregated-test-durations
           path: aggregated
+
+  # this little bit follows the same pattern from conda-build
+  test-status:
+    name: test-status
+    needs:
+      - test
+      - aggregate-durations
+    if: '!cancelled()'
+    runs-on: ubuntu-slim
+    steps:
+      - name: determine success
+        uses: re-actors/alls-green@b5b5b37504aa4183270bd3d855c52a67f212be35 # v1.3.0
+        with:
+          jobs: ${{ toJSON(needs) }}

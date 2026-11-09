@@ -14,7 +14,7 @@ import subprocess
 import sys
 import tempfile
 
-from collections.abc import Iterator, Sequence, Set
+from collections.abc import Generator, Sequence, Set
 from contextlib import contextmanager
 from functools import partial
 from importlib.metadata import distribution
@@ -108,11 +108,6 @@ HAVE_MAMBA = (
     )
     is not None
 )
-
-
-if not (sys.version_info.major >= 3 and sys.version_info.minor >= 6):
-    print("conda_lock needs to run under python >=3.6")
-    sys.exit(1)
 
 
 KIND_EXPLICIT: Literal["explicit"] = "explicit"
@@ -557,7 +552,7 @@ def do_render(
                     "dev-dependencies": str(include_dev_dependencies).lower(),
                     "input-hash": lockfile.metadata.content_hash[plat],
                     "version": distribution("conda_lock").version,
-                    "timestamp": datetime.datetime.now(datetime.timezone.utc).strftime(
+                    "timestamp": datetime.datetime.now(datetime.UTC).strftime(
                         "%Y%m%dT%H%M%SZ"
                     ),
                 }
@@ -793,15 +788,16 @@ def _solve_for_arch(
         for manager in ("conda", "pip")
     }
 
-    conda_deps = solve_conda(
-        conda,
-        specs=requested_deps_by_name["conda"],
-        locked=locked_deps_by_name["conda"],
-        update=update_spec.update,
-        platform=platform,
-        channels=channels,
-        mapping_url=mapping_url,
-    )
+    with virtual_package_repo.conda_virtual_package_overrides(platform):
+        conda_deps = solve_conda(
+            conda,
+            specs=requested_deps_by_name["conda"],
+            locked=locked_deps_by_name["conda"],
+            update=update_spec.update,
+            platform=platform,
+            channels=channels,
+            mapping_url=mapping_url,
+        )
 
     if requested_deps_by_name["pip"]:
         if "python" not in conda_deps:
@@ -815,8 +811,7 @@ def _solve_for_arch(
             metadata_for_platform: SubdirMetadata | EmptyDict = (
                 virtual_package_repo.all_repodata.get(platform, {})
             )
-            # pyright infers the correct type here, but mypy does not.
-            platform_virtual_packages = metadata_for_platform.get("packages")  # type: ignore[assignment]
+            platform_virtual_packages = metadata_for_platform.get("packages")
 
         pip_deps = solve_pypi(
             pip_specs=requested_deps_by_name["pip"],
@@ -935,8 +930,9 @@ def create_lockfile_from_spec(
     else:
         git_metadata = None
 
+    inputs_metadata: dict[str, InputMeta] | None
     if metadata_choices & {MetadataOption.InputSha, MetadataOption.InputMd5}:
-        inputs_metadata: dict[str, InputMeta] | None = {
+        inputs_metadata = {
             meta_src: InputMeta.create(
                 metadata_choices=metadata_choices, src_file=src_file
             )
@@ -984,7 +980,7 @@ def _add_auth_to_lockfile(lockfile: str, auth: dict[str, str]) -> str:
 
 
 @contextmanager
-def _add_auth(lockfile: str, auth: dict[str, str]) -> Iterator[pathlib.Path]:
+def _add_auth(lockfile: str, auth: dict[str, str]) -> Generator[pathlib.Path]:
     lockfile_with_auth = _add_auth_to_lockfile(lockfile, auth)
     with temporary_file_with_contents(lockfile_with_auth) as path:
         yield path
@@ -1026,7 +1022,7 @@ def _render_lockfile_for_install(
     include_dev_dependencies: bool = True,
     extras: Set[str] | None = None,
     force_platform: str | None = None,
-) -> Iterator[pathlib.Path]:
+) -> Generator[pathlib.Path]:
     """
     Render lock content into a temporary, explicit lockfile for the current platform
 

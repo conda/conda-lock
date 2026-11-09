@@ -1,0 +1,32 @@
+Use a fresh source-cache generation after upgrading to Dulwich 1.2.20.
+
+An existing checkout can be reused solely because its HEAD matches the requested
+revision. Keep checkouts created before the parser fix out of both the solver's
+environment source directory and Git's default source cache.
+
+Apply to upstream sources before vendoring rewrites imports.
+
+--- a/conda_lock/_vendor/poetry/puzzle/provider.py
++++ b/conda_lock/_vendor/poetry/puzzle/provider.py
+@@ -298,7 +298,8 @@
+             rev=dependency.rev,
+             subdirectory=dependency.source_subdirectory,
+             source_root=self._source_root
+-            or (self._env.path.joinpath("src") if self._env else None),
++            # Avoid checkouts created before the Dulwich 1.2.20 parser fix.
++            or (self._env.path.joinpath("src-v2") if self._env else None),
+         )
+
+         self.validate_package_for_dependency(dependency=dependency, package=package)
+--- a/conda_lock/_vendor/poetry/vcs/git/backend.py
++++ b/conda_lock/_vendor/poetry/vcs/git/backend.py
+@@ -401,7 +401,8 @@
+     def get_default_source_root() -> Path:
+         from poetry.config.config import Config
+
+-        return Path(Config.create().get("cache-dir")) / "src"
++        # Avoid checkouts created before the Dulwich 1.2.20 parser fix.
++        return Path(Config.create().get("cache-dir")) / "src-v2"
+
+     @classmethod
+     def clone(

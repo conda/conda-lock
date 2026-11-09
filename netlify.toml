@@ -1,3 +1,6 @@
 [build]
 command = "bash <(curl -L micro.mamba.pm/install.sh) && source ~/.bashrc && micromamba install --name base --file environments/conda-lock.yml --category main dev && micromamba activate base && pip install . && mkdocs build"
 publish = "site"
+
+[build.environment]
+MISE_PYTHON_GITHUB_ATTESTATIONS = "false"
