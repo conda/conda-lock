@@ -6,36 +6,52 @@ import shlex
 import shutil
 import subprocess
 import sys
-import time
 
 from collections.abc import (
     Generator,
     Iterable,
+    Mapping,
     MutableMapping,
     MutableSequence,
     Sequence,
 )
 from contextlib import contextmanager
+from posixpath import expandvars
 from textwrap import dedent
-from typing import (
-    Any,
-    Literal,
-)
-from urllib.parse import urlsplit, urlunsplit
+from typing import Any, cast
+from urllib.parse import unquote, urlsplit, urlunsplit
 
+from packaging.version import Version
+
+from conda_lock.errors import MetadataConsistencyError
 from conda_lock.interfaces.vendored_conda import MatchSpec
 from conda_lock.invoke_conda import (
     PathLike,
     _get_conda_flags,
     conda_env_override,
     conda_pkgs_dir,
+    extract_json_object,
     is_micromamba,
+    mamba_binary_version,
 )
 from conda_lock.lockfile import apply_categories
 from conda_lock.lockfile.v2prelim.models import HashModel, LockedDependency
 from conda_lock.models.channel import Channel, normalize_url_with_placeholders
 from conda_lock.models.dry_run_install import DryRunInstall, FetchAction, LinkAction
 from conda_lock.models.lock_spec import Dependency, VersionedDependency
+from conda_lock.solver.channel_metadata import (
+    metadata_fallback,
+    metadata_query_configuration,
+    verified_channel_records,
+)
+from conda_lock.solver.dry_run import reconstruct_fetch_actions_in_place
+from conda_lock.solver.graph_integrity import (
+    check_categories_assigned,
+    check_dependencies_present,
+    check_dependency_constraints,
+    packages_requiring_repair,
+    parse_dependency_spec,
+)
 from conda_lock.tempdir_manager import temporary_directory
 
 
@@ -68,11 +84,38 @@ def _to_match_spec(
         return ms.conda_build_form()
 
 
-def extract_json_object(proc_stdout: str) -> str:
-    try:
-        return proc_stdout[proc_stdout.index("{") : proc_stdout.rindex("}") + 1]
-    except ValueError:
-        return proc_stdout
+def _dependency_versions(depends: Iterable[str]) -> dict[str, str]:
+    dependency_specs: dict[str, list[MatchSpec]] = {}
+    for dep in depends:
+        matchspec = parse_dependency_spec(dep)
+        dependency_specs.setdefault(matchspec.name, []).append(matchspec)
+
+    dependencies = {}
+    for name, matchspecs in dependency_specs.items():
+        merged_matchspec = (
+            matchspecs[0] if len(matchspecs) == 1 else MatchSpec.merge(matchspecs)[0]
+        )
+        dependencies[name] = (
+            merged_matchspec.version.spec_str
+            if merged_matchspec.version is not None
+            else ""
+        )
+    return dependencies
+
+
+def _metadata_channels(
+    channels: Sequence[Channel], specs: Sequence[str]
+) -> list[Channel]:
+    # A source request such as comet_ml::comet_ml names a channel without adding
+    # it to the general channel list. Include it for verification only: adding
+    # it to the solve's --channel flags could change package selection/priority.
+    result, _ = metadata_query_configuration(channels)
+    for spec in specs:
+        if "::" in spec:
+            channel = Channel.from_string(spec.rsplit("::", 1)[0])
+            if channel not in result:
+                result.append(channel)
+    return result
 
 
 def solve_conda(
@@ -104,14 +147,17 @@ def solve_conda(
 
     """
 
+    metadata_fallback()  # Reject typos before invoking the solver.
     conda_specs = [
         _to_match_spec(dep.name, dep.version, dep.build, dep.conda_channel)
         for dep in specs.values()
         if isinstance(dep, VersionedDependency) and dep.manager == "conda"
     ]
     conda_locked = {dep.name: dep for dep in locked.values() if dep.manager == "conda"}
+    metadata_channels = _metadata_channels(channels, conda_specs)
     to_update = set(update).intersection(conda_locked)
 
+    verified_cache: dict[str, dict[str, Any]] = {}
     if to_update:
         dry_run_install = update_specs_for_arch(
             conda=conda,
@@ -120,6 +166,7 @@ def solve_conda(
             specs=conda_specs,
             locked=conda_locked,
             update=list(to_update),
+            verified_cache=verified_cache,
         )
     else:
         dry_run_install = solve_specs_for_arch(
@@ -127,29 +174,26 @@ def solve_conda(
             platform=platform,
             channels=channels,
             specs=conda_specs,
+            verified_cache=verified_cache,
         )
     logging.debug("dry_run_install:\n%s", dry_run_install)
 
+    records = dry_run_install["actions"]["FETCH"]
+    verified = verified_channel_records(
+        conda,
+        platform,
+        records,
+        channels=metadata_channels,
+        verified_cache=verified_cache,
+    )
+    if verified is not None:
+        records = list(verified.values())
+    check_dependency_constraints(records)
+
     # extract dependencies from package plan
     planned = {}
-    for action in dry_run_install["actions"]["FETCH"]:
-        dependency_specs: dict[str, list[MatchSpec]] = {}
-        for dep in action.get("depends") or []:
-            matchspec = MatchSpec(dep)  # pyright: ignore[reportArgumentType]
-            dependency_specs.setdefault(matchspec.name, []).append(matchspec)
-
-        dependencies = {}
-        for name, matchspecs in dependency_specs.items():
-            merged_matchspec = (
-                matchspecs[0]
-                if len(matchspecs) == 1
-                else MatchSpec.merge(matchspecs)[0]
-            )
-            dependencies[name] = (
-                merged_matchspec.version.spec_str
-                if merged_matchspec.version is not None
-                else ""
-            )
+    for action in records:
+        dependencies = _dependency_versions(action.get("depends") or [])
 
         locked_dependency = LockedDependency(
             name=action["name"],
@@ -158,7 +202,9 @@ def solve_conda(
             platform=platform,
             dependencies=dependencies,
             # TODO: Normalize URL here and inject env vars
-            url=normalize_url_with_placeholders(action["url"], channels=channels),
+            url=normalize_url_with_placeholders(
+                action["url"], channels=metadata_channels
+            ),
             # NB: virtual packages may have no hash
             hash=HashModel(
                 md5=action["md5"] if "md5" in action else "",
@@ -167,6 +213,8 @@ def solve_conda(
         )
         planned[action["name"]] = locked_dependency
 
+    check_dependencies_present(planned)
+
     # propagate categories from explicit to transitive dependencies
     apply_categories(
         requested={k: v for k, v in specs.items() if v.manager == "conda"},
@@ -174,113 +222,52 @@ def solve_conda(
         mapping_url=mapping_url,
     )
 
+    # A solver may select pip alongside Python without a Python -> pip edge,
+    # despite injection being disabled. Retain its selection and dependency
+    # metadata. Otherwise these category-less packages disappear on serialization.
+    # Only orphaned pip inherits Python's categories; explicitly requested or
+    # genuinely connected pip keeps the categories assigned above.
+    if "pip" in planned and not planned["pip"].categories and "python" in planned:
+        for category in sorted(planned["python"].categories):
+            apply_categories(
+                requested={
+                    "pip": VersionedDependency(
+                        name="pip", version="*", category=category
+                    )
+                },
+                planned=planned,
+                mapping_url=mapping_url,
+            )
+
+    check_categories_assigned(planned)
     return planned
 
 
-def _get_repodata_record(
-    pkgs_dirs: list[pathlib.Path], dist_name: str
-) -> FetchAction | None:
-    """Get the repodata_record.json of a given distribution from the package cache.
-
-    On rare occasion during the CI tests, conda fails to find a package in the
-    package cache, perhaps because the package is still being processed? Waiting for
-    0.1 seconds seems to solve the issue. Here we allow for a full second to elapse
-    before giving up.
-    """
-    NUM_RETRIES = 10
-    for retry in range(1, NUM_RETRIES + 1):
-        for pkgs_dir in pkgs_dirs:
-            record = pkgs_dir / dist_name / "info" / "repodata_record.json"
-            if record.exists():
-                with open(record) as f:
-                    repodata: FetchAction = json.load(f)
-                return repodata
-        logger.warning(
-            f"Failed to find repodata_record.json for {dist_name}. "
-            f"Retrying in 0.1 seconds ({retry}/{NUM_RETRIES})"
-        )
-        time.sleep(0.1)
-    logger.warning(f"Failed to find repodata_record.json for {dist_name}. Giving up.")
-    return None
-
-
-def _get_pkgs_dirs(
-    *,
-    conda: PathLike,
-    platform: str,
-    method: Literal["config", "info"] | None = None,
-) -> list[pathlib.Path]:
-    """Extract the package cache directories from the conda configuration."""
-    if method is None:
-        method = "config" if is_micromamba(conda) else "info"
-    if method == "config":
-        # 'package cache' was added to 'micromamba info' in v1.4.6.
-        args = [str(conda), "config", "--json", "list", "pkgs_dirs"]
-    elif method == "info":
-        args = [str(conda), "info", "--json"]
-    env = conda_env_override(platform)
-    output = subprocess.check_output(args, env=env).decode()
-    json_object_str = extract_json_object(output)
-    json_object: dict[str, Any] = json.loads(json_object_str)
-    pkgs_dirs_list: list[str]
-    if "pkgs_dirs" in json_object:
-        pkgs_dirs_list = json_object["pkgs_dirs"]
-    elif "package cache" in json_object:
-        pkgs_dirs_list = json_object["package cache"]
-    else:
-        raise ValueError(
-            f"Unable to extract pkgs_dirs from {json_object}. "
-            "Please report this issue to the conda-lock developers."
-        )
-    pkgs_dirs = [pathlib.Path(d) for d in pkgs_dirs_list]
-    return pkgs_dirs
-
-
-def _reconstruct_fetch_actions(
-    conda: PathLike,
-    platform: str,
-    dry_run_install: DryRunInstall | dict[str, dict[str, list[Any]]],
-) -> DryRunInstall | dict[str, dict[str, list[Any]]]:
-    """
-    Conda may choose to link a previously downloaded distribution from pkgs_dirs rather
-    than downloading a fresh one. Find the repodata record in existing distributions
-    that have only a LINK action, and use it to synthesize a corresponding FETCH action
-    with the metadata we need to extract for the package plan.
-    """
-    if "LINK" not in dry_run_install["actions"]:
-        dry_run_install["actions"]["LINK"] = []
-    if "FETCH" not in dry_run_install["actions"]:
-        dry_run_install["actions"]["FETCH"] = []
-
-    link_actions = {p["name"]: p for p in dry_run_install["actions"]["LINK"]}
-    fetch_actions = {p["name"]: p for p in dry_run_install["actions"]["FETCH"]}
-    link_only_names = set(link_actions.keys()).difference(fetch_actions.keys())
-    if link_only_names:
-        pkgs_dirs = _get_pkgs_dirs(conda=conda, platform=platform)
-    else:
-        pkgs_dirs = []
-
-    for link_pkg_name in link_only_names:
-        link_action = link_actions[link_pkg_name]
-        if "dist_name" in link_action:
-            dist_name = link_action["dist_name"]
-        elif "fn" in link_action:
-            dist_name = str(link_action["fn"])
-            if dist_name.endswith(".tar.bz2"):
-                dist_name = dist_name[:-8]
-            elif dist_name.endswith(".conda"):
-                dist_name = dist_name[:-6]
-            else:
-                raise ValueError(f"Unknown filename format: {dist_name}")
-        else:
-            raise ValueError(f"Unable to extract the dist_name from {link_action}.")
-        repodata = _get_repodata_record(pkgs_dirs, dist_name)
-        if repodata is None:
-            raise FileNotFoundError(
-                f"Distribution '{dist_name}' not found in pkgs_dirs {pkgs_dirs}"
+def _solver_error_message(proc: subprocess.CompletedProcess[str]) -> str:
+    """Preserve diagnostics from both JSON and plain-text solver failures."""
+    try:
+        data = json.loads(extract_json_object(proc.stdout))
+    except (ValueError, TypeError):
+        data = {}
+    messages = []
+    if isinstance(data, dict):
+        if isinstance(data.get("message"), str) and data["message"]:
+            messages.append(data["message"])
+        history = data.get("log_history")
+        if isinstance(history, list):
+            messages.extend(
+                entry["message"]
+                for entry in history
+                if isinstance(entry, dict)
+                and entry.get("level") in {"error", "critical"}
+                and isinstance(entry.get("message"), str)
             )
-        dry_run_install["actions"]["FETCH"].append(repodata)
-    return dry_run_install
+    return (
+        "\n".join(messages)
+        or proc.stdout.strip()
+        or (proc.stderr or "").strip()
+        or f"solver exited with status {proc.returncode}"
+    )
 
 
 def solve_specs_for_arch(
@@ -288,6 +275,8 @@ def solve_specs_for_arch(
     channels: Sequence[Channel],
     specs: list[str],
     platform: str,
+    *,
+    verified_cache: dict[str, dict[str, Any]] | None = None,
 ) -> DryRunInstall | dict[str, dict[str, list[Any]]]:
     """
     Solve conda specifications for the given platform
@@ -312,6 +301,13 @@ def solve_specs_for_arch(
         "--dry-run",
         "--json",
     ]
+    version = mamba_binary_version(conda)
+    if "mamba" not in pathlib.Path(conda).name.lower() or (
+        not is_micromamba(conda) and version is not None and version < Version("2")
+    ):
+        # Conda and Python-based Mamba honor create_default_packages. The C++
+        # Mamba executables ignore that setting and reject this option.
+        args.append("--no-default-packages")
     args.extend(_get_conda_flags(channels=channels, platform=platform))
     args.extend(specs)
     logger.info("%s using specs %s", platform, specs)
@@ -334,29 +330,24 @@ def solve_specs_for_arch(
     try:
         proc.check_returncode()
     except subprocess.CalledProcessError:
-        try:
-            err_json = json.loads(proc.stdout)
-            try:
-                message = err_json["message"]
-            except KeyError:
-                print("Message key not found in json! returning the full json text")
-                message = err_json
-        except json.JSONDecodeError as e:
-            print(f"Failed to parse json, {e}", file=sys.stderr)
-            message = proc.stdout
-
         print(
             f"Could not lock the environment for platform {platform}", file=sys.stderr
         )
-        if message:
-            print(message, file=sys.stderr)
+        print(_solver_error_message(proc), file=sys.stderr)
         print_proc(proc)
 
         raise
 
     try:
         dryrun_install: DryRunInstall = json.loads(extract_json_object(proc.stdout))
-        return _reconstruct_fetch_actions(conda, platform, dryrun_install)
+        reconstruct_fetch_actions_in_place(
+            conda,
+            platform,
+            dryrun_install,
+            channels=_metadata_channels(channels, specs),
+            verified_cache=verified_cache,
+        )
+        return dryrun_install
     except json.JSONDecodeError as e:
         raise RuntimeError(f"Failed to parse json: '{proc.stdout}'") from e
 
@@ -403,6 +394,102 @@ def _get_installed_conda_packages(
     return installed
 
 
+def _unrequested_packages(
+    records: Mapping[str, Mapping[str, Any]], requested: Iterable[str]
+) -> set[str]:
+    """Find packages outside the requested closure; verify before omitting them.
+
+    If a root or reachable edge is missing, defer pruning so the solver can
+    repair the graph and the final consistency checks can validate it.
+    """
+    needed: set[str] = set()
+    pending = list(requested)
+    while True:
+        if not pending:
+            # As with category assignment, retain a possible pip injection once
+            # Python is reachable. Missing edges still defer pruning, and this
+            # exception does not excuse unrelated packages.
+            if "python" in needed and "pip" in records and "pip" not in needed:
+                pending.append("pip")
+            else:
+                break
+        name = pending.pop()
+        if name in needed or name.startswith("__"):
+            continue
+        if name not in records:
+            return set()
+        needed.add(name)
+        pending.extend(
+            parse_dependency_spec(spec).name for spec in records[name]["depends"]
+        )
+    return set(records).difference(needed)
+
+
+def _log_artifact_replacements(
+    platform: str,
+    locked: Mapping[str, LockedDependency],
+    unavailable: set[str],
+    records: Sequence[Mapping[str, Any]],
+) -> None:
+    # Filenames include versions and builds without exposing channel credentials.
+    selected = {record["name"]: record for record in records}
+    for name in sorted(unavailable):
+        old_filename = unquote(urlsplit(locked[name].url).path.rsplit("/", 1)[-1])
+        new_filename = (
+            unquote(urlsplit(selected[name]["url"]).path.rsplit("/", 1)[-1])
+            if name in selected
+            else "not selected"
+        )
+        logger.info(
+            "Artifact replacement on %s: %s -> %s",
+            platform,
+            old_filename,
+            new_filename,
+        )
+
+
+def _packages_requiring_replacement(
+    records: Mapping[str, Mapping[str, Any]], unavailable: set[str]
+) -> set[str]:
+    """Re-solve affected parents instead of retaining an inconsistent prefix."""
+    parents: dict[str, set[str]] = {}
+    for name, record in records.items():
+        for dependency in record["depends"]:
+            parents.setdefault(parse_dependency_spec(dependency).name, set()).add(name)
+    affected = set(unavailable)
+    pending = list(unavailable)
+    while pending:
+        for name in parents.get(pending.pop(), set()).difference(affected):
+            affected.add(name)
+            pending.append(name)
+    return affected
+
+
+def _write_update_pins(
+    prefix: str,
+    source_specs: Sequence[str],
+    installed: Mapping[str, LinkAction],
+    update: Sequence[str],
+    *,
+    pin_installed: bool,
+) -> None:
+    # Conda may relax historical requests, so replacement solves also express
+    # source requirements as hard pins. Mamba receives all source specs on the
+    # command line instead: Mamba 1 rejects pins conflicting with the installed
+    # version before solving. Only its retained non-root packages need pins.
+    pins = [] if pin_installed else list(source_specs)
+    if pin_installed:
+        source_names = {MatchSpec(spec).name for spec in source_specs}
+        pins.extend(
+            f"{name} =={installed[name]['version']}"
+            for name in sorted(set(installed).difference(update, source_names))
+        )
+    if pins:
+        filename = pathlib.Path(prefix) / "conda-meta" / "pinned"
+        assert not filename.exists()
+        filename.write_text("\n".join(pins) + "\n")
+
+
 def update_specs_for_arch(
     conda: PathLike,
     specs: list[str],
@@ -410,6 +497,8 @@ def update_specs_for_arch(
     update: list[str],
     platform: str,
     channels: Sequence[Channel],
+    *,
+    verified_cache: dict[str, dict[str, Any]] | None = None,
 ) -> DryRunInstall | dict[str, dict[str, list[Any]]]:
     """
     Update a previous solution for the given platform
@@ -431,14 +520,111 @@ def update_specs_for_arch(
 
     """
 
-    with fake_conda_environment(locked.values(), platform=platform) as prefix:
+    if verified_cache is None:
+        verified_cache = {}
+    metadata_channels = _metadata_channels(channels, specs)
+    expected_records = [dependency.to_fetch_action() for dependency in locked.values()]
+    current_records = verified_channel_records(
+        conda,
+        platform,
+        expected_records,
+        channels=metadata_channels,
+        allow_missing=True,
+        verified_cache=verified_cache,
+    )
+    metadata_verified = current_records is not None
+    unavailable: set[str] = set()
+    if current_records is None:
+        current_records = {record["name"]: record for record in expected_records}
+    else:
+        unavailable = set(locked).difference(current_records)
+        if unavailable:
+            logger.warning(
+                "The channel query no longer lists the locked artifacts for %s. "
+                "Solving again under the source requirements; these packages may "
+                "change even if they were not named in --update.",
+                sorted(unavailable),
+            )
+        refreshed = sorted(
+            name
+            for name, dep in locked.items()
+            if name in current_records
+            and dep.dependencies
+            != _dependency_versions(current_records[name]["depends"])
+        )
+        if refreshed:
+            logger.info(
+                "Refreshed dependency metadata from verified channel artifacts: %s",
+                refreshed,
+            )
+    requested = {MatchSpec(spec).name for spec in specs}
+    if metadata_verified:
+        unrequested = _unrequested_packages(current_records, requested)
+        current_records = {
+            name: record
+            for name, record in current_records.items()
+            if name not in unrequested
+        }
+    inconsistent = (
+        packages_requiring_repair(list(current_records.values()))
+        if metadata_verified
+        else set()
+    )
+    repair = unavailable | inconsistent
+    reinstall = (
+        _packages_requiring_replacement(current_records, repair) | set(update)
+        if repair
+        else set()
+    )
+    if inconsistent:
+        logger.info(
+            "Refreshed requirements need a new selection for %s; including their "
+            "dependents in the initial update solve.",
+            sorted(inconsistent),
+        )
+    with fake_conda_environment(
+        (
+            dep
+            for name, dep in locked.items()
+            if name in current_records and name not in reinstall
+        ),
+        platform=platform,
+        repodata=current_records,
+        specs=specs if repair else None,
+    ) as prefix:
         installed = _get_installed_conda_packages(conda, platform, prefix)
         spec_for_name = {MatchSpec(v).name: v for v in specs}
         to_update = [
-            spec_for_name[name] for name in set(installed).intersection(update)
+            spec_for_name.get(name, name)
+            for name in sorted(set(installed).intersection(update))
         ]
+        if repair:
+            # Mamba update ignores absent packages. Install all current roots so
+            # unavailable roots and transitive packages can be selected afresh.
+            # Omit explicit update targets from the fake prefix too: otherwise
+            # Mamba install may keep their old versions instead of updating them.
+            if is_micromamba(conda) or pathlib.Path(conda).name.startswith("mamba"):
+                to_update = list(specs)
+            else:
+                # Conda uses the fake prefix's requested-spec history to retain
+                # other roots and their source constraints without upgrading them.
+                to_update = [
+                    spec for spec in specs if MatchSpec(spec).name not in installed
+                ]
+            to_update += [
+                name
+                for name in update
+                if name not in requested and name in current_records
+            ]
         dryrun_install: DryRunInstall
         if to_update:
+            _write_update_pins(
+                prefix,
+                specs if repair else (),
+                installed,
+                update,
+                pin_installed=pathlib.Path(conda).name.startswith("mamba"),
+            )
             # NB: [micro]mamba and mainline conda have different semantics for `install` and `update`
             # - conda:
             #   * update -> apply all nonmajor updates unconditionally (unless pinned)
@@ -452,15 +638,9 @@ def update_specs_for_arch(
             # Our `update` should always update the target to the latest version compatible with the constraint,
             # while updating as few other packages as possible. With mamba this can only be done with pinning.
             if pathlib.Path(conda).name.startswith("mamba"):
-                # pin non-updated packages to prevent _any_ movement
-                pinned_filename = pathlib.Path(prefix) / "conda-meta" / "pinned"
-                assert not pinned_filename.exists()
-                with open(pinned_filename, "w") as pinned:
-                    for name in set(installed.keys()).difference(update):
-                        pinned.write(f"{name} =={installed[name]['version']}\n")
                 args = [
                     str(conda),
-                    "update",
+                    "install" if repair else "update",
                     *_get_conda_flags(channels=channels, platform=platform),
                 ]
                 print(
@@ -471,7 +651,7 @@ def update_specs_for_arch(
             else:
                 args = [
                     str(conda),
-                    "update" if is_micromamba(conda) else "install",
+                    "update" if is_micromamba(conda) and not repair else "install",
                     *_get_conda_flags(channels=channels, platform=platform),
                 ]
             cmd = [
@@ -490,37 +670,97 @@ def update_specs_for_arch(
             try:
                 proc.check_returncode()
             except subprocess.CalledProcessError as exc:
-                err_json = json.loads(proc.stdout)
+                message = _solver_error_message(proc)
+                removal_context = (
+                    f". Previously locked artifacts are no longer listed for "
+                    f"{sorted(unavailable)}. Replacements must satisfy the current "
+                    "source requirements; review any pins that prevent replacement."
+                    if unavailable
+                    else ""
+                )
                 raise RuntimeError(
-                    f"Could not lock the environment for platform {platform}: {err_json.get('message')}"
+                    f"Could not lock the environment for platform {platform}: "
+                    f"{message}{removal_context}"
                 ) from exc
 
             dryrun_install = json.loads(extract_json_object(proc.stdout))
         else:
             dryrun_install = {"actions": {"LINK": [], "FETCH": []}}
 
-        if "actions" not in dryrun_install:
-            dryrun_install["actions"] = {"LINK": [], "FETCH": []}
-
-        updated = {entry["name"]: entry for entry in dryrun_install["actions"]["LINK"]}
-        for package in set(installed).difference(updated):
+        actions = dryrun_install.setdefault("actions", {"LINK": [], "FETCH": []})
+        actions.setdefault("LINK", [])
+        actions.setdefault("FETCH", [])
+        updated = {entry["name"] for entry in actions["LINK"]}
+        removed = {entry["name"] for entry in actions.get("UNLINK", [])}
+        for package in set(installed).difference(updated, removed):
             # This is the case where the package is unchanged.
-            # First create a FETCH action based on the original lockfile entry.
-            original_lockfile_entry = locked[package]
-            original_fetch_action = original_lockfile_entry.to_fetch_action()
+            # Carry refreshed metadata, or the original lock metadata in skip mode.
+            original_fetch_action = cast(FetchAction, current_records[package].copy())
             dryrun_install["actions"]["FETCH"].append(original_fetch_action)
 
             # Then create a LINK action to indicate that the package is installed.
             installed_link_action = installed[package]
             dryrun_install["actions"]["LINK"].append(installed_link_action)
 
-        reconstructed = _reconstruct_fetch_actions(conda, platform, dryrun_install)
-        return reconstructed
+        reconstruct_fetch_actions_in_place(
+            conda,
+            platform,
+            dryrun_install,
+            channels=metadata_channels,
+            verified_cache=verified_cache,
+        )
+        records = {
+            record["name"]: record for record in dryrun_install["actions"]["FETCH"]
+        }
+        verified = verified_channel_records(
+            conda,
+            platform,
+            list(records.values()),
+            channels=metadata_channels,
+            verified_cache=verified_cache,
+        )
+        if verified is None and repair:
+            raise MetadataConsistencyError(
+                "Cannot verify replacements for unavailable or inconsistent locked artifacts",
+                recovery=(
+                    "Replacement packages require channel verification. Use a solver "
+                    "with batched repoquery support, or set "
+                    "CONDA_LOCK_METADATA_FALLBACK=unbatched for slower full verification. "
+                    "See https://conda.github.io/conda-lock/flags/#conda_lock_metadata_fallback"
+                ),
+            )
+        if verified is not None:
+            records = verified
+            dryrun_install["actions"]["FETCH"] = [
+                cast(FetchAction, record) for record in records.values()
+            ]
+            unrequested = _unrequested_packages(records, requested)
+            if metadata_verified and unrequested.issubset(current_records):
+                # Only old packages can be omitted. New unexplained orphans
+                # still fail the final category guard. The graph is verified.
+                dryrun_install["actions"]["FETCH"] = [
+                    record
+                    for record in dryrun_install["actions"]["FETCH"]
+                    if record["name"] not in unrequested
+                ]
+                dryrun_install["actions"]["LINK"] = [
+                    record
+                    for record in dryrun_install["actions"]["LINK"]
+                    if record["name"] not in unrequested
+                ]
+        if unavailable:
+            _log_artifact_replacements(
+                platform, locked, unavailable, dryrun_install["actions"]["FETCH"]
+            )
+        return dryrun_install
 
 
 @contextmanager
 def fake_conda_environment(
-    locked: Iterable[LockedDependency], platform: str
+    locked: Iterable[LockedDependency],
+    platform: str,
+    repodata: Mapping[str, Mapping[str, Any]] | None = None,
+    specs: Sequence[str] | None = None,
 ) -> Generator[str]:
     """
     Create a fake conda prefix containing metadata corresponding to the provided dependencies
@@ -537,6 +777,13 @@ def fake_conda_environment(
         conda_meta = pathlib.Path(prefix) / "conda-meta"
         conda_meta.mkdir()
         (conda_meta / "history").touch()
+        if specs is not None:
+            # Conda reads source requirements from its normal transaction history.
+            # This prefix is synthetic, so the date carries no historical meaning.
+            (conda_meta / "history").write_text(
+                "==> 2000-01-01 00:00:00 <==\n"
+                f"# cmd: conda-lock\n# update specs: {list(specs)!r}\n"
+            )
         for dep in (
             dep for dep in locked if dep.manager == "conda" and dep.platform == platform
         ):
@@ -545,7 +792,7 @@ def fake_conda_environment(
             channel = urlunsplit(
                 (url.scheme, url.hostname, str(path.parent), None, None)
             )
-            truncated_path = path
+            truncated_path = path.with_name(unquote(path.name))
             while truncated_path.suffix in {".tar", ".bz2", ".gz", ".conda"}:
                 truncated_path = truncated_path.with_suffix("")
             build = truncated_path.name.split("-")[-1]
@@ -562,12 +809,30 @@ def fake_conda_environment(
                 "build_number": build_number,
                 "version": dep.version,
                 "subdir": path.parent.name,
-                "fn": path.name,
+                "fn": unquote(path.name),
                 "depends": [f"{k} {v}".strip() for k, v in dep.dependencies.items()],
             }
+            if repodata is not None:
+                # Retain raw dependency build constraints, constrains and other
+                # solver metadata from the channel record, or the original
+                # lockfile record when verification was explicitly skipped.
+                entry.update(repodata[dep.name])
+                # Expand placeholders at the solver IO boundary; retain them
+                # in lockfile metadata.
+                entry["url"] = expandvars(entry["url"])
+                # repoquery's channel may be a bare name or empty for file URLs.
+                # Conda prefix records need the actual subdirectory location.
+                artifact_url = urlsplit(entry["url"])
+                entry["channel"] = urlunsplit(
+                    artifact_url._replace(
+                        path=artifact_url.path.rsplit("/", 1)[0], query="", fragment=""
+                    )
+                )
             # mamba requires these to be stringlike so null are not allowed here
             if dep.hash.sha256 is not None:
                 entry["sha256"] = dep.hash.sha256
+            elif entry.get("sha256") is None:
+                entry.pop("sha256", None)
 
             with open(conda_meta / (truncated_path.name + ".json"), "w") as f:
                 json.dump(entry, f, indent=2)
