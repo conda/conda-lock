@@ -17,8 +17,17 @@ allowed-unresolved-imports = ["conda.*", "conda.plugins.*"]
 # Prefer conservative narrowing across dynamic boundaries.
 strict-generic-narrowing = true
 strict-equality-semantics = true
+# Require suppressions to name ty diagnostics instead of ignoring whole lines.
+respect-type-ignore-comments = false
 
 [rules]
+division-by-zero = "error"
+invalid-legacy-positional-parameter = "error"
+missing-type-argument = "error"
+missing-override-decorator = "error"
+possibly-missing-attribute = "error"
+possibly-missing-import = "error"
+possibly-unresolved-reference = "error"
 blanket-ignore-comment = "error"
 unsound-yield = "error"
 unsupported-dynamic-base = "error"
@@ -35,6 +44,5 @@ include = [
     "conda_lock/models/dry_run_install.py",
 ]
 [overrides.rules]
-missing-type-argument = "error"
 unsound-assignment = "error"
 unsound-return-statement = "error"

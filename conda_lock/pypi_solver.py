@@ -14,6 +14,7 @@ from urllib.parse import urldefrag, urlsplit, urlunsplit
 from packaging.tags import compatible_tags, cpython_tags, mac_platforms
 from packaging.utils import canonicalize_name
 from packaging.version import Version
+from typing_extensions import override
 
 from conda_lock._vendor.cleo.io.inputs.argv_input import ArgvInput
 from conda_lock._vendor.cleo.io.io import IO
@@ -55,11 +56,8 @@ from conda_lock.models.pip_repository import PipRepository
 if TYPE_CHECKING:
     from packaging.tags import Tag
 
-# NB: in principle these depend on the glibc on the machine creating the conda env.
-# We use tags supported by manylinux Docker images, which are likely the most common
-# in practice, see https://github.com/pypa/manylinux/blob/main/README.rst#docker-images.
-# NOTE:
-#   Keep the max in sync with the default value used in default-virtual-packages.yaml.
+# Manylinux tags understood by the solver. The target's __glibc virtual package
+# determines which are compatible; the default glibc need not match the newest tag.
 MANYLINUX_TAGS = ["1", "2010", "2014", "_2_17", "_2_18", "_2_24", "_2_28"]
 
 # This needs to be updated periodically as new macOS versions are released.
@@ -110,8 +108,11 @@ class PlatformEnv(VirtualEnv):
             # Handle non released Python versions e.g. release candidates
             version_match = re.match(r"(\d+)\.(\d+)\.?(\d+)?", python_version)
             if version_match:
+                # An explicit default types unmatched groups as None instead of Any.
                 self._python_version = tuple(
-                    int(each) for each in version_match.groups() if each is not None
+                    int(each)
+                    for each in version_match.groups(default=None)
+                    if each is not None
                 )
             else:
                 raise ValueError(
@@ -133,6 +134,7 @@ class PlatformEnv(VirtualEnv):
         else:
             raise ValueError(f"Unsupported platform '{platform}'")
 
+    @override
     def get_supported_tags(self) -> list["Tag"]:
         """
         Mimic the output of packaging.tags.sys_tags() on the given platform
@@ -145,6 +147,7 @@ class PlatformEnv(VirtualEnv):
             )
         )
 
+    @override
     def get_marker_env(self) -> dict[str, str]:
         """Return the subset of info needed to match common markers"""
         result: dict[str, str] = {
@@ -331,6 +334,7 @@ def get_dependency(dep: lock_spec.Dependency) -> PoetryDependency:
             vcs=dep.vcs,
             source=dep.source,
             rev=dep.rev,
+            extras=dep.extras,
         )
     elif isinstance(dep, lock_spec.PathDependency):
         if dep.is_directory:
@@ -351,7 +355,7 @@ def get_package(locked: LockedDependency) -> PoetryPackage:
             locked.name,
             source_type="url",
             source_url=locked.source.url,
-            version="0.0.0",
+            version=locked.version,
         )
     else:
         return PoetryPackage(locked.name, version=locked.version)
@@ -593,7 +597,7 @@ def solve_pypi(
         installed=installed,
         locked=locked,
         # ConsoleIO type is expected, but NullIO may be given:
-        io=io,  # pyright: ignore
+        io=io,
     )
     to_update = list(
         {canonicalize_name(spec.name) for spec in pip_locked.values()}.intersection(

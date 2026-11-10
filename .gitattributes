@@ -1,5 +1,7 @@
 * text eol=lf
 *.patch binary
+# Keep maintained source patches reviewable without line-ending conversion.
+scripts/vendor_patches/*.patch diff -whitespace
 *.bat binary
 *.exe binary
 *.ico binary

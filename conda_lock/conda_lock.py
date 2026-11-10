@@ -110,11 +110,6 @@ HAVE_MAMBA = (
 )
 
 
-if not (sys.version_info.major >= 3 and sys.version_info.minor >= 6):
-    print("conda_lock needs to run under python >=3.6")
-    sys.exit(1)
-
-
 KIND_EXPLICIT: Literal["explicit"] = "explicit"
 KIND_LOCK: Literal["lock"] = "lock"
 KIND_ENV: Literal["env"] = "env"
@@ -557,7 +552,7 @@ def do_render(
                     "dev-dependencies": str(include_dev_dependencies).lower(),
                     "input-hash": lockfile.metadata.content_hash[plat],
                     "version": distribution("conda_lock").version,
-                    "timestamp": datetime.datetime.now(datetime.timezone.utc).strftime(
+                    "timestamp": datetime.datetime.now(datetime.UTC).strftime(
                         "%Y%m%dT%H%M%SZ"
                     ),
                 }
@@ -816,8 +811,7 @@ def _solve_for_arch(
             metadata_for_platform: SubdirMetadata | EmptyDict = (
                 virtual_package_repo.all_repodata.get(platform, {})
             )
-            # pyright infers the correct type here, but mypy does not.
-            platform_virtual_packages = metadata_for_platform.get("packages")  # type: ignore[assignment]
+            platform_virtual_packages = metadata_for_platform.get("packages")
 
         pip_deps = solve_pypi(
             pip_specs=requested_deps_by_name["pip"],

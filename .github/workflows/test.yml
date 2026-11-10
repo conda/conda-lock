@@ -30,7 +30,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ ubuntu-latest, macos-latest, windows-latest ]
-        python-version: [ "3.10", "3.14" ]
+        python-version: [ "3.11", "3.14" ]
 
         # pytest-split handles dividing the tests into n groups indexed 1...n.
         # The tests are automatically split so that the expected duration of each
@@ -56,13 +56,31 @@ jobs:
             pytest-split-group-index: 9
           - os: ubuntu-latest
             pytest-split-group-index: 10
+          - os: windows-latest
+            pytest-split-group-index: 5
+          - os: windows-latest
+            pytest-split-group-index: 6
+          - os: windows-latest
+            pytest-split-group-index: 7
+          - os: windows-latest
+            pytest-split-group-index: 8
+          - os: windows-latest
+            pytest-split-group-index: 9
+          - os: windows-latest
+            pytest-split-group-index: 10
         include:
           - os: ubuntu-latest
             pytest-split-group-size: 3
+            pytest-workers: 4
+            pytest-distribution: load
           - os: macos-latest
             pytest-split-group-size: 10
+            pytest-workers: auto
+            pytest-distribution: load
           - os: windows-latest
-            pytest-split-group-size: 10
+            pytest-split-group-size: 4
+            pytest-workers: 4
+            pytest-distribution: worksteal
 
     defaults:
       run:
@@ -70,8 +88,10 @@ jobs:
     env:
       PYTHONUNBUFFERED: "1"
       FORCE_COLOR: "1"
+      PYTEST_WORKERS: ${{ matrix.pytest-workers }}
+      PYTEST_DISTRIBUTION: ${{ matrix.pytest-distribution }}
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
         with:
           fetch-depth: 0
           persist-credentials: false
@@ -111,8 +131,7 @@ jobs:
       - name: install conda-lock
         run: |
           which pip
-          # Use PyPI until conda-forge's ensureconda 1.7.0 supports Python 3.10.
-          pip install -e . "ensureconda>=1.7.0" --no-deps
+          pip install -e . --no-deps
 
       - name: run pip check
         run: pip check
@@ -123,6 +142,8 @@ jobs:
           set -x
           which pytest
           pytest \
+            --numprocesses="$PYTEST_WORKERS" \
+            --dist="$PYTEST_DISTRIBUTION" \
             --cov=conda_lock --cov-branch --cov-report=xml --cov-report=term \
             --store-durations \
             --clean-durations \
@@ -131,7 +152,7 @@ jobs:
             --splits="${{ matrix.pytest-split-group-size }}" \
             --group="${{ matrix.pytest-split-group-index }}"
 
-      - uses: codecov/codecov-action@671740ac38dd9b0130fbe1cec585b89eea48d3de # v5.5.2
+      - uses: codecov/codecov-action@0fb7174895f61a3b6b78fc075e0cd60383518dac # v5.5.5
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
 
