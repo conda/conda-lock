@@ -38,9 +38,12 @@ def aggregate_lock_specs(
         # unique dependencies
         unique_deps: dict[tuple[str, str], Dependency] = {}
         # Conda pip is special: every `pip:` subsection generates an unconstrained
-        # fallback requirement. It takes part in ordinary last-wins like any other
-        # dependency, so existing results and content hashes are unchanged, unless
-        # the effective explicit requirement is a real constraint. Only the final
+        # fallback requirement in the main category, because the subsection needs
+        # pip wherever it is installed. A real explicit constraint beats the
+        # fallback wherever either appears. Between the fallback and an
+        # unconstrained explicit requirement, ordinary last-wins still decides
+        # which one is written out, so their representations are unchanged. In
+        # both cases pip keeps the fallback's main membership. Only the final
         # explicit requirement and the final fallback decide; anything either of
         # them superseded is irrelevant.
         explicit_pip: Dependency | None = None
@@ -66,15 +69,15 @@ def aggregate_lock_specs(
                 explicit_pip = dep
             unique_deps[key] = dep
 
-        # A real explicit constraint beats the fallback wherever either appears.
-        pip_constraint: Dependency | None = None
-        if (
-            explicit_pip is not None
-            and fallback_pip is not None
-            and not _is_unconstrained(explicit_pip)
-        ):
-            pip_constraint = explicit_pip
-            unique_deps[("conda", fallback_pip.name)] = pip_constraint
+        # The explicit requirement is written out when it is a real constraint,
+        # wherever it appears, or when it came after every fallback.
+        explicit_winner: Dependency | None = None
+        if explicit_pip is not None and fallback_pip is not None:
+            pip_key = ("conda", fallback_pip.name)
+            if not _is_unconstrained(explicit_pip):
+                explicit_winner = unique_deps[pip_key] = explicit_pip
+            elif unique_deps[pip_key] is explicit_pip:
+                explicit_winner = explicit_pip
 
         # Preserve last-wins handling of explicit dependencies, then filter categories.
         if filtered_categories is not None:
@@ -84,7 +87,7 @@ def aggregate_lock_specs(
                 if dep.category in filtered_categories
             }
         if (
-            pip_constraint is not None
+            explicit_winner is not None
             and fallback_pip is not None
             and (
                 filtered_categories is None
@@ -93,14 +96,14 @@ def aggregate_lock_specs(
         ):
             pip_key = ("conda", fallback_pip.name)
             if pip_key not in unique_deps:
-                # The constraint belongs to an excluded category, so the
-                # subsection's own requirement applies again.
+                # The explicit requirement belongs to an excluded category, so
+                # the subsection's own requirement applies again.
                 unique_deps[pip_key] = fallback_pip
-            elif pip_constraint.category != fallback_pip.category:
-                # pip is needed by the subsection's category as well as by the
-                # constraint. The fallback's main category is installed with every
-                # selection, so it covers both without merging anything.
-                unique_deps[pip_key] = pip_constraint.model_copy(
+            elif explicit_winner.category != fallback_pip.category:
+                # pip is needed by the subsection as well as by the explicit
+                # requirement. The fallback's main category is installed with
+                # every selection, so it covers both without merging anything.
+                unique_deps[pip_key] = explicit_winner.model_copy(
                     update={"category": fallback_pip.category}
                 )
 

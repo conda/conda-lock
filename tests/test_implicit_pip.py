@@ -355,44 +355,15 @@ def test_explicit_duplicates_still_use_last_source(
     assert dep.version == ("25.0.1.*" if reverse else expected)
 
 
-# Content hashes computed on the base commit for the inputs below. Unconstrained
-# explicit pip and the subsection's fallback keep ordinary last-wins semantics,
-# including the winner's category, so nothing changes for these layouts.
-_LEGACY_CASES = [
+# Content hashes verified on PR base 350c4a04b for the inputs below. Between an
+# unconstrained explicit pip and the subsection's fallback, ordinary last-wins
+# still decides which one is written out. Wherever that already leaves conda pip
+# in main, or main is not selected, nothing changes for these layouts. The
+# layouts where conda pip used to drop out of main are covered by
+# test_later_unconstrained_pip_keeps_pip_in_main.
+_LEGACY_COMPATIBILITY_CASES = [
     # (unconstrained explicit pip, its category, subsection first, filter,
     #  surviving conda pip as (version, category) or None, base content hash)
-    (
-        "pip",
-        "dev",
-        True,
-        None,
-        ("", "dev"),
-        "625c17a93d5975490ae982b6491edadc203114eb084459d1cf8188251e2caa74",
-    ),
-    (
-        "pip *",
-        "dev",
-        True,
-        None,
-        ("*", "dev"),
-        "a46be966d564bc349ea0519e35887c3045f6e427e75aef7341d41c3375bd72af",
-    ),
-    (
-        "pip",
-        "dev",
-        True,
-        {"main"},
-        None,
-        "7738af3245cca7b967246a94955891cc0618931843dc73c0e26aed13d789d58e",
-    ),
-    (
-        "pip *",
-        "dev",
-        True,
-        {"main"},
-        None,
-        "7738af3245cca7b967246a94955891cc0618931843dc73c0e26aed13d789d58e",
-    ),
     (
         "pip",
         "dev",
@@ -430,11 +401,11 @@ _LEGACY_CASES = [
 
 @pytest.mark.parametrize(
     "explicit_spec, category, subsection_first, categories, conda_pip, base_hash",
-    _LEGACY_CASES,
+    _LEGACY_COMPATIBILITY_CASES,
     ids=[
         f"{case[0]}-{case[1]}-{'subsection_first' if case[2] else 'explicit_first'}"
         f"-{'unfiltered' if case[3] is None else '+'.join(sorted(case[3]))}"
-        for case in _LEGACY_CASES
+        for case in _LEGACY_COMPATIBILITY_CASES
     ],
 )
 def test_unconstrained_pip_keeps_legacy_last_wins_and_hash(
@@ -493,7 +464,7 @@ def test_wildcard_build_keeps_subsection_hash(
 
 
 @pytest.mark.parametrize("subsection_first", [False, True])
-def test_wildcard_build_keeps_source_order_and_hash(
+def test_wildcard_build_keeps_source_order_representation(
     mapping_url: str, tmp_path: Path, subsection_first: bool
 ) -> None:
     explicit = tmp_path / "explicit.yml"
@@ -504,20 +475,80 @@ def test_wildcard_build_keeps_source_order_and_hash(
     spec = make_lock_spec(
         src_files=sources, platform_overrides=["linux-64"], mapping_url=mapping_url
     )
+    # The later of the two unconstrained requirements is written out as before,
+    # not just its set of matching packages. Either way pip stays in main.
     assert _conda_pip(spec, "linux-64") == [
         VersionedDependency(
-            name="pip",
-            version="*",
-            build="*" if subsection_first else None,
-            category="dev" if subsection_first else "main",
+            name="pip", version="*", build="*" if subsection_first else None
         )
     ]
-    # Preserve the legacy winner's representation and category, not just its
-    # set of matching packages. Both hashes were computed on main (bc684265).
-    assert compute_content_hashes(spec, None)["linux-64"] == (
-        "f1577ed9d0de616ecb9086c30e5a55c86840fd199b8bc55c344604b9bea619a1"
-        if subsection_first
-        else "649cc3219c8549016232df0cdc61d1712cf2d38d3eec5ca7cd86c89dc176e858"
+    if not subsection_first:
+        # Frozen on main (bc684265): the fallback already won there.
+        assert compute_content_hashes(spec, None)["linux-64"] == (
+            "649cc3219c8549016232df0cdc61d1712cf2d38d3eec5ca7cd86c89dc176e858"
+        )
+
+
+# Content hashes that main (bc684265) produces when a dev-category source lists
+# unconstrained pip after a main-category pip subsection. They belong to
+# specifications whose conda pip is dev-only, or missing from a main-only
+# selection, although the subsection's packages are main. Installing main alone
+# from such a lock is not guaranteed a pip to install them with, so these hashes
+# must be invalidated.
+_DISPLACED_PIP_HASHES = {
+    "pip": "625c17a93d5975490ae982b6491edadc203114eb084459d1cf8188251e2caa74",
+    "pip *": "a46be966d564bc349ea0519e35887c3045f6e427e75aef7341d41c3375bd72af",
+    "pip * *": "f1577ed9d0de616ecb9086c30e5a55c86840fd199b8bc55c344604b9bea619a1",
+}
+_MAIN_ONLY_WITHOUT_PIP_HASH = (
+    "7738af3245cca7b967246a94955891cc0618931843dc73c0e26aed13d789d58e"
+)
+
+
+@pytest.mark.parametrize("requirement", list(_DISPLACED_PIP_HASHES))
+@pytest.mark.parametrize("categories", [None, {"main"}, {"main", "dev"}, {"dev"}])
+def test_later_unconstrained_pip_keeps_pip_in_main(
+    mapping_url: str,
+    tmp_path: Path,
+    requirement: str,
+    categories: set[str] | None,
+) -> None:
+    """A later source in another category must not take pip out of main."""
+    subsection = tmp_path / "subsection.yml"
+    subsection.write_text("dependencies:\n  - pip: [requests]\n")
+    in_dev = tmp_path / "dev.yml"
+    in_dev.write_text(f"category: dev\ndependencies:\n  - {requirement}\n")
+    in_main = tmp_path / "main.yml"
+    in_main.write_text(f"dependencies:\n  - {requirement}\n")
+
+    def lock(sources: list[Path]) -> LockSpecification:
+        return make_lock_spec(
+            src_files=sources,
+            platform_overrides=["linux-64"],
+            filtered_categories=categories,
+            mapping_url=mapping_url,
+        )
+
+    actual = lock([subsection, in_dev])
+    if categories == {"dev"}:
+        # Main is not selected, so the dev requirement stands as written.
+        [pip] = _conda_pip(actual, "linux-64")
+        assert pip.category == "dev"
+        assert actual.dependencies["linux-64"] == [pip]
+        return
+    # With dev selected, the result is what the same requirement gives in a
+    # main-category source. Without dev, it is the subsection's own requirement.
+    reference = lock([subsection] if categories == {"main"} else [subsection, in_main])
+    assert [d.model_dump() for d in actual.dependencies["linux-64"]] == [
+        d.model_dump() for d in reference.dependencies["linux-64"]
+    ]
+    assert [d.category for d in _conda_pip(actual, "linux-64")] == ["main"]
+    content_hash = compute_content_hashes(actual, None)["linux-64"]
+    assert content_hash == compute_content_hashes(reference, None)["linux-64"]
+    assert content_hash != (
+        _MAIN_ONLY_WITHOUT_PIP_HASH
+        if categories == {"main"}
+        else _DISPLACED_PIP_HASHES[requirement]
     )
 
 
@@ -602,7 +633,8 @@ def _expected_conda_pip(
     """The conda pip requirement that a sequence of source files must produce.
 
     Only the final explicit requirement and the presence of a fallback matter.
-    A constrained final requirement beats the fallback and keeps the fallback's
+    Next to a fallback, the explicit requirement is written out when it is
+    constrained or comes after every fallback, and it then keeps the fallback's
     main membership. Otherwise the last requirement of any kind wins, as before.
     """
 
@@ -610,10 +642,16 @@ def _expected_conda_pip(
         return categories is None or category in categories
 
     explicit = [(spec, category) for spec, category in sequence if spec != "fallback"]
-    if explicit and explicit[-1][0] == "pip=25.0.1" and len(explicit) < len(sequence):
-        category = explicit[-1][1]
+    has_fallback = len(explicit) < len(sequence)
+    if (
+        has_fallback
+        and explicit
+        and (explicit[-1][0] == "pip=25.0.1" or sequence[-1][0] != "fallback")
+    ):
+        spec, category = explicit[-1]
         if selected(category):
-            return [("25.0.1.*", "main" if selected("main") else category)]
+            version = _PIP_REQUIREMENTS[spec][1]
+            return [(version, "main" if selected("main") else category)]
         return [("*", "main")] if selected("main") else []
     spec, category = sequence[-1]
     if spec == "fallback":
