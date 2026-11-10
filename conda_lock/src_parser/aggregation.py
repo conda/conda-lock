@@ -1,12 +1,17 @@
 import logging
 
+from collections.abc import Set
 from itertools import chain
 from typing import TypeVar
 
 from conda_lock.common import ordered_union
 from conda_lock.errors import ChannelAggregationError
 from conda_lock.models.channel import Channel
-from conda_lock.models.lock_spec import Dependency, LockSpecification
+from conda_lock.models.lock_spec import (
+    Dependency,
+    LockSpecification,
+    VersionedDependency,
+)
 from conda_lock.models.pip_repository import PipRepository
 
 
@@ -16,6 +21,8 @@ logger = logging.getLogger(__name__)
 def aggregate_lock_specs(
     lock_specs: list[LockSpecification],
     platforms: list[str],
+    *,
+    filtered_categories: Set[str] | None = None,
 ) -> LockSpecification:
     for lock_spec in lock_specs:
         if set(lock_spec.platforms) != set(platforms):
@@ -30,11 +37,75 @@ def aggregate_lock_specs(
     for platform in platforms:
         # unique dependencies
         unique_deps: dict[tuple[str, str], Dependency] = {}
+        # Conda pip is special: every `pip:` subsection generates an unconstrained
+        # fallback requirement in the main category, because the subsection needs
+        # pip wherever it is installed. A real explicit constraint beats the
+        # fallback wherever either appears. Between the fallback and an
+        # unconstrained explicit requirement, ordinary last-wins still decides
+        # which one is written out, so their representations are unchanged. In
+        # both cases pip keeps the fallback's main membership. Only the final
+        # explicit requirement and the final fallback decide; anything either of
+        # them superseded is irrelevant.
+        explicit_pip: Dependency | None = None
+        fallback_pip: VersionedDependency | None = None
         for dep in chain.from_iterable(
             lock_spec.dependencies.get(platform, []) for lock_spec in lock_specs
         ):
             key = (dep.manager, dep.name)
+            if (
+                isinstance(dep, VersionedDependency)
+                and dep.manager == "conda"
+                and dep.is_pip_fallback
+            ):
+                if fallback_pip is None:
+                    # The fallback identifies pip's mapped conda name. Recover
+                    # the last explicit requirement that preceded it, if any.
+                    explicit_pip = unique_deps.get(key)
+                # Provenance is resolved here and never leaves the aggregate.
+                dep = fallback_pip = dep.model_copy(update={"is_pip_fallback": False})
+            elif fallback_pip is not None and key == ("conda", fallback_pip.name):
+                # Whatever the source wrote last, including a URL, VCS or
+                # path reference, is the explicit requirement.
+                explicit_pip = dep
             unique_deps[key] = dep
+
+        # The explicit requirement is written out when it is a real constraint,
+        # wherever it appears, or when it came after every fallback.
+        explicit_winner: Dependency | None = None
+        if explicit_pip is not None and fallback_pip is not None:
+            pip_key = ("conda", fallback_pip.name)
+            if not _is_unconstrained(explicit_pip):
+                explicit_winner = unique_deps[pip_key] = explicit_pip
+            elif unique_deps[pip_key] is explicit_pip:
+                explicit_winner = explicit_pip
+
+        # Preserve last-wins handling of explicit dependencies, then filter categories.
+        if filtered_categories is not None:
+            unique_deps = {
+                key: dep
+                for key, dep in unique_deps.items()
+                if dep.category in filtered_categories
+            }
+        if (
+            explicit_winner is not None
+            and fallback_pip is not None
+            and (
+                filtered_categories is None
+                or fallback_pip.category in filtered_categories
+            )
+        ):
+            pip_key = ("conda", fallback_pip.name)
+            if pip_key not in unique_deps:
+                # The explicit requirement belongs to an excluded category, so
+                # the subsection's own requirement applies again.
+                unique_deps[pip_key] = fallback_pip
+            elif explicit_winner.category != fallback_pip.category:
+                # pip is needed by the subsection as well as by the explicit
+                # requirement. The fallback's main category is installed with
+                # every selection, so it covers both without merging anything.
+                unique_deps[pip_key] = explicit_winner.model_copy(
+                    update={"category": fallback_pip.category}
+                )
 
         dependencies[platform] = list(unique_deps.values())
 
@@ -64,6 +135,16 @@ def aggregate_lock_specs(
         allow_pypi_requests=all(
             lock_spec.allow_pypi_requests for lock_spec in lock_specs
         ),
+    )
+
+
+def _is_unconstrained(dep: Dependency) -> bool:
+    return (
+        isinstance(dep, VersionedDependency)
+        and dep.version in ("", "*")
+        and dep.build in (None, "*")
+        and dep.conda_channel is None
+        and dep.hash is None
     )
 
 
