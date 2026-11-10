@@ -1,0 +1,344 @@
+# Mitigations for repodata corruption
+
+An upstream [regression in libmamba](https://github.com/mamba-org/mamba/issues/4052) causes repodata to be corrupted.
+The affected mamba/micromamba versions are 2.1.1 through 2.3.2.
+The regression was partially fixed in [mamba-org/mamba#4071](https://github.com/mamba-org/mamba/pull/4071) and released as version 2.3.3.
+
+## Metadata overview
+
+Conda packages cached under the package cache contain metadata under `info/`:
+
+- **`info/index.json`** is written at build time by `conda-build`. It describes the package as shipped in the artifact (name, version, build, depends, constrains, ...). This is the "as-built" view. Since the SHA256 and MD5 checksums of the build archive can only be computed once the build is complete, it is impossible to include them within `index.json`.
+
+- **`info/repodata_record.json`** is written (or backfilled) at install/extract time by conda/mamba. Its purpose is to store the channel-style record that the solver actually used — i.e. the entry from the channel’s `repodata.json`, which may include later fixes (repodata patches, e.g. [from conda-forge](https://github.com/conda-forge/conda-forge-repodata-patches)) and therefore can differ from index.json.
+If the package didn’t already have such a file, conda will synthesize one from index.json to make the cache uniform. That means the file usually represents “the channel’s view at install time,” but on older/broken installs it can be only “the best local reconstruction” — or, in the presence of bugs, even a degraded record.
+
+## The corruption pattern
+
+When installing packages from an explicit lockfile (e.g., `micromamba install -f 01-explicit.lock`), affected versions write incorrect metadata to `repodata_record.json` files in the package cache.
+
+### 2.1.1–2.3.2 (full corruption)
+
+The following fields are corrupted in `repodata_record.json`:
+
+- `depends` → `[]` (emptied)
+- `constrains` → `[]` (emptied)
+- `license` → `""` (emptied)
+- `timestamp` → `0`
+- `build_number` → `0`
+- `track_features` → `""`
+
+The corresponding `info/index.json` files remain correct; only `repodata_record.json` is corrupted.
+
+### 2.3.3 (partial fix)
+
+Upstream fixed how `depends` and `constrains` are populated: they are now copied from `info/index.json`. Other fields remain zeroed/emptied.
+
+- `depends` → copied exactly from `index.json` (key omitted if absent)
+- `constrains` → copied from `index.json`; empty lists are omitted
+- `license` → `""`
+- `timestamp` → `0`
+- `build_number` → `0`
+- `track_features` → `""`
+
+This means 2.3.3 still differs from a good cache, but only in the four metadata fields above; dependency-related fields match `index.json`.
+
+### Field-by-field behavior
+
+| Field           | 2.1.0 (good) | 2.1.1–2.3.2 (bug) | 2.3.3 (partial fix)            |
+|-----------------|---------------|--------------------|---------------------------------|
+| depends         | correct       | []                 | from `index.json` (omit if none) |
+| constrains      | correct       | []                 | from `index.json` (omit if empty) |
+| license         | correct       | ""                 | ""                              |
+| timestamp       | correct       | 0                  | 0                               |
+| build_number    | correct       | 0                  | 0                               |
+| track_features  | correct       | ""                 | ""                              |
+
+See upstream fix PR `mamba-org/mamba#4071` for details.
+
+## Manifest
+
+This suite is organized into five stages. Each stage lists the scripts, prerequisite files, and the output artifacts it produces. The focus is on what files are used and generated, and what they are for.
+
+### Stage 01 — Generate a sample explicit lockfile
+
+- Scripts
+  - `01-generate-sample-explicit-lockfile.py`: Generates a baseline explicit lockfile used by later stages.
+- Prerequisites
+  - `environments/conda-lock.yml` (repository root): Source environment specification from which the explicit lockfile is produced.
+  - `conda-lock` available on PATH.
+- Outputs
+  - `01-explicit.lock`: Explicit lockfile for `linux-64`. Used to populate caches in Stage 02/04 and as a baseline for reproducibility.
+
+### Stage 02 — Reproduce corrupt repodata via upstream (per micromamba version)
+
+- Scripts
+  - `02-reproduce-corrupt-repodata-via-upstream.py`: Builds and runs a Docker container to install from `01-explicit.lock` using a specific micromamba version, then extracts only package metadata.
+- Supporting files
+  - `02.Dockerfile`: Minimal image definition used by Stage 02 to perform an explicit install and extract metadata.
+- Prerequisites
+  - `01-explicit.lock` (from Stage 01).
+  - Docker installed and running.
+- Outputs
+  - `{version}-pkgs.tar.gz`: Compressed archive containing only `info/index.json` and `info/repodata_record.json` for each package installed by that micromamba version. This file is committed and serves as the source of truth for comparisons.
+  - `{version}-pkgs/`: Extracted directory for inspection when running scripts. This directory is ignored by git and can be regenerated from the `.tar.gz`.
+
+### Stage 03 — Simulate corruption by clobbering (optional verification)
+
+- Scripts
+  - `03-clobber-pkgs.py`: Applies the known corruption patterns to a copy of a good cache and verifies the result matches a target corrupt version exactly.
+- Prerequisites
+  - `{input-version}-pkgs.tar.gz`: The baseline metadata archive to corrupt (e.g., `2.1.0-pkgs.tar.gz`).
+  - `{corrupt-version}-pkgs.tar.gz`: The target corrupt reference archive (e.g., `2.1.1-pkgs.tar.gz` or `2.3.3-pkgs.tar.gz`) used for verification.
+- Outputs
+  - `clobbered-{input-version}-pkgs/`: Directory containing simulated corruption. Used for verification and inspection; ignored by git.
+
+### Stage 04 — Generate unified lockfiles with different caches and solvers
+
+- Scripts
+  - `04-test-conda-lock-with-pkgs.py`: Orchestrates Docker build and execution to generate unified lockfiles using different package caches (good vs. corrupt).
+  - `04-run-conda-lock.sh`: Runs inside the container. Warms caches, copies corrupt metadata into place, runs `conda-lock` twice (once with `conda.exe`, once with `mamba`), and recopies the corrupt metadata between runs to keep it intact.
+- Supporting files
+  - `04.Dockerfile`: Image providing micromamba, mamba, conda-standalone, Python, git, and `conda-lock`.
+  - `04-setup-editable.sh`: Sets up an editable install of `conda-lock` from the mounted repository inside the container.
+- Prerequisites
+  - `{version}-pkgs.tar.gz` (from Stage 02): Metadata archive for the selected micromamba version.
+  - `01-explicit.lock` (from Stage 01): Used to populate and warm the default package cache in the container.
+  - `environments/dev-environment.yaml` (repository root): Source file used by `conda-lock` to produce unified lockfiles.
+- Outputs
+  - `lockfile-{pkgs-name}-lock-with-conda.yml`: Unified lockfile produced using `--conda=/opt/conda/standalone_conda/conda.exe`.
+  - `lockfile-{pkgs-name}-lock-with-mamba.yml`: Unified lockfile produced using `--conda=/opt/conda/bin/mamba`.
+  - `{pkgs-name}/`: Extracted metadata directory mounted into the container (regenerated as needed); ignored by git.
+
+### Stage 05 — Render explicit lockfiles from unified lockfiles
+
+- Scripts
+  - `05-render-explicit-lockfiles.py`: Renders all unified lockfiles to explicit format using `conda-lock render --kind=explicit`.
+- Prerequisites
+  - Unified lockfiles matching `lockfile-*-lock-with-*.yml` (from Stage 04).
+  - `conda-lock` available on PATH.
+- Outputs
+  - `lockfile-{pkgs-name}-lock-with-{solver}-explicit.lock`: Explicit lockfiles (one per unified lockfile) used for direct comparison. These are the exact artifacts `conda-lock install` consumes prior to installation.
+
+## Reproducing the issue
+
+This directory contains scripts to reproduce the corrupt repodata issue by running different micromamba versions in Docker.
+
+### Generating the explicit lockfile
+
+The `01-explicit.lock` file is generated from the main conda-lock environment:
+
+```bash
+cd tests/test-corrupt-repodata
+python 01-generate-sample-explicit-lockfile.py
+```
+
+This will generate `01-explicit.lock` from `environments/conda-lock.yml`.
+
+### Extracting repodata from different micromamba versions
+
+Run the script with different versions to extract and compare repodata records:
+
+```bash
+python 02-reproduce-corrupt-repodata-via-upstream.py --version 2.1.0
+python 02-reproduce-corrupt-repodata-via-upstream.py --version 2.1.1
+python 02-reproduce-corrupt-repodata-via-upstream.py --version 2.3.3
+```
+
+This will create version-specific compressed archives (e.g., `2.1.0-pkgs.tar.gz`, `2.1.1-pkgs.tar.gz`, `2.3.3-pkgs.tar.gz`) containing the `index.json` and `repodata_record.json` files from each package's `info/` directory.
+
+### Comparing results
+
+The archives contain filtered package metadata. The scripts will automatically extract them to `{version}-pkgs/` directories when run (always fresh extraction). To manually compare:
+
+```bash
+rm -rf 2.1.0-pkgs 2.1.1-pkgs 2.3.3-pkgs
+tar -xzf 2.1.0-pkgs.tar.gz
+tar -xzf 2.1.1-pkgs.tar.gz
+tar -xzf 2.3.3-pkgs.tar.gz
+diff -r 2.1.0-pkgs/ 2.1.1-pkgs/
+diff -r 2.1.0-pkgs/ 2.3.3-pkgs/
+```
+
+The corrupt versions will have different corruption patterns:
+
+- **2.1.1–2.3.2**: Full corruption — `depends`/`constrains` emptied; `license`/`timestamp`/`build_number`/`track_features` zeroed/empty
+- **2.3.3**: Partial fix — `depends`/`constrains` copied from `index.json` (empty constrains omitted); other fields still zeroed/empty
+
+**Note:** Extracted directories are kept for inspection and ignored by git. The `.tar.gz` archives are the source of truth and should be committed to git.
+
+### Simulating the corruption
+
+To verify that the corruption pattern is well-understood, you can apply the same corruption to a good version:
+
+```bash
+# Test the 2.1.1 pattern (full corruption)
+python 03-clobber-pkgs.py --corrupt-version=2.1.1 --pattern=2.1.1
+
+# Test the 2.3.3 pattern (partial fix — depends/constrains from index.json)
+python 03-clobber-pkgs.py --corrupt-version=2.3.3 --pattern=2.3.3
+```
+
+This script:
+
+1. Extracts the input and corrupt pkgs archives (always fresh)
+2. Copies the good pkgs to `clobbered-{version}-pkgs/`
+3. Applies the specified corruption pattern to all `repodata_record.json` files:
+   - **2.1.1**: Sets `depends`/`constrains` to `[]`, zeros the other fields
+   - **2.3.3**: Reads `info/index.json` and sets `depends`/`constrains` to match (omits absent/empty), zeros the other fields
+4. Runs `diff` to verify the clobbered files match the corrupt version exactly
+5. Exits with status 0 if they match, 1 if they differ
+
+If the corruption pattern is correctly understood, the diff should be empty and the script will report success.
+
+The extracted directories are kept for inspection after the script completes.
+
+## Testing conda-lock with different pkgs directories
+
+To test how conda-lock behaves when reading from different package caches, use the fourth script:
+
+```bash
+# Generate lockfiles using the good 2.1.0 cache (tests both conda and mamba)
+python 04-test-conda-lock-with-pkgs.py --pkgs-archive 2.1.0-pkgs.tar.gz
+
+# Generate lockfiles using the corrupt 2.1.1 cache
+python 04-test-conda-lock-with-pkgs.py --pkgs-archive 2.1.1-pkgs.tar.gz
+
+# Generate lockfiles using the corrupt 2.3.3 cache
+python 04-test-conda-lock-with-pkgs.py --pkgs-archive 2.3.3-pkgs.tar.gz
+```
+
+This will:
+
+1. Build a Docker image with conda-lock installed from PyPI
+2. Extract the specified `.tar.gz` archive (always fresh)
+3. Mount the extracted pkgs directory as `/custom-pkgs-ro` (read-only)
+4. Mount the explicit lockfile (`01-explicit.lock`) for populating the cache
+5. Inside the container:
+   - Setup conda-lock in editable mode from the mounted source
+   - Configure micromamba to use `~/custom-pkgs-writeable/` as the first pkgs directory
+   - Warm the default package cache with `micromamba create -n temp-populate -y -f /explicit.lock`
+   - Copy the custom pkgs directory to `~/custom-pkgs-writeable/` (overwrites the warmed cache metadata)
+   - Run conda-lock with `--conda=/opt/conda/standalone_conda/conda.exe` → `lockfile-{pkgs-dir}-lock-with-conda.yml`
+   - Recopy the custom pkgs directory to ensure corrupt metadata for the second run
+   - Run conda-lock with `--conda=/opt/conda/bin/mamba` → `lockfile-{pkgs-dir}-lock-with-mamba.yml`
+6. Copy both lockfiles out of the container
+
+**Why these steps are necessary:**
+
+- The extracted archives only contain `index.json`/`repodata_record.json` (metadata), not the actual package files
+- Configuring the custom pkgs directory first ensures micromamba will check there before the default cache
+- Warming the default cache populates it with all package files (including metadata)
+- Copying the custom pkgs directory **after** warming overwrites the good metadata with corrupt metadata
+- This creates a hybrid cache: corrupt metadata from custom pkgs, but complete package files from the warmed default cache
+- conda-lock reads the corrupt metadata but can still access the package files it needs
+- Recopying before the second run ensures any metadata repairs from the first run don't affect the second
+
+**Why test both conda and mamba:**
+
+- Different conda executables may handle corrupt metadata differently
+- This helps identify whether the corruption affects all solvers or just specific ones
+
+Compare the generated lockfiles to see how corrupt metadata affects the output:
+
+```bash
+# Compare good vs corrupt cache (conda)
+diff lockfile-2.1.0-pkgs-lock-with-conda.yml lockfile-2.1.1-pkgs-lock-with-conda.yml
+diff lockfile-2.1.0-pkgs-lock-with-conda.yml lockfile-2.3.3-pkgs-lock-with-conda.yml
+
+# Compare good vs corrupt cache (mamba)
+diff lockfile-2.1.0-pkgs-lock-with-mamba.yml lockfile-2.1.1-pkgs-lock-with-mamba.yml
+diff lockfile-2.1.0-pkgs-lock-with-mamba.yml lockfile-2.3.3-pkgs-lock-with-mamba.yml
+
+# Compare conda vs mamba (same cache)
+diff lockfile-2.1.0-pkgs-lock-with-conda.yml lockfile-2.1.0-pkgs-lock-with-mamba.yml
+```
+
+This allows us to verify whether corrupt `repodata_record.json` files lead to corrupt lockfile entries (missing dependencies, missing sha256, etc.).
+
+## Rendering explicit lockfiles
+
+The `conda-lock install` command internally renders the unified lockfile to an explicit lockfile before installing. Packages are missing from the resulting environment if and only if they are missing from the explicit lockfile. Therefore, comparing explicit lockfiles directly demonstrates the symptom of missing packages without needing to actually install environments.
+
+To render all unified lockfiles to explicit format for comparison:
+
+```bash
+python 05-render-explicit-lockfiles.py
+```
+
+This will render all unified lockfiles to explicit format using `conda-lock render --kind=explicit`.
+
+Compare the explicit lockfiles to see which packages are missing due to corrupt metadata:
+
+```bash
+# Compare good vs corrupt cache (conda)
+diff lockfile-2.1.0-pkgs-lock-with-conda-explicit.lock lockfile-2.1.1-pkgs-lock-with-conda-explicit.lock
+diff lockfile-2.1.0-pkgs-lock-with-conda-explicit.lock lockfile-2.3.3-pkgs-lock-with-conda-explicit.lock
+
+# Compare good vs corrupt cache (mamba)
+diff lockfile-2.1.0-pkgs-lock-with-mamba-explicit.lock lockfile-2.1.1-pkgs-lock-with-mamba-explicit.lock
+diff lockfile-2.1.0-pkgs-lock-with-mamba-explicit.lock lockfile-2.3.3-pkgs-lock-with-mamba-explicit.lock
+```
+
+**Expected behavior:**
+
+- Lockfiles generated from good cache (2.1.0) should have complete package sets
+- Lockfiles generated from corrupt cache (2.1.1) will have missing packages due to incomplete dependency information (empty `depends`/`constrains`)
+- Lockfiles generated from partially fixed cache (2.3.3) should be complete, as the `depends`/`constrains` fields were restored from `index.json`
+- The diff will show which package URLs are missing in the corrupt versions
+
+This demonstrates the real-world symptom where lockfiles generated with corrupt metadata (2.1.1) are incomplete, leading to missing packages when users install from these explicit lockfiles. The 2.3.3 partial fix restored dependency information, so those lockfiles should match the baseline.
+
+## Command summary
+
+### Remove all artifacts
+
+Delete artifacts in chronological creation order (Stages 01 → 05). This removes everything, including previously committed reference archives.
+
+```bash
+cd tests/test-corrupt-repodata
+
+# Stage 01: baseline explicit lockfile
+rm -f 01-explicit.lock
+
+# Stage 02: extracted directories and reference archives
+rm -rf -- *-pkgs/
+rm -f *-pkgs.tar.gz
+
+# Stage 03: simulated corrupt directories
+rm -rf -- clobbered-*-pkgs/
+
+# Stage 04: unified lockfiles
+rm -f lockfile-*-lock-with-*.yml
+
+# Stage 05: explicit lockfiles
+rm -f lockfile-*-lock-with-*-explicit.lock
+```
+
+### Generate all artifacts
+
+This reproduces the entire flow across all stages and versions.
+
+```bash
+cd tests/test-corrupt-repodata
+
+# Stage 01: generate baseline explicit lockfile
+python 01-generate-sample-explicit-lockfile.py
+
+# Stage 02: extract metadata from upstream micromamba versions
+python 02-reproduce-corrupt-repodata-via-upstream.py --version 2.1.0
+python 02-reproduce-corrupt-repodata-via-upstream.py --version 2.1.1
+python 02-reproduce-corrupt-repodata-via-upstream.py --version 2.3.3
+
+# Stage 03: simulate corruption to verify patterns match corrupt baselines
+python 03-clobber-pkgs.py --input-version 2.1.0 --corrupt-version 2.1.1 --pattern 2.1.1
+python 03-clobber-pkgs.py --input-version 2.1.0 --corrupt-version 2.3.3 --pattern 2.3.3
+
+# Stage 04: generate unified lockfiles (conda and mamba) for each cache
+python 04-test-conda-lock-with-pkgs.py --pkgs-archive 2.1.0-pkgs.tar.gz
+python 04-test-conda-lock-with-pkgs.py --pkgs-archive 2.1.1-pkgs.tar.gz
+python 04-test-conda-lock-with-pkgs.py --pkgs-archive 2.3.3-pkgs.tar.gz
+
+# Stage 05: render explicit lockfiles from unified lockfiles
+python 05-render-explicit-lockfiles.py
+```
