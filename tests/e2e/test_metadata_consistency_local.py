@@ -40,6 +40,21 @@ pytestmark = pytest.mark.skipif(
 )
 
 
+def write_repodata(path, data):
+    """Write channel metadata so that solver caches recognize a rewrite.
+
+    Conda's libmamba repoquery reuses its cached index of a file:// channel
+    while the Last-Modified date is unchanged. That date has one-second
+    resolution, so a rewrite within the same second as the indexed version
+    would stay invisible. Give every rewrite a later whole-second timestamp.
+    """
+    previous = path.stat().st_mtime if path.exists() else None
+    path.write_text(data)
+    if previous is not None:
+        modified = max(path.stat().st_mtime, int(previous) + 1)
+        os.utime(path, (modified, modified))
+
+
 def make_channel(root, definitions=None):
     records = {"linux-64": {}, "noarch": {}}
     definitions = (
@@ -99,8 +114,8 @@ def make_channel(root, definitions=None):
         data = json.dumps(
             dict(info=dict(subdir=subdir), packages=packages, **{"packages.conda": {}})
         )
-        (root / subdir / "repodata.json").write_text(data)
-        (root / subdir / "current_repodata.json").write_text(data)
+        write_repodata(root / subdir / "repodata.json", data)
+        write_repodata(root / subdir / "current_repodata.json", data)
     return records
 
 
@@ -772,7 +787,7 @@ def test_update_refreshes_a_legitimate_channel_patch(tmp_path, monkeypatch, solv
             dict(info=dict(subdir=subdir), packages=packages, **{"packages.conda": {}})
         )
         for filename in ["repodata.json", "current_repodata.json"]:
-            (channel / subdir / filename).write_text(data)
+            write_repodata(channel / subdir / filename, data)
     # Ensure the solver reads the patched channel instead of an earlier snapshot.
     monkeypatch.setattr(invoke_conda, "CONDA_PKGS_DIRS", str(tmp_path / "update-cache"))
     updated = solve(locked, ["root-tool"])
@@ -933,14 +948,15 @@ def test_channel_patch_repairs_initial_update_request(
     def publish():
         for subdir, packages in records.items():
             for filename in ["repodata.json", "current_repodata.json"]:
-                (channel / subdir / filename).write_text(
+                write_repodata(
+                    channel / subdir / filename,
                     json.dumps(
                         {
                             "info": {"subdir": subdir},
                             "packages": packages,
                             "packages.conda": {},
                         }
-                    )
+                    ),
                 )
 
     delayed = {
@@ -1016,14 +1032,15 @@ def test_final_verification_observes_channel_patch_after_solving(
 
     def publish():
         for filename in ["repodata.json", "current_repodata.json"]:
-            (channel / "noarch" / filename).write_text(
+            write_repodata(
+                channel / "noarch" / filename,
                 json.dumps(
                     {
                         "info": {"subdir": "noarch"},
                         "packages": records["noarch"],
                         "packages.conda": {},
                     }
-                )
+                ),
             )
 
     def solve(locked, update):
