@@ -358,7 +358,7 @@ class LockMeta(StrictModel):
         return LockMeta(
             content_hash={**self.content_hash, **other.content_hash},
             channels=self.channels,
-            platforms=sorted(set(self.platforms).union(other.platforms)),
+            platforms=ordered_union([self.platforms, other.platforms]),
             sources=ordered_union([self.sources, other.sources]),
             time_metadata=other.time_metadata,
             git_metadata=other.git_metadata,

@@ -81,6 +81,7 @@ from conda_lock.lockfile.v2prelim.models import (
     DependencySource,
     HashModel,
     LockedDependency,
+    LockMeta,
     MetadataOption,
 )
 from conda_lock.lookup import DEFAULT_MAPPING_URL, conda_name_to_pypi_name
@@ -2053,6 +2054,23 @@ def test_aggregate_lock_specs_invalid_pip_repos():
     aggregate_lock_specs([base_spec, spec_a, spec_b_a], platforms=[])
     with pytest.raises(ChannelAggregationError):
         aggregate_lock_specs([base_spec, spec_a, spec_a_b], platforms=[])
+
+
+def test_lock_meta_merge_preserves_platform_order():
+    original = LockMeta(
+        content_hash={"linux-64": "a", "osx-arm64": "b", "osx-64": "c"},
+        channels=[Channel.from_string("conda-forge")],
+        platforms=["linux-64", "osx-arm64", "osx-64"],
+        sources=["environment.yml"],
+    )
+    fresh = LockMeta(
+        content_hash={"osx-arm64": "b2", "win-64": "d"},
+        channels=[Channel.from_string("conda-forge")],
+        platforms=["osx-arm64", "win-64"],
+        sources=["environment.yml"],
+    )
+    merged = original | fresh
+    assert merged.platforms == ["linux-64", "osx-arm64", "osx-64", "win-64"]
 
 
 def test_solve_arch_multiple_categories():
