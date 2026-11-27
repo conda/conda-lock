@@ -443,13 +443,15 @@ def unpack_git_url(url: str) -> tuple[str, str | None, str | None]:
         url = url[4:]
     rev = None
     subdir = None
-    if "@" in url:
-        try:
-            url, rev = url.split("@")
-        except ValueError:
-            # SSH URLs can have multiple @s
-            url1, url2, rev = url.split("@")
-            url = f"{url1}@{url2}"
+    # An "@" before the path is SSH or HTTP user info (git@host), not a rev separator.
+    # The path starts at the first "/" after the host, or at ":" in scp-like syntax.
+    if "://" in url:
+        path_start = url.find("/", url.index("://") + 3)
+    else:
+        path_start = url.find(":")
+    at = url.find("@", max(path_start, 0))
+    if at != -1:
+        url, rev = url[:at], url[at + 1 :]
     if rev and "#subdirectory=" in rev:
         rev, subdir = rev.split("#subdirectory=")
     return url, rev, subdir
