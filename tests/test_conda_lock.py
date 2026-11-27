@@ -117,6 +117,7 @@ from conda_lock.src_parser.pyproject_toml import (
     parse_platforms_from_pyproject_toml,
     parse_pyproject_toml,
     poetry_version_to_conda_version,
+    unpack_git_url,
 )
 from conda_lock.virtual_package import VirtualPackage
 
@@ -774,6 +775,47 @@ def test_parse_pip_requirement(
     requirement: str, parsed: "dict[str, str | None]"
 ) -> None:
     assert parse_pip_requirement(requirement) == parsed
+
+
+@pytest.mark.parametrize(
+    "url, expected",
+    [
+        (
+            "git+https://github.com/org/repo.git",
+            ("https://github.com/org/repo", None, None),
+        ),
+        (
+            "git+https://github.com/org/repo.git@v1.0",
+            ("https://github.com/org/repo.git", "v1.0", None),
+        ),
+        (
+            "git+ssh://git@github.com/org/repo.git",
+            ("ssh://git@github.com/org/repo", None, None),
+        ),
+        (
+            "git+ssh://git@github.com/org/repo.git@v1.0",
+            ("ssh://git@github.com/org/repo.git", "v1.0", None),
+        ),
+        (
+            "git+ssh://git@github.com/org/repo.git@feature/x#subdirectory=pkg",
+            ("ssh://git@github.com/org/repo.git", "feature/x", "pkg"),
+        ),
+        (
+            "git@github.com:org/repo.git",
+            ("git@github.com:org/repo", None, None),
+        ),
+        (
+            "git@github.com:org/repo.git@v1.0",
+            ("git@github.com:org/repo.git", "v1.0", None),
+        ),
+        (
+            "git+https://token@github.com/org/repo.git",
+            ("https://token@github.com/org/repo", None, None),
+        ),
+    ],
+)
+def test_unpack_git_url(url: str, expected: tuple[str, str | None, str | None]) -> None:
+    assert unpack_git_url(url) == expected
 
 
 def test_parse_meta_yaml_file(meta_yaml_environment: Path):
